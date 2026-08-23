@@ -382,3 +382,122 @@ func TestBuildSyncItems_SyncedFileNoDup(t *testing.T) {
 		t.Fatalf("pack.zip 应恰好 1 条，实际 %d 条: %+v", count, items)
 	}
 }
+
+// TestBuildSyncItems_DirLevelChildren 验证 dirLevelSync 类型的 Synced 文件夹
+// 会自动填充 children 字段，包含文件夹内部文件的真实同步状态
+func TestBuildSyncItems_DirLevelChildren(t *testing.T) {
+	sub := types.SubDirMap("ysm")
+	if sub == "" {
+		t.Skip("ysm 无 InstanceDir 配置，跳过")
+	}
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	instDir := filepath.Join(filepath.Join(base, "inst"), sub)
+
+	// 创建全局文件夹 packA，包含 3 个 .ysm 文件
+	globalPack := filepath.Join(globalDir, "packA")
+	_ = os.MkdirAll(globalPack, 0755)
+	_ = os.WriteFile(filepath.Join(globalPack, "model_a.ysm"), []byte("a"), 0644)
+	_ = os.WriteFile(filepath.Join(globalPack, "model_b.ysm"), []byte("b"), 0644)
+	_ = os.WriteFile(filepath.Join(globalPack, "model_c.ysm"), []byte("c"), 0644)
+
+	// 创建实例文件夹 packA，包含 2 个 .ysm 文件（缺 model_c，多 model_d）
+	instPack := filepath.Join(instDir, "packA")
+	_ = os.MkdirAll(instPack, 0755)
+	_ = os.WriteFile(filepath.Join(instPack, "model_a.ysm"), []byte("a"), 0644)
+	_ = os.WriteFile(filepath.Join(instPack, "model_b.ysm"), []byte("b"), 0644)
+	_ = os.WriteFile(filepath.Join(instPack, "model_d.ysm"), []byte("d"), 0644)
+
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir}, "")
+
+	// 找到 packA 条目
+	var packItem *types.ResourceSyncItem
+	for i := range items {
+		if items[i].Name == "packA" {
+			packItem = &items[i]
+			break
+		}
+	}
+	if packItem == nil {
+		t.Fatal("未找到 packA 条目")
+	}
+
+	// 验证 packA 是 Synced 状态
+	if packItem.Status != types.SyncStatusSynced {
+		t.Errorf("packA 应为 Synced，实际 %s", packItem.Status)
+	}
+
+	// 验证 children 不为空
+	if len(packItem.Children) == 0 {
+		t.Fatal("packA 的 children 应为空（包含子文件差异）")
+	}
+
+	t.Logf("packA children 数量: %d", len(packItem.Children))
+	for _, child := range packItem.Children {
+		t.Logf("  child: name=%s status=%s", child.Name, child.Status)
+	}
+
+	// 验证子文件状态
+	childByName := map[string]types.SyncStatus{}
+	for _, child := range packItem.Children {
+		childByName[child.Name] = child.Status
+	}
+
+	// model_a 和 model_b 应是 synced
+	if status, ok := childByName["model_a.ysm"]; !ok || status != types.SyncStatusSynced {
+		t.Errorf("model_a.ysm 应为 synced，实际 %v", status)
+	}
+	if status, ok := childByName["model_b.ysm"]; !ok || status != types.SyncStatusSynced {
+		t.Errorf("model_b.ysm 应为 synced，实际 %v", status)
+	}
+	// model_c 应是 missing
+	if status, ok := childByName["model_c.ysm"]; !ok || status != types.SyncStatusMissing {
+		t.Errorf("model_c.ysm 应为 missing，实际 %v", status)
+	}
+	// model_d 应是 optional
+	if status, ok := childByName["model_d.ysm"]; !ok || status != types.SyncStatusOptional {
+		t.Errorf("model_d.ysm 应为 optional，实际 %v", status)
+	}
+}
+
+// TestBuildSyncItems_DirLevelNoChildrenForMissing 验证 Missing 文件夹不会填充 children
+// 因为只对 Synced 文件夹做内容级 diff（Missing 文件夹不存在于实例侧）
+func TestBuildSyncItems_DirLevelNoChildrenForMissing(t *testing.T) {
+	sub := types.SubDirMap("ysm")
+	if sub == "" {
+		t.Skip("ysm 无 InstanceDir 配置，跳过")
+	}
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+
+	// 创建全局文件夹 packB（实例侧没有）
+	globalPack := filepath.Join(globalDir, "packB")
+	_ = os.MkdirAll(globalPack, 0755)
+	_ = os.WriteFile(filepath.Join(globalPack, "model_x.ysm"), []byte("x"), 0644)
+
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir}, "")
+
+	// 找到 packB 条目
+	var packItem *types.ResourceSyncItem
+	for i := range items {
+		if items[i].Name == "packB" {
+			packItem = &items[i]
+			break
+		}
+	}
+	if packItem == nil {
+		t.Fatal("未找到 packB 条目")
+	}
+
+	// packB 应是 Missing 状态
+	if packItem.Status != types.SyncStatusMissing {
+		t.Errorf("packB 应为 Missing，实际 %s", packItem.Status)
+	}
+
+	// Missing 文件夹不应有 children（实例侧不存在）
+	if len(packItem.Children) != 0 {
+		t.Errorf("Missing 文件夹不应有 children，实际 %d", len(packItem.Children))
+	}
+}

@@ -15,6 +15,8 @@ export interface SyncItem {
   size: number;
   /** MMD 用途子目录分组（ADR-095 后续）：EntityPlayer/SceneModel/...；根下为空 */
   subdir?: string;
+  /** 子条目列表（文件夹级同步单元的内部文件真实状态） */
+  children?: SyncItem[];
 }
 
 /** 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） */

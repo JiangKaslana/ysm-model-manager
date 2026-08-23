@@ -14,9 +14,18 @@
 //
 // 重构方案：
 //  1. key 从 basename 升级为相对路径（relKeyDirLevel），天然保留目录层级
-//  2. 平铺模型文件在任意深度收集，不再限定 rootDir 顶层
+//  2. 平铺模型文件在任意深度收集——仅当父目录不含模型文件（未被整体收编 SkipDir）时可达，
+//     属于边界路径：主路径（目录含模型文件 → isDirTypeModelFolder 检测为模型文件夹 →
+//     SkipDir 整树收编）覆盖绝大多数场景
 //  3. 模型文件夹在任意深度收集，不再限定一级子目录
 //  4. 非模型子目录中不包含任何模型文件/文件夹时，SkipDir 优化遍历
+//
+// 已知限制（非本次回归，待治理）：
+//   - 同级目录 `模型包/` 与文件 `模型包.zip` 的 key 都归一为 `<parent>/模型包` → 静默丢失一个
+//     （relKeyDirLevel 去扩展名 vs 目录 basename 冲突）
+//   - patternFind 对每个 Walk 访问的目录做子树递归搜索，祖先层搜索与子孙层重复；
+//     超大仓库可加「basename 不等于 entryDir 则不下钻」剪枝，但当前 maxDepth 设计
+//     支持 EntryDir 嵌套在非 EntryDir 目录名下，剪枝需谨慎验证
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 package sync
@@ -253,4 +262,122 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 	sort.Strings(result.Missing)
 	sort.Strings(result.Extra)
 	return result
+}
+
+// FileDiffEntry 文件级差异条目（用于文件夹内容级 diff）
+type FileDiffEntry struct {
+	RelPath string           `json:"relPath"` // 相对于文件夹根的路径
+	AbsPath string           `json:"absPath"` // 绝对路径
+	Size    int64            `json:"size"`
+	Status  types.SyncStatus `json:"status"` // synced/missing/optional
+}
+
+// DiffFolderContents 对同名文件夹进行内容级 diff
+// 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态
+// 用于在文件夹级同步单元内恢复单文件粒度的同步信息
+//
+// 参数：
+//
+//	globalFolder: 全局仓库侧的文件夹绝对路径
+//	instanceFolder: 实例侧的文件夹绝对路径
+//	rtype: 资源类型 ID（用于识别模型文件）
+//
+// 返回：
+//
+//	[]FileDiffEntry: 子文件级别的同步状态列表
+//
+// 设计原则：
+//   - 只扫描模型文件（通过 IsTypeModelFile 过滤）
+//   - 使用相对路径作为 key，保留层级信息
+//   - 只返回存在差异的文件（全 synced 的文件夹返回空切片）
+func DiffFolderContents(globalFolder, instanceFolder, rtype string) []FileDiffEntry {
+	// 扫描全局文件夹内的模型文件
+	globalFiles := collectFolderFiles(globalFolder, rtype)
+	// 扫描实例文件夹内的模型文件
+	instanceFiles := collectFolderFiles(instanceFolder, rtype)
+
+	var diffs []FileDiffEntry
+	seen := make(map[string]bool)
+
+	// 检查全局有但实例没有的文件（missing，可推送）
+	for relKey, gEntry := range globalFiles {
+		seen[relKey] = true
+		if _, exists := instanceFiles[relKey]; exists {
+			// 两侧都有，视为 synced（当前不做内容哈希对比）
+			diffs = append(diffs, FileDiffEntry{
+				RelPath: relKey,
+				AbsPath: gEntry,
+				Size:    fileSize(gEntry),
+				Status:  types.SyncStatusSynced,
+			})
+		} else {
+			// 全局有、实例没有 → missing
+			diffs = append(diffs, FileDiffEntry{
+				RelPath: relKey,
+				AbsPath: gEntry,
+				Size:    fileSize(gEntry),
+				Status:  types.SyncStatusMissing,
+			})
+		}
+	}
+
+	// 检查实例有但全局没有的文件（optional，可拉取）
+	for relKey, iEntry := range instanceFiles {
+		if !seen[relKey] {
+			diffs = append(diffs, FileDiffEntry{
+				RelPath: relKey,
+				AbsPath: iEntry,
+				Size:    fileSize(iEntry),
+				Status:  types.SyncStatusOptional,
+			})
+		}
+	}
+
+	sort.Slice(diffs, func(i, j int) bool {
+		return diffs[i].RelPath < diffs[j].RelPath
+	})
+	return diffs
+}
+
+// collectFolderFiles 扫描文件夹内的所有模型文件
+// 返回以相对路径为 key 的映射
+func collectFolderFiles(folder, rtype string) map[string]string {
+	entries := make(map[string]string)
+	if folder == "" {
+		return entries
+	}
+	filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Printf("[sync] collectFolderFiles Walk 错误 %s: %v", path, err)
+			return nil
+		}
+		// 跳过目录
+		if info.IsDir() {
+			// 跳过回收站目录
+			if path != folder && fsutil.IsRecycleDir(path) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// 只收集模型文件
+		if types.IsTypeModelFile(path, rtype) {
+			rel, err := filepath.Rel(folder, path)
+			if err != nil {
+				return nil
+			}
+			relSlash := filepath.ToSlash(rel)
+			entries[relSlash] = path
+		}
+		return nil
+	})
+	return entries
+}
+
+// fileSize 获取文件大小
+func fileSize(path string) int64 {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return fi.Size()
 }

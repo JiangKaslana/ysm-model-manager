@@ -150,12 +150,11 @@ async function renderList(self: SyncRenderSelf, listEl: HTMLElement): Promise<vo
 // 层级由路径天然分段（与 app-tree buildTree 同构），不再按 rtype 逐个特判。
 
 interface SyncTreeNode {
-  sync?: SyncItem;      // 有值 = 模型/文件行（带状态 + 操作按钮）
-  file?: SyncItem;      // 有值 = 文件行（复用 itemHTML）
-  files?: Array<{ name: string; path: string; size: number }>;
+  sync?: SyncItem;      // 有值 = 模型/文件夹行（带状态 + 操作按钮）
+  files?: Array<{ name: string; path: string; size: number; status?: string; icon?: string }>;
   /** subdir 分组文件夹（MMD 的 EntityPlayer/SceneModel 等）：无同步状态，纯分组导航 */
   _group?: boolean;
-  [key: string]: SyncTreeNode | SyncItem | Array<{ name: string; path: string; size: number }> | boolean | undefined;
+  [key: string]: SyncTreeNode | SyncItem | Array<{ name: string; path: string; size: number; status?: string; icon?: string }> | boolean | undefined;
 }
 interface SyncTreeRow {
   type: "dir" | "file";
@@ -199,13 +198,17 @@ async function scanSubEntries(absDir: string, rtype: string): Promise<Array<{ na
   }
 }
 
-/** 将 SyncItems 拼成嵌套树（文件夹 = subdir 分组 + 模型文件夹行；文件 = Scan 子条目）
+/** 将 SyncItems 拼成嵌套树（文件夹 = subdir 分组 + 模型文件夹行；文件 = Scan 子条目或 children 子项）
  * 展示 key 由 SyncItem.subdir（后端按各自侧根算好的子类分组）+ SyncItem.name（叶子名）
  * 组成，不再用绝对路径逐段解析——避免 subdir 提层时路径重复拼接（CustomAnim/CustomAnim/CustomAnim）。
- * 展开状态与操作（data-path）一律用 SyncItem.path（绝对路径），push/pull 直接消费。 */
+ * 展开状态与操作（data-path）一律用 SyncItem.path（绝对路径），push/pull 直接消费。
+ * 
+ * 当子条目有 status 时（来自后端 children），会创建带有真实状态的 SyncItem，
+ * 在 flattenSyncTree 中使用 file 字段存储，渲染时显示真实状态和按钮。
+ */
 function buildSyncTree(
   items: SyncItem[],
-  scanned: Record<string, Array<{ name: string; path: string; size: number }>>,
+  scanned: Record<string, Array<{ name: string; path: string; size: number; status?: string; icon?: string }>>,
 ): SyncTreeNode {
   const root: SyncTreeNode = {};
   const pathOf = (it: SyncItem): string =>
@@ -223,14 +226,22 @@ function buildSyncTree(
       }
       node = root[topLevel] as SyncTreeNode;
     }
-    node[leafName] = {
-      sync: it,
-      files: scanned[p]?.map((f) => ({
+    
+    // 处理子条目：如果有 status，创建带状态的 SyncItem
+    const rawFiles = scanned[p] || [];
+    const files: Array<{ name: string; path: string; size: number; status?: string; icon?: string }> = [];
+    for (const f of rawFiles) {
+      files.push({
         name: f.name,
         path: p + "/" + f.name,
         size: f.size,
-      })) || [],
-    };
+        status: f.status,
+        icon: f.icon,
+      });
+    }
+    
+    const nodeData: SyncTreeNode = { sync: it, files };
+    node[leafName] = nodeData;
   }
   return root;
 }
@@ -249,11 +260,20 @@ function flattenSyncTree(node: SyncTreeNode, dirOpen: Record<string, boolean>, d
       if (shouldExpand(v.sync.path || "", v.sync.subdir, dirOpen)) {
         if (v.files && v.files.length) {
           for (const f of v.files) {
-            // 子文件继承父 SyncItem 的状态（用于 itemHTML 渲染），补 fileName/fileSize
+            // 为每个子文件创建独立的 SyncItem
+            // 如果有 status（来自后端 children），使用真实状态
+            const childSync: SyncItem = {
+              path: f.path,
+              name: f.name,
+              status: f.status || "",
+              type: v.sync.type,
+              icon: f.icon || "",
+              size: f.size,
+            };
             rows.push({
               type: "file",
               key: key + "/" + f.name,
-              sync: v.sync,
+              sync: childSync,
               fileName: f.name,
               fileSize: f.size,
               indent: (depth + 1) * 16 + 10,
@@ -268,8 +288,6 @@ function flattenSyncTree(node: SyncTreeNode, dirOpen: Record<string, boolean>, d
       if (dirOpen[key]) {
         rows.push(...flattenSyncTree(v, dirOpen, depth + 1, key));
       }
-    } else if (v.file) {
-      rows.push({ type: "file", key, sync: v.file, indent: depth * 16 + 10 });
     } else {
       rows.push(...flattenSyncTree(v, dirOpen, depth + 1, key));
     }
@@ -277,7 +295,7 @@ function flattenSyncTree(node: SyncTreeNode, dirOpen: Record<string, boolean>, d
   return rows;
 }
 
-/** 渲染 dirLevelSync 层级列表（文件夹行带状态/按钮；展开后扫描显示内部文件） */
+/** 渲染 dirLevelSync 层级列表（文件夹行带状态/按钮；展开后显示内部文件） */
 async function renderSyncTree(self: SyncRenderSelf, items: SyncItem[]): Promise<string> {
   if (!items.length) return "";
   const rtype = self._selectedType || "";
@@ -290,7 +308,19 @@ async function renderSyncTree(self: SyncRenderSelf, items: SyncItem[]): Promise<
       if (!p) return;
       // 展开判断委托给 shouldExpand——子项独立提供自身路径信息
       if (shouldExpand(raw, it.subdir, dirOpen)) {
-        scanned[p] = await scanSubEntries(raw, rtype);
+        // 如果有 children（后端内容级 diff），使用 children 数据
+        if (it.children && it.children.length > 0) {
+          scanned[p] = it.children.map((child) => ({
+            name: child.name,
+            path: child.path,
+            size: child.size,
+            status: child.status,
+            icon: child.icon,
+          }));
+        } else {
+          // 否则扫描子条目（兼容旧数据）
+          scanned[p] = await scanSubEntries(raw, rtype);
+        }
       }
     }),
   );
@@ -303,17 +333,32 @@ async function renderSyncTree(self: SyncRenderSelf, items: SyncItem[]): Promise<
       // data-path 用后端绝对路径（SyncItem.path），push/pull 直接消费
       html += syncDirRowHTML(r.key, r.sync, shouldOpen, i, r.sync.path);
     } else if (r.type === "file" && r.sync) {
-      // 子文件行：用父 SyncItem 的状态渲染，但 name 用 fileName、size 用 fileSize
-      const subFile: SyncItem = {
-        path: r.key,
-        name: r.fileName || r.sync.name,
-        status: "synced",      // 子文件本身不参与同步判定，统一 synced 外观
-        type: r.sync.type,
-        icon: "📄",
-        size: r.fileSize || r.sync.size,
-      };
-      const fileRow = itemHTML(subFile, i);
-      html += fileRow.replace('class="sm-item" data-path=', 'class="sm-item sm-file" data-path=');
+      // 子文件行：判断是否有真实状态（来自 children，非空且非 synced）
+      const status = r.sync.status || "";
+      const hasRealStatus = status !== "" && status !== "synced";
+      const indent = r.indent || 0;
+      
+      if (hasRealStatus) {
+        // 有真实状态：使用 itemHTML 渲染，显示状态图标和操作按钮
+        const childItem: SyncItem = {
+          path: r.sync.path || r.key,
+          name: r.fileName || r.sync.name,
+          status: r.sync.status,
+          type: r.sync.type,
+          icon: r.sync.icon,
+          size: r.fileSize || r.sync.size,
+        };
+        // 用缩进样式包裹 itemHTML
+        const itemHtml = itemHTML(childItem, i);
+        html += '<div style="padding-left:' + (indent * 16 + 24) + 'px">' + itemHtml + '</div>';
+      } else {
+        // 无真实状态：用 syncFileRowHTML 中性渲染（向后兼容）
+        html += syncFileRowHTML({
+          name: r.fileName || r.sync.name,
+          path: r.key,
+          size: r.fileSize || r.sync.size,
+        }, indent / 16);
+      }
     }
   });
   return html;

@@ -28,7 +28,7 @@
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 2 | 3 |
 | go/scanner | 1 | 10 |
-| Go·同步 | 7 | 23 |
+| Go·同步 | 7 | 25 |
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 10 |
 | Go·Three.js | 1 | 6 |
@@ -48,7 +48,7 @@
 | frontend/views | 117 | 332 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **454** | **1912** |
+| **合计** | **454** | **1914** |
 
 ## Go·头像
 
@@ -395,7 +395,9 @@
 |------|--------|------|
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
-| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:192` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:201` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `DiffFolderContents()` | `go/sync/sync_dirlevel:291` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
+| `FileDiffEntry()` | `go/sync/sync_dirlevel:268` | FileDiffEntry 文件级差异条目（用于文件夹内容级 diff） |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
 | `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
@@ -2080,14 +2082,14 @@
 | `loadData()` | `frontend/src/views/app-sync-manager/store:42` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
 | `applyFilter()` | `frontend/src/views/app-sync-manager/store:65` | 应用类型 + 状态筛选，写入 self._filteredItems。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
-| `SyncFile()` | `frontend/src/views/app-sync-manager/tpl:21` | 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） |
-| `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:31` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |
-| `syncFileRowHTML()` | `frontend/src/views/app-sync-manager/tpl:92` | 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） |
-| `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:117` | 容器骨架 |
-| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:160` | 状态筛选标签 HTML |
-| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:189` | 列表项 HTML |
-| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:247` | 空状态 HTML |
-| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:261` | 加载中 |
+| `SyncFile()` | `frontend/src/views/app-sync-manager/tpl:23` | 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） |
+| `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:33` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |
+| `syncFileRowHTML()` | `frontend/src/views/app-sync-manager/tpl:94` | 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） |
+| `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:119` | 容器骨架 |
+| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:162` | 状态筛选标签 HTML |
+| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:191` | 列表项 HTML |
+| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:249` | 空状态 HTML |
+| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:263` | 加载中 |
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
 | `AuthorInfo()` | `frontend/src/views/app-tree/authors:5` | 作者统计（Go ListModelAuthors 返回） |
 | `loadAuthors()` | `frontend/src/views/app-tree/authors:13` | 从 Go 端加载作者列表 |

@@ -69,6 +69,43 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		// icon 选择，收敛 Synced/Missing/Extra 三分支逐字重复（索引 6.8c）。
 		// defaultStatus 为分支默认状态；isLegacy 仅 Extra 分支传（旧仓库硬链接检测），其余传 nil。
 		isDirLevel := types.IsDirLevelSync(rt.ID)
+
+		// buildChildrenForDir 为 dirLevelSync 类型的文件夹构建子条目列表
+		// 通过 DiffFolderContents 获取文件夹内容级差异
+		buildChildrenForDir := func(globalPath, instPath string) []types.ResourceSyncItem {
+			// 只在两侧路径都存在时才做内容级 diff
+			if _, err1 := os.Stat(globalPath); err1 != nil {
+				return nil
+			}
+			if _, err2 := os.Stat(instPath); err2 != nil {
+				return nil
+			}
+			diffs := ysmsync.DiffFolderContents(globalPath, instPath, rt.ID)
+			if len(diffs) == 0 {
+				return nil
+			}
+			children := make([]types.ResourceSyncItem, 0, len(diffs))
+			for _, d := range diffs {
+				childStatus := d.Status
+				childIcon := rt.Icon
+				// 子文件禁用检测
+				lowName := strings.ToLower(filepath.Base(d.AbsPath))
+				if types.IsDisableSuffix(lowName) {
+					childStatus = types.SyncStatusDisabled
+					childIcon = "⛔"
+				}
+				children = append(children, types.ResourceSyncItem{
+					Path:   d.AbsPath,
+					Name:   d.RelPath, // 使用相对路径作为名称，便于前端展示
+					Status: childStatus,
+					Type:   rt.ID,
+					Icon:   childIcon,
+					Size:   d.Size,
+				})
+			}
+			return children
+		}
+
 		appendItem := func(p string, defaultStatus types.SyncStatus, isLegacy func(string) bool) {
 			// 目录级类型：SyncResourcesDirLevel 返回的文件夹条目（如 hello_new_generation_core）
 			// 无扩展名，需按目录放行——展示粒度与操作粒度一致
@@ -95,9 +132,24 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 				status = types.SyncStatusLegacy
 				icon = "🔗"
 			}
+
+			// 为 dirLevelSync 的 Synced 文件夹构建子条目
+			var children []types.ResourceSyncItem
+			if isDirLevel && isDirEntry && defaultStatus == types.SyncStatusSynced {
+				// 计算实例侧对应的文件夹路径
+				instPath := p
+				// 如果路径以 globalDir 开头，替换为 instDir
+				if strings.HasPrefix(p, globalDir) {
+					rel := strings.TrimPrefix(p, globalDir)
+					instPath = filepath.Join(instDir, rel)
+				}
+				children = buildChildrenForDir(p, instPath)
+			}
+
 			items = append(items, types.ResourceSyncItem{
 				Path: p, Name: filepath.Base(p),
 				Status: status, Type: rt.ID, Icon: icon, Size: sizeOf(p),
+				Children: children,
 			})
 		}
 

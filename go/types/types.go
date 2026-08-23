@@ -224,4 +224,8 @@ type ResourceSyncItem struct {
 	// SubDir MMD 子目录分组（ADR-096：dirLevel 同步单元若位于
 	// mmdSubdirNames 命中的用途子目录内，填子目录名；根下为 ""=EntityPlayer）
 	SubDir string `json:"subdir,omitempty"`
+	// Children 子条目列表（文件夹级同步单元的内部文件状态）
+	// 当同步单元是文件夹且存在内容级差异时，填充此字段
+	// 用于展示文件夹内部每个文件的真实同步状态
+	Children []ResourceSyncItem `json:"children,omitempty"`
 }

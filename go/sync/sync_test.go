@@ -754,3 +754,159 @@ func TestIsFileLocked(t *testing.T) {
 		t.Error("nil 不应判定为锁定")
 	}
 }
+
+// ===== DiffFolderContents =====
+
+// TestDiffFolderContents_Basic 测试基本的文件夹内容级 diff
+func TestDiffFolderContents_Basic(t *testing.T) {
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+
+	// 创建全局文件夹：包含 3 个 .ysm 文件
+	globalFolder := filepath.Join(globalDir, "test_pack")
+	os.MkdirAll(globalFolder, 0755)
+	os.WriteFile(filepath.Join(globalFolder, "model_a.ysm"), []byte("a"), 0644)
+	os.WriteFile(filepath.Join(globalFolder, "model_b.ysm"), []byte("b"), 0644)
+	os.WriteFile(filepath.Join(globalFolder, "model_c.ysm"), []byte("c"), 0644)
+
+	// 创建实例文件夹：包含 2 个 .ysm 文件（缺失 model_c，多出 model_d）
+	instFolder := filepath.Join(instDir, "test_pack")
+	os.MkdirAll(instFolder, 0755)
+	os.WriteFile(filepath.Join(instFolder, "model_a.ysm"), []byte("a"), 0644)
+	os.WriteFile(filepath.Join(instFolder, "model_b.ysm"), []byte("b"), 0644)
+	os.WriteFile(filepath.Join(instFolder, "model_d.ysm"), []byte("d"), 0644)
+
+	diffs := DiffFolderContents(globalFolder, instFolder, "ysm")
+
+	// 应返回 4 个条目：2 synced (a, b), 1 missing (c), 1 optional (d)
+	if len(diffs) != 4 {
+		t.Fatalf("预期 4 个差异条目，实际 %d: %v", len(diffs), diffs)
+	}
+
+	// 检查各条目的状态
+	for _, d := range diffs {
+		switch d.RelPath {
+		case "model_a.ysm", "model_b.ysm":
+			if d.Status != types.SyncStatusSynced {
+				t.Errorf("%s 应为 synced，实际 %s", d.RelPath, d.Status)
+			}
+		case "model_c.ysm":
+			if d.Status != types.SyncStatusMissing {
+				t.Errorf("%s 应为 missing，实际 %s", d.RelPath, d.Status)
+			}
+		case "model_d.ysm":
+			if d.Status != types.SyncStatusOptional {
+				t.Errorf("%s 应为 optional，实际 %s", d.RelPath, d.Status)
+			}
+		default:
+			t.Errorf("意外的条目: %s", d.RelPath)
+		}
+	}
+
+	t.Logf("Diff results:")
+	for _, d := range diffs {
+		t.Logf("  %s: %s (size=%d)", d.RelPath, d.Status, d.Size)
+	}
+}
+
+// TestDiffFolderContents_EmptyFolders 测试空文件夹的 diff
+func TestDiffFolderContents_EmptyFolders(t *testing.T) {
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+
+	// 两个空文件夹
+	globalFolder := filepath.Join(globalDir, "empty_pack")
+	instFolder := filepath.Join(instDir, "empty_pack")
+	os.MkdirAll(globalFolder, 0755)
+	os.MkdirAll(instFolder, 0755)
+
+	diffs := DiffFolderContents(globalFolder, instFolder, "ysm")
+	if len(diffs) != 0 {
+		t.Errorf("空文件夹应返回 0 条差异，实际 %d: %v", len(diffs), diffs)
+	}
+}
+
+// TestDiffFolderContents_NoModelFiles 测试不含模型文件的文件夹
+func TestDiffFolderContents_NoModelFiles(t *testing.T) {
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+
+	globalFolder := filepath.Join(globalDir, "non_model")
+	instFolder := filepath.Join(instDir, "non_model")
+	os.MkdirAll(globalFolder, 0755)
+	os.MkdirAll(instFolder, 0755)
+
+	// 写入非模型文件（.txt）
+	os.WriteFile(filepath.Join(globalFolder, "readme.txt"), []byte("hello"), 0644)
+	os.WriteFile(filepath.Join(instFolder, "readme.txt"), []byte("hello"), 0644)
+
+	diffs := DiffFolderContents(globalFolder, instFolder, "ysm")
+	if len(diffs) != 0 {
+		t.Errorf("不含模型文件的文件夹应返回 0 条差异，实际 %d: %v", len(diffs), diffs)
+	}
+}
+
+// TestDiffFolderContents_NestedFiles 测试嵌套文件的 diff
+func TestDiffFolderContents_NestedFiles(t *testing.T) {
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+
+	// 创建嵌套结构：subdir/model.ysm
+	globalFolder := filepath.Join(globalDir, "nested_pack")
+	os.MkdirAll(filepath.Join(globalFolder, "subdir"), 0755)
+	os.WriteFile(filepath.Join(globalFolder, "subdir", "nested_model.ysm"), []byte("nested"), 0644)
+
+	// 实例侧没有这个嵌套文件
+	instFolder := filepath.Join(instDir, "nested_pack")
+	os.MkdirAll(instFolder, 0755)
+
+	diffs := DiffFolderContents(globalFolder, instFolder, "ysm")
+
+	if len(diffs) != 1 {
+		t.Fatalf("预期 1 个差异条目，实际 %d: %v", len(diffs), diffs)
+	}
+
+	expectedRel := "subdir/nested_model.ysm"
+	if diffs[0].RelPath != expectedRel {
+		t.Errorf("预期相对路径 %s，实际 %s", expectedRel, diffs[0].RelPath)
+	}
+	if diffs[0].Status != types.SyncStatusMissing {
+		t.Errorf("应为 missing，实际 %s", diffs[0].Status)
+	}
+}
+
+// TestDiffFolderContents_EmptyPath 测试空路径的边界情况
+func TestDiffFolderContents_EmptyPath(t *testing.T) {
+	diffs := DiffFolderContents("", "", "ysm")
+	if len(diffs) != 0 {
+		t.Errorf("空路径应返回 0 条差异，实际 %d: %v", len(diffs), diffs)
+	}
+}
+
+// TestDiffFolderContents_RecycleDir 测试回收站目录被跳过
+func TestDiffFolderContents_RecycleDir(t *testing.T) {
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+
+	globalFolder := filepath.Join(globalDir, "pack_with_recycle")
+	os.MkdirAll(globalFolder, 0755)
+	// 活跃模型
+	os.WriteFile(filepath.Join(globalFolder, "active.ysm"), []byte("active"), 0644)
+	// 回收站内的模型（应被跳过）
+	recycleDir := filepath.Join(globalFolder, ".recycle")
+	os.MkdirAll(recycleDir, 0755)
+	os.WriteFile(filepath.Join(recycleDir, "trashed.ysm"), []byte("trashed"), 0644)
+
+	instFolder := filepath.Join(instDir, "pack_with_recycle")
+	os.MkdirAll(instFolder, 0755)
+
+	diffs := DiffFolderContents(globalFolder, instFolder, "ysm")
+
+	// 应只包含 active.ysm，不包含 .recycle/trashed.ysm
+	if len(diffs) != 1 {
+		t.Fatalf("应只有 1 条活跃模型差异，实际 %d: %v", len(diffs), diffs)
+	}
+	if diffs[0].RelPath != "active.ysm" {
+		t.Errorf("应只有 active.ysm，实际 %s", diffs[0].RelPath)
+	}
+}
