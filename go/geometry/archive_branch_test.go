@@ -12,6 +12,7 @@ package geometry
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"hash/crc32"
 	"testing"
@@ -686,5 +687,107 @@ func TestParseFromZip_InvalidGeoSkipped(t *testing.T) {
 	model2, _, _ := ParseFromZip(allBad, int64(len(allBad)))
 	if model2 != nil {
 		t.Fatalf("全部几何非法时模型应为 nil, got %+v", model2)
+	}
+}
+
+// TestBuildComponents_ModelTexNameMap 验证：共享纹理的多个组件（foxcar/mule）
+// 用 modelTexName basename→texName 映射后不再因 texOrder 去重而索引漂移。
+// 复现 wine_fox 根因：modelOrder 有 8 项，texOrder 去重后只有 7 项，
+// 按索引查表 foxcar 错贴 minecart.png、minecart 错贴 boat.png。
+func TestBuildComponents_ModelTexNameMap(t *testing.T) {
+	// 构造 ysm.json：player 声明 main+arm，vehicles 段 foxcar（horse+mule 共享）+ minecart + boat
+	// modelOrder（保留重复）：[main, arm, foxcar, foxcar, minecart, boat]
+	// texOrder（当前去重逻辑）：[skin, skin_white, arrow, trident, foxcar, minecart, boat] = 7 项
+	// 按旧索引查表：foxcar(index=2)→arrow.png ❌、minecart(index=4)→foxcar.png ❌、boat(index=5)→minecart.png ❌
+	// vehicles 段补充：每个 vehicle 独立声明纹理，用于 modelTexName 映射构建。
+	ysm := `{
+		"files": {
+			"player": {
+				"model": ["models/main.json", "models/arm.json", "models/foxcar.json", "models/foxcar.json", "models/minecart.json", "models/boat.json"],
+				"texture": [
+					{"uv": "textures/skin.png"},
+					{"uv": "textures/skin_white.png"},
+					{"uv": "textures/arrow.png"},
+					{"uv": "textures/trident.png"},
+					{"uv": "textures/foxcar.png"},
+					{"uv": "textures/foxcar.png"},
+					{"uv": "textures/minecart.png"},
+					{"uv": "textures/boat.png"}
+				]
+			},
+			"vehicles": {
+				"minecraft:horse": {"model":"models/foxcar.json","texture":"textures/foxcar.png"},
+				"minecraft:mule":  {"model":"models/foxcar.json","texture":"textures/foxcar.png"},
+				"minecraft:minecart": {"model":"models/minecart.json","texture":"textures/minecart.png"},
+				"minecraft:boat":   {"model":"models/boat.json","texture":"textures/boat.png"}
+			}
+		}
+	}`
+	data := testutil.MakeZipBytes(t, map[string]string{
+		"ysm.json":                ysm,
+		"models/main.json":        miniGeo,
+		"models/arm.json":         miniGeo,
+		"models/foxcar.json":      miniGeo,
+		"models/minecart.json":    miniGeo,
+		"models/boat.json":        miniGeo,
+		"textures/skin.png":       "SKIN",
+		"textures/skin_white.png": "SKIN_W",
+		"textures/arrow.png":      "ARROW",
+		"textures/trident.png":    "TRIDENT",
+		"textures/foxcar.png":     "FOXCAR",
+		"textures/minecart.png":   "MINECART",
+		"textures/boat.png":       "BOAT",
+	})
+	comps, texNames, err := ParseComponentsFromZip(data, int64(len(data)))
+	if err != nil {
+		t.Fatalf("ParseComponentsFromZip 失败: %v", err)
+	}
+	if len(comps) != 5 {
+		t.Fatalf("组件数 = %d, 期望 5（main/arm/foxcar/minecart/boat）", len(comps))
+	}
+	// main 优先
+	if comps[0].SourceName != "main" {
+		t.Errorf("组件 0 SourceName = %q, 期望 main", comps[0].SourceName)
+	}
+	// 关键断言：每个组件的 ComponentTextures 应绑定正确的同名纹理
+	wantCompTex := map[string]string{
+		"main":     "SKIN",
+		"arm":      "SKIN_W",
+		"foxcar":   "FOXCAR",
+		"minecart": "MINECART",
+		"boat":     "BOAT",
+	}
+	for _, c := range comps {
+		want, ok := wantCompTex[c.SourceName]
+		if !ok {
+			continue
+		}
+		gotArr, has := c.ComponentTextures[c.SourceName]
+		if !has || len(gotArr) == 0 {
+			t.Errorf("组件 %s 应有 ComponentTextures[%s] 条目", c.SourceName, c.SourceName)
+			continue
+		}
+		// base64 data URI 编码了 PNG 数据，直接断言编码结果
+		expectedBase64 := "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte(want))
+		if gotArr[0] != expectedBase64 {
+			t.Errorf("组件 %s ComponentTextures[%s][0] = %.80q，期望 %q",
+				c.SourceName, c.SourceName, gotArr[0], expectedBase64)
+		}
+	}
+	// texNames：每组件一个期望纹理名（用于 R1 契约校验）
+	// foxcar/minecart/boat：player.texture 有 8 项但 texOrder 去重后 7 项。
+	// 修复后按 basename 直接查 modelTexName，不依赖索引对齐。
+	// minecart/boat 没有 projModels 声明，declaredTexName 为空 → fallback basename。
+	wantTexNames := []string{"skin", "skin_white", "foxcar", "minecart", "boat"}
+	if len(texNames) != len(wantTexNames) {
+		t.Errorf("texNames 长度 = %d, 期望 %d", len(texNames), len(wantTexNames))
+	}
+	for i, want := range wantTexNames {
+		if i >= len(texNames) {
+			break
+		}
+		if texNames[i] != want {
+			t.Errorf("texNames[%d] = %q, 期望 %q", i, texNames[i], want)
+		}
 	}
 }

@@ -58,11 +58,12 @@ invariant_anchors:
 - **zip 路径排除第一人称手臂 arm.json**（`archive.go` `isArmModelName`：arm.json / arm.geo.json，2026-08 提交 63644b40）：arm 与 main 手臂重叠合并会渲染出两对手臂；且 arm.json 占 texIdx 槽位会让 main 纹理错位——收集模型时剔除并移除其占位（解压目录路径同款在 [go_ysm_parser](./go-ysm-parser.md) 的 `extracted.go`）
 - 模型文件与纹理排序一律用 `sort.SliceStable`：清单声明过的条目按声明顺序在前，未声明的保持存档内原始顺序排在其后；纹理排序的 orderMap key 与查询 key 同口径（小写 basename 去扩展名，P2 修复——原 key 带扩展名永不命中，排序形同死代码）
 - texSlot 映射为「第 i 个模型 → 第 i 个纹理」，索引超出纹理数量时钳到最后一张（`ti >= texCount` → `texCount-1`）；`texOrder` 为空时退化为按模型数量取索引
+- **组件化路径（buildComponents）texNames 不再依赖 modelOrder 索引对齐**：`collectArchiveFiles` 新增 `modelTexName` 返回值（模型路径→声明纹理名），`buildComponents` 按 `compName` 直接查表，不再走 `orderMap[全路径] → texOrder[j]` 索引链。vehicles/projectiles 段显式声明的纹理绑定优先级高于 player.model 索引——player.model 索引对齐仅在 key 未命中时补充，避免 wine_fox 口径的 texOrder 去重后索引漂移
 - 纹理只收 `.png`/`.jpg`；不按尺寸过滤小纹理（64×64 合法贴图可 <4KB，与 .ysm 解压路径口径一致）；头像/预览图仅由 `avatar/` 路径与基名前缀排除
 - 解析失败统一返回 nil/空，由调用方决定降级路径，不 panic
 - **合并路径 vs 组件化路径是本质差异，禁止用 `excludeArm bool` 之类参数强统一**：`parseModelFromEntries`（ParseFromZip/ParseFromZipEntry 单模型合并）排除 arm 占位（避免两对手臂 + texIdx 错位）；`buildComponents`（ParseComponentsFromZip/7z 组件化）保留 arm 作独立组件（YSMViewer 口径）。两者输出结构不同（单个 `BedrockModel` vs 组件数组），函数签名也随之不同，强行合并只会引入分支复杂度
 - **zip/7z 六入口已收敛，禁止退回双份路径**：新增功能/修 bug 只改共享实现（`parseModelFromArchive` / `parseFromArchiveEntry` / `parseComponentsFromArchive`）+ `openArchiveBytes`。若需新增 zip/7z 进入点，加薄包装调共享实现，勿复制 open + 解析循环
-- **ysm.json 解析已收敛为 `ysm_parser.go` 的 `parseYsmArchive`（路线 B：纯提取、行为不变）**：共享层只做 JSON 结构解码（list/dict/single、数组/对象/字符串多形态）并返回**原文**（`ysmArchiveData`：ModelOrder / PlayerTexs{path,isUV} / ProjModels / Metadata RawMessage），lower/去扩展名/去目录等口径后处理留回 `collectArchiveFiles`（清单版，player.texture 去扩展名）与 `parseModelFromEntries`（模型版，player.texture 保留扩展名）。两调用点 player.texture 口径本就不同，且有历史不对称（`{uv}` 对象分支剥反斜杠、裸字符串分支不剥，由 `playerTex.isUV` 标记原样复刻）——禁止用参数强统一口径；仅 projectiles/vehicles/arrow 纹理口径两路径完全相同才收敛进 `texBasenameNoExt`（去目录+小写+去扩展名）
+- **ysm.json 解析已收敛为 `ysm_parser.go` 的 `parseYsmArchive`（路线 B：纯提取、行为不变）**：共享层只做 JSON 结构解码（list/dict/single、数组/对象/字符串多形态）并返回**原文**（`ysmArchiveData`：ModelOrder / PlayerTexs{path,isUV} / ProjModels / ModelTexName map / Metadata RawMessage），lower/去扩展名/去目录等口径后处理留回 `collectArchiveFiles`（清单版，player.texture 去扩展名）与 `parseModelFromEntries`（模型版，player.texture 保留扩展名）。两调用点 player.texture 口径本就不同，且有历史不对称（`{uv}` 对象分支剥反斜杠、裸字符串分支不剥，由 `playerTex.isUV` 标记原样复刻）——禁止用参数强统一口径；仅 projectiles/vehicles/arrow 纹理口径两路径完全相同才收敛进 `texBasenameNoExt`（去目录+小写+去扩展名）。**ModelTexName**：vehicles/projectiles/arrow 段显式声明的 model→texName 映射优先写入 map；player.model 索引对齐循环仅在 key 未命中时补充（守卫 `if _, has := result.ModelTexName[key]; !has`），避免 player.model 按序索引覆盖 vehicles 权威声明——wine_fox 根因修复（原逻辑 player.model 按序索引会覆盖 vehicles 的显式纹理绑定）
 
 ## 相关
 

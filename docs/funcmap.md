@@ -217,13 +217,13 @@
 |------|--------|------|
 | `ExtractFirstPNGFromZip()` | `go/geometry/archive:64` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
 | `ExtractFirstPNGFrom7z()` | `go/geometry/archive:74` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:1038` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
-| `ParseFrom7z()` | `go/geometry/archive:1044` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
-| `ParseFromZipEntry()` | `go/geometry/archive:1057` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
-| `ParseFrom7zEntry()` | `go/geometry/archive:1062` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
-| `IsMainModelName()` | `go/geometry/archive:1128` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:1140` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1287` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
+| `ParseFromZip()` | `go/geometry/archive:1066` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:1072` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `ParseFromZipEntry()` | `go/geometry/archive:1085` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
+| `ParseFrom7zEntry()` | `go/geometry/archive:1090` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
+| `IsMainModelName()` | `go/geometry/archive:1156` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:1168` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:1317` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
 | `ParseBedrockGeometry()` | `go/geometry/parse:205` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
@@ -463,13 +463,13 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `BedrockModel()` | `go/types/bedrock:4` | BedrockModel 基岩版模型几何体摘要（用于 2D 预览） |
-| `FileInventory()` | `go/types/bedrock:28` | FileInventory zip 内文件归属清单（对齐 Modern YSM parseGlobalResources 的分流思想， 但只识别归属、不解析内容——不造双路径，前端 |
-| `SubModel()` | `go/types/bedrock:39` | SubModel 子模型条目（多角色加载）。 |
-| `Bone2D()` | `go/types/bedrock:46` | Bone2D 骨骼简化信息（只用于 2D 线条图） |
-| `Cube2D()` | `go/types/bedrock:56` | Cube2D 立方体信息 |
-| `YsmMetadata()` | `go/types/bedrock:74` | YsmMetadata ysm.json 的 metadata 段（模型详情：名称/许可/作者/链接）。 |
-| `YsmLicense()` | `go/types/bedrock:83` | YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}） |
-| `YsmAuthor()` | `go/types/bedrock:89` | YsmAuthor 作者条目 |
+| `FileInventory()` | `go/types/bedrock:33` | FileInventory zip 内文件归属清单（对齐 Modern YSM parseGlobalResources 的分流思想， 但只识别归属、不解析内容——不造双路径，前端 |
+| `SubModel()` | `go/types/bedrock:44` | SubModel 子模型条目（多角色加载）。 |
+| `Bone2D()` | `go/types/bedrock:51` | Bone2D 骨骼简化信息（只用于 2D 线条图） |
+| `Cube2D()` | `go/types/bedrock:61` | Cube2D 立方体信息 |
+| `YsmMetadata()` | `go/types/bedrock:79` | YsmMetadata ysm.json 的 metadata 段（模型详情：名称/许可/作者/链接）。 |
+| `YsmLicense()` | `go/types/bedrock:88` | YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}） |
+| `YsmAuthor()` | `go/types/bedrock:94` | YsmAuthor 作者条目 |
 | `AppConfig()` | `go/types/config:8` | AppConfig 应用持久化配置 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"）， 取 |
 | `PackInfo()` | `go/types/config:48` | PackInfo 模型整合包信息（ysm-pack.json） |
 | `WorkshopPresetSearch()` | `go/types/config:55` | WorkshopPresetSearch 预设搜索词 |
@@ -1957,7 +1957,7 @@
 | `BedrockSubModel()` | `frontend/src/views/app-preview/geometry:19` | SubModel 子模型条目（Go types/bedrock.go SubModel）。 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:26` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:41` | 解析后的 Bedrock geometry |
-| `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:79` | 从 JSON 字符串解析 Bedrock geometry |
+| `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:83` | 从 JSON 字符串解析 Bedrock geometry |
 | `appPreviewStyle()` | `frontend/src/views/app-preview/index:9` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:26` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
 | `appendLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:49` | 同台追加 Litematic/蓝图 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4），与 mmd/vrm 对称 |

@@ -181,15 +181,19 @@ func parseLegacyMetadata(entries []container.Entry) *types.YsmMetadata {
 
 // projEntry 收集投射物/载具模型路径 + 声明的纹理名，
 // texIdxMap 构建时用 texName 查 texOrder 位置分配 texSlot。
+// section 为来源段名（"projectile"/"vehicle"/"arrow"），供 TextureCategories 分类。
 type projEntry struct {
 	model   string
 	texName string // 声明的纹理名（小写 basename 去扩展名）
+	section string // 来源段名
 }
 
 // collectArchiveFiles 从压缩包收集 ysm.json 映射/模型文件/纹理（合并版与组件版共用）。
 // 与 ParseFromZip 原内联逻辑等价，但 geoFiles **不排除 arm**（arm 过滤由合并版调用方
 // filterArmModels 做；组件版需要 arm 作为独立组件）。entries 现为 container.Entry（ADR-068）。
-func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []string, geoFiles []geoEntry, pngs [][]byte, pngNames, animJSONs []string) {
+// 新增返回值 modelTexName：模型路径(ToSlash)→声明纹理名(小写basename去扩)，用于组件版
+// 按 basename 直接查表，避免 texOrder 去重后索引漂移。
+func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []string, geoFiles []geoEntry, pngs [][]byte, pngNames, animJSONs []string, modelTexName map[string]string) {
 	// ysm.json 统一解析（结构解码共享；口径后处理留在本函数，清单版：player.texture 去扩展名）
 	md := parseYsmArchive(entries, "[geometry]")
 
@@ -311,7 +315,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			}
 		}
 	}
-	return modelOrder, texOrder, geoFiles, pngs, pngNames, animJSONs
+	return modelOrder, texOrder, geoFiles, pngs, pngNames, animJSONs, md.ModelTexName
 }
 
 // parseModelFromEntries 共享主体：ysm.json 解析 + model/texture 顺序 + geo/png/anim 收集，
@@ -449,6 +453,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 	var modelOrder []string
 	var texOrder []string
+	var texCategories []string
 	// modelTexName: 模型路径 → 声明的纹理名（小写 basename 去扩展名）。
 	// texIdxMap 构建时用它查 texOrder 位置分配 texSlot，而非按 modelOrder 序号
 	// 截断——避免 plane.json（共用 texture.png）被截断到 arrow.png 槽位。
@@ -467,6 +472,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			}
 		}
 		texOrder = append(texOrder, strings.ToLower(tn))
+		texCategories = append(texCategories, "player")
 	}
 	for _, pm := range md.ProjModels {
 		if pm.texName != "" {
@@ -482,6 +488,11 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			}
 			if !alreadyIn {
 				texOrder = append(texOrder, tn)
+				cat := pm.section
+				if cat == "" {
+					cat = "projectile"
+				}
+				texCategories = append(texCategories, cat)
 			}
 		}
 		if pm.model != "" {
@@ -964,6 +975,25 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	if geo != nil {
 		geo.TextureNames = pngNames
 
+		// texCategories 与 texOrder 同序，需要按 pngNames 排序后的顺序重排
+		if len(texCategories) > 0 && len(texOrder) > 0 {
+			ordered := make([]string, len(pngNames))
+			for i, pn := range pngNames {
+				// 在 texOrder 中找到 pngNames[i] 对应的位置，取同位置的 texCategories
+				for j, tn := range texOrder {
+					bn := strings.TrimSuffix(tn, ".png")
+					bn = strings.TrimSuffix(bn, ".jpg")
+					if bn == pn || tn == pn {
+						if j < len(texCategories) {
+							ordered[i] = texCategories[j]
+						}
+						break
+					}
+				}
+			}
+			geo.TextureCategories = ordered
+		}
+
 		// ===== SubModels 清单：L0 优先 → L1 兜底 =====
 		if len(maidManifest) > 0 {
 			// L0：Name 取自 manifest，SourcePath 是 zip 内绝对路径，TexSlot 对应 manifest 下标
@@ -1149,8 +1179,8 @@ func parseComponentsFromArchive(data []byte, size int64, sevenZip bool) ([]types
 		return nil, nil, err
 	}
 	defer r.Close()
-	modelOrder, texOrder, geoFiles, pngs, pngNames, _ := collectArchiveFiles(r.Entries())
-	models, texNames, err := buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames)
+	modelOrder, texOrder, geoFiles, pngs, pngNames, _, modelTexName := collectArchiveFiles(r.Entries())
+	models, texNames, err := buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames, modelTexName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1165,13 +1195,12 @@ func parseComponentsFromArchive(data []byte, size int64, sevenZip bool) ([]types
 // buildComponents 组件化收集：main 优先排序 + TexSlot 全局化 + 独立解析。
 // 与 ParseFromZip 合并逻辑同源（collectArchiveFiles 共享收集），仅解析阶段不合并 bones、
 // texSlot 不按 texOrder 钳制（texArr 含全部组件纹理，texSlot = 成功组件序，连续无空洞）。
-// 返回 texNames（组件序纹理名，R1 契约校验用）：取「组件在 modelOrder **声明序**中的
-// 原始位置 j」的 texOrder[j]（main 优先只影响显示排序，不改变纹理槽基——P2 修复）；
-// 无声明/越界用组件 basename（补扫段 texArr 按名排序与组件补扫按名一致）。
+// 返回 texNames（组件序纹理名，R1 契约校验用）：直接按组件 basename 查 modelTexName 映射，
+// 不再依赖 modelOrder/texOrder 索引对齐——消除 texOrder 去重后索引漂移（wine_fox 根因）。
 // buildComponents 组件化收集：每组件独立纹理（ADR-114 perComponent）。
 // cube.TexSlot = 0（每组件用自己的第 0 张），不再全局 texOrder 位置分配。
 // ComponentTextures[componentName] = [declaredTexBase64]，前端按组件名查纹理。
-func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs [][]byte, pngNames []string) ([]types.BedrockModel, []string, error) {
+func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs [][]byte, pngNames []string, modelTexName map[string]string) ([]types.BedrockModel, []string, error) {
 	orderMap := make(map[string]int, len(modelOrder))
 	for i, p := range modelOrder {
 		orderMap[filepath.ToSlash(p)] = i
@@ -1213,7 +1242,8 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 	texNames := make([]string, 0, len(geoFiles))
 	// ADR-114 perComponent：每组件独立纹理，cube.TexSlot=0（用自己的第 0 张）。
 	// texOrder 仅用于查"组件声明的纹理名"，不再作为全局槽位索引。
-	compTex := make(map[string][]string, len(geoFiles))
+	// compTex 在循环内创建，避免所有组件共享同一个 map 引用（否则每个组件的
+	// ComponentTextures 都会包含所有已处理组件的条目）。
 	for _, gf := range geoFiles {
 		g := ParseBedrockGeometry(gf.data)
 		if g == nil || g.BoneCount == 0 {
@@ -1226,10 +1256,16 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 		}
 		compName := strings.TrimSuffix(strings.TrimSuffix(geoName, ".geo.json"), ".json")
 
-		// 查组件声明的纹理名：按 modelOrder 声明序位置 j → texOrder[j]
+		// 查组件声明的纹理名：按 basename 直接查 modelTexName 映射，不再依赖 modelOrder 索引。
+		// 修复 wine_fox 根因：texOrder 去重后长度 < modelOrder，按索引查表会错位。
 		declaredTexName := ""
-		if j, declared := orderMap[filepath.ToSlash(gf.name)]; declared && j < len(texOrder) {
-			declaredTexName = texOrder[j]
+		if modelTexName != nil {
+			declaredTexName = modelTexName[filepath.ToSlash(gf.name)]
+		}
+		// fallback：按 compName 查（path 前缀可能被 strip，如 "models/foxcar.json" → 查不到，
+		// 此时用 basename）
+		if declaredTexName == "" && modelTexName != nil {
+			declaredTexName = modelTexName[compName]
 		}
 		// 未声明纹理的组件：同名 basename 纹理兜底（arm → arm.png；对齐 YSMViewer
 		// 每组件独立纹理口径——Go 端识别组件同名纹理，前端不再 fallback 全局贴错/灰。
@@ -1258,6 +1294,7 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 		}
 
 		// 填 ComponentTextures[compName] = [texBase64]
+		compTex := make(map[string][]string)
 		if texBase64 != "" {
 			compTex[compName] = []string{texBase64}
 		}

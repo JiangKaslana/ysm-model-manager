@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"path/filepath"
 	"strings"
 
 	"ysm-model-manager/go/container"
@@ -26,10 +27,11 @@ import (
 
 // ysmArchiveData 从 ysm.json 解析得到的**原文**结构数据。
 type ysmArchiveData struct {
-	ModelOrder []string        // player.model 原文顺序（路径/名字未加工）
-	PlayerTexs []playerTex     // player.texture 原文（path 未加工；isUV 标记 JSON 形态）
-	ProjModels []projEntry     // projectiles/vehicles/arrow：model + 原文 texName（未 lower/去扩/去目录）
-	Metadata   json.RawMessage // metadata 段原文（len==0 表示无；调用方自行 unmarshal）
+	ModelOrder   []string          // player.model 原文顺序（路径/名字未加工）
+	PlayerTexs   []playerTex       // player.texture 原文（path 未加工；isUV 标记 JSON 形态）
+	ProjModels   []projEntry       // projectiles/vehicles/arrow：model + 原文 texName（未 lower/去扩/去目录）
+	ModelTexName map[string]string // 模型路径(ToSlash) → 声明的纹理名(小写basename去扩展名)
+	Metadata     json.RawMessage   // metadata 段原文（len==0 表示无；调用方自行 unmarshal）
 }
 
 // playerTex player.texture 单个条目的原文。
@@ -273,16 +275,61 @@ func parseYsmArchive(entries []container.Entry, logPrefix string) *ysmArchiveDat
 		result.Metadata = ysm.Metadata
 		result.PlayerTexs = parsePlayerTextures(ysm.Files.Player.Texture)
 
-		for _, raw := range []json.RawMessage{ysm.Files.Projectiles, ysm.Files.Vehicles, ysm.Files.Arrow} {
-			if len(raw) == 0 {
+		for _, sec := range []struct {
+			raw json.RawMessage
+			sec string
+		}{{ysm.Files.Projectiles, "projectile"}, {ysm.Files.Vehicles, "vehicle"}, {ysm.Files.Arrow, "arrow"}} {
+			if len(sec.raw) == 0 {
 				continue
 			}
-			result.ProjModels = append(result.ProjModels, parseProjModels(raw)...)
+			for _, pm := range parseProjModels(sec.raw) {
+				pm.section = sec.sec
+				result.ProjModels = append(result.ProjModels, pm)
+			}
 		}
 
 		if len(ysm.Files.Player.Model) > 0 {
 			raw := strings.TrimSpace(string(ysm.Files.Player.Model))
 			result.ModelOrder = append(result.ModelOrder, parseModelOrder(raw)...)
+		}
+
+		// 构建 modelTexName：模型路径(ToSlash) → 声明的纹理名(小写basename去扩展名)
+		// 用于 buildComponents 直接按 basename 查表，避免 texOrder 去重后索引漂移。
+		// Go map 天然去重：多 model 条目指向同一 texName（如 horse+mule→foxcar）时只保留一份。
+		result.ModelTexName = make(map[string]string)
+		for _, pm := range result.ProjModels {
+			if pm.model == "" || pm.texName == "" {
+				continue
+			}
+			bn := filepath.ToSlash(pm.model)
+			texBn := texBasenameNoExt(pm.texName)
+			result.ModelTexName[bn] = texBn
+		}
+		// player.model 声明的组件也建映射（player.texture 对应关系靠 texOrder 顺序，
+		// 这里用 modelOrder 位置 j 查 texOrder[j]，与现有逻辑一致，供 buildComponents 备用）。
+		// 注意：player.model 在 modelOrder 里可能有重复（同文件多实体），Go map 只保留最后一份。
+		// 优先级：projModels（vehicles/projectiles/arrow 段）优于 player.model 声明，
+		// 避免 player.model 的按序索引覆盖 projModel 的显式纹理绑定。
+		texIdx := 0
+		for _, mn := range result.ModelOrder {
+			if texIdx < len(result.PlayerTexs) {
+				// 只填入尚未命中的项（projModel 已绑定的保持不动）
+				key := filepath.ToSlash(mn)
+				if _, has := result.ModelTexName[key]; !has {
+					tn := result.PlayerTexs[texIdx].path
+					if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+						tn = tn[idx+1:]
+					}
+					if result.PlayerTexs[texIdx].isUV {
+						if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+							tn = tn[idx+1:]
+						}
+					}
+					tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
+					result.ModelTexName[key] = tn
+				}
+			}
+			texIdx++
 		}
 
 		break // 只处理第一条 ysm.json
