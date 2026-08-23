@@ -175,8 +175,18 @@ func Audit(dirPath string) (Result, error) {
 			}
 		}
 
-		// 类型统计（分类口径唯一实现）
-		typeName := Classify(ext)
+		// 类型统计（location 路由优先 + 扩展名兜底）：纯 Classify(ext) 对共享扩展名
+		// （.zip 被 14 类型声明）last-wins 归最后一个声明者，mmd/PMX 下模型包 zip
+		// 会误归 DefaultMorph——目录归属优先（TypeByLocation），容器未命中标
+		// "container"（与 gui-flow 统计口径一致，2026-08-23 修复）。
+		typeName := types.TypeByLocation(path, types.LoadRegistry())
+		if typeName == "" {
+			if types.IsContainerExt(ext) {
+				typeName = "container"
+			} else {
+				typeName = Classify(ext)
+			}
+		}
 		resources[typeName]++
 		return nil
 	})

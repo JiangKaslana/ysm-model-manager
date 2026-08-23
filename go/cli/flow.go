@@ -154,7 +154,7 @@ func scanSummaryByType(entries []types.ModelEntry) (map[string]int, string) {
 //  3. 容器兜底 → repoaudit.Classify（共享扩展名 .zip 被 14 类型声明，Classify 归
 //     最后一个声明者——仅作目录消歧未命中时的最后兜底）。
 func classifyForScan(path, ext string, registry *types.ResourceTypeRegistry) string {
-	if id := classifyByAncestorDir(path, registry); id != "" {
+	if id := types.TypeByLocation(path, registry); id != "" {
 		return id
 	}
 	if !types.IsContainerExt(ext) {
@@ -167,44 +167,6 @@ func classifyForScan(path, ext string, registry *types.ResourceTypeRegistry) str
 	// 扩展名 .zip（14 类型声明）last-wins 归任意类型（与内容无关——误导分布）；
 	// Classify 也不返回 ""（miss 归 other）——死代码 `if id == ""` 一并删除
 	return "container"
-}
-
-// classifyByAncestorDir 祖先目录归属判定（MMD 子类型 location 路由）：从最深祖先到
-// 最浅遍历，命中某类型 storageSubDir/instanceDir（后缀匹配）即归该类型，不校验扩展名。
-// 深目录优先：mmd/PMX/DefaultMorph/ 下文件归 DefaultMorph（而非外层 EntityPlayer）。
-// 修复：此前容器分支直接 repoaudit.Classify(".zip")，共享扩展名归最后一个声明者
-// （DefaultMorph），导致 mmd/PMX 下 217 个模型包 zip 全部误统计为 DefaultMorph。
-func classifyByAncestorDir(path string, registry *types.ResourceTypeRegistry) string {
-	dir := filepath.Dir(path)
-	if dir == "." || dir == "" {
-		return ""
-	}
-	// 祖先目录收集（深 → 浅，filepath.Dir 逐级上溯）
-	var ancestors []string
-	d := dir
-	for d != "." && d != "" && d != string(filepath.Separator) {
-		ancestors = append(ancestors, d)
-		parent := filepath.Dir(d)
-		if parent == d {
-			break
-		}
-		d = parent
-	}
-	for _, anc := range ancestors {
-		ancNorm := filepath.ToSlash(strings.ToLower(anc))
-		for _, rt := range registry.ResourceTypes {
-			for _, c := range []string{rt.InstanceDir, rt.StorageSubDir} {
-				if c == "" {
-					continue
-				}
-				cNorm := filepath.ToSlash(strings.ToLower(c))
-				if ancNorm == cNorm || strings.HasSuffix(ancNorm, "/"+cNorm) {
-					return rt.ID
-				}
-			}
-		}
-	}
-	return ""
 }
 
 // runPhaseModelScan 模拟模型扫描

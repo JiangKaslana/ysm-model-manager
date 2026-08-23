@@ -11,6 +11,7 @@ import (
 
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/repoaudit"
+	"ysm-model-manager/go/types"
 )
 
 func init() {
@@ -45,9 +46,20 @@ type resourceStats struct {
 	ByType map[string]int `json:"by_type"`
 }
 
-// addClassified 把 Classify 结果累加进动态类型 map
-func addClassified(ext string, stats *resourceStats) {
-	t := repoaudit.Classify(ext)
+// addClassified 把路径类型判定结果累加进动态类型 map。
+// location 路由优先（目录归属 > 扩展名）：纯 Classify(ext) 对共享扩展名
+// （.zip 被 14 类型声明）last-wins 归最后一个声明者，mmd/PMX 下模型包 zip
+// 会误归 DefaultMorph（2026-08-23 与 gui-flow/仓库体检同源修复）；容器未命中
+// 标 "container"。
+func addClassified(path, ext string, stats *resourceStats) {
+	t := types.TypeByLocation(path, types.LoadRegistry())
+	if t == "" {
+		if types.IsContainerExt(ext) {
+			t = "container"
+		} else {
+			t = repoaudit.Classify(ext)
+		}
+	}
 	if stats.ByType == nil {
 		stats.ByType = make(map[string]int)
 	}
@@ -109,8 +121,8 @@ func runResourceScan(ctx *CmdContext) error {
 			})
 		}
 
-		// 按类型分类统计（与审计共用 repoaudit.Classify 口径）
-		addClassified(ext, &result.Stats)
+		// 按类型分类统计（location 路由 + 扩展名兜底）
+		addClassified(path, ext, &result.Stats)
 
 		return nil
 	})

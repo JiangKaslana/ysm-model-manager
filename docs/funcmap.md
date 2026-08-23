@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 145 | 557 |
+| 前端·工具 | 145 | 558 |
 | frontend/views | 117 | 332 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **454** | **1902** |
+| **合计** | **454** | **1903** |
 
 ## Go·头像
 
@@ -356,8 +356,8 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `Audit()` | `go/repoaudit/repoaudit:115` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
-| `HealthReportFor()` | `go/repoaudit/repoaudit:228` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
-| `Classify()` | `go/repoaudit/repoaudit:342` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
+| `HealthReportFor()` | `go/repoaudit/repoaudit:238` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
+| `Classify()` | `go/repoaudit/repoaudit:352` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
 | `Result()` | `go/repoaudit/repoaudit:55` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
 | `Completeness()` | `go/repoaudit/repoaudit:66` | Completeness 完整性统计 |
 | `CacheStatus()` | `go/repoaudit/repoaudit:74` | CacheStatus 缓存状态 |
@@ -1321,10 +1321,10 @@
 | `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:43` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
 | `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:49` | — |
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:69` | core 固定菜单项（不依赖适配器注入）： - roles：模型组唯一 core 项（已加载角色管理 + 底部内嵌加载入口 fillSwitch； 2026-08-21 合并：独立 |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:29` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu:63` | 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:459` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:467` | 挂载预览底部根菜单，返回句柄 |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:30` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu:64` | 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:460` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:468` | 挂载预览底部根菜单，返回句柄 |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
@@ -1548,12 +1548,13 @@
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:78` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:89` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:102` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
-| `PREVIEW_FRAME_INTERVAL_MS()` | `frontend/src/utils/3d/render-budget:2` | — |
-| `AdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:7` | — |
-| `previewPixelRatio()` | `frontend/src/utils/3d/render-budget:13` | — |
-| `createAdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:18` | — |
-| `sampleAdaptivePixelRatio()` | `frontend/src/utils/3d/render-budget:26` | Returns a new pixel ratio only when sustained frame delivery is too slow. |
-| `shouldRenderPreviewFrame()` | `frontend/src/utils/3d/render-budget:40` | — |
+| `getMaxPixelRatio()` | `frontend/src/utils/3d/render-budget:7` | 读取用户设置的渲染分辨率上限（设置面板 slider 持久化）；缺省 1.5 |
+| `PREVIEW_FRAME_INTERVAL_MS()` | `frontend/src/utils/3d/render-budget:14` | — |
+| `AdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:19` | — |
+| `previewPixelRatio()` | `frontend/src/utils/3d/render-budget:25` | — |
+| `createAdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:30` | — |
+| `sampleAdaptivePixelRatio()` | `frontend/src/utils/3d/render-budget:38` | Returns a new pixel ratio only when sustained frame delivery is too slow. |
+| `shouldRenderPreviewFrame()` | `frontend/src/utils/3d/render-budget:52` | — |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `ScreenshotOpts()` | `frontend/src/utils/3d/screenshot:13` | 截图选项 |
 | `screenshotFromRenderer()` | `frontend/src/utils/3d/screenshot:27` | 从活跃的 renderer/scene/camera 截图，返回 PNG/JPEG base64（无 data: 前缀）。 |

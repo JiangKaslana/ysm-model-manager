@@ -76,6 +76,7 @@ func TestAudit_StructuralInvalid(t *testing.T) {
 }
 
 // TestAudit_NestedDir 嵌套子目录遍历（文件夹型模型仓库常见布局）
+// TestAudit_NestedDir 嵌套目录应统计 2 个文件
 func TestAudit_NestedDir(t *testing.T) {
 	dir := t.TempDir()
 	sub := filepath.Join(dir, "模型A", "textures")
@@ -94,6 +95,32 @@ func TestAudit_NestedDir(t *testing.T) {
 	}
 	if result.Completeness.Valid != 1 {
 		t.Errorf("嵌套内合法 model.json 应判有效, got valid=%d", result.Completeness.Valid)
+	}
+}
+
+// TestAudit_ByTypeLocationRouting 仓库体检 ByType 统计走 location 路由：
+// mmd/PMX 目录下 zip 模型包归 EntityPlayer（此前纯 Classify(".zip") last-wins
+// 归 DefaultMorph——217 个 PMX 包误统计，2026-08-23 同源修复）。
+func TestAudit_ByTypeLocationRouting(t *testing.T) {
+	dir := t.TempDir()
+	pmxDir := filepath.Join(dir, "mmd", "PMX", "2.大学学姐")
+	if err := os.MkdirAll(pmxDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// 模型包 zip + 表情 vpd + 裸 pmx（写最小合法 zip 内容即可，审计不校验内容）
+	writeFile(t, filepath.Join(pmxDir, "角色包.zip"), []byte("PK\x03\x04"))
+	writeFile(t, filepath.Join(pmxDir, "表情.vpd"), []byte("vpd"))
+	writeFile(t, filepath.Join(pmxDir, "角色.pmx"), []byte("pmx"))
+
+	result, err := Audit(dir)
+	if err != nil {
+		t.Fatalf("Audit 应成功, got %v", err)
+	}
+	if result.Resources.ByType["EntityPlayer"] != 3 {
+		t.Errorf("mmd/PMX 下 3 个文件应全归 EntityPlayer, ByType=%v", result.Resources.ByType)
+	}
+	if result.Resources.ByType["DefaultMorph"] != 0 {
+		t.Errorf("zip 不应误归 DefaultMorph, ByType=%v", result.Resources.ByType)
 	}
 }
 
