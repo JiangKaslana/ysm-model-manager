@@ -423,9 +423,14 @@ func TestBuildSyncItems_DirLevelChildren(t *testing.T) {
 		t.Fatal("未找到 packA 条目")
 	}
 
-	// 验证 packA 是 Synced 状态
-	if packItem.Status != types.SyncStatusSynced {
-		t.Errorf("packA 应为 Synced，实际 %s", packItem.Status)
+	// 验证 packA 是 Diverged 状态（子文件有 missing/optional 差异）
+	if packItem.Status != types.SyncStatusDiverged {
+		t.Errorf("packA 应为 Diverged（有内容差异），实际 %s", packItem.Status)
+	}
+
+	// 验证 IsDir 为 true
+	if !packItem.IsDir {
+		t.Error("packA 的 IsDir 应为 true")
 	}
 
 	// 验证 children 不为空

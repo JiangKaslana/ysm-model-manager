@@ -68,7 +68,12 @@ export function applyFilter(self: SyncStoreSelf): void {
     items = items.filter((i) => i.type === self._selectedType);
   }
   if (self._statusFilter !== "all") {
-    items = items.filter((i) => i.status === self._statusFilter);
+    const filter = self._statusFilter;
+    items = items.filter((i) => {
+      // diverged 状态在 missing tab 下显示（继承可操作属性）
+      if (filter === "missing" && i.status === "diverged") return true;
+      return i.status === filter;
+    });
   }
   self._filteredItems = items;
 }

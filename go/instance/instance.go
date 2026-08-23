@@ -133,23 +133,37 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 				icon = "🔗"
 			}
 
-			// 为 dirLevelSync 的 Synced 文件夹构建子条目
+			// 为 dirLevelSync 的文件夹构建子条目列表 + diverged 聚合状态
 			var children []types.ResourceSyncItem
-			if isDirLevel && isDirEntry && defaultStatus == types.SyncStatusSynced {
+			isDir := isDirEntry
+			if isDirLevel && isDirEntry {
 				// 计算实例侧对应的文件夹路径
 				instPath := p
-				// 如果路径以 globalDir 开头，替换为 instDir
 				if strings.HasPrefix(p, globalDir) {
 					rel := strings.TrimPrefix(p, globalDir)
 					instPath = filepath.Join(instDir, rel)
 				}
 				children = buildChildrenForDir(p, instPath)
+				// 有内容差异 → 聚合为 diverged（继承 missing 的可操作属性）
+				if len(children) > 0 {
+					hasDiff := false
+					for _, c := range children {
+						if c.Status != types.SyncStatusSynced {
+							hasDiff = true
+							break
+						}
+					}
+					if hasDiff {
+						status = types.SyncStatusDiverged
+						icon = "🗂️"
+					}
+				}
 			}
 
 			items = append(items, types.ResourceSyncItem{
 				Path: p, Name: filepath.Base(p),
 				Status: status, Type: rt.ID, Icon: icon, Size: sizeOf(p),
-				Children: children,
+				IsDir: isDir, Children: children,
 			})
 		}
 

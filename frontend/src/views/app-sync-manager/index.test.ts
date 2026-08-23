@@ -169,9 +169,9 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     self._selectedType = "EntityPlayer";
     self._typeConfig = [{ id: "EntityPlayer", dirLevelSync: true }];
     self._allItems = [
-      { path: "SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "EntityPlayer", icon: "🎭", size: 10, subdir: "SceneModel" },
-      { path: "角色A.pmx", name: "角色A", status: "missing", type: "EntityPlayer", icon: "🎭", size: 20 },
-      { path: "CustomAnim/动作.pmx", name: "动作", status: "synced", type: "EntityPlayer", icon: "🎭", size: 30, subdir: "CustomAnim" },
+      { path: "SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "EntityPlayer", icon: "🎭", size: 10, isDir: false, subdir: "SceneModel" },
+      { path: "角色A.pmx", name: "角色A", status: "missing", type: "EntityPlayer", icon: "🎭", size: 20, isDir: false },
+      { path: "CustomAnim/动作.pmx", name: "动作", status: "synced", type: "EntityPlayer", icon: "🎭", size: 30, isDir: false, subdir: "CustomAnim" },
     ];
     self._filteredItems = self._allItems;
     self._filesRoots = { "EntityPlayer": "/repo" };

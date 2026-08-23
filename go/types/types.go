@@ -211,6 +211,10 @@ const (
 	SyncStatusOptional SyncStatus = "optional"
 	SyncStatusDisabled SyncStatus = "disabled"
 	SyncStatusLegacy   SyncStatus = "legacy"
+	// SyncStatusDiverged 文件夹级聚合状态：两侧同名文件夹存在内容级差异
+	// 子文件有 missing/optional/disabled 时，父文件夹标记为 diverged
+	// 前端渲染：继承 missing 的可操作属性（⬇️图标 + 推送按钮）
+	SyncStatusDiverged SyncStatus = "diverged"
 )
 
 // ResourceSyncItem 单个资源文件的同步状态
@@ -221,6 +225,9 @@ type ResourceSyncItem struct {
 	Type   string     `json:"type"`
 	Icon   string     `json:"icon"`
 	Size   int64      `json:"size"`
+	// IsDir 标记该条目是文件夹（true）还是文件（false）
+	// 前端据此分流渲染：文件夹 → sm-dir（可展开），文件 → sm-item（扁平）
+	IsDir bool `json:"isDir"`
 	// SubDir MMD 子目录分组（ADR-096：dirLevel 同步单元若位于
 	// mmdSubdirNames 命中的用途子目录内，填子目录名；根下为 ""=EntityPlayer）
 	SubDir string `json:"subdir,omitempty"`

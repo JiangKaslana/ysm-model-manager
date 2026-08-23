@@ -9,10 +9,12 @@ import { t } from "../../core/i18n/t.ts";
 export interface SyncItem {
   path: string;
   name: string;
-  status: "synced" | "missing" | "disabled" | "optional" | "legacy" | string;
+  status: "synced" | "missing" | "disabled" | "optional" | "legacy" | "diverged" | string;
   type: string;
   icon?: string;
   size: number;
+  /** 是否为文件夹（true）或文件（false）——由 Go 后端判定，前端直接消费 */
+  isDir: boolean;
   /** MMD 用途子目录分组（ADR-095 后续）：EntityPlayer/SceneModel/...；根下为空 */
   subdir?: string;
   /** 子条目列表（文件夹级同步单元的内部文件真实状态） */
@@ -41,16 +43,18 @@ export function syncDirRowHTML(
     syncItem.status === "synced" ? "✅" :
     syncItem.status === "legacy" ? "🔗" :
     syncItem.status === "missing" ? "⬇️" :
+    syncItem.status === "diverged" ? "🗂️" :
     syncItem.status === "disabled" ? "⛔" :
     syncItem.status === "optional" ? "📤" : "·";
   const statusColor =
     syncItem.status === "synced" ? "var(--sz-green)" :
     syncItem.status === "missing" ? "var(--accent)" :
+    syncItem.status === "diverged" ? "var(--accent)" :
     syncItem.status === "legacy" ? "var(--muted)" :
     syncItem.status === "optional" ? "var(--sm-optional)" : "var(--muted)";
   const sizeStr = syncItem.size > 0 ? formatBytes(syncItem.size) : "";
   let actionBtn = "";
-  if (syncItem.status === "missing") {
+  if (syncItem.status === "missing" || syncItem.status === "diverged") {
     actionBtn =
       '<button class="sm-item-btn" data-testid="sm-push" data-action="push" style="border:1px solid var(--accent);color:var(--accent)">' + t("syncManager.push") + '</button>';
   } else if (syncItem.status === "optional") {
@@ -186,22 +190,26 @@ export function statusTabHTML(
 }
 
 /**
- * 列表项 HTML
+ * 列表项 HTML（扁平文件行，按 isDir 为 false 渲染）
  */
 export function itemHTML(item: SyncItem, index: number): string {
   const statusIcon =
-    item.status === "synced" ? "✅" : item.status === "legacy" ? "🔗" : "·";
+    item.status === "synced" ? "✅" :
+    item.status === "missing" ? "⬇️" :
+    item.status === "diverged" ? "🗂️" :
+    item.status === "disabled" ? "⛔" :
+    item.status === "optional" ? "📤" :
+    item.status === "legacy" ? "🔗" : "·";
   const statusColor =
-    item.status === "synced"
-      ? "var(--sz-green)"
-      : item.status === "missing"
-        ? "var(--accent)"
-        : item.status === "legacy"
-          ? "var(--muted)"
-          : "var(--sm-optional)";
+    item.status === "synced" ? "var(--sz-green)" :
+    item.status === "missing" ? "var(--accent)" :
+    item.status === "diverged" ? "var(--accent)" :
+    item.status === "disabled" ? "var(--muted)" :
+    item.status === "optional" ? "var(--sm-optional)" :
+    item.status === "legacy" ? "var(--muted)" : "var(--muted)";
   const sizeStr = item.size > 0 ? formatBytes(item.size) : "";
   let actionBtn = "";
-  if (item.status === "missing") {
+  if (item.status === "missing" || item.status === "diverged") {
     actionBtn =
       '<button class="sm-item-btn" data-testid="sm-push" data-action="push" style="border:1px solid var(--accent);color:var(--accent)">' + t("syncManager.push") + '</button>';
   } else if (item.status === "optional") {
