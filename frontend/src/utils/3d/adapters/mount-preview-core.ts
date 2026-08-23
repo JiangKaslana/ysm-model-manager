@@ -386,7 +386,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   viewContainer.appendChild(loadingEl);
 
   // ===== §4 基础设施创建（scene/camera/renderer/OrbitControls/灯光/resize）=====
-  let aborted = false;
+  let aborted = { v: false };
   // 可变 ESC 处理函数：switchTo 后重新赋值
   let escH = (e: KeyboardEvent): void => {
     if (e.key === "Escape") {
@@ -395,7 +395,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     }
   };
   function closeOverlay(): void {
-    aborted = true;
+    aborted.v = true;
     document.removeEventListener("keydown", escH);
     // 早期路径（cleanupFn 尚未赋值）：清理 tip 定时器 + 菜单，再拆 overlay
     if (tipTimeoutId) {
@@ -756,6 +756,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     },
     getHandle: () => _handles[_handles.length - 1]?.handle ?? null,
     aborted,
+    inFlight: false,
     isDisposed,
     myGen,
     getGen: () => _gen,
@@ -831,7 +832,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       },
       path,
     );
-    if (aborted || myGen !== _gen) {
+    if (aborted.v || myGen !== _gen) {
       // 加载期间被 ESC / invalidate 打断：完整拆除（含 rAF 循环与 WebGL renderer），
       // 避免外壳资源泄漏；内容层 GPU 资源经 fullCleanup 一并释放。
       fullCleanup();
@@ -959,7 +960,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // P2 守卫（对齐旧 skeleton close3D 语义）：加载期间被 ESC/切模型/invalidate
     // 打断后迟到的失败不得再弹错——否则关闭后 1~2s 突然冒「加载失败」toast，
     // 掩盖用户主动关闭的意图（旧实现 skeleton.ts 的 gen 守卫，迁移到核心统一承担）。
-    if (aborted || myGen !== _gen) return;
+    if (aborted.v || myGen !== _gen) return;
     console.error("[preview 3D] 加载失败:", e);
     loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(safeErrorMessage(e))}</div>`;
     bus.emit("toast:show", {

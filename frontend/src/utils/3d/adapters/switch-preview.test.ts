@@ -68,7 +68,8 @@ function makeMockCtx(): {
     getPerFrame: () => state.perFrame,
     setPerFrame: (f) => { state.perFrame = f; },
     getHandle: () => state._handle,
-    aborted: false,
+    aborted: { v: false },
+    inFlight: false,
     isDisposed: { v: false },
     myGen: 1,
     getGen: () => 1,
@@ -129,6 +130,33 @@ describe("switchToSession 陈旧字段修复", () => {
 
     await switchToSession(ctx, "new.glb");
     expect(state.perFrame).toBe(nextUpdate);
+  });
+
+  it("r12 P1：并发切换抑制——inFlight 期间第二次 switchTo 直接丢弃，build 只调用一次", async () => {
+    const { ctx, mockAdapter } = makeMockCtx();
+    // 让首次 build 永不 resolve，保持 inFlight=true
+    mockAdapter.build.mockReturnValue(new Promise<PreviewScene>(() => {}));
+
+    const p1 = switchToSession(ctx, "first.glb");
+    const p2 = switchToSession(ctx, "second.glb"); // 应被 inFlight 拦截
+
+    expect(ctx.inFlight).toBe(true);
+    expect(mockAdapter.build).toHaveBeenCalledTimes(1);
+    expect(mockAdapter.build).toHaveBeenCalledWith(expect.anything(), "first.glb");
+
+    p1.catch(() => {});
+    p2.catch(() => {});
+  });
+
+  it("r12 P2：aborted 引用对象——closeOverlay 后 switchToSession 入口守卫生效（不再值捕获失效）", async () => {
+    const { ctx } = makeMockCtx();
+    // 模拟 closeOverlay 设置 aborted.v = true（引用对象，switchToSession 能读到）
+    ctx.aborted.v = true;
+    // 入口守卫应在读 ctx.aborted.v 时 return，不触发 build
+    // 注意：inFlight=false 已复位（上次正常出口），此处验证 aborted 通道
+    const mockAdapter2 = (ctx.adapter as unknown as { build: ReturnType<typeof vi.fn> }).build;
+    await switchToSession(ctx, "new.glb");
+    expect(mockAdapter2).not.toHaveBeenCalled();
   });
 });
 

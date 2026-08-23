@@ -67,7 +67,10 @@ export interface SwitchContext {
   setPerFrame: (f: ((dt: number) => void) | null) => void;
   /** 可变：_handle 构造后赋值 */
   getHandle: () => PreviewHandle | null;
-  aborted: boolean;
+  /** 终止标志（引用对象，与 isDisposed 同构，避免按值捕获失效，见 r12 P2） */
+  aborted: { v: boolean };
+  /** 并发切换抑制：switchToSession 运行期间为 true，防止连续点击触发重复 build（r12 P1） */
+  inFlight: boolean;
   isDisposed: { v: boolean };
   /** 代际守卫：切换时丢弃过期挂载 */
   myGen: number;
@@ -89,10 +92,13 @@ export async function switchToSession(
   newPath: string,
   options?: { keepInScene?: boolean },
 ): Promise<void> {
-  if (ctx.aborted || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) return;
+  if (ctx.aborted.v || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) return;
+  // r12 P1：并发切换抑制——已在切换中直接丢弃后续请求，避免重复 build 浪费 GPU + sceneRegistry 短暂不一致
+  if (ctx.inFlight) return;
   // P3-2：空路径守卫——空路径会触发 adapter.build(ctx, "") 加载未定义内容
   if (!newPath || !newPath.trim()) return;
   const keep = options?.keepInScene === true;
+  ctx.inFlight = true;
 
   // ADR-093 T6：同台追加超量拦截（GPU/内存上限）
   if (keep && sceneRegistry.count() >= MAX_MODELS) {
@@ -140,7 +146,10 @@ export async function switchToSession(
   } catch (e) {
     // P2 守卫（对齐 mount3D 主流程 gen 守卫）：build 失败迟到且用户已关闭/切换
     // 预览时不弹错误 toast，避免关闭后 1~2s 突然冒出「加载失败」掩盖用户意图
-    if (ctx.aborted || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) return;
+    if (ctx.aborted.v || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) {
+      ctx.inFlight = false;
+      return;
+    }
     console.error("[preview 3D] 切换失败:", e);
     // P1 修复（审核 ADR-109 Checklist）：build 失败后旧内容层已 dispose（上方 L117）
     // 但 perFrame 回调仍指向已 dispose 的 update → rAF 每帧驱动已释放对象；
@@ -166,11 +175,13 @@ export async function switchToSession(
       duration: 5000,
       type: "error",
     });
+    ctx.inFlight = false;
     return;
   }
 
-  if (ctx.aborted || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) {
+  if (ctx.aborted.v || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) {
     try { next.dispose(); } catch (_) {}
+    ctx.inFlight = false;
     return;
   }
 
@@ -252,6 +263,7 @@ export async function switchToSession(
   if (handle) handle.screenshot = next.screenshot;
   // 注意：适配器控件（分层切片等）通过 ctx.menu.setAdapterItems 在 build 时注入根菜单，
   // 无需额外 extraControls/extraPanel 调用（ADR-076 v2 Phase 3 收编）。
+  ctx.inFlight = false;
 }
 
 // ---------------------------------------------------------------------------
