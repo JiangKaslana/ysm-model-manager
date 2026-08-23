@@ -117,20 +117,6 @@ func TestShouldHashExt_PinnedList(t *testing.T) {
 	}
 }
 
-func TestFindInstDir_FallbackScan(t *testing.T) {
-	versionDir := t.TempDir()
-	// 无标准目录；创建含 .zip 文件的子目录（resourcepack 支持 .zip）
-	other := filepath.Join(versionDir, "custompacks")
-	if err := os.MkdirAll(other, 0755); err != nil {
-		t.Fatal(err)
-	}
-	_ = os.WriteFile(filepath.Join(other, "pack.zip"), []byte("x"), 0644)
-	got := FindInstDir(versionDir, "resourcepacks", "resourcepack")
-	if got != other {
-		t.Fatalf("应 fallback 到含 .zip 的子目录: %s vs %s", got, other)
-	}
-}
-
 func TestFindInstDir_NoMatch(t *testing.T) {
 	versionDir := t.TempDir()
 	got := FindInstDir(versionDir, "resourcepacks", "resourcepack")
@@ -326,25 +312,8 @@ func TestFindInstDir_UnknownType(t *testing.T) {
 // TestFindInstDir_YsmJsonOnlyNotHit ysm 的 .json 不作独立命中证据：
 // standard（config/yes_steve_model/custom）下只有非 ysm.json 的配置文件 → 不命中，
 // 兜底扫描命中真正含 .ysm 的目录（config 树不再因配置文件被误判为模型目录）。
-func TestFindInstDir_YsmJsonOnlyNotHit(t *testing.T) {
-	versionDir := t.TempDir()
-	// standard 目录存在但只有配置文件（无 ysm.json / .ysm）
-	custom := filepath.Join(versionDir, "config", "yes_steve_model", "custom")
-	if err := os.MkdirAll(custom, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	_ = os.WriteFile(filepath.Join(custom, "settings.json"), []byte("{}"), 0o644)
-	// 真正的模型目录：含 .ysm 主文件
-	modelDir := filepath.Join(versionDir, "modelpacks")
-	if err := os.MkdirAll(modelDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	_ = os.WriteFile(filepath.Join(modelDir, "hero.ysm"), []byte("ysm"), 0o644)
-	got := FindInstDir(versionDir, "config/yes_steve_model/custom", "ysm")
-	if got != modelDir {
-		t.Fatalf("json-only 不应命中，应兜底到含 .ysm 的目录: %s vs %s", got, modelDir)
-	}
-}
+// 注：2026-08-23 收敛后 ysm scanInstance=false，不再兜底，本测试由
+// TestFindInstDir_Ysm_NoFallback 取代（断言返回标准路径而非误扫 modelpacks）。
 
 // TestFindInstDir_YsmJsonFlagHit ysm.json 标志文件可独立命中（解压型模型目录
 // 无 .ysm 主文件，靠 ysm.json + models/ 识别）。
@@ -429,21 +398,6 @@ func TestFindInstDir_LitematicZipOnlyNotHit(t *testing.T) {
 	}
 }
 
-// TestFindInstDir_ResourcepackZipKept 纯容器类型（resourcepack 扩展集仅 .zip/.7z）
-// 保留 .zip 命中证据——否则其兜底扫描完全失效（回归守卫，对照 FallbackScan）。
-func TestFindInstDir_ResourcepackZipKept(t *testing.T) {
-	versionDir := t.TempDir()
-	other := filepath.Join(versionDir, "custompacks")
-	if err := os.MkdirAll(other, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	_ = os.WriteFile(filepath.Join(other, "pack.zip"), []byte("zip"), 0o644)
-	got := FindInstDir(versionDir, "resourcepacks", "resourcepack")
-	if got != other {
-		t.Fatalf("纯容器类型 .zip 仍应兜底命中: %s vs %s", got, other)
-	}
-}
-
 // TestFindInstDir_ResourcepackStandardEmptyNoFallback 标准 resourcepacks 目录存在但空
 // 时，纯容器类型（resourcepack）不得兜底扫描——容器证据无法区分其他目录里的 .zip，
 // 兜底会误命中 mods/缓存目录，导致侧边栏把整合包无关压缩包报成 extra（用户场景：
@@ -467,3 +421,87 @@ func TestFindInstDir_ResourcepackStandardEmptyNoFallback(t *testing.T) {
 		t.Fatalf("标准 resourcepacks 存在时应返回标准目录（不兜底误命中）: %s vs %s", got, want)
 	}
 }
+
+// ====== 2026-08-23 收敛：不为文件操作设置兜底目录 ======
+// 核心纪律：FindInstDir 的消费者是同步 / 哈希 / 回收站清理等破坏性文件操作入口，
+// 兜底扫描越界命中错误目录（如 MMD 子类型缺失时扫到 config 树里混放的 .pmx）会让
+// 下游对错误目录做删改，安全性归零。因此默认关闭兜底，仅 ScanInstance==true 的类型
+// （目前仅 blueprint）开启。以下测试全部采用**负向断言**：竞争者目录含合法扩展名，
+// 但绝不应被返回——这是此前测试套件缺失的覆盖（旧测试只验「命中谁」不验「绝不命中谁」）。
+
+// TestFindInstDir_MmdSubtype_NoFalseConfigHit 复现用户 PCL2 场景：
+// 标准 3d-skin/SceneModel 不存在，但 config/yes_steve_model/custom 里混放了 .pmx
+// （玩家把 MMD 模型塞进 ysm 目录）。MMD 子类型 scanInstance=false → 不得兜底扫到 config，
+// 必须返回标准路径（SyncResources 后续对空目录返回空结果，而非误删 config 树）。
+func TestFindInstDir_MmdSubtype_NoFalseConfigHit(t *testing.T) {
+	versionDir := t.TempDir()
+	// 3d-skin 根存在但无 SceneModel 子目录（玩家没放场景模型）
+	if err := os.MkdirAll(filepath.Join(versionDir, "3d-skin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// config 树里混放 .pmx（MMD 模型被塞进 ysm custom 目录）——旧实现会误命中这里
+	cfgCustom := filepath.Join(versionDir, "config", "yes_steve_model", "custom")
+	if err := os.MkdirAll(cfgCustom, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(cfgCustom, "some_model.pmx"), []byte("x"), 0o644)
+	want := filepath.Join(versionDir, "3d-skin", "SceneModel")
+	got := FindInstDir(versionDir, "3d-skin/SceneModel", "SceneModel")
+	if got != want {
+		t.Fatalf("MMD 子类型不得兜底误命中 config 树: got=%s, 期望标准路径 %s", got, want)
+	}
+}
+
+// TestFindInstDir_Ysm_NoFallback ysm 标准目录（config/yes_steve_model/custom）不存在时，
+// 即使 versionDir 下其他目录含合法 .ysm，也不得兜底返回——ysm scanInstance=false。
+func TestFindInstDir_Ysm_NoFallback(t *testing.T) {
+	versionDir := t.TempDir()
+	// 非标准位置含 .ysm（旧兜底会扫到这里）
+	modelDir := filepath.Join(versionDir, "modelpacks")
+	if err := os.MkdirAll(modelDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(modelDir, "hero.ysm"), []byte("ysm"), 0o644)
+	want := filepath.Join(versionDir, "config", "yes_steve_model", "custom")
+	got := FindInstDir(versionDir, "config/yes_steve_model/custom", "ysm")
+	if got != want {
+		t.Fatalf("ysm 不得兜底到非标准目录: got=%s, 期望标准路径 %s", got, want)
+	}
+}
+
+// TestFindInstDir_Blueprint_FallbackKept 唯一合法兜底用例：blueprint scanInstance=true，
+// 标准 schematics 为空时仍兜底到 Sable-Schematics/（保留 ADR-104 前真实模组布局兼容）。
+func TestFindInstDir_Blueprint_FallbackKept(t *testing.T) {
+	versionDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(versionDir, "schematics"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sable := filepath.Join(versionDir, "Sable-Schematics", "hello_new_generation_core")
+	if err := os.MkdirAll(sable, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(sable, "c1.nbt"), []byte("nbt"), 0o644)
+	want := filepath.Join(versionDir, "Sable-Schematics")
+	got := FindInstDir(versionDir, "schematics", "blueprint")
+	if got != want {
+		t.Fatalf("blueprint 应保留兜底到 Sable-Schematics: got=%s, 期望 %s", got, want)
+	}
+}
+
+// TestFindInstDir_Resourcepack_NoFallback 纯容器类型 resourcepack scanInstance=false：
+// 即使其他目录含 .zip，标准 resourcepacks 缺失时不得兜底返回——改造原 ResourcepackZipKept
+// （旧测试断言兜底命中 other，与新纪律冲突，改为断言返回标准路径）。
+func TestFindInstDir_Resourcepack_NoFallback(t *testing.T) {
+	versionDir := t.TempDir()
+	other := filepath.Join(versionDir, "custompacks")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(other, "pack.zip"), []byte("zip"), 0o644)
+	want := filepath.Join(versionDir, "resourcepacks")
+	got := FindInstDir(versionDir, "resourcepacks", "resourcepack")
+	if got != want {
+		t.Fatalf("resourcepack 不得兜底，应返回标准路径: got=%s, 期望 %s", got, want)
+	}
+}
+

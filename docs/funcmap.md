@@ -500,7 +500,7 @@
 | `SubDirAll()` | `go/types/extensions:385` | SubDirAll 返回所有资源类型在整合包实例中的版本子目录映射 |
 | `AllSubDirs()` | `go/types/extensions:397` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
 | `SubDirEntry()` | `go/types/extensions:358` | SubDirEntry 资源类型的版本子目录信息 |
-| `FindInstDir()` | `go/types/findinst:66` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
+| `FindInstDir()` | `go/types/findinst:71` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
 | `SetBundledRegistryJSON()` | `go/types/resource:20` | SetBundledRegistryJSON 由根包 main 注入编译期内嵌的注册表字节（单源：仓库根 resource_types.json）。 |
 | `ResourceType.EffectiveExtensions()` | `go/types/resource:78` | EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。 |
 | `ResourceType.MatchZipEntry()` | `go/types/resource:96` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |

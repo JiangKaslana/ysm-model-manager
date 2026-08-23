@@ -17,7 +17,7 @@
       "instanceLevel": false,
       "preview": "3d",
       "detector": "mcmeta",
-      "scanInstance": true,
+      "scanInstance": false,
       "zipEntries": [
         {
           "name": "pack.mcmeta",
@@ -46,7 +46,7 @@
       "instanceLevel": false,
       "preview": "thumbnail",
       "detector": "shader",
-      "scanInstance": true,
+      "scanInstance": false,
       "zipEntries": [
         {
           "name": "shaders/",
