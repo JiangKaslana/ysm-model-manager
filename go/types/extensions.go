@@ -20,9 +20,33 @@ import (
 // 消费注册表 nestedModelDir 字段，不硬编码 rtype。
 func IsNestedModelDir(rtype string) bool {
 	if rt := RegistryType(rtype); rt != nil {
-		return rt.NestedModelDir
+		return rt.NestedModelDir || len(rt.NestedPatterns) > 0
 	}
 	return false
+}
+
+// NestedPatternsFor 返回指定资源类型的嵌套模式配置列表（ADR-XXX）。
+// 若类型未配置 NestedPatterns 但有 NestedModelDir 标记，返回默认的 assets/入口文件模式。
+func NestedPatternsFor(rtype string) []NestedPattern {
+	rt := RegistryType(rtype)
+	if rt == nil {
+		return nil
+	}
+	// 优先返回显式配置的 NestedPatterns
+	if len(rt.NestedPatterns) > 0 {
+		return rt.NestedPatterns
+	}
+	// 向后兼容：只有 NestedModelDir 标记时返回默认模式
+	if rt.NestedModelDir {
+		return []NestedPattern{
+			{
+				EntryDir:   "assets",
+				EntryFiles: []string{"maid_model.json", "chair_model.json"},
+				MaxDepth:   10,
+			},
+		}
+	}
+	return nil
 }
 
 // MaxImportSize 导入文件最大体积限制（500MB）

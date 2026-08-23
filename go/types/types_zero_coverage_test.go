@@ -81,10 +81,10 @@ func TestIsScanInstance(t *testing.T) {
 
 func TestInstallExtsFor(t *testing.T) {
 	exts := InstallExtsFor("ysm")
-	if len(exts) != 4 {
-		t.Fatalf("InstallExtsFor('ysm') 长度 = %d, 期望 4", len(exts))
+	if len(exts) != 5 {
+		t.Fatalf("InstallExtsFor('ysm') 长度 = %d, 期望 5", len(exts))
 	}
-	expectedYsm := map[string]bool{".json": false, ".png": false, ".jpg": false, ".jpeg": false}
+	expectedYsm := map[string]bool{".ysm": false, ".json": false, ".png": false, ".jpg": false, ".jpeg": false}
 	for _, e := range exts {
 		expectedYsm[e] = true
 	}

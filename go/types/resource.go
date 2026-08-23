@@ -38,20 +38,21 @@ type ResourceType struct {
 	StorageSubDir  string          `json:"storageSubDir"`
 	InstanceDir    string          `json:"instanceDir"` // 整合包内实际存放目录（安装+扫描统一路径）
 	InstanceLevel  bool            `json:"instanceLevel"`
-	Preview        string          `json:"preview"`            // "3d" / "thumbnail" / "none"
-	Detector       string          `json:"detector"`           // "ysm" / "mcmeta" / "shader" / "zipentry" / "extension"
-	ConfigField    string          `json:"configField"`        // AppConfig 字段名（如 YsmRoot）
-	ConfigFallback string          `json:"configFallback"`     // AppConfig 回退字段名（如 VrcRoot→MmdRoot）
-	IsDir          bool            `json:"isDir"`              // 目录型资源（删除/同步整目录）
-	Hashable       bool            `json:"hashable"`           // 扩展名参与 SHA256 哈希（ShouldHashExt 注册表驱动）
-	DirLevelSync   bool            `json:"dirLevelSync"`       // 文件夹级资源同步（sync.SyncResourcesDirLevel）
-	ScanInstance   bool            `json:"scanInstance"`       // instance 视图额外扫描整合包目录（非模型类型兜底）
-	InstallExts    []string        `json:"installExts"`        // 安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
-	ZipEntries     []ZipEntryMatch `json:"zipEntries"`         // ZIP 内容特征条目（importer.DetectZipType 注册表驱动）
-	NestedModelDir bool            `json:"nestedModelDir"`     // 嵌套模型目录（ADR-095）：模型入口在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）
-	Priority       int             `json:"priority,omitempty"` // 检测优先级（同指纹计数打平时高者胜：专用指纹类型 > 通用指纹类型，如 maid-model > resourcepack）
-	Mod            *ModRequirement `json:"mod,omitempty"`      // mod 依赖声明（ADR-110：mod 下沉注册表）
-	Variants       []Variant       `json:"variants,omitempty"` // 格式变体（ADR-111：variants 解耦，按扩展名分发预览器）
+	Preview        string          `json:"preview"`                  // "3d" / "thumbnail" / "none"
+	Detector       string          `json:"detector"`                 // "ysm" / "mcmeta" / "shader" / "zipentry" / "extension"
+	ConfigField    string          `json:"configField"`              // AppConfig 字段名（如 YsmRoot）
+	ConfigFallback string          `json:"configFallback"`           // AppConfig 回退字段名（如 VrcRoot→MmdRoot）
+	IsDir          bool            `json:"isDir"`                    // 目录型资源（删除/同步整目录）
+	Hashable       bool            `json:"hashable"`                 // 扩展名参与 SHA256 哈希（ShouldHashExt 注册表驱动）
+	DirLevelSync   bool            `json:"dirLevelSync"`             // 文件夹级资源同步（sync.SyncResourcesDirLevel）
+	ScanInstance   bool            `json:"scanInstance"`             // instance 视图额外扫描整合包目录（非模型类型兜底）
+	InstallExts    []string        `json:"installExts"`              // 安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
+	ZipEntries     []ZipEntryMatch `json:"zipEntries"`               // ZIP 内容特征条目（importer.DetectZipType 注册表驱动）
+	NestedModelDir bool            `json:"nestedModelDir"`           // 嵌套模型目录（ADR-095）：模型入口在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）
+	NestedPatterns []NestedPattern `json:"nestedPatterns,omitempty"` // 嵌套模式配置（ADR-XXX）：支持任意深度的嵌套路径检测
+	Priority       int             `json:"priority,omitempty"`       // 检测优先级（同指纹计数打平时高者胜：专用指纹类型 > 通用指纹类型，如 maid-model > resourcepack）
+	Mod            *ModRequirement `json:"mod,omitempty"`            // mod 依赖声明（ADR-110：mod 下沉注册表）
+	Variants       []Variant       `json:"variants,omitempty"`       // 格式变体（ADR-111：variants 解耦，按扩展名分发预览器）
 }
 
 // ModRequirement mod 依赖声明（ADR-110）：
@@ -71,6 +72,28 @@ type ModRequirement struct {
 type Variant struct {
 	Ext     string `json:"ext"`     // 扩展名（如 ".pmx"、".vrm"）
 	Preview string `json:"preview"` // 预览器 id（如 "mmd"、"vrm"）
+}
+
+// NestedPattern 嵌套模型模式配置（ADR-XXX）：
+// 支持任意深度的嵌套路径检测，用于识别多层嵌套的模型结构。
+// 例如 maid-model 的 assets/<namespace>/maid_model.json 结构，
+// 或其他更深层的嵌套目录结构。
+//
+// 配置示例：
+//
+//	{
+//	  "entryDir": "assets",           // 入口目录（相对于模型根目录）
+//	  "entryFiles": ["maid_model.json", "chair_model.json"]  // 入口文件名
+//	}
+//
+// 运行时行为：
+//  1. 从模型根目录开始，递归查找 entryDir 指定的目录
+//  2. 在 entryDir 下查找 entryFiles 中任一文件
+//  3. 找到后将该目录识别为模型目录（含层级信息）
+type NestedPattern struct {
+	EntryDir   string   `json:"entryDir"`           // 入口目录名（如 "assets"），为空则直接在根目录查找
+	EntryFiles []string `json:"entryFiles"`         // 入口文件名列表（如 ["maid_model.json"]）
+	MaxDepth   int      `json:"maxDepth,omitempty"` // 最大递归深度（默认 10），防止无限递归
 }
 
 // EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。

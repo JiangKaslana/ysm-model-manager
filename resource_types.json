@@ -85,6 +85,7 @@
       "hashable": true,
       "dirLevelSync": true,
       "installExts": [
+        ".ysm",
         ".json",
         ".png",
         ".jpg",
@@ -136,6 +137,13 @@
       "isDir": true,
       "dirLevelSync": true,
       "nestedModelDir": true,
+      "nestedPatterns": [
+        {
+          "entryDir": "assets",
+          "entryFiles": ["maid_model.json", "chair_model.json"],
+          "maxDepth": 10
+        }
+      ],
       "installExts": [
         ".json",
         ".png",

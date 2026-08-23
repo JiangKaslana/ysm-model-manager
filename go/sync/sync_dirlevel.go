@@ -1,5 +1,24 @@
-// ===== 文件夹级资源同步（ADR-040 拆分）=====
+// ===== 文件夹级资源同步（ADR-040 拆分，多层物理路径支持）=====
 // 从 sync.go 拆出：YSM（ysm.json 文件夹）/ MMD（.pmx/.pmd 文件夹）按文件夹名对比
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+// 多层物理路径支持（2026-09 重构）
+// ───────────────────────────────────────────────────────────────────────────────
+// 原实现使用文件夹/文件名的 basename 作为同步 key，且仅收集 rootDir 顶层单元：
+//   - 平铺模型文件仅收集 "直接位于 rootDir 下" 的（filepath.Dir(path)==rootDir）
+//   - 模型文件夹仅收集 rootDir 的直接一级子目录（Walk 找到模型文件夹后 SkipDir，
+//     不再深入兄弟目录间的深层嵌套）
+//
+// 后果：仓库多级子目录（如 maid-model/vendor/character/pack.zip）被扁平化，
+// 同步时丢失层级信息，实质上阻碍模型仓库多层物理路径推广。
+//
+// 重构方案：
+//  1. key 从 basename 升级为相对路径（relKeyDirLevel），天然保留目录层级
+//  2. 平铺模型文件在任意深度收集，不再限定 rootDir 顶层
+//  3. 模型文件夹在任意深度收集，不再限定一级子目录
+//  4. 非模型子目录中不包含任何模型文件/文件夹时，SkipDir 优化遍历
+//
+// ═══════════════════════════════════════════════════════════════════════════════
 package sync
 
 import (
@@ -15,6 +34,7 @@ import (
 
 // isDirTypeModelFolder 检查一个子目录是否包含 YSM/MMD 模型文件（即文件夹级资源）
 // 用于 YSM（.ysm / ysm.json）和 MMD（.pmx/.pmd）类型的文件夹级同步
+// 支持多层嵌套结构检测（通过 NestedPatterns 配置）
 func isDirTypeModelFolder(path string, rtype string) bool {
 	entries, err := os.ReadDir(path)
 	if err != nil {
@@ -28,38 +48,152 @@ func isDirTypeModelFolder(path string, rtype string) bool {
 			return true
 		}
 	}
-	// ADR-095 maid-model（车万女仆）：模型包结构 assets/<namespace>/maid_model.json
-	// （CustomPackLoader 源码核实），入口文件在深层，需检查 assets 子目录。
-	// 消费注册表 nestedModelDir 字段（ADR-065 合规），不硬编码 rtype。
-	if types.IsNestedModelDir(rtype) {
-		assetsDir := filepath.Join(path, "assets")
-		nsDirs, err := os.ReadDir(assetsDir)
-		if err != nil {
-			return false
-		}
-		for _, ns := range nsDirs {
-			if !ns.IsDir() {
-				continue
-			}
-			for _, entry := range []string{"maid_model.json", "chair_model.json"} {
-				if info, err := os.Stat(filepath.Join(assetsDir, ns.Name(), entry)); err == nil && !info.IsDir() {
-					return true
-				}
+	// 基于 NestedPatterns 配置的多层嵌套检测
+	// 支持任意深度的嵌套结构，不再硬编码 maid-model 特定逻辑
+	// 只在当前目录是真正的模型目录（包含入口文件的目录）时返回 true
+	if patterns := types.NestedPatternsFor(rtype); len(patterns) > 0 {
+		if foundDir := findNestedModelDir(path, patterns); foundDir != "" {
+			// 只有当找到的模型目录就是当前路径时才返回 true
+			// 如果找到的是更深层的目录，说明当前目录只是中间目录
+			if filepath.Clean(foundDir) == filepath.Clean(path) {
+				return true
 			}
 		}
 	}
 	return false
 }
 
+// findNestedModelDir 在指定目录下递归查找嵌套模型目录
+// 返回第一个符合模式的模型目录路径，找不到返回空字符串
+// 关键设计：返回实际的模型目录路径（包含入口文件的目录），
+// 而不是中间目录的路径。这样 Walk 能正确识别嵌套结构。
+func findNestedModelDir(path string, patterns []types.NestedPattern) string {
+	for _, pattern := range patterns {
+		if found := patternFind(path, pattern, 0); found != "" {
+			return found
+		}
+	}
+	return ""
+}
+
+// patternFind 递归查找符合单个嵌套模式的模型目录
+// 返回找到的模型目录路径，找不到返回空字符串
+// 与 patternMatches 不同：此函数返回具体路径而非布尔值，
+// 让调用方能区分"当前目录是模型文件夹"和"子目录中有模型文件夹"两种情况
+//
+// 返回值说明：
+// - 当在 EntryDir 下（或其子目录）找到入口文件时，返回 EntryDir 的父目录
+// - 这样能正确识别模型包的根目录（如 my_pack/assets/ns/maid_model.json -> my_pack）
+// - 当 EntryDir 为空且入口文件直接在当前目录时，返回当前目录
+func patternFind(path string, pattern types.NestedPattern, depth int) string {
+	// 深度限制，防止无限递归
+	maxDepth := pattern.MaxDepth
+	if maxDepth <= 0 {
+		maxDepth = 10
+	}
+	if depth > maxDepth {
+		return ""
+	}
+
+	// 如果 EntryDir 为空，直接在当前目录检查 EntryFiles
+	if pattern.EntryDir == "" {
+		if checkEntryFiles(path, pattern.EntryFiles) {
+			return path
+		}
+		return ""
+	}
+
+	// 检查当前目录名是否匹配 EntryDir
+	dirName := filepath.Base(path)
+	if strings.EqualFold(dirName, pattern.EntryDir) {
+		// 找到 EntryDir 目录，检查其中是否有入口文件
+		// 注意：这里检查子目录是因为 maid_model.json 在 assets/<namespace>/ 下
+		// 而不是直接在 assets/ 下
+		entries, err := os.ReadDir(path)
+		if err == nil {
+			for _, e := range entries {
+				if e.IsDir() {
+					subPath := filepath.Join(path, e.Name())
+					if checkEntryFiles(subPath, pattern.EntryFiles) {
+						// 找到入口文件，返回 EntryDir 的父目录（模型包根目录）
+						// 对于 my_pack/assets/ns/maid_model.json，返回 my_pack
+						// 而不是 ns 或 assets
+						return filepath.Dir(path)
+					}
+				}
+			}
+			// 也检查入口文件是否直接在 EntryDir 下
+			if checkEntryFiles(path, pattern.EntryFiles) {
+				return filepath.Dir(path)
+			}
+		}
+		return ""
+	}
+
+	// 未找到 EntryDir，继续向下子目录递归查找
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			subPath := filepath.Join(path, e.Name())
+			if found := patternFind(subPath, pattern, depth+1); found != "" {
+				return found
+			}
+		}
+	}
+	return ""
+}
+
+// checkEntryFiles 检查目录中是否存在入口文件列表中的任一文件
+func checkEntryFiles(path string, entryFiles []string) bool {
+	for _, entryFile := range entryFiles {
+		// 支持不带路径的文件名（如 "maid_model.json"）
+		fileName := filepath.Base(entryFile)
+		if info, err := os.Stat(filepath.Join(path, fileName)); err == nil && !info.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+// relKeyDirLevel 计算目录级同步条目的规范化 key：相对路径 + 小写 + 去禁用后缀。
+// 与 relKey 的区别：relKey 保留扩展名（供 ResourceDiff 按大小对比），
+// 而目录级同步的 key 按「模型身份」去扩展名（模型 A 的 zip 无论版本为何，
+// 身份相同；扩展名不是模型身份的一部分）。
+// 多层物理路径支持：返回的 key 包含完整相对路径层级，如 "vendor/character/pack"
+// 而非扁平化的 "pack"。
+func relKeyDirLevel(root, path string) string {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return ""
+	}
+	rel = filepath.ToSlash(rel)
+	rel = strings.ToLower(rel)
+	rel = types.StripDisableSuffix(rel)
+	// 剥离扩展名——模型身份不以扩展名区分
+	if ext := filepath.Ext(rel); ext != "" {
+		rel = strings.TrimSuffix(rel, ext)
+	}
+	return rel
+}
+
 // SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹）
 // 以文件夹名为单位，一个文件夹包含模型文件 + 纹理文件 = 一个整体
-// 同时也会收集顶层平铺的模型文件（如 .ysm），以文件名（去扩展名）作为 key
+// 同时也会收集各层级的平铺模型文件（如 .ysm），以相对路径（去扩展名）作为 key
 // 路径存储：全局侧存全局路径，实例侧存实例路径；missing/extra 都是路径
+//
+// 多层物理路径支持：
+//   - key 为相对路径（relKeyDirLevel），天然保留目录层级
+//   - 平铺模型文件在任意深度收集
+//   - 模型文件夹在任意深度收集
+//   - 非模型空子目录跳过（SkipDir 优化），避免无意义遍历
 func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceSyncResult {
 	result := types.ResourceSyncResult{}
 
 	// collectEntries 单次 Walk 收集整棵树的同步单元：
-	// - 顶层单元（平铺模型文件 + 模型文件夹）
+	// 以相对路径（relKeyDirLevel）为 key，保留完整目录层级。
 	collectEntries := func(rootDir string) map[string]string {
 		entries := make(map[string]string)
 		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
@@ -68,11 +202,9 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 				return nil
 			}
 			if !info.IsDir() {
-				// 顶层平铺模型文件（path 直接在 rootDir 下）
-				if filepath.Clean(filepath.Dir(path)) == filepath.Clean(rootDir) {
-					low := strings.ToLower(info.Name())
-					if types.IsTypeModelFile(path, rtype) {
-						key := strings.TrimSuffix(low, filepath.Ext(low))
+				// 平铺模型文件：在任意深度收集（不再限定 rootDir 顶层）
+				if types.IsTypeModelFile(path, rtype) {
+					if key := relKeyDirLevel(rootDir, path); key != "" {
 						entries[key] = path
 					}
 				}
@@ -85,11 +217,14 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 			if fsutil.IsRecycleDir(path) {
 				return filepath.SkipDir
 			}
+			// 模型文件夹：在任意深度收集（不再限定一级子目录）
 			if isDirTypeModelFolder(path, rtype) {
-				name := strings.ToLower(info.Name())
-				entries[name] = path
+				if key := relKeyDirLevel(rootDir, path); key != "" {
+					entries[key] = path
+				}
 				return filepath.SkipDir
 			}
+			// 非模型子目录：继续递归（可能包含深层嵌套的模型文件夹/文件）
 			return nil
 		})
 		return entries
@@ -100,16 +235,16 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 
 	// 找出 synced / missing / extra
 	seen := make(map[string]bool)
-	for name, gPath := range globalDirs {
-		seen[name] = true
-		if _, exists := instanceDirs[name]; exists {
+	for key, gPath := range globalDirs {
+		seen[key] = true
+		if _, exists := instanceDirs[key]; exists {
 			result.Synced = append(result.Synced, gPath)
 		} else {
 			result.Missing = append(result.Missing, gPath)
 		}
 	}
-	for name, iPath := range instanceDirs {
-		if !seen[name] {
+	for key, iPath := range instanceDirs {
+		if !seen[key] {
 			result.Extra = append(result.Extra, iPath)
 		}
 	}

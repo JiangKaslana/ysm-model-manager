@@ -19,12 +19,19 @@ import (
 type Logger func(name, src, dst string, size int64, status, msg string)
 
 // PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel）
+//
+// 多层物理路径支持：
+//
+//	对于 dirLevelSync 类型，会在目标目录下还原相对 globalDir 的完整路径层级。
+//	例如仓库 maid-model/vendor/character/pack.zip 推送后落位到
+//	targetDir/vendor/character/pack.zip，而非扁平化的 targetDir/pack.zip。
 func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) (int, error) {
 	count := 0
 	failed := 0
 
 	// YSM(.json) 和 MMD(.pmx/.pmd) 位于子目录中，需文件夹推送
 	// 用文件夹级同步检测 missing，然后完整复制整个文件夹（含纹理等配套文件）
+	// 多层物理路径：行内计算 rel(globalDir, missing) 保留中间目录层级
 	if types.IsDirLevelSync(rtype) {
 		dirResult := SyncResourcesDirLevel(globalDir, targetDir, rtype)
 		for _, missing := range dirResult.Missing {
@@ -33,7 +40,16 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 			if stErr == nil && !fi.IsDir() {
 				err = installer.Install(missing, targetDir, globalDir, linkMode)
 			} else {
-				err = installer.InstallDir(missing, targetDir, globalDir, linkMode, rtype)
+				// 多层物理路径：计算相对路径保留目录层级
+				// 例如 missing=globalDir/vendor/character/modelA → targetDir/vendor/character/modelA
+				rel, relErr := filepath.Rel(globalDir, missing)
+				if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+					// 越界回退到旧行为（targetDir/{basename}）
+					err = installer.InstallDir(missing, targetDir, globalDir, linkMode, rtype)
+				} else {
+					dstDir := filepath.Join(targetDir, filepath.Dir(rel))
+					err = installer.InstallDir(missing, dstDir, globalDir, linkMode, rtype)
+				}
 			}
 			if err == nil {
 				count++
