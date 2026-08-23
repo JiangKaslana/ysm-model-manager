@@ -230,7 +230,12 @@ func nestDirLevelTree(flat []types.ResourceSyncItem, globalDir, instDir, rtype s
 	root := &nestTreeNode{children: map[string]*nestTreeNode{}}
 	relOf := func(p string) (string, bool) {
 		for _, basedir := range []string{globalDir, instDir} {
-			if basedir == "" || !strings.HasPrefix(p, basedir) {
+			// 分隔符守卫：避免两根呈前缀嵌套时误归属（如 D:\repo 与 D:\repo-instance）
+			if basedir == "" {
+				continue
+			}
+			sep := string(filepath.Separator)
+			if p != basedir && !strings.HasPrefix(p, basedir+sep) {
 				continue
 			}
 			rel, err := filepath.Rel(basedir, p)
@@ -314,7 +319,9 @@ func treeChildren(node *nestTreeNode, baseRel, globalDir, instDir, rtype string)
 		children := treeChildren(c, childRel, globalDir, instDir, rtype)
 		status := aggregateStatus(children)
 		icon := "📁"
-		if status == types.SyncStatusDiverged || status == types.SyncStatusMissing {
+		// 容器状态只可能是 synced/diverged/optional（aggregateStatus 聚合结果），无 missing；
+		// 有差异(含可推/可拉)时用 🗂️ 指示可展开
+		if status == types.SyncStatusDiverged || status == types.SyncStatusOptional {
 			icon = "🗂️"
 		}
 		// 容器绝对路径：按聚合 status 选根——optional(可拉取) 源在实例侧，其余(可推送/同步) 源在
@@ -360,22 +367,24 @@ func joinRel(parent, seg string) string {
 }
 
 // aggregateStatus 聚合子项状态：
-//   - 全部 synced → synced
-//   - 含可推送差异（missing/diverged/disabled）→ diverged（可推送）
+//   - 全部 synced/disabled → synced（无推送差异；disabled 是用户刻意禁用的内容，不驱动容器推送）
+//   - 含可推送差异（missing/diverged，不含 disabled）→ diverged（可推送）
 //   - 仅 optional/legacy（实例侧独有）→ optional（可拉取）
 //   - 空子项 → synced
 //
+// disabled 归入「中立」而非 hasPush：与 BuildSyncItems 自身「禁用内容不给推送按钮」语义一致——
+// 否则含 .ban 子项的容器会被标 diverged、出现容器级 push 按钮，整夹 InstallDir 会覆盖用户刻意 .ban 的内容。
 // 保留 optional 语义：纯可拉取容器应显示 pull 而非误归为 diverged 的 push
 func aggregateStatus(children []types.ResourceSyncItem) types.SyncStatus {
 	hasPush := false
 	hasPull := false
 	for _, c := range children {
 		switch c.Status {
-		case types.SyncStatusSynced:
-			// 同步项不算差异
+		case types.SyncStatusSynced, types.SyncStatusDisabled:
+			// 同步项与禁用项都不算可推送差异（disabled 中立，防覆盖 .ban）
 		case types.SyncStatusOptional, types.SyncStatusLegacy:
 			hasPull = true
-		default: // missing/diverged/disabled
+		default: // missing/diverged
 			hasPush = true
 		}
 	}

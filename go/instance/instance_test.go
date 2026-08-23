@@ -699,6 +699,38 @@ func TestBuildSyncItems_NestedContainer_PathDirection(t *testing.T) {
 	}
 }
 
+// TestAggregateStatus_DisabledNeutral 锁定 disabled 在容器聚合中的「中立」语义：
+// 禁用项是用户刻意 .ban 的内容，不应驱动容器级 push 按钮（与 BuildSyncItems
+// 「禁用不给推送按钮」一致，防整夹 InstallDir 覆盖 .ban）——含禁用但无 missing/optional
+// 的容器应判定为 synced(无差异)，不出现 push。
+func TestAggregateStatus_DisabledNeutral(t *testing.T) {
+	synced := types.ResourceSyncItem{Status: types.SyncStatusSynced}
+	disabled := types.ResourceSyncItem{Status: types.SyncStatusDisabled}
+	missing := types.ResourceSyncItem{Status: types.SyncStatusMissing}
+	optional := types.ResourceSyncItem{Status: types.SyncStatusOptional}
+
+	// 仅 synced + disabled → synced（disdable 不驱动推送）
+	if got := aggregateStatus([]types.ResourceSyncItem{synced, disabled}); got != types.SyncStatusSynced {
+		t.Errorf("synced+disabled 应聚合为 synced（无推送差异），实际 %q", got)
+	}
+	// 全部 disabled → synced
+	if got := aggregateStatus([]types.ResourceSyncItem{disabled}); got != types.SyncStatusSynced {
+		t.Errorf("全 disabled 应聚合为 synced，实际 %q", got)
+	}
+	// 含 missing（可推送）→ diverged（disabled 不改变推送方向）
+	if got := aggregateStatus([]types.ResourceSyncItem{synced, disabled, missing}); got != types.SyncStatusDiverged {
+		t.Errorf("synced+disabled+missing 应聚合为 diverged（有可推送项），实际 %q", got)
+	}
+	// 纯 optional → optional（disabled 不干扰可拉取）
+	if got := aggregateStatus([]types.ResourceSyncItem{disabled, optional}); got != types.SyncStatusOptional {
+		t.Errorf("disabled+optional 应聚合为 optional（可拉取），实际 %q", got)
+	}
+	// 空 → synced
+	if got := aggregateStatus(nil); got != types.SyncStatusSynced {
+		t.Errorf("空聚合应为 synced，实际 %q", got)
+	}
+}
+
 // TestBuildSyncItems_NestedContainer_DeepHierarchy 验证多层嵌套镜像磁盘层级
 // 仓库怎么来，整合包就怎么来：每一层中间目录都建为可展开容器
 func TestBuildSyncItems_NestedContainer_DeepHierarchy(t *testing.T) {
