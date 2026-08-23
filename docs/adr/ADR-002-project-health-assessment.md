@@ -37,11 +37,11 @@ CSS 1,419 行 / HTML 182 行），前端 + 后端 + 工具脚本三侧均有明�
 | 级别 | 文件 | 行数 | 说明 |
 |------|------|------|------|
 | 🔴 RED | `go/litematic/block_ids_data.go` | 3,477 | 自动生成，豁免 |
-| 🔴 RED | `frontend/src/views/app-content/community/site-view.js` | **1,268** | 社区站点视图，未按规范拆分 |
-| 🟡 YELLOW | `frontend/src/views/app-content/index.js` | 921 | 入口聚合，可接受 |
-| 🟡 YELLOW | `frontend/src/views/app-content/content-css.js` | 919 | Shadow DOM 样式，免拆 |
-| 🟡 YELLOW | `frontend/src/features/import-queue.js` | 835 | 业务逻辑与 UI 渲染混合 |
-| 🟡 YELLOW | `frontend/src/views/app-content/community/settings.js` | 733 | 社区设置页 |
+| 🔴 RED | `frontend/src/views/app-content/community/site-view.js` | **1,268** | **评估时点快照（2026-08）**：该文件已拆除——现 `site-view.ts` 为 114 行薄壳，`site/` 子模块（`drag/edit/events/render/types.ts`）承接逻辑，最大单文件 `edit.ts` 487 行且配独立测试，RED 级风险已消除 |
+| 🟡 YELLOW | `frontend/src/views/app-content/index.js` | 921 | **已迁移**：`index.ts` 231 行（入口聚合精简）；`content-css.js`→`content-css.ts` 18 行；`import-queue.js`→`features/import-queue/` 模块化；`settings.js`→`community/settings/` 子模块。评估时点列出的 `.js` 大文件已全部清偿 |
+| 🟡 YELLOW | `frontend/src/views/app-content/content-css.js` | 919 | 同上，已迁移清偿（见上） |
+| 🟡 YELLOW | `frontend/src/features/import-queue.js` | 835 | 同上，已模块化清偿（见上） |
+| 🟡 YELLOW | `frontend/src/views/app-content/community/settings.js` | 733 | 同上，已子模块化清偿（见上） |
 
 ### 2.3 架构维度评级
 
@@ -69,12 +69,10 @@ CSS 1,419 行 / HTML 182 行），前端 + 后端 + 工具脚本三侧均有明�
 
 `DownloadQueue ↔ App` 循环引用**已打破**：`DownloadQueue` 不再持有 `*App`，改为构造时注入 `downloadFn / emitFn / logFn` 三个回调（`NewDownloadQueue(...)` 签名见 `app_download.go:51`），`App` 单向持有 `queue *DownloadQueue`（`app.go:34`）。`internal/app/app_download_test.go` 已有 3 处 `NewDownloadQueue(...)` 独立单测，`DownloadQueue` 已能脱离 `App` 测（**P1 已完成**）。
 
-### 3.2 前端：`site-view.js` 是最大单点
+### 3.2 前端：`site-view` 拆分已完成
 
-`site-view.js`（1,268 行）是前端唯一的 RED 级别大文件。
-社区功能是相对独立的模块，却浓缩在一个文件中。
-按 AGENTS.md §五.3 的拆分规范，至少应拆为：
-`index.js` + `render.js` + `events.js` + `data.js`。
+`site-view`（原 1,268 行 `community/site-view.js`）**已拆分完成**：现 `site-view.ts` 为 114 行薄壳（仅 `renderSiteView` 纯函数 + 接口），业务逻辑分散至 `site/` 子模块的 `drag.ts`(129) / `edit.ts`(487) / `events.ts`(340) / `render.ts`(357) / `types.ts`(40)，每个均有独立 `.test.ts` 配套。RED 级别风险已消除。
+原评估时点列出的其余 `.js` 大文件（`index.js` / `content-css.js` / `import-queue.js` / `settings.js`）也已随 `.ts` 化迁移全面清偿，当前前端手写代码无 >400 行未拆分文件。
 
 ### 3.3 工具脚本：Python→Node 迁移已完成（原 §3.3 债务已清偿）
 
@@ -104,7 +102,7 @@ Go 端有 17 个 `_test.go`，但核心业务包（`avatar` / `download` / `sync
 
 | 优先级 | 任务 | 理由 |
 |--------|------|------|
-| **P0** | `site-view.js` 拆分（1,268 → ≤400 行/文件） | 唯一 RED 级别前端大文件，违反 AGENTS.md §五.3 拆分规范 |
+| **P0** | ~~`site-view.js` 拆分（1,268 → ≤400 行/文件）~~ **✅ 已完成** | 原 `community/site-view.js` 已拆为 `site-view.ts`(114 薄壳) + `site/` 子模块（drag/edit/events/render/types.ts），最大单文件 `edit.ts` 487 行且独立可测，RED 风险消除 |
 | **P0** | ~~清理 25 个一次性脚本 → 归档至 `scripts/_archive/`~~ **✅ 已完成** | Python→Node 全量迁移（`295ac07e`）已清理 25 个 `*.py` 一次性脚本 + 删除 `safe-edit-service.py` 半成品；`scripts/README.md`「已删除」段已记，治理由 `check-script-hygiene.mjs` 等护栏守护 |
 | **P1** | ~~`app_install.go` 逻辑下沉至 `go/installer/`~~ **✅ 已完成** | 原 1,315 行债务已还：`app_install.go` 瘦身为 10 行薄壳，逻辑迁至 `app_install_instance.go`（537 行）。`app_scan.go` 核心亦已下沉 `go/scanner`（见 §3.1） |
 | **P1** | ~~打破 `DownloadQueue ↔ App` 循环引用~~ **✅ 已完成** | 已改 callback 注入模式（`downloadFn/emitFn/logFn`），`app_download_test.go` 独立单测就位，解锁独立测试 |
@@ -124,7 +122,7 @@ Go 端有 17 个 `_test.go`，但核心业务包（`avatar` / `download` / `sync
 
 ## 6. 受影响范围
 
-- `frontend/src/views/app-content/community/site-view.js` → 拆分为多文件
+- `frontend/src/views/app-content/community/site-view.js` → **已完成**拆分为 `site-view.ts`(薄壳) + `site/` 子模块（drag/edit/events/render/types.ts）
 - `internal/app/app_install.go` → **已完成**业务下沉（`go/installer/` + `app_install_instance.go`），现为薄壳
 - `internal/app/app_scan.go` → 核心已下沉 `go/scanner`，Binding 层门面方法保留，非待办
 - `internal/app/app_download.go` → **已完成**打破 `DownloadQueue` 循环引用（回调注入模式）

@@ -122,6 +122,23 @@ function codeAsserts() {
     results.push({ name: 'scripts/ 无残留 .py 脚本', ok: false, detail: `读取失败: ${e.message}` });
   }
 
+  // 4. site-view 拆分防倒退：旧 community/site-view.js 不应复活；site-view.ts 应保持薄壳（≤200 行）
+  const oldSiteView = path.join(ROOT, 'frontend/src/views/app-content/community/site-view.js');
+  const newSiteView = path.join(ROOT, 'frontend/src/views/app-content/site-view.ts');
+  try {
+    const oldExists = fs.existsSync(oldSiteView);
+    let detail = oldExists ? '旧 community/site-view.js 已复活（应删除/迁移）' : 'community/site-view.js 已拆除';
+    let ok = !oldExists;
+    if (!oldExists && fs.existsSync(newSiteView)) {
+      const lines = fs.readFileSync(newSiteView, 'utf-8').split('\n').length;
+      detail += `；site-view.ts ${lines} 行` + (lines <= 200 ? '（薄壳达标）' : `（超 200 行薄壳阈值：${lines}）`);
+      if (lines > 200) ok = false;
+    }
+    results.push({ name: 'site-view 拆分防倒退', ok, detail });
+  } catch (e) {
+    results.push({ name: 'site-view 拆分防倒退', ok: false, detail: `读取失败: ${e.message}` });
+  }
+
   return results;
 }
 
