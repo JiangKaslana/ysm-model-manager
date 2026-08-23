@@ -49,6 +49,8 @@
 
 现有 ADR（ADR-003 职责下沉、ADR-040 大文件拆分）只做**职责拆分**，从未做**口径合并**——「统一到 scanner + 单点对比」无既有决策背书。
 
+**落地后的已知漏网内联（2026-08-23 审计）**：`sync.go:210`（`strings.TrimSuffix(strings.ToLower(e.Name), ".ban")`——repoName 匹配 key）是归一化收敛后的**新内联**，不在阶段一/二点名的 4 处之内。它与 `NormalizeResourceName` **语义不等价**（后者额外剥 `.disabled`）——直接替换会改变 repoName key 与 banned 匹配行为（「同名不同文件夹」的复制/重命名/匹配消费路径，sync.go:198-215）。**暂不归一**（需先加单测锁定 repoName key 语义，含 `.disabled` 文件的 banned 记录行为）；现状分布与警告详见 [go-sync](../knowledge/go-sync.md) 知识卡。
+
 ## 2. 决策（Decision）
 
 **以 `scanner.ScanEntries` 为唯一文件级扫描源，对比实现收敛为单点，分两阶段落地：**

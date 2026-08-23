@@ -73,6 +73,7 @@ invariant_anchors:
 ## 不变量
 
 - `.ban` 后缀 = 禁用模型：仓库侧 `.ban` 文件不进缺失列表；实例中对应哈希的文件标记 Disabled 而非 Extra
+- **`.ban` 剥离/判断现状分布（2026-08-23 审计）**：sync.go 内 5 处——3 处已委托 `types.StripBanSuffix`（L119/121/172：Disabled/Extra/status.Name）+ 2 处内联判断（L55/201 `strings.HasSuffix(strings.ToLower(name), ".ban")`）+ 1 处内联剥离（L210 `strings.TrimSuffix(strings.ToLower(e.Name), ".ban")`——repoName 匹配 key，供「同名不同文件夹」的复制/重命名/匹配消费，sync.go:198-215 banned 记录）。**警告（勿擅自归一）**：L210 内联与 `types.NormalizeResourceName` **语义不等价**（后者额外剥 `.disabled`）——直接替换会改变 repoName key 与 banned 匹配行为；若要归一，先加单测锁定 repoName key 语义（含 `.disabled` 文件的 banned 记录行为）再动。ADR-064 归口声明（归一化归 types 管）见 [ADR-064](../adr/ADR-064-sync-convergence-scanner-single-source.md)，L210 是落地后的漏网内联
 - 哈希全量计算（`scanner.ComputeFileHash`，`sync.go computeHash` 委托）；文件 >500MB（`types.MaxImportSize`）返回空串跳过哈希（同步对空哈希跳过匹配），读错误同样返回空
 - **所有扫描路径都必须排除 `.recycle`**，与 `scanner.ScanEntries` 口径对齐：`SyncResources` 的 collect（`sync.go`，统一 collect 闭包内 `fsutil.IsRecycleDir` SkipDir）、`SyncResourcesDirLevel` 的 `collectEntries`（sync_dirlevel.go）均跳过；`SyncToggleStatus` 用 `strings.Contains(strings.ToLower(p), ".recycle")` 检查整个路径（sync.go），非路径前缀匹配——漏排会把回收站里的模型当成仓库活跃模型，同步管理器显示 missing 且可被推送回实例（回归测试 `TestSyncResources_IgnoresRecycleDir`）
 - 跳过回收站时带 `path != 根目录` 守卫：若用户把仓库根/实例根本身命名为 `.recycle` 则不跳过，否则整次扫描会直接空掉
