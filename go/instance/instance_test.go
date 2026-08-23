@@ -466,8 +466,8 @@ func TestBuildSyncItems_DirLevelChildren(t *testing.T) {
 	}
 }
 
-// TestBuildSyncItems_DirLevelNoChildrenForMissing 验证 Missing 文件夹不会填充 children
-// 因为只对 Synced 文件夹做内容级 diff（Missing 文件夹不存在于实例侧）
+// TestBuildSyncItems_DirLevelMissingHoldsStatus：Missing 文件夹保持 missing 状态（整体缺失，
+// 非部分差异，不降级 diverged），且从仓库侧填充 children 展示待推清单（仓库是权威源）
 func TestBuildSyncItems_DirLevelNoChildrenForMissing(t *testing.T) {
 	sub := types.SubDirMap("ysm")
 	if sub == "" {
@@ -632,6 +632,70 @@ func TestBuildSyncItems_NestedContainerDir(t *testing.T) {
 	}
 	if !childNames["01_taisho_maid"] || !childNames["02_new_year"] {
 		t.Errorf("children 应含两个子模型夹，实际 %v", childNames)
+	}
+}
+
+// TestBuildSyncItems_NestedContainer_PathDirection 验证容器 Path 还原到正确的操作源侧：
+// 纯实例独有（optional，可拉取）容器 → Path 落实例根（pull 源）；推送/同步容器 → 落全局根
+func TestBuildSyncItems_NestedContainer_PathDirection(t *testing.T) {
+	sub := types.SubDirMap("ysm")
+	if sub == "" {
+		t.Skip("ysm 无 InstanceDir 配置，跳过")
+	}
+	if !types.IsDirLevelSync("ysm") {
+		t.Skip("ysm 非 dirLevel 类型，跳过")
+	}
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	instDir := filepath.Join(filepath.Join(base, "inst"), sub)
+
+	// (a) 纯实例独有容器：inst 有 vendor/charA/charA.ysm，global 无 → 整体 optional（可拉取）
+	instContainer := filepath.Join(instDir, "inst_only_container")
+	_ = os.MkdirAll(filepath.Join(instContainer, "charA"), 0755)
+	_ = os.WriteFile(filepath.Join(instContainer, "charA", "charA.ysm"), []byte("a"), 0644)
+
+	// (b) 纯仓库缺失容器：global 有 vendor/charB/charB.ysm，inst 无 → 整体 missing（可推送）
+	globalContainer := filepath.Join(globalDir, "repo_only_container")
+	_ = os.MkdirAll(filepath.Join(globalContainer, "charB"), 0755)
+	_ = os.WriteFile(filepath.Join(globalContainer, "charB", "charB.ysm"), []byte("b"), 0644)
+
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "💎"}}, map[string]string{"ysm": globalDir}, "")
+
+	// (a) optional 容器：status optional、Path 落实例根
+	var instC *types.ResourceSyncItem
+	for i := range items {
+		if items[i].Name == "inst_only_container" {
+			instC = &items[i]
+			break
+		}
+	}
+	if instC == nil {
+		t.Fatal("未找到 inst_only_container 容器")
+	}
+	if instC.Status != types.SyncStatusOptional {
+		t.Errorf("纯实例独有容器应 optional（可拉取），实际 %q", instC.Status)
+	}
+	if !strings.HasPrefix(instC.Path, instDir) || !strings.Contains(instC.Path, "inst_only_container") {
+		t.Errorf("optional 容器 Path 应落实例根（pull 源），实际 %q", instC.Path)
+	}
+
+	// (b) missing 容器：status 保持 missing（或 diverged——聚合含 missing 的子夹）、Path 落全局根
+	var repoC *types.ResourceSyncItem
+	for i := range items {
+		if items[i].Name == "repo_only_container" {
+			repoC = &items[i]
+			break
+		}
+	}
+	if repoC == nil {
+		t.Fatal("未找到 repo_only_container 容器")
+	}
+	if repoC.Status != types.SyncStatusMissing && repoC.Status != types.SyncStatusDiverged {
+		t.Errorf("仓库独有容器应 missing/diverged，实际 %q", repoC.Status)
+	}
+	if !strings.HasPrefix(repoC.Path, globalDir) || !strings.Contains(repoC.Path, "repo_only_container") {
+		t.Errorf("推送容器 Path 应落全局根（push 源），实际 %q", repoC.Path)
 	}
 }
 

@@ -251,17 +251,38 @@ func nestDirLevelTree(flat []types.ResourceSyncItem, globalDir, instDir string) 
 			continue
 		}
 		segs := strings.Split(rel, "/")
-		cur := root
-		for _, s := range segs[:len(segs)-1] {
-			nxt, ok := cur.children[s]
-			if !ok {
-				nxt = &nestTreeNode{isDir: true, children: map[string]*nestTreeNode{}}
-				cur.children[s] = nxt
+		insert := func(leaf *types.ResourceSyncItem, segs []string) {
+			cur := root
+			for _, s := range segs[:len(segs)-1] {
+				nxt, ok := cur.children[s]
+				if !ok || nxt == nil {
+					nxt = &nestTreeNode{isDir: true, children: map[string]*nestTreeNode{}}
+					cur.children[s] = nxt
+				} else if nxt.leaf != nil {
+					// 同段名已是叶子（如全局侧平铺模型夹），又作为容器段下钻（实例侧同级更深嵌套）：
+					// 防御——保留原叶子作为其下 `__self` 子项，避免覆盖/ nil map 写入 panic。
+					// 现实中 SyncResourcesDirLevel 对模型夹 SkipDir 极少触发，属防御性降级。
+					carry := nxt.leaf
+					nxt.leaf = nil
+					if nxt.children == nil {
+						nxt.children = map[string]*nestTreeNode{}
+					}
+					nxt.children["__self"] = &nestTreeNode{leaf: carry}
+				}
+				cur = nxt
 			}
-			cur = nxt
+			last := segs[len(segs)-1]
+			if existing, ok := cur.children[last]; ok && existing != nil && existing.isDir {
+				// 同段名既是叶子又是中间容器：把叶子收进 __self，防覆盖容器
+				if existing.children == nil {
+					existing.children = map[string]*nestTreeNode{}
+				}
+				existing.children["__self"] = &nestTreeNode{leaf: leaf}
+				return
+			}
+			cur.children[last] = &nestTreeNode{leaf: leaf}
 		}
-		last := segs[len(segs)-1]
-		cur.children[last] = &nestTreeNode{leaf: it}
+		insert(it, segs)
 	}
 	return treeChildren(root, "", globalDir, instDir)
 }
@@ -296,9 +317,9 @@ func treeChildren(node *nestTreeNode, baseRel, globalDir, instDir string) []type
 		if status == types.SyncStatusDiverged || status == types.SyncStatusMissing {
 			icon = "🗂️"
 		}
-		// 容器绝对路径：按子项来源侧还原——含可拉取(optional/legacy)子项走实例侧，
-		// 否则(可推送/同步)走全局侧。作为前端展开 key 与容器级 push/pull 的 data-path
-		containerPath := dirLevelContainerPath(children, childRel, globalDir, instDir)
+		// 容器绝对路径：按聚合 status 选根——optional(可拉取) 源在实例侧，其余(可推送/同步) 源在
+		// 全局侧。作为前端展开 key 与容器级 push/pull 的 data-path；避免混合夹锁错源侧
+		containerPath := dirLevelContainerPath(status, childRel, globalDir, instDir)
 		out = append(out, types.ResourceSyncItem{
 			Path:     containerPath,
 			Name:     k,
@@ -311,20 +332,14 @@ func treeChildren(node *nestTreeNode, baseRel, globalDir, instDir string) []type
 	return out
 }
 
-// dirLevelContainerPath 按子项来源侧还原容器目录的绝对路径。
-// 任一子项 optional/legacy（实例侧独有）→ 用实例根；否则用全局根（可推送/同步）。
-func dirLevelContainerPath(children []types.ResourceSyncItem, rel, globalDir, instDir string) string {
+// dirLevelContainerPath 按容器聚合状态还原目录绝对路径。
+// status 为 optional（纯实例独有，可拉取）→ 用实例根；否则（diverged/missing/synced，
+// 可推送或同步）→ 用全局根。push 源在仓库侧、pull 源在整合包侧，方向与前端按钮一致。
+func dirLevelContainerPath(status types.SyncStatus, rel, globalDir, instDir string) string {
 	sep := string(filepath.Separator)
 	relPath := strings.ReplaceAll(rel, "/", sep)
-	hasInstSide := false
-	for _, c := range children {
-		if c.Status == types.SyncStatusOptional || c.Status == types.SyncStatusLegacy {
-			hasInstSide = true
-			break
-		}
-	}
 	base := globalDir
-	if hasInstSide {
+	if status == types.SyncStatusOptional {
 		base = instDir
 	}
 	if base == "" {
@@ -341,13 +356,31 @@ func joinRel(parent, seg string) string {
 	return parent + "/" + seg
 }
 
-// aggregateStatus 聚合子项状态：全部 synced → synced；任一 missing/diverged/disabled（可推送差异）
-// 或 optional/legacy（可拉取差异）→ diverged；否则 synced
+// aggregateStatus 聚合子项状态：
+//   - 全部 synced → synced
+//   - 含可推送差异（missing/diverged/disabled）→ diverged（可推送）
+//   - 仅 optional/legacy（实例侧独有）→ optional（可拉取）
+//   - 空子项 → synced
+//
+// 保留 optional 语义：纯可拉取容器应显示 pull 而非误归为 diverged 的 push
 func aggregateStatus(children []types.ResourceSyncItem) types.SyncStatus {
+	hasPush := false
+	hasPull := false
 	for _, c := range children {
-		if c.Status != types.SyncStatusSynced {
-			return types.SyncStatusDiverged
+		switch c.Status {
+		case types.SyncStatusSynced:
+			// 同步项不算差异
+		case types.SyncStatusOptional, types.SyncStatusLegacy:
+			hasPull = true
+		default: // missing/diverged/disabled
+			hasPush = true
 		}
+	}
+	if hasPush {
+		return types.SyncStatusDiverged
+	}
+	if hasPull {
+		return types.SyncStatusOptional
 	}
 	return types.SyncStatusSynced
 }
