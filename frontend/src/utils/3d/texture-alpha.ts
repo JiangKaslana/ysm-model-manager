@@ -1,18 +1,39 @@
 import * as THREE from "three";
+import { AlphaIndex } from "./alpha-index.ts";
 
 export type TextureAlphaMode = "opaque" | "cutout" | "blend";
 
-const ALPHA_MODE_KEY = "ysmAlphaMode";
+/** 纹理级透明信息：整图模式 + 面级查询索引（ADR-118 Phase B） */
+export interface TextureAlphaInfo {
+  mode: TextureAlphaMode;
+  /** 像素不可读（非 RGBA 数据 / 无 document / tainted）时为 null，面级拆分回退整图模式 */
+  index: AlphaIndex | null;
+  width: number;
+  height: number;
+}
 
-/** Classify alpha once per cached texture so material setup can choose a render path. */
-export function getTextureAlphaMode(texture: THREE.Texture): TextureAlphaMode {
-  const cached = texture.userData[ALPHA_MODE_KEY] as TextureAlphaMode | undefined;
+const ALPHA_INFO_KEY = "ysmAlphaInfo";
+
+export function getTextureAlphaInfo(texture: THREE.Texture): TextureAlphaInfo {
+  const cached = texture.userData[ALPHA_INFO_KEY] as TextureAlphaInfo | undefined;
   if (cached) return cached;
 
   const pixels = readRgbaPixels(texture);
-  const mode = pixels ? classifyRgba(pixels) : "blend";
-  texture.userData[ALPHA_MODE_KEY] = mode;
-  return mode;
+  const info: TextureAlphaInfo = pixels
+    ? {
+        mode: classifyRgba(pixels.data),
+        index: new AlphaIndex(pixels.data, pixels.width, pixels.height),
+        width: pixels.width,
+        height: pixels.height,
+      }
+    : { mode: "blend", index: null, width: 0, height: 0 };
+  texture.userData[ALPHA_INFO_KEY] = info;
+  return info;
+}
+
+/** Classify alpha once per cached texture so material setup can choose a render path. */
+export function getTextureAlphaMode(texture: THREE.Texture): TextureAlphaMode {
+  return getTextureAlphaInfo(texture).mode;
 }
 
 const BLEND_MIN_RATIO = 0.005;
@@ -30,7 +51,13 @@ function classifyRgba(data: ArrayLike<number>): TextureAlphaMode {
   return hasTransparent ? "cutout" : "opaque";
 }
 
-function readRgbaPixels(texture: THREE.Texture): ArrayLike<number> | null {
+interface RgbaSample {
+  data: ArrayLike<number>;
+  width: number;
+  height: number;
+}
+
+function readRgbaPixels(texture: THREE.Texture): RgbaSample | null {
   const image = texture.image as {
     data?: ArrayLike<number>;
     width?: number;
@@ -40,7 +67,13 @@ function readRgbaPixels(texture: THREE.Texture): ArrayLike<number> | null {
   } | null;
   if (!image) return null;
 
-  if (image.data && texture.format === THREE.RGBAFormat) return image.data;
+  if (image.data && texture.format === THREE.RGBAFormat) {
+    return {
+      data: image.data,
+      width: image.width ?? 0,
+      height: image.height ?? 0,
+    };
+  }
   if (image.data && texture.format !== THREE.RGBAFormat) return null;
 
   const width = image.naturalWidth ?? image.width ?? 0;
@@ -59,9 +92,14 @@ function readRgbaPixels(texture: THREE.Texture): ArrayLike<number> | null {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return null;
     ctx.drawImage(texture.image as CanvasImageSource, 0, 0, canvas.width, canvas.height);
-    return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    return {
+      data: ctx.getImageData(0, 0, canvas.width, canvas.height).data,
+      width: canvas.width,
+      height: canvas.height,
+    };
   } catch {
     // Preserve rendering for unsupported/tainted image sources.
     return null;
   }
 }
+

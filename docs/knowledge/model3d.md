@@ -88,6 +88,7 @@ export function computeBoneLocalPos(
 - 默认 OrbitControls 轨道模式，`setRotationMode(false)` 切自由相机（WASD 平移 + 空格/Shift 升降）
 - **3D 操作键位 / 相机偏好持久化**（localStorage）：键位存 `KeyboardEvent.code` 物理键，相机速度 `td-cam-speed`（2–200，默认 20），旋转模式 `td-rot-mode`（orbit/free）
 - **材质为 ysmview 风格**：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true`；alpha 模式由 `texture-alpha.ts getTextureAlphaMode` 逐纹理分类并缓存 userData（ADR-118 Phase A：半透明像素占比 ≤0.5% 视为杂点不判 blend——wine_fox 实测错路面 80.9%→35.6%，8 模型 blend→cutout 翻正，18_wedding 真混合保持 blend）
+- **面级透明路由**（ADR-118 Phase B）：`getTextureAlphaInfo(texture)` 一次读像素同时产出全局 mode + `alpha-index.ts` AlphaIndex（小矩形精确扫描 / 大矩形 TILE=8 前缀和）缓存 `userData.ysmAlphaInfo`；`face-split.ts splitMeshByFaceAlpha` 逐三角形 UV 包围盒查 flags 分桶（严格口径：any translucent→blend / hole→cutout / else opaque），`ysm-object.ts` 统一碎片流——cutout/opaque 碎片按 `boneId:texIdx:mode` 烘合，**blend 碎片保持独立 mesh 不烘合**（逐 mesh 深度排序契约）；flipY=true 或无索引纹理回退整图模式。YSM 主链路 `model3d-loader.ts:62` flipY=false，v 即图像行域无需翻转
 - **debug 叠加层**（`debug-render.ts`）：`state.debugMode = "normal"|"pivot"|"bone"` 切换，`rebuildDebug(scene, rootGroup, boneGroupMap, spec, state)` 重建叠加层
 - **cleanup**（`cleanup-helper.ts`）：资源释放工具，遍历子对象并调用 `geometry/material/texture` 的 `dispose()`，确保 WebGL 资源完全释放
 

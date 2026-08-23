@@ -4,6 +4,7 @@ import * as THREE from "three";
 import type { SpecMeshGroup3D } from "./model3d.ts";
 import { applyRotationIfNonIdentity } from "./quaternion.ts";
 import { getTextureAlphaMode } from "./texture-alpha.ts";
+import type { TextureAlphaMode } from "./texture-alpha.ts";
 
 /** ysmview 风格材质配置（索引 2.16 魔法数值收敛） */
 const MATERIAL_OPTS = {
@@ -22,6 +23,7 @@ const FALLBACK_COLOR_GRAY = 0xcccccc;
  * @param texIdx 调用方纹理索引（单组件场景）
  * @param multiModel 是否多组件场景
  * @param texArr 全局纹理数组（perComponent 缺省时回退用）
+ * @param modeOverride 面级拆分产出的碎片模式（ADR-118 Phase B），缺省按整纹理判定
  */
 export function addMeshToBoneGroup(
   bg: THREE.Group,
@@ -30,6 +32,7 @@ export function addMeshToBoneGroup(
   texIdx: number,
   multiModel: boolean,
   texArr: (THREE.Texture | null)[] = [],
+  modeOverride?: TextureAlphaMode,
 ): void {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(md.positions, 3));
@@ -64,7 +67,8 @@ export function addMeshToBoneGroup(
   }
 
   // ysmview 风格材质：FrontSide + transparent + alphaTest 0.1 + depthWrite（配置收敛于 MATERIAL_OPTS）
-  const alphaMode = mt ? getTextureAlphaMode(mt) : "opaque";
+  // ADR-118 Phase B：modeOverride 来自面级拆分（碎片级模式），优先于整纹理判定
+  const alphaMode = modeOverride ?? (mt ? getTextureAlphaMode(mt) : "opaque");
   const mat = mt
     ? new THREE.MeshBasicMaterial({
         map: mt,

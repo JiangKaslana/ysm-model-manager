@@ -13,12 +13,13 @@
 import * as THREE from "three";
 import { buildSceneMesh, compKey } from "./mesh.ts";
 import { addMeshToBoneGroup } from "./mesh-builder.ts";
-import { bakeMeshGroups } from "./mesh-baker.ts";
+import { bakeMeshFragments } from "./mesh-baker.ts";
 import { getTextureAlphaMode } from "./texture-alpha.ts";
+import { splitMeshByFaceAlpha, type MeshFragment } from "./face-split.ts";
 import { disposeSceneMeshes } from "./cleanup-helper.ts";
 import { getBoneList } from "./bone-list.ts";
 import { setBoneVisible, toggleBone, showModelGroup } from "./bone-visibility.ts";
-import type { Spec3D, SpecMeshGroup3D } from "./model3d.ts";
+import type { Spec3D } from "./model3d.ts";
 
 /** YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 */
 export interface YsmObjectHandle {
@@ -70,8 +71,9 @@ export function buildYsmObject(
     const compName = mg.name || mg.id || `comp_${mi}`;
     const mappedComponentTextures = componentTexMap.get(compName);
     const usesComponentTextures = Boolean(mappedComponentTextures?.length);
-    const batchable: SpecMeshGroup3D[] = [];
-    const translucent: SpecMeshGroup3D[] = [];
+    // ADR-118 Phase B：统一碎片流——能面级拆分（有 AlphaIndex）的按三角 UV 路由
+    // 三种渲染路径；不能拆分的回退整图模式单碎片（行为与旧双桶一致）
+    const fragments: MeshFragment[] = [];
     for (const mesh of mg.meshGroups) {
       // 分类索引与绑定索引同一空间（原版 ModernYSM 亦按单一 textureIndex 判定透明与绑定）：
       // 组件分支 → 组件局部槽 0（mesh-builder 对组件数组恒用 arr === compTexArr ? 0）；
@@ -84,13 +86,21 @@ export function buildYsmObject(
       else if (multiModel) textureIndex = mesh.texIdx ?? 0;
       else textureIndex = resolvedTexIdx;
       const texture = classifyArr[textureIndex] ?? null;
-      if (texture && getTextureAlphaMode(texture) === "blend") translucent.push(mesh);
-      else batchable.push(mesh);
+      const split = texture ? splitMeshByFaceAlpha(mesh, texture) : null;
+      if (split) fragments.push(...split);
+      else fragments.push({ md: mesh, mode: texture ? getTextureAlphaMode(texture) : "opaque" });
     }
-    const merged = [...bakeMeshGroups(batchable), ...translucent];
+    const merged: MeshFragment[] = [];
+    const bakeable: MeshFragment[] = [];
+    for (const frag of fragments) {
+      if (frag.mode === "blend") merged.push(frag);
+      else bakeable.push(frag);
+    }
+    // blend 不烘合（保持逐 mesh 深度排序，与旧双桶契约一致）；先烘批后透明维持提交次序
+    merged.push(...bakeMeshFragments(bakeable));
     // ADR-114 perComponent：按组件名查 componentTexMap，fallback 全局 texArr
     // Keep the source spec immutable so cached model data can be reused safely.
-    for (const md of merged) {
+    for (const { md, mode } of merged) {
       const bg = boneGroupMap.get(compKey(mi, md.boneId));
       if (!bg) continue;
       if (md.texIdx === undefined) {
@@ -100,7 +110,7 @@ export function buildYsmObject(
       // 非组件传 [] + 全局 texArr——传 texArr 会被 arr === compTexArr 误判为组件数组，
       // 导致全局槽位 md.texIdx 恒失效（修复前非组件多组件全绑 texArr[0]）。
       const bindArr = usesComponentTextures ? mappedComponentTextures! : [];
-      addMeshToBoneGroup(bg, md, bindArr, resolvedTexIdx, multiModel, texArr);
+      addMeshToBoneGroup(bg, md, bindArr, resolvedTexIdx, multiModel, texArr, mode);
     }
   }
 

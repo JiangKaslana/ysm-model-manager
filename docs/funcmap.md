@@ -1507,8 +1507,8 @@
 | `clearLoadTraces()` | `frontend/src/utils/3d/load-trace:61` | — |
 | `loadMcTints()` | `frontend/src/utils/3d/mc-tints:29` | 预载 vendored tints 表（幂等；失败抛错由调用方降级兜底）。 |
 | `getTintColorSync()` | `frontend/src/utils/3d/mc-tints:51` | 取某染色类别在某 biome 下的颜色（默认 plains）。 |
-| `bakeMeshGroups()` | `frontend/src/utils/3d/mesh-baker:9` | Bake cube-local transforms once, then batch by animated bone and texture. |
-| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:26` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
+| `bakeMeshFragments()` | `frontend/src/utils/3d/mesh-baker:10` | Bake fragments once, then batch by animated bone, texture, and alpha mode. |
+| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:28` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
 | `compKey()` | `frontend/src/utils/3d/mesh:17` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
 | `disposeMaterial()` | `frontend/src/utils/3d/mesh:35` | 释放材质（含所有位图贴图），null/undefined 安全。 |
 | `buildSceneMesh()` | `frontend/src/utils/3d/mesh:53` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
@@ -1632,8 +1632,8 @@
 | `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
 | `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:26` | — |
 | `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:45` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
-| `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:24` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
-| `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:49` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
+| `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:25` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
+| `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:50` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:12` | 三维向量 [x, y, z] |
 | `MolangAxes()` | `frontend/src/utils/animation/animation:15` | Molang 轴三元组（null = 该轴为纯数字，取 Keyframe 对应轴值） |

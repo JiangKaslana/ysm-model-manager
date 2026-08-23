@@ -196,6 +196,52 @@ describe("buildYsmObject mesh baking", () => {
     expect(cutout.alphaTest).toBeCloseTo(0.1);
     expect(cutout.depthWrite).toBe(true);
   });
+
+  it("routes faces of one mixed-alpha texture into cutout batch and separate blend mesh (ADR-118 Phase B)", () => {
+    // 4×2 纹理：左半 alpha=0（hole→cutout 面），右半 alpha=128（translucent→blend 面）
+    const data = new Uint8Array(4 * 2 * 4);
+    for (let y = 0; y < 2; y++) {
+      for (let x = 0; x < 4; x++) {
+        const o = (y * 4 + x) * 4;
+        data[o] = 255;
+        data[o + 1] = 255;
+        data[o + 2] = 255;
+        data[o + 3] = x < 2 ? 0 : 128;
+      }
+    }
+    const mixed = new THREE.DataTexture(data, 4, 2, THREE.RGBAFormat);
+    mixed.needsUpdate = true;
+
+    const triAt = (u: number): SpecMeshGroup3D => ({
+      id: `tri_${u}`,
+      boneId: "root",
+      texIdx: 0,
+      localPosition: [0, 0, 0],
+      localRotation: [0, 0, 0, 1],
+      positions: [0, 0, 0, 1, 0, 0, 0, 1, 0],
+      normals: [0, 0, 1, 0, 0, 1, 0, 0, 1],
+      uvs: [u, 0, u + 0.25, 0, u, 1],
+      indices: [0, 1, 2],
+    });
+    const spec = specWithMeshes([triAt(0), triAt(0.5)]);
+
+    const handle = buildYsmObject(spec, [mixed], 0);
+    const bone = handle.boneGroupMap.get("0:root")!;
+    const meshes = bone.children.filter((child) => child instanceof THREE.Mesh) as THREE.Mesh[];
+
+    expect(meshes).toHaveLength(2);
+    const materials = meshes.map((mesh) => mesh.material as THREE.MeshBasicMaterial);
+    const cutoutMesh = meshes.findIndex((_, i) => materials[i]!.alphaTest > 0);
+    const blendMesh = meshes.findIndex((_, i) => materials[i]!.transparent);
+
+    expect(cutoutMesh).toBeGreaterThanOrEqual(0);
+    expect(blendMesh).toBeGreaterThanOrEqual(0);
+    expect(meshes[cutoutMesh!]!.geometry.getAttribute("position").count).toBe(3);
+    expect(materials[cutoutMesh!]!.transparent).toBe(false);
+    expect(materials[cutoutMesh!]!.depthWrite).toBe(true);
+    expect(meshes[blendMesh!]!.geometry.getAttribute("position").count).toBe(3);
+    expect(materials[blendMesh!]!.depthWrite).toBe(false);
+  });
 });
 
 function rgbaTexture(alpha: number): THREE.DataTexture {

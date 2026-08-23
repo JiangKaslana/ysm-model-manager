@@ -100,4 +100,21 @@ describe("YSM material alpha partition", () => {
     expect(material.map).toBe(comp);
     expect(warnings).toHaveLength(0); // per-component 正常路径不误报 warning
   });
+
+  it("applies the face-level mode override over the whole-texture mode", () => {
+    const bone = new THREE.Group();
+    addMeshToBoneGroup(bone, meshData, [rgbaTexture(255)], 0, false, [], "blend");
+
+    const material = (bone.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+    expect(material.transparent).toBe(true);
+    expect(material.depthWrite).toBe(false);
+
+    const cutoutBone = new THREE.Group();
+    addMeshToBoneGroup(cutoutBone, meshData, [rgbaTexture(128)], 0, false, [], "cutout");
+    const cutoutMat = (cutoutBone.children[0] as THREE.Mesh)
+      .material as THREE.MeshBasicMaterial;
+    expect(cutoutMat.transparent).toBe(false);
+    expect(cutoutMat.alphaTest).toBe(0.1);
+    expect(cutoutMat.depthWrite).toBe(true);
+  });
 });

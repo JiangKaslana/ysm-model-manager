@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { getTextureAlphaMode } from "./texture-alpha.ts";
+import { AlphaIndex } from "./alpha-index.ts";
+import { getTextureAlphaInfo, getTextureAlphaMode } from "./texture-alpha.ts";
 
 function rgbaTexture(pixels: number[][]): THREE.DataTexture {
   const data = new Uint8Array(pixels.length * 4);
@@ -69,5 +70,35 @@ describe("getTextureAlphaMode", () => {
     expect(getTextureAlphaMode(tex)).toBe("opaque");
     (tex.image as { data: Uint8Array }).data.fill(128);
     expect(getTextureAlphaMode(tex)).toBe("opaque");
+  });
+});
+
+describe("getTextureAlphaInfo", () => {
+  it("returns mode plus face-query index for RGBA data textures", () => {
+    const tex = rgbaTexture([
+      [10, 20, 30, 0],
+      [40, 50, 60, 128],
+    ]);
+    const info = getTextureAlphaInfo(tex);
+    expect(info.mode).toBe("blend");
+    expect(info.index).toBeInstanceOf(AlphaIndex);
+    expect(info.width).toBe(2);
+    expect(info.height).toBe(1);
+  });
+
+  it("returns null index when pixels are unreadable", () => {
+    const tex = new THREE.DataTexture(new Uint8Array(16), 2, 2);
+    (tex as unknown as { format: THREE.PixelFormat }).format = THREE.RGBFormat;
+    const info = getTextureAlphaInfo(tex);
+    expect(info.index).toBeNull();
+    expect(info.mode).toBe("blend");
+  });
+
+  it("caches one info object per texture", () => {
+    const tex = rgbaTexture([
+      [10, 20, 30, 255],
+      [40, 50, 60, 0],
+    ]);
+    expect(getTextureAlphaInfo(tex)).toBe(getTextureAlphaInfo(tex));
   });
 });
