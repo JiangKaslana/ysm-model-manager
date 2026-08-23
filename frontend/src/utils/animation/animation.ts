@@ -184,6 +184,48 @@ function extractKeyframe(kv: unknown): {
   return { post: [n, n, n], pre: [n, n, n], lerp: "linear" };
 }
 
+/** 度→弧度系数（旋转通道换算专用） */
+const DEG2RAD = Math.PI / 180;
+
+/**
+ * 旋转通道口径换算：度→弧度，X/Y 取负、Z 不取负。
+ * 对齐上游 ModernYSM/TLM 共同口径 RawBoneKeyFrame.init + RotationValue.convert
+ * （toRadians(x)*-1 / toRadians(y)*-1 / toRadians(z)*+1）。此前缺失导致 bedrock
+ * 的「度」被当「弧度」直喂 Euler（45°→2578°），是角色预览乱飞的根因。
+ * 数字基底直接换算；Molang 动态轴包一层求值后换算闭包——molang 三角函数按度求值，
+ * 与上游 RotationValue 包裹 IValue 求值结果再 convert 同构。放解析层而非播放层：
+ * evaluateClip 非 localOnly 分支跨骨骼累加旋转角，须保证整个求值域统一在弧度制。
+ */
+function convertRotationKeyframes(kfs: Keyframe[]): Keyframe[] {
+  // 归一化 -0→+0：取负零值轴产出 -0，下游 toEqual 快照/序列化按 Object.is 判不等
+  const norm = (n: number): number => (n === 0 ? 0 : n);
+  const convVec = (v: Vec3): Vec3 => [
+    norm(-v[0] * DEG2RAD),
+    norm(-v[1] * DEG2RAD),
+    norm(v[2] * DEG2RAD),
+  ];
+  const wrapFn = (fn: MolangFn | null, sign: -1 | 1): MolangFn | null =>
+    fn ? (t: number) => norm(sign * fn(t) * DEG2RAD) : null;
+  return kfs.map((kf) => {
+    const out: Keyframe = { ...kf, post: convVec(kf.post), pre: convVec(kf.pre) };
+    if (kf.postMolang) {
+      out.postMolang = [
+        wrapFn(kf.postMolang[0], -1),
+        wrapFn(kf.postMolang[1], -1),
+        wrapFn(kf.postMolang[2], 1),
+      ];
+    }
+    if (kf.preMolang) {
+      out.preMolang = [
+        wrapFn(kf.preMolang[0], -1),
+        wrapFn(kf.preMolang[1], -1),
+        wrapFn(kf.preMolang[2], 1),
+      ];
+    }
+    return out;
+  });
+}
+
 /** 解析单个 channel（rotation/position/scale）的数据 */
 function parseChannel(channelData: unknown): Keyframe[] {
   if (!channelData || typeof channelData !== "object") return [];
@@ -302,7 +344,8 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
       for (const ch of BONE_CHANNELS) {
         const kfs = parseChannel(boneObj[ch]);
         if (kfs.length > 0) {
-          channels[ch] = kfs;
+          // 旋转通道出口统一换算（度→弧度 + X/Y 取负），下游全弧度域
+          channels[ch] = ch === "rotation" ? convertRotationKeyframes(kfs) : kfs;
         }
       }
 

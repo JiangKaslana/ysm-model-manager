@@ -148,7 +148,8 @@ describe("parseBedrockAnimationJSON 解析", () => {
     expect(kfs).toHaveLength(2);
     expect(kfs[0].time).toBe(0);
     expect(kfs[1].time).toBe(1.5);
-    expect(kfs[1].post).toEqual([0, 30, 0]);
+    // 旋转通道出弧度：[0, 30, 0] → Y 取负换算（对齐上游 RotationValue.convert）
+    expect(kfs[1].post).toEqual([0, -30 * (Math.PI / 180), 0]);
   });
 });
 
@@ -321,8 +322,9 @@ describe("Molang 关键帧求值（ADR-100 L4）", () => {
   it("标量 Molang 帧：按 anim_time 求值（三轴同式）", () => {
     const clip = parseOne({ b: { rotation: { "0": "query.anim_time * 90" } } });
     expect(clip.hasMolang).toBe(true);
-    expect(evaluateKeyframes(clip.bones.b!.rotation!, 0.5)).toEqual([45, 45, 45]);
-    expect(evaluateKeyframes(clip.bones.b!.rotation!, 1)).toEqual([90, 90, 90]);
+    // 旋转通道：求值后按 X/Y 取负、度→弧度换算（对齐上游 RotationValue 包裹口径）
+    expect(evaluateKeyframes(clip.bones.b!.rotation!, 0.5)![0]).toBeCloseTo(-Math.PI / 4, 12);
+    expect(evaluateKeyframes(clip.bones.b!.rotation!, 1)![0]).toBeCloseTo(-Math.PI / 2, 12);
   });
 
   it("逐轴混合数组：Molang 轴 + 数字轴各归各位", () => {
@@ -352,6 +354,60 @@ describe("Molang 关键帧求值（ADR-100 L4）", () => {
 
   it("可折叠常量优先于 Molang 编译（回归保护）", () => {
     const clip = parseOne({ b: { rotation: { "0": "q.life_time * 0 + 30" } } });
-    expect(evaluateKeyframes(clip.bones.b!.rotation!, 0.5)).toEqual([30, 30, 30]);
+    // 折叠成数字后走旋转通道口径：X/Y 取负、Z 不取负、度→弧度（对齐 RawBoneKeyFrame.init）
+    const r30 = 30 * (Math.PI / 180);
+    expect(evaluateKeyframes(clip.bones.b!.rotation!, 0.5)).toEqual([-r30, -r30, r30]);
+  });
+});
+
+describe("旋转通道口径转换（度→弧度，X/Y 取负 — 对齐上游 RotationValue.convert）", () => {
+  const D2R = Math.PI / 180;
+
+  function parseOne(bones: unknown): AnimationClip {
+    const res = parseBedrockAnimationJSON(
+      JSON.stringify({ animations: { x: { animation_length: 1, loop: true, bones } } }),
+    );
+    expect(res.errors).toEqual([]);
+    return res.clips[0];
+  }
+
+  it("数字帧：post/pre 同步换算（X/Y 取负、Z 不取负）", () => {
+    const clip = parseOne({ b: { rotation: { "0": [10, 20, 30] } } });
+    const kf = clip.bones.b!.rotation![0];
+    expect(kf.post).toEqual([-10 * D2R, -20 * D2R, 30 * D2R]);
+    expect(kf.pre).toEqual(kf.post);
+  });
+
+  it("position/scale 通道不做换算（仅 rotation）", () => {
+    const clip = parseOne({
+      b: { position: { "0": [10, 20, 30] }, scale: { "0": [10, 20, 30] } },
+    });
+    expect(clip.bones.b!.position![0].post).toEqual([10, 20, 30]);
+    expect(clip.bones.b!.scale![0].post).toEqual([10, 20, 30]);
+  });
+
+  it("逐轴混合：Molang 轴求值后换算，数字轴直接换算", () => {
+    const clip = parseOne({
+      b: { rotation: { "0": ["query.anim_time * 90", 45, 0] } },
+    });
+    // t=1：轴0 = -(90·1)·D2R；轴1 = -45·D2R；轴2 = 0
+    const v = evaluateKeyframes(clip.bones.b!.rotation!, 1)!;
+    expect(v[0]).toBeCloseTo(-Math.PI / 2, 12);
+    expect(v[1]).toBeCloseTo(-Math.PI / 4, 12);
+    expect(v[2]).toBe(0);
+  });
+
+  it("对象形态 pre/post 双端换算", () => {
+    const clip = parseOne({
+      b: { rotation: { "0": { post: [0, 90, 0], pre: [0, 0, 0], lerp_mode: "linear" } } },
+    });
+    const kf = clip.bones.b!.rotation![0];
+    expect(kf.post).toEqual([0, -90 * D2R, 0]);
+    expect(kf.pre).toEqual([0, 0, 0]);
+  });
+
+  it("零值帧换算后仍为零（非法 Molang 零占位不漂移）", () => {
+    const clip = parseOne({ b: { rotation: { "0": "(((" } } });
+    expect(clip.bones.b!.rotation![0].post).toEqual([0, 0, 0]);
   });
 });

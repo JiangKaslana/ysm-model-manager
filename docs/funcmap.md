@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 146 | 578 |
+| 前端·工具 | 148 | 587 |
 | frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **455** | **1929** |
+| **合计** | **457** | **1938** |
 
 ## Go·头像
 
@@ -217,13 +217,13 @@
 |------|--------|------|
 | `ExtractFirstPNGFromZip()` | `go/geometry/archive:64` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
 | `ExtractFirstPNGFrom7z()` | `go/geometry/archive:74` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:1055` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
-| `ParseFrom7z()` | `go/geometry/archive:1061` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
-| `ParseFromZipEntry()` | `go/geometry/archive:1074` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
-| `ParseFrom7zEntry()` | `go/geometry/archive:1079` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
-| `IsMainModelName()` | `go/geometry/archive:1145` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:1157` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1306` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
+| `ParseFromZip()` | `go/geometry/archive:1066` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:1072` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `ParseFromZipEntry()` | `go/geometry/archive:1085` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
+| `ParseFrom7zEntry()` | `go/geometry/archive:1090` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
+| `IsMainModelName()` | `go/geometry/archive:1156` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:1168` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:1317` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
 | `ParseBedrockGeometry()` | `go/geometry/parse:205` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
@@ -1370,6 +1370,11 @@
 | `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:399` | 工厂：构造统一 PreviewAdapter（shared 模式） |
 | `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:418` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
 | `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:452` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `ALPHA_F_VISIBLE()` | `frontend/src/utils/3d/alpha-index:5` | — |
+| `ALPHA_F_HOLE()` | `frontend/src/utils/3d/alpha-index:6` | — |
+| `ALPHA_F_TRANSLUCENT()` | `frontend/src/utils/3d/alpha-index:7` | — |
+| `flagsForAlpha()` | `frontend/src/utils/3d/alpha-index:12` | — |
+| `AlphaIndex()` | `frontend/src/utils/3d/alpha-index:18` | — |
 | `b64ToBytes()` | `frontend/src/utils/3d/base64:6` | base64 → Uint8Array（Go []byte 的 base64 序列化） |
 | `bytesToArrayBuffer()` | `frontend/src/utils/3d/base64:15` | Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView&lt;ArrayBuffer&gt;，规避 SharedArrayBuffer 泛型） |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
@@ -1473,6 +1478,8 @@
 | `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:64` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
 | `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:229` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:58` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
+| `MeshFragment()` | `frontend/src/utils/3d/face-split:14` | 网格碎片：同一 meshGroup 按 alpha 特征拆出的子几何 + 渲染路径 |
+| `splitMeshByFaceAlpha()` | `frontend/src/utils/3d/face-split:24` | 按三角形 UV 包围盒查询 AlphaIndex，把 md 拆成 ≤3 个 mode 碎片。 |
 | `registerModelRoot()` | `frontend/src/utils/3d/frustum-cull:18` | 注册模型根节点（adapter 调用） |
 | `unregisterModelRoot()` | `frontend/src/utils/3d/frustum-cull:23` | 注销模型根节点（adapter dispose 时调用） |
 | `getModelRootCount()` | `frontend/src/utils/3d/frustum-cull:29` | 获取当前注册的模型根节点数 |
@@ -1611,8 +1618,10 @@
 | `BoneData()` | `frontend/src/utils/3d/spec-builder:99` | BoneData — Go threejs/spec.go BoneData |
 | `MeshData()` | `frontend/src/utils/3d/spec-builder:109` | MeshData — Go threejs/spec.go MeshData |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:128` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
-| `TextureAlphaMode()` | `frontend/src/utils/3d/texture-alpha:3` | — |
-| `getTextureAlphaMode()` | `frontend/src/utils/3d/texture-alpha:8` | Classify alpha once per cached texture so material setup can choose a render path. |
+| `TextureAlphaMode()` | `frontend/src/utils/3d/texture-alpha:4` | — |
+| `TextureAlphaInfo()` | `frontend/src/utils/3d/texture-alpha:7` | 纹理级透明信息：整图模式 + 面级查询索引（ADR-118 Phase B） |
+| `getTextureAlphaInfo()` | `frontend/src/utils/3d/texture-alpha:17` | — |
+| `getTextureAlphaMode()` | `frontend/src/utils/3d/texture-alpha:35` | Classify alpha once per cached texture so material setup can choose a render path. |
 | `TextureCacheImpl()` | `frontend/src/utils/3d/texture-cache:17` | — |
 | `textureCache()` | `frontend/src/utils/3d/texture-cache:70` | 全局单例（随 3D 会话生命周期；disposeAll 由 cleanup-3d.ts 调用） |
 | `VrmMaterialListItem()` | `frontend/src/utils/3d/vrm-materials:11` | 材质列表项（listVrmMaterials） |
@@ -1633,11 +1642,11 @@
 | `AnimationClip()` | `frontend/src/utils/animation/animation:36` | 动画剪辑 |
 | `BoneTransform()` | `frontend/src/utils/animation/animation:45` | 骨骼变换（evaluateClip 结果值） |
 | `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:55` | 骨骼层级节点 |
-| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:245` | 解析完整的基岩版动画 JSON 字符串 |
-| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:354` | 在指定时间 t 对一组关键帧求值 |
-| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:388` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
-| `evaluateClip()` | `frontend/src/utils/animation/animation:447` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
-| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:580` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
+| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:287` | 解析完整的基岩版动画 JSON 字符串 |
+| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:397` | 在指定时间 t 对一组关键帧求值 |
+| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:431` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
+| `evaluateClip()` | `frontend/src/utils/animation/animation:490` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:623` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
 | `Easings()` | `frontend/src/utils/animation/molang-lib/easing:2` | — |
 | `Molang()` | `frontend/src/utils/animation/molang-lib/molang:11` | — |
 | `MolangFn()` | `frontend/src/utils/animation/molang:18` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |
