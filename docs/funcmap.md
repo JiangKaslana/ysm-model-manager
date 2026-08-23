@@ -1924,7 +1924,7 @@
 | `invalidateEmptyPreview()` | `frontend/src/views/app-preview/empty-3d:45` | 作废在途空场景加载 |
 | `createFbx3D()` | `frontend/src/views/app-preview/fbx-3d:40` | 打开 FBX 3D 预览（独立资产：模型 + 内嵌动画）；siblings 透传同类型候选（ADR-066 §5.6） |
 | `cleanupFbx3D()` | `frontend/src/views/app-preview/fbx-3d:45` | 清理 FBX 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `resolveFbxSiblings()` | `frontend/src/views/app-preview/fbx-siblings:10` | 同类型 FBX 模型候选（GetRepoRoot(fbx) → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
+| `resolveFbxSiblings()` | `frontend/src/views/app-preview/fbx-siblings:7` | 同类型 FBX 模型候选（GetRepoRoot(fbx) → ScanModelEntriesFiltered 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:6` | Bedrock 方块 |
 | `BedrockSubModel()` | `frontend/src/views/app-preview/geometry:19` | SubModel 子模型条目（Go types/bedrock.go SubModel）。 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:26` | Bedrock 骨骼 |
