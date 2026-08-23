@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 149 | 594 |
+| 前端·工具 | 149 | 595 |
 | frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **458** | **1945** |
+| **合计** | **458** | **1946** |
 
 ## Go·头像
 
@@ -1341,7 +1341,8 @@
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:30` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:90` | 会话内切换模型（复用外壳重建内容层）。 |
-| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:282` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
+| `arrangeModelsInRow()` | `frontend/src/utils/3d/adapters/switch-preview:282` | 按可见模型的包围盒宽度自动计算 X 轴偏移，避免同框重叠。 |
+| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:324` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
 | `Endianness()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/endianness:4` | Endianness utility class for serlization/deserialization |
 | `ConsoleLogger()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/ILogger:6` | A logger that outputs to the console generally, you can use this class as default logger |
 | `MmdDataDeserializer()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/mmdDataDeserializer:5` | DataView wrapper for deserializing MMD data |

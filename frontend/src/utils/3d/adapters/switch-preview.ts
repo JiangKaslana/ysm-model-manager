@@ -248,6 +248,8 @@ export async function switchToSession(
   }
   // ADR-093 T3：同台追加后按可见注册模型根节点重算并集取景（多模型同框正确框全场景）
   if (keep && ctx.scene && ctx.camera && ctx.controls) {
+    // 多模型同框 X 轴自动排开（避免重叠）
+    arrangeModelsInRow();
     const roots = sceneRegistry.visibleRoots();
     if (roots.length) fitCameraToRoots(roots, ctx.camera, ctx.controls);
   }
@@ -266,6 +268,46 @@ export async function switchToSession(
   // 注意：适配器控件（分层切片等）通过 ctx.menu.setAdapterItems 在 build 时注入根菜单，
   // 无需额外 extraControls/extraPanel 调用（ADR-076 v2 Phase 3 收编）。
   ctx.inFlight = false;
+}
+
+// ---------------------------------------------------------------------------
+// 多模型同框 X 轴自动排开（ADR-093 T3 配套）
+// ---------------------------------------------------------------------------
+
+/**
+ * 按可见模型的包围盒宽度自动计算 X 轴偏移，避免同框重叠。
+ * 只在 keepInScene（同台追加）模式下由 switchToSession 调用。
+ * 适配器无感知——偏移由 core 统一计算并设置 roots 的 position.x。
+ */
+export function arrangeModelsInRow(): void {
+  const entries = sceneRegistry.getAll();
+  if (entries.length <= 1) return;
+
+  // 1) 计算每个模型包围盒宽度 + 模型间间距
+  const widths: number[] = [];
+  const gaps: number[] = [];
+  for (const e of entries) {
+    const box = new THREE.Box3();
+    for (const r of e.roots) box.expandByObject(r);
+    const size = box.getSize(new THREE.Vector3());
+    const w = size.x || 1;
+    widths.push(w);
+    gaps.push(Math.max(w * 0.2, 0.5)); // 间距 = 20% 宽度，最小 0.5
+  }
+
+  // 2) 计算总宽度 + 居中偏移（从左侧开始排列）
+  const totalGaps = gaps.reduce((s, g) => s + g, 0) - gaps[gaps.length - 1];
+  const totalWidth = widths.reduce((s, w) => s + w, 0) + totalGaps;
+  let x = -totalWidth / 2;
+
+  // 3) 逐个设置 X 位置（每个模型居中在其段内）
+  for (let i = 0; i < entries.length; i++) {
+    const halfW = widths[i] / 2;
+    for (const r of entries[i].roots) {
+      r.position.x = x + halfW;
+    }
+    x += widths[i] + gaps[i];
+  }
 }
 
 // ---------------------------------------------------------------------------
