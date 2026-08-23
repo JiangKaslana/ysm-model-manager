@@ -133,6 +133,21 @@ jobs:
           go test -race ./go/... ./internal/app/ -count=1 -timeout 10m | Out-String -Width 400
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      # 缓存 Rust 依赖仓库（registry/git）与两个 crate 的 target 编译产物——
+      # cargo test + cargo build --release（生产 DLL）每次全量编译是校正流程最重的一环。
+      # key 锚定两个 Cargo.lock，restore-keys 兜底低版本命中，参照 Go 模块缓存同款写法。
+      - name: 缓存 Rust 依赖与编译产物（命中免编译）
+        uses: actions/cache@v5.1.0
+        with:
+          path: |
+            ${{ runner.os == 'Windows' && '~\.cargo\registry' || '~/.cargo/registry' }}
+            ${{ runner.os == 'Windows' && '~\.cargo\git' || '~/.cargo/git' }}
+            rust-core/target
+            rust-wails-bridge/target
+          key: cargo-cache-${{ runner.os }}-${{ hashFiles('rust-core/Cargo.lock', 'rust-wails-bridge/Cargo.lock') }}
+          restore-keys: |
+            cargo-cache-${{ runner.os }}-
+
       - name: Rust 扫描器单测（code review P2：此前 CI 零 Rust 覆盖——rust_backend 路径全被 //go:build 排除）
         shell: pwsh
         run: |
