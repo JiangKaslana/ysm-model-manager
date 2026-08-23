@@ -42,20 +42,21 @@ function readResourceTypes(issues) {
 }
 
 function readJsExtensions() {
-  // ADR-014 后 extensions.ts 取代 extensions.js（.test.js 保留供 vitest）。
-  // extensions.ts 不再手写 RESOURCE_EXTS 字面量：RESOURCE_EXTS 由 resource_types.json
-  // 构建期派生（Object.fromEntries + registryEntries，单一事实来源，消灭手写副本漂移）。
-  // 故此处不再解析字面量对象，改为校验「派生链路」完整：
-  //   - 必须 import resourceTypesJson from "resource_types.json"
-  //   - RESOURCE_EXTS 必须经 Object.fromEntries 派生
+  // ADR-014 + T2（schema.ts 单一解析入口）后 extensions.ts 取代 extensions.js（.test.js 保留供 vitest）。
+  // extensions.ts 不再手写 RESOURCE_EXTS 字面量：
+  //   - 链路 A（旧）：extensions.ts 直接 `import resourceTypesJson from "resource_types.json"` + Object.fromEntries
+  //   - 链路 B（T2 新）：extensions.ts `import { allResourceTypes } from "./schema.ts"` + Object.fromEntries
+  //     （schema.ts 是唯一 JSON 解析入口，extensions.ts 同源消费 allResourceTypes）
   // 链路完好 ⇒ JS 端与 JSON 恒一致（构建期 import 保证），返回 null 表示「派生即一致」；
   // 链路破坏 ⇒ 抛错走 fatal（阻止放行，防手写副本死灰复燃）。
   const fp = path.join(ROOT, 'frontend/src/utils/resource/extensions.ts');
   const text = fs.readFileSync(fp, 'utf-8');
-  const importsJson = /import resourceTypesJson\b[\s\S]*resource_types\.json/.test(text);
   const derives = /export const RESOURCE_EXTS/.test(text) && text.includes('Object.fromEntries');
-  if (!importsJson || !derives) {
-    throw new Error('extensions.ts 未从 resource_types.json 派生 RESOURCE_EXTS（ADR-014 单一事实来源被破坏，勿手写副本）');
+  // 链路 A：直接 import JSON；链路 B：import allResourceTypes from schema.ts（T2 后唯一入口）
+  const viaDirectImport = /import resourceTypesJson\b[\s\S]*resource_types\.json/.test(text);
+  const viaSchema = /import\s+\{[^}]*allResourceTypes[^}]*\}\s+from\s+["']\.\/schema\.ts["']/.test(text);
+  if (!derives || (!viaDirectImport && !viaSchema)) {
+    throw new Error('extensions.ts 未从 resource_types.json 派生 RESOURCE_EXTS（ADR-014/T2 单一事实来源被破坏，勿手写副本）');
   }
   return null;
 }
