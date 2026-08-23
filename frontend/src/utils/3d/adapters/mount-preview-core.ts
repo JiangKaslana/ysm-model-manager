@@ -63,8 +63,10 @@ import type { BoneSelectInfo, BoneMaps } from "../model3d.ts";
 import {
   PREVIEW_FRAME_INTERVAL_MS,
   createAdaptiveRenderBudget,
+  getFrameIntervalMs,
   previewPixelRatio,
   sampleAdaptivePixelRatio,
+  shouldRenderAtFps,
   shouldRenderPreviewFrame,
 } from "../render-budget.ts";
 
@@ -582,15 +584,16 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       function animate(): void {
         _globalAnimId = requestAnimationFrame(animate);
         const now = performance.now();
-        if (!shouldRenderPreviewFrame(now, nextFrameTime, document.hidden === true)) {
+        const interval = getFrameIntervalMs();
+        if (!shouldRenderAtFps(now, nextFrameTime, interval, document.hidden === true)) {
           // 跳过帧（隐藏/节流）：推进采样起点——隐藏期间墙钟继续走但 sampleFrames
           // 不涨，恢复后平均帧时虚高会把像素比误降级，重复最小化渐进降到地板（code review P3）
           adaptiveBudget.sampleStart = now;
           return;
         }
-        nextFrameTime += PREVIEW_FRAME_INTERVAL_MS;
-        if (nextFrameTime < now - PREVIEW_FRAME_INTERVAL_MS) {
-          nextFrameTime = now + PREVIEW_FRAME_INTERVAL_MS;
+        nextFrameTime += interval;
+        if (nextFrameTime < now - interval) {
+          nextFrameTime = now + interval;
         }
         const dt = Math.min((now - lastTime) / 1000, 0.1);
         lastTime = now;

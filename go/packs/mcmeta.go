@@ -193,20 +193,22 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 	return bestID
 }
 
-// detectByPathDisambiguation 路径消歧：遍历文件所有祖先目录，检查是否匹配某类型的 InstanceDir。
-// 仅在扩展名也匹配时才返回——确保路径消歧不会跨组误判（如 .pmx 只在 MMD 组内消歧）。
+// detectByPathDisambiguation 路径消歧：遍历文件所有祖先目录（深→浅），检查是否匹配某类型的
+// InstanceDir/StorageSubDir。祖先目录外层优先——最深匹配的子类型（如 DefaultMorph）无论注册表
+// 顺序如何都能打赢外层父类型（如 EntityPlayer）。仅在扩展名也匹配时才返回——确保路径消歧
+// 不会跨组误判（如 .pmx 只在 MMD 组内消歧）。
 func detectByPathDisambiguation(path string, ext string, isContainer bool, registry *types.ResourceTypeRegistry) string {
 	dir := filepath.Dir(path)
 	if dir == "." {
 		return ""
 	}
 
-	// 收集所有祖先目录（从根到直接父目录），逐层检查 InstanceDir 匹配
+	// 收集所有祖先目录（深→浅，与 TypeByLocation 对齐）
 	// Windows 盘符根（如 "D:"）filepath.Dir 返回自身，需显式终止
 	var ancestors []string
 	d := dir
 	for d != "." && d != string(filepath.Separator) {
-		ancestors = append([]string{d}, ancestors...)
+		ancestors = append(ancestors, d)
 		parent := filepath.Dir(d)
 		if parent == d {
 			break
@@ -214,33 +216,44 @@ func detectByPathDisambiguation(path string, ext string, isContainer bool, regis
 		d = parent
 	}
 
-	for _, rt := range registry.ResourceTypes {
-		// 路径消歧认两条路径：InstanceDir（整合包安装目录）+ StorageSubDir（仓库目录）。
-		// 仓库内的 maid-model/*.zip 祖先目录即 storageSubDir，必须能打赢内容指纹兜底。
-		candidates := []string{rt.InstanceDir, rt.StorageSubDir}
-		hasCandidate := false
-		for _, c := range candidates {
-			if c != "" {
-				hasCandidate = true
-				break
-			}
+	// 预过滤：只保留有候选目录且扩展名匹配的类型（避免对每个祖先重复检查）
+	type disambCandidate struct {
+		rt         *types.ResourceType
+		candidates []string // 非空的 InstanceDir/StorageSubDir
+	}
+	var filtered []disambCandidate
+	for i := range registry.ResourceTypes {
+		rt := &registry.ResourceTypes[i]
+		cands := make([]string, 0, 2)
+		if rt.InstanceDir != "" {
+			cands = append(cands, rt.InstanceDir)
 		}
-		if !hasCandidate {
+		if rt.StorageSubDir != "" {
+			cands = append(cands, rt.StorageSubDir)
+		}
+		if len(cands) == 0 {
 			continue
 		}
 		if !hasExt(ext, rt.EffectiveExtensions()) {
 			continue
 		}
-		for _, anc := range ancestors {
-			ancNorm := filepath.ToSlash(strings.ToLower(anc))
-			for _, c := range candidates {
-				if c == "" {
-					continue
-				}
+		filtered = append(filtered, disambCandidate{rt: rt, candidates: cands})
+	}
+	if len(filtered) == 0 {
+		return ""
+	}
+
+	// 深度优先：外层遍历祖先（深→浅），内层遍历类型
+	// 最深匹配的祖先无论类型注册顺序如何都优先命中——修复 mmd/PMX/DefaultMorph/x.zip
+	// 被外层 EntityPlayer 抢走的子类型化场景（2026-08-23 修复）
+	for _, anc := range ancestors {
+		ancNorm := filepath.ToSlash(strings.ToLower(anc))
+		for _, dc := range filtered {
+			for _, c := range dc.candidates {
 				cNorm := filepath.ToSlash(strings.ToLower(c))
 				if strings.HasSuffix(ancNorm, "/"+cNorm) || ancNorm == cNorm {
-					if detectorPasses(path, ext, isContainer, &rt) {
-						return rt.ID
+					if detectorPasses(path, ext, isContainer, dc.rt) {
+						return dc.rt.ID
 					}
 				}
 			}

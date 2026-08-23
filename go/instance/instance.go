@@ -85,7 +85,7 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 			// 三分支口径一致：先识别 .disabled/.ban 禁用标记（实例侧遗留的禁用文件不应显示
 			// 为可推送的 Optional/普通 missing），再检测硬链接（旧仓库遗留，Extra 专用）
 			lowName := strings.ToLower(filepath.Base(p))
-			isDisabled := strings.HasSuffix(lowName, ".disabled") || strings.HasSuffix(lowName, ".ban")
+			isDisabled := types.IsDisableSuffix(lowName)
 			status := defaultStatus
 			icon := rt.Icon
 			if isDisabled {

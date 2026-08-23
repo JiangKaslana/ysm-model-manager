@@ -15,6 +15,28 @@ export function getMaxPixelRatio(): number {
 }
 
 export const PREVIEW_FRAME_INTERVAL_MS = 1000 / 60;
+
+// ===== 帧率上限开关 =====
+// 用户可在 3D 预览器 ⚙️ 设置弹窗调（30/60/120/无限制）。
+// 仅控制 3D 渲染器的 rAF 循环节流，不影响弹窗 UI 响应（DOM 事件驱动）。
+const MAX_FPS_DEFAULT = 60;
+export const MAX_FPS_KEY = "ysm_3d_maxFps";
+const FPS_UNCAPPED = 0; // 0 = 不限制（rAF 原生 ~60fps 或显示器刷新率）
+
+/** 读取用户设置的帧率上限；缺省 60。返回 fps 数值（0 = 不限制）。 */
+export function getMaxFps(): number {
+  const v = safeGet(MAX_FPS_KEY);
+  if (v === null) return MAX_FPS_DEFAULT;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) return MAX_FPS_DEFAULT;
+  return n;
+}
+
+/** 当前帧间隔（ms）：fps=0（不限制）→ 极小间隔（rAF 每帧都渲染）。 */
+export function getFrameIntervalMs(): number {
+  const fps = getMaxFps();
+  return fps === FPS_UNCAPPED ? 0 : 1000 / fps;
+}
 const ADAPTIVE_SAMPLE_FRAMES = 30;
 const SLOW_FRAME_MS = 22;
 const MIN_PIXEL_RATIO = 0.75;
@@ -58,5 +80,18 @@ export function shouldRenderPreviewFrame(
   hidden: boolean,
 ): boolean {
   if (hidden) return false;
+  return now >= nextFrame - 0.5;
+}
+
+/** 帧率上限节流版：now 已到/过 nextFrame 才渲染。
+ *  interval=0（不限）→ 恒 true（rAF 每帧都渲染）。 */
+export function shouldRenderAtFps(
+  now: number,
+  nextFrame: number,
+  interval: number,
+  hidden: boolean,
+): boolean {
+  if (hidden) return false;
+  if (interval <= 0) return true;
   return now >= nextFrame - 0.5;
 }

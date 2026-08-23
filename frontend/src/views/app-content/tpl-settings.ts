@@ -309,16 +309,6 @@ export function settingsHTML(): string {
   <div class="stg-hint">${t("settings.preview3d.fbxWorkerHint")}</div>
 </div>
 
-<div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:30ms">
-  <div class="setting-row">
-    <span class="label">🎯 ${t("settings.preview3d.frustumCull")}</span>
-    <label class="stg-label" style="gap:8px">
-      <input type="checkbox" id="set-frustum-cull"> ${t("settings.preview3d.workerCheck")}
-    </label>
-  </div>
-  <div class="stg-hint">${t("settings.preview3d.frustumCullHint")}</div>
-</div>
-
 <div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:60ms">
   <div class="setting-row">
     <span class="label">🧩 ${t("settings.preview3d.mmdWorker")}</span>

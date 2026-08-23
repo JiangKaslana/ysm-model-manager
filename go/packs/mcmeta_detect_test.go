@@ -258,3 +258,42 @@ func TestDetectResourceType_PathDisambiguation_CrossGroup(t *testing.T) {
 		t.Errorf(".pmx 在 EntityPlayer 目录应命中 EntityPlayer，实际 %q", got)
 	}
 }
+
+// TestDetectResourceType_PathDisambiguation_DeepPriority 子类型化场景：
+// 深层目录（DefaultMorph）必须优先于外层目录（EntityPlayer）命中——
+// 共享扩展名（.zip/.vpd）last-wins 会把 mmd/PMX/DefaultMorph 下文件误归 EntityPlayer。
+// 深度优先修复后，DefaultMorph/DefaultAnim 等子类型目录能正确打赢外层 PMX/EntityPlayer。
+func TestDetectResourceType_PathDisambiguation_DeepPriority(t *testing.T) {
+	reg := &types.ResourceTypeRegistry{
+		ResourceTypes: []types.ResourceType{
+			// 外层类型 EntityPlayer，仓库目录 PMX，共享扩展名 .zip / .dat
+			{ID: "EntityPlayer", Extensions: []string{".zip", ".dat"}, Detector: "extension",
+				StorageSubDir: "PMX"},
+			// 子类型 DefaultMorph，嵌套在 EntityPlayer/PMX 下，共享 .zip / .dat
+			{ID: "DefaultMorph", Extensions: []string{".zip", ".dat"}, Detector: "extension",
+				StorageSubDir: "DefaultMorph"},
+			// 子类型 DefaultAnim，同样嵌套
+			{ID: "DefaultAnim", Extensions: []string{".zip", ".dat"}, Detector: "extension",
+				StorageSubDir: "DefaultAnim"},
+		},
+	}
+
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		// 子类型目录下的文件 → 命中子类型（深层优先，而非外层 EntityPlayer）
+		{`D:\repo\mmd\PMX\DefaultMorph\blink.dat`, "DefaultMorph"},
+		{`D:\repo\mmd\PMX\DefaultAnim\wave.dat`, "DefaultAnim"},
+		{`D:\repo\mmd\PMX\DefaultMorph\model.zip`, "DefaultMorph"},
+		// 外层目录下的文件 → 命中外层 EntityPlayer
+		{`D:\repo\mmd\PMX\role.zip`, "EntityPlayer"},
+		{`D:\repo\mmd\PMX\role.dat`, "EntityPlayer"},
+		// 更深嵌套（子目录内子类型）→ 仍命中子类型（DefaultMorph 在 DefaultAnim 上层）
+		{`D:\repo\mmd\PMX\DefaultAnim\sub\anim.dat`, "DefaultAnim"},
+	} {
+		if got := DetectResourceType(tc.path, reg); got != tc.want {
+			t.Errorf("深度优先: DetectResourceType(%s) = %q, 期望 %q", tc.path, got, tc.want)
+		}
+	}
+}

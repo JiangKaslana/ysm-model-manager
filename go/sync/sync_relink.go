@@ -73,9 +73,7 @@ func RelinkDir(customDir, filesRoot, rtype, linkMode string, scanFn func(string)
 		}
 		// 目录型模型文件判定（ADR-064 锚定）：原硬编码 ysm.json/.pmx/.pmd；
 		// 现为该类型注册表 dirLevelSync + 文件属于该类型——新增目录型类型自动生效
-		baseName := strings.ToLower(filepath.Base(ce.Path))
-		baseName = strings.TrimSuffix(baseName, ".disabled")
-		baseName = strings.TrimSuffix(baseName, ".ban")
+		baseName := types.StripDisableSuffix(strings.ToLower(filepath.Base(ce.Path)))
 		isDirType := types.IsDirLevelSync(rtype) && types.IsTypeModelFile(baseName, rtype)
 		// 注：此处传剥 .disabled/.ban 后的 baseName（relink 需识别禁用文件的目录型——
 		// 原 ce.Path 未剥后缀时 filepath.Ext 得 ".ban" 不匹配任何扩展集，测试红）。

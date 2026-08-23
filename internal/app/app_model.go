@@ -274,12 +274,7 @@ func (a *App) ReadFileBytesBatchWithMeta(paths []string) map[string]ReadFileMeta
 
 func (a *App) AnalyzeBedrockModel(modelPath string) types.BedrockModel {
 	// 剥禁用后缀（.ban/.disabled），与 scanner 口径一致
-	for _, suffix := range []string{".ban", ".disabled"} {
-		if strings.HasSuffix(strings.ToLower(modelPath), suffix) {
-			modelPath = modelPath[:len(modelPath)-len(suffix)]
-			break
-		}
-	}
+	modelPath = types.StripDisableSuffix(modelPath)
 	// 路径守卫：AnalyzeBedrockModel 是 Wails binding（public method），
 	// 前端可传任意路径——原实现无校验，可读取系统任意文件（如 /etc/passwd）。
 	// 与 ReadFileBytes 对齐 isPathInRootOrSelf（扫描能列出的文件就能分析）。
@@ -343,12 +338,7 @@ func (a *App) AnalyzeBedrockModelEntry(modelPath, subPath string) types.BedrockM
 	if subPath == "" {
 		return types.BedrockModel{}
 	}
-	for _, suffix := range []string{".ban", ".disabled"} {
-		if strings.HasSuffix(strings.ToLower(modelPath), suffix) {
-			modelPath = modelPath[:len(modelPath)-len(suffix)]
-			break
-		}
-	}
+	modelPath = types.StripDisableSuffix(modelPath)
 	if !a.isPathInRootOrSelf(modelPath) {
 		return types.BedrockModel{}
 	}
@@ -394,12 +384,7 @@ func (a *App) AnalyzeBedrockModelEntry(modelPath, subPath string) types.BedrockM
 
 func (a *App) GetModel3DSpec(modelPath string) string {
 	// 剥禁用后缀（.ban/.disabled），与 scanner 口径一致
-	for _, suffix := range []string{".ban", ".disabled"} {
-		if strings.HasSuffix(strings.ToLower(modelPath), suffix) {
-			modelPath = modelPath[:len(modelPath)-len(suffix)]
-			break
-		}
-	}
+	modelPath = types.StripDisableSuffix(modelPath)
 	// 路径守卫：GetModel3DSpec 是 Wails binding，原实现无校验可读取系统任意文件。
 	// 与 ReadFileBytes/AnalyzeBedrockModel 对齐 isPathInRootOrSelf。
 	if !a.isPathInRootOrSelf(modelPath) {

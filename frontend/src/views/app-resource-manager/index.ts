@@ -361,9 +361,9 @@ export class AppResourceManager extends WebComponentBase {
     // 从 resource_types.json 获取当前类型的扩展名列表
     const type = _findType(this._rtype);
     const exts = (type && type.extensions) || [".zip"];
-    // 先按扩展名过滤（.disabled 后缀去后缀后判断）
+    // 先按扩展名过滤（.disabled/.ban 后缀去后缀后判断）
     const filtered = (entries || []).filter((e) => {
-      const lower = (e.Name || "").toLowerCase().replace(/\.disabled$/, "");
+      const lower = (e.Name || "").toLowerCase().replace(/\.(disabled|ban)$/i, "");
       return exts.some((ext) => lower.endsWith(ext));
     });
     // 并发查询启用状态（逐项串行在数百资源目录下明显卡顿；单项失败不阻塞整体）
@@ -378,7 +378,7 @@ export class AppResourceManager extends WebComponentBase {
       const name = e.Name || "";
       const fullPath = e.Path || "";
       return {
-        name: name.replace(/\.disabled$/i, ""),
+        name: name.replace(/\.(disabled|ban)$/i, ""),
         path: fullPath,
         enabled: this._actions.includes("toggle") ? (enabledMap.get(fullPath) ?? false) : true,
       };

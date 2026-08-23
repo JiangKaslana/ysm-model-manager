@@ -116,9 +116,9 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 					continue
 				}
 				if bannedHashes[c.Hash] {
-					status.Disabled = append(status.Disabled, types.StripBanSuffix(c.Name))
+					status.Disabled = append(status.Disabled, types.StripDisableSuffix(c.Name))
 				} else if _, found := repoByHash[c.Hash]; !found {
-					status.Extra = append(status.Extra, types.StripBanSuffix(c.Name))
+					status.Extra = append(status.Extra, types.StripDisableSuffix(c.Name))
 				}
 			}
 
@@ -203,14 +203,12 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 		ePath := strings.ToLower(e.Path)
 		if strings.HasPrefix(ePath, filesRootClean) {
 			rel := strings.TrimPrefix(ePath, filesRootClean)
-			rel = strings.TrimSuffix(rel, ".disabled")
-			rel = strings.TrimSuffix(rel, ".ban")
+			rel = types.StripDisableSuffix(rel)
 			repoName[rel] = banned
 		} else {
 			// fallback：纯文件名（顶层文件）
 			baseName := strings.ToLower(e.Name)
-			baseName = strings.TrimSuffix(baseName, ".disabled")
-			baseName = strings.TrimSuffix(baseName, ".ban")
+			baseName = types.StripDisableSuffix(baseName)
 			repoName[baseName] = banned
 		}
 		if e.Hash != "" {
@@ -261,8 +259,7 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 			pLower := strings.ToLower(p)
 			if strings.HasPrefix(pLower, customDirClean) {
 				rel := strings.TrimPrefix(pLower, customDirClean)
-				rel = strings.TrimSuffix(rel, ".disabled")
-				rel = strings.TrimSuffix(rel, ".ban")
+				rel = types.StripDisableSuffix(rel)
 				shouldBeBanned, matched = repoName[rel]
 			}
 		}
@@ -345,8 +342,7 @@ func relKey(root, path string) string {
 	}
 	rel = filepath.ToSlash(rel)
 	rel = strings.ToLower(rel)
-	rel = strings.TrimSuffix(rel, ".disabled")
-	rel = strings.TrimSuffix(rel, ".ban")
+	rel = types.StripDisableSuffix(rel)
 	return rel
 }
 

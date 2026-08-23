@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 145 | 559 |
+| 前端·工具 | 145 | 563 |
 | frontend/views | 117 | 332 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **454** | **1904** |
+| **合计** | **454** | **1908** |
 
 ## Go·头像
 
@@ -314,7 +314,7 @@
 |------|--------|------|
 | `ReadPackMeta()` | `go/packs/mcmeta:35` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
 | `DetectResourceType()` | `go/packs/mcmeta:142` | DetectResourceType 检测文件属于哪种资源类型 Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir， 解决 MMD 子类型共享扩展名 |
-| `ReadShaderpackLang()` | `go/packs/mcmeta:359` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
+| `ReadShaderpackLang()` | `go/packs/mcmeta:372` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
 
 ## Go·路径
 
@@ -411,9 +411,9 @@
 | `GetInstanceStatus()` | `go/sync/sync:27` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.C |
 | `GetInstanceStatusWith()` | `go/sync/sync:33` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomD |
 | `SyncToggleStatus()` | `go/sync/sync:190` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:353` | — |
-| `SortEntries()` | `go/sync/sync:404` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:411` | GetLinkType 判断文件的链接类型 |
+| `SyncResources()` | `go/sync/sync:349` | — |
+| `SortEntries()` | `go/sync/sync:400` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:407` | GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
@@ -701,10 +701,10 @@
 | `App.ReadFileBytesBatch()` | `internal/app/app_model:110` | ReadFileBytesBatch 批量读取多个文件（ADR-101：MMD 纹理加载优化）。 |
 | `App.ReadFileBytesBatchWithMeta()` | `internal/app/app_model:215` | ReadFileBytesBatchWithMeta 批量读取文件并返回内容 + SHA256 哈希。 |
 | `App.AnalyzeBedrockModel()` | `internal/app/app_model:275` | — |
-| `App.AnalyzeBedrockModelEntry()` | `internal/app/app_model:342` | AnalyzeBedrockModelEntry 按 SubModel.SourcePath 只解析归档内单模型 geometry（多角色包角色切换用）。 |
-| `App.GetModel3DSpec()` | `internal/app/app_model:395` | — |
-| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:436` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:498` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `App.AnalyzeBedrockModelEntry()` | `internal/app/app_model:337` | AnalyzeBedrockModelEntry 按 SubModel.SourcePath 只解析归档内单模型 geometry（多角色包角色切换用）。 |
+| `App.GetModel3DSpec()` | `internal/app/app_model:385` | — |
+| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:421` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:483` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `ReadFileMeta()` | `internal/app/app_model:191` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:28` | ========== 导出单模型骨骼结构 ========== ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:66` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
@@ -1297,17 +1297,17 @@
 | `TextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:40` | 解码管理器：创建 Worker 池、分发任务、收集结果。 |
 | `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:149` | 获取共享解码器（懒创建） |
 | `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:169` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
-| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:72` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:91` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:117` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:127` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:173` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:178` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
-| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:198` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:211` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:217` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:222` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:240` | — |
+| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:74` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:93` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:119` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:129` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:175` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:180` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
+| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:200` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:213` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:219` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:224` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:242` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1551,11 +1551,15 @@
 | `MAX_PIXEL_RATIO_KEY()` | `frontend/src/utils/3d/render-budget:5` | — |
 | `getMaxPixelRatio()` | `frontend/src/utils/3d/render-budget:10` | 读取用户设置的渲染分辨率上限（设置面板 slider 持久化）；缺省 1.5。 |
 | `PREVIEW_FRAME_INTERVAL_MS()` | `frontend/src/utils/3d/render-budget:17` | — |
-| `AdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:22` | — |
-| `previewPixelRatio()` | `frontend/src/utils/3d/render-budget:28` | — |
-| `createAdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:33` | — |
-| `sampleAdaptivePixelRatio()` | `frontend/src/utils/3d/render-budget:41` | Returns a new pixel ratio only when sustained frame delivery is too slow. |
-| `shouldRenderPreviewFrame()` | `frontend/src/utils/3d/render-budget:55` | — |
+| `MAX_FPS_KEY()` | `frontend/src/utils/3d/render-budget:23` | — |
+| `getMaxFps()` | `frontend/src/utils/3d/render-budget:27` | 读取用户设置的帧率上限；缺省 60。返回 fps 数值（0 = 不限制）。 |
+| `getFrameIntervalMs()` | `frontend/src/utils/3d/render-budget:36` | 当前帧间隔（ms）：fps=0（不限制）→ 极小间隔（rAF 每帧都渲染）。 |
+| `AdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:44` | — |
+| `previewPixelRatio()` | `frontend/src/utils/3d/render-budget:50` | — |
+| `createAdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:55` | — |
+| `sampleAdaptivePixelRatio()` | `frontend/src/utils/3d/render-budget:63` | Returns a new pixel ratio only when sustained frame delivery is too slow. |
+| `shouldRenderPreviewFrame()` | `frontend/src/utils/3d/render-budget:77` | — |
+| `shouldRenderAtFps()` | `frontend/src/utils/3d/render-budget:88` | 帧率上限节流版：now 已到/过 nextFrame 才渲染。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `ScreenshotOpts()` | `frontend/src/utils/3d/screenshot:13` | 截图选项 |
 | `screenshotFromRenderer()` | `frontend/src/utils/3d/screenshot:27` | 从活跃的 renderer/scene/camera 截图，返回 PNG/JPEG base64（无 data: 前缀）。 |

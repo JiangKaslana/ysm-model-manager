@@ -208,7 +208,7 @@ func (tm *TrashManager) List() []types.ModelEntry {
 		}
 		ext := strings.ToLower(filepath.Ext(p))
 		// 检查是否为禁用后缀（.disabled/.ban）或其他受支持的扩展名
-		if ext != ".disabled" && ext != ".ban" && !types.IsSupportedExt(ext) {
+		if !types.IsDisableSuffix(ext) && !types.IsSupportedExt(ext) {
 			return nil
 		}
 		info, _ := d.Info()

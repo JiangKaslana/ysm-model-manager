@@ -337,11 +337,11 @@ func (a *App) ToggleResourcePack(path string) bool {
 	if !allowed {
 		return false
 	}
-	disabled := strings.HasSuffix(path, ".disabled")
+	disabled := types.IsDisableSuffix(path)
 	var src, dst string
 	if disabled {
 		src = path
-		dst = strings.TrimSuffix(path, ".disabled")
+		dst = types.StripDisableSuffix(path)
 	} else {
 		src = path
 		dst = path + ".disabled"
@@ -358,7 +358,7 @@ func (a *App) ToggleResourcePack(path string) bool {
 
 // IsResourcePackEnabled 检查资源包是否启用
 func (a *App) IsResourcePackEnabled(path string) bool {
-	return !strings.HasSuffix(path, ".disabled")
+	return !types.IsDisableSuffix(path)
 }
 
 // SelectImportZip 打开文件选择器选取 .zip 文件

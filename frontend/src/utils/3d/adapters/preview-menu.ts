@@ -24,7 +24,7 @@ import { ENV_PRESET_LINKAGE, type EnvPresetId } from "../caps/environment-capabi
 import { sceneRegistry, type ModelEntry } from "./scene-registry.ts";
 import type { FogCapability } from "../caps/fog-capability.ts";
 import { isFrustumCullEnabled, setFrustumCullEnabled } from "../frustum-cull.ts";
-import { getMaxPixelRatio, MAX_PIXEL_RATIO_KEY } from "../render-budget.ts";
+import { getMaxFps, MAX_FPS_KEY, getMaxPixelRatio, MAX_PIXEL_RATIO_KEY } from "../render-budget.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
@@ -1346,6 +1346,37 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   cullRow.append(cullLabelBox, cullToggle);
   list.appendChild(cullRow);
 
+  // 帧率上限 select（控制 render-budget 的 getFrameIntervalMs，30/60/120/不限）
+  // 仅控制 3D 渲染器的 rAF 循环节流，不影响弹窗 UI 响应（DOM 事件驱动）。
+  const fpsRow = document.createElement("div");
+  fpsRow.className = "slide-item";
+  fpsRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+  const fpsLabel = document.createElement("span");
+  fpsLabel.className = "slide-label";
+  fpsLabel.textContent = tr("preview.settingsMaxFps", "帧率上限");
+  fpsLabel.style.cssText = "flex:1;font-size:12px";
+  const fpsSel = document.createElement("select");
+  fpsSel.className = "setting-select";
+  fpsSel.style.cssText = "font-size:11px;padding:2px 4px";
+  const FPS_OPTIONS: Array<{ value: string; labelKey: string; fallback: string }> = [
+    { value: "30", labelKey: "preview.settingsFps30", fallback: "30 fps" },
+    { value: "60", labelKey: "preview.settingsFps60", fallback: "60 fps" },
+    { value: "120", labelKey: "preview.settingsFps120", fallback: "120 fps" },
+    { value: "0", labelKey: "preview.settingsFpsUncapped", fallback: "不限" },
+  ];
+  for (const opt of FPS_OPTIONS) {
+    const o = document.createElement("option");
+    o.value = opt.value;
+    o.textContent = tr(opt.labelKey, opt.fallback);
+    fpsSel.appendChild(o);
+  }
+  fpsSel.value = String(getMaxFps());
+  fpsSel.onchange = (): void => {
+    safeSet(MAX_FPS_KEY, fpsSel.value);
+  };
+  fpsRow.append(fpsLabel, fpsSel);
+  list.appendChild(fpsRow);
+
   // ── 🎨 画质分组（后续加渲染分辨率上限等，先占位）──
   const qualHeader = document.createElement("div");
   qualHeader.style.cssText = "padding:12px 10px 4px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
@@ -1382,6 +1413,57 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   };
   resRow.append(resHead, resSlider);
   list.appendChild(resRow);
+
+  // ── 🎨 画质：Bloom 总开关（PostprocessingCapability.setEnabled）──
+  // Bloom 是后处理管线里最重的 pass，独立开关让用户精准降级。
+  // cap 不存在（未进 3D）→ 跳过，不渲染空控件。
+  const ppCap = sceneCapabilityRegistry.getById("postprocessing") as
+    | (import("../caps/postprocessing-capability.ts").PostprocessingCapability & {
+        setEnabled(v: boolean): void;
+        isEnabled(): boolean;
+      })
+    | undefined;
+  if (ppCap) {
+    const bloomRow = document.createElement("div");
+    bloomRow.className = "slide-item";
+    bloomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+    const bloomLabel = document.createElement("span");
+    bloomLabel.className = "slide-label";
+    bloomLabel.textContent = tr("preview.settingsBloom", "Bloom 辉光");
+    bloomLabel.style.cssText = "flex:1;font-size:12px";
+    const bloomToggle = createHeaderToggle({
+      value: ppCap.isEnabled(),
+      onChange: (v: boolean): void => ppCap.setEnabled(v),
+      bind: (): boolean => ppCap.isEnabled(),
+    });
+    bloomRow.append(bloomLabel, bloomToggle);
+    list.appendChild(bloomRow);
+  }
+
+  // ── 🎨 画质：PMREM 环境光开关（SkyCapability.setEnvironmentEnabled）──
+  // PMREM 有计算开销，低配可关掉省算力；cap 不存在 → 跳过。
+  const skyCap = sceneCapabilityRegistry.getById("sky") as
+    | (import("../caps/sky-capability.ts").SkyCapability & {
+        setEnvironmentEnabled(v: boolean): void;
+        isEnvironmentEnabled(): boolean;
+      })
+    | undefined;
+  if (skyCap) {
+    const pmremRow = document.createElement("div");
+    pmremRow.className = "slide-item";
+    pmremRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+    const pmremLabel = document.createElement("span");
+    pmremLabel.className = "slide-label";
+    pmremLabel.textContent = tr("preview.settingsPmrem", "PMREM 环境光");
+    pmremLabel.style.cssText = "flex:1;font-size:12px";
+    const pmremToggle = createHeaderToggle({
+      value: skyCap.isEnvironmentEnabled(),
+      onChange: (v: boolean): void => skyCap.setEnvironmentEnabled(v),
+      bind: (): boolean => skyCap.isEnvironmentEnabled(),
+    });
+    pmremRow.append(pmremLabel, pmremToggle);
+    list.appendChild(pmremRow);
+  }
 
   // 说明文字：改动下次打开 3D 预览生效（pixelRatio 在 renderer 创建时读取）
   const note = document.createElement("div");
