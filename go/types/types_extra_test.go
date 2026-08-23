@@ -2,6 +2,7 @@
 package types
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -466,6 +467,76 @@ func TestFindInstDir_Ysm_NoFallback(t *testing.T) {
 	got := FindInstDir(versionDir, "config/yes_steve_model/custom", "ysm")
 	if got != want {
 		t.Fatalf("ysm 不得兜底到非标准目录: got=%s, 期望标准路径 %s", got, want)
+	}
+}
+
+// ===== IsTypeModelFile 对 zipentry 类型 .zip 内含校验（ADR 收敛：同步链路
+// 不得把纯打包物/坏包当模型搬运）=====
+
+// writeZip 造一个含指定条目的 zip 文件，返回路径。
+func writeZip(t *testing.T, entries map[string]string) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "model.zip")
+	f, err := os.Create(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	zw := zip.NewWriter(f)
+	for name, content := range entries {
+		w, err := zw.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte(content)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// TestIsTypeModelFile_ZipEntry_VmdInsideIsModel 内含 .vmd 的 zip 应识别为
+// DefaultAnim 模型（保住合法用例：内装 vmd 动画的压缩包）。
+func TestIsTypeModelFile_ZipEntry_VmdInsideIsModel(t *testing.T) {
+	zipPath := writeZip(t, map[string]string{"motion.vmd": "vmd", "readme.txt": "x"})
+	if !IsTypeModelFile(zipPath, "DefaultAnim") {
+		t.Fatalf("内含 .vmd 的 zip 应识别为 DefaultAnim 模型: %s", zipPath)
+	}
+}
+
+// TestIsTypeModelFile_ZipEntry_NoMatchNotModel 内不含 .vmd 的 zip（纯打包物）
+// 不得识别为 DefaultAnim 模型——否则同步推送/拉取会把它当顶层模型搬运。
+func TestIsTypeModelFile_ZipEntry_NoMatchNotModel(t *testing.T) {
+	zipPath := writeZip(t, map[string]string{"data.bin": "x", "readme.txt": "y"})
+	if IsTypeModelFile(zipPath, "DefaultAnim") {
+		t.Fatalf("内不含 .vmd 的 zip 不得识别为 DefaultAnim 模型: %s", zipPath)
+	}
+}
+
+// TestIsTypeModelFile_ZipEntry_BadZipNotModel 损坏 zip（非合法 zip 结构）不得
+// 识别为模型——坏包在同步列表里亮起推送按钮正是本次故障来源。
+func TestIsTypeModelFile_ZipEntry_BadZipNotModel(t *testing.T) {
+	bad := filepath.Join(t.TempDir(), "broken.zip")
+	if err := os.WriteFile(bad, []byte("this is not a zip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if IsTypeModelFile(bad, "DefaultAnim") {
+		t.Fatalf("损坏 zip 不得识别为 DefaultAnim 模型: %s", bad)
+	}
+}
+
+// TestIsTypeModelFile_ZipEntry_NonZipEntryTypeUnaffected resourcepack（detector
+// != zipentry）仍按扩展名直判 .zip 为资源包实体——本改动不影响非 zipentry 类型。
+func TestIsTypeModelFile_ZipEntry_NonZipEntryTypeUnaffected(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "pack.zip")
+	if err := os.WriteFile(p, []byte("zip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !IsTypeModelFile(p, "resourcepack") {
+		t.Fatalf("resourcepack 的 .zip 仍应直判为资源包（detector != zipentry 不受影响）")
 	}
 }
 

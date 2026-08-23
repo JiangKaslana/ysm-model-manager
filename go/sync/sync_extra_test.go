@@ -2,6 +2,7 @@
 package sync
 
 import (
+	"archive/zip"
 	"os"
 	"path/filepath"
 	"testing"
@@ -130,9 +131,38 @@ func TestIsModelFile_EntityPlayer(t *testing.T) {
 	if !types.IsTypeModelFile("model.pmd", "EntityPlayer") {
 		t.Error(".pmd should be EntityPlayer model")
 	}
-	if !types.IsTypeModelFile("model.zip", "EntityPlayer") {
-		t.Error(".zip should be EntityPlayer model")
+	// EntityPlayer 是 zipentry 检测器类型：.zip 必须内装 .pmx/.pmd 才算模型，
+	// 纯 .zip 文件名不再直判（否则同步推送会搬运坏包/纯打包物）。
+	zipPath := writeEntityPlayerZip(t)
+	if !types.IsTypeModelFile(zipPath, "EntityPlayer") {
+		t.Error("内装 .pmx 的 .zip 应识别为 EntityPlayer 模型")
 	}
+	if types.IsTypeModelFile(filepath.Join(t.TempDir(), "plain.zip"), "EntityPlayer") {
+		t.Error("空/纯打包 .zip 不得识别为 EntityPlayer 模型")
+	}
+}
+
+// writeEntityPlayerZip 造一个内装 model.pmx 的 zip（模拟玩家打包的 MMD 模型）。
+func writeEntityPlayerZip(t *testing.T) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "model.zip")
+	f, err := os.Create(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	zw := zip.NewWriter(f)
+	w, err := zw.Create("model.pmx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("pmx")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return p
 }
 
 func TestIsModelFile_EntityPlayerNegative(t *testing.T) {
