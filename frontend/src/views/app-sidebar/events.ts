@@ -2,7 +2,7 @@
 import { bus } from "../../bus.ts";
 import { t } from "../../core/i18n/t.ts";
 import { animateNumber } from "../../utils/animation/animate.ts";
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { currentRepoType } from "../../features/repo-rtype.ts";
 import type { SidebarInstance } from "./data.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { getApp } from "../../backend/app.ts";
@@ -93,8 +93,8 @@ export function bindCardEvents(
       // （丢用户状态/闪烁回归）。
       // 点击允许 fallback 到 YSM（预览/选择无害），与右键拒绝 fallback 形成对称设计
       _lastEmittedPkg =
-        (st.instances[0]?.rtype || RESOURCE_TYPES.YSM) + ":" + pkg.name;
-      safeSet("sb_selectedName_" + (pkg.rtype || RESOURCE_TYPES.YSM), pkg.name);
+        (st.instances[0]?.rtype || currentRepoType()) + ":" + pkg.name;
+      safeSet("sb_selectedName_" + (pkg.rtype || currentRepoType()), pkg.name);
     }
   };
 
@@ -168,7 +168,7 @@ function restoreSelectedCard(
   instances: SidebarInstance[],
 ): void {
   try {
-    const rtypeKey = instances[0]?.rtype || RESOURCE_TYPES.YSM;
+    const rtypeKey = instances[0]?.rtype || currentRepoType();
     const savedName = safeGet("sb_selectedName_" + rtypeKey);
     if (!savedName) return;
     const idx = instances.findIndex((i) => i.name === savedName);

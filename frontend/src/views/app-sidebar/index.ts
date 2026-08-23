@@ -4,6 +4,7 @@ import { dbg } from "../../utils/debug/debug.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { refreshAdoptedStyleSheets } from "../../utils/dom/css-hmr.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS, ALL_RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { currentRepoType } from "../../features/repo-rtype.ts";
 import { sidebarCSS } from "./sidebar-css.ts";
 // 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
 // 环境守卫对齐 ui-components-styles.ts：node/happy-dom 无 CSSStyleSheet 时返回
@@ -63,7 +64,11 @@ class AppSidebar extends WebComponentBase {
     super();
     this._root = this.attachShadow({ mode: "open" });
     this._root.adoptedStyleSheets = [appSidebarStyle];
-    this._rtype = this.getAttribute("rtype") || RESOURCE_TYPES.YSM;
+    // P1 修复（ADR-104 整合包视图首屏 rtype 回落）：tpl.ts 挂载 <app-sidebar> 不传 rtype
+    // 属性，此前恒回落 YSM，整合包标题首屏显示 (ysm) 需手动切标签才被纠正。
+    // 对齐仓库页 initRepositoryPage 的 savedRtype 恢复：属性优先，缺省读
+    // currentRepoType()（localStorage repo_rtype 权威源，由 app-nav 切换器落盘）。
+    this._rtype = this.getAttribute("rtype") || currentRepoType();
   }
 
   attributeChangedCallback(name: string, oldVal: string | null, newVal: string | null): void {

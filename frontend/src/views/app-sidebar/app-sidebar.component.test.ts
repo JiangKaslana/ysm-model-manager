@@ -67,4 +67,29 @@ describe("app-sidebar 生命周期配对", () => {
     await sleep(380);
     expect(spy).not.toHaveBeenCalled(); // 订阅已随 disconnectedCallback 清理
   });
+
+  it("localStorage 存非默认 rtype → 首屏 _reload 用该 rtype（缺省属性不回落 YSM）", async () => {
+    // 回归：tpl.ts 挂载 <app-sidebar> 不传 rtype 属性，构造函数此前恒回落 YSM，
+    // 导致整合包视图首屏标题显示 (ysm)，须手动切一次导航标签才被 repo:rtype-changed 纠正。
+    // 修复：构造函数读 currentRepoType()（localStorage repo_rtype 权威源），与仓库页
+    // initRepositoryPage 的 savedRtype 恢复逻辑对齐。
+    localStorage.setItem("repo_rtype", "EntityPlayer");
+    try {
+      const spy = spyLoad();
+      mountCustomElement("app-sidebar");
+      await sleep(120);
+      // 首次 _reload 即携带权威类型，而非 YSM
+      expect(spy).toHaveBeenCalledWith("EntityPlayer", undefined);
+    } finally {
+      localStorage.removeItem("repo_rtype");
+    }
+  });
+
+  it("localStorage 为空 → 回落默认 YSM（行为不变）", async () => {
+    localStorage.removeItem("repo_rtype");
+    const spy = spyLoad();
+    mountCustomElement("app-sidebar");
+    await sleep(120);
+    expect(spy).toHaveBeenCalledWith("ysm", undefined);
+  });
 });
