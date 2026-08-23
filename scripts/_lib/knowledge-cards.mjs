@@ -42,5 +42,23 @@ export const KNOWLEDGE_NON_CARDS = new Set([
   'tier-review.md',  // BABY 预留
 ]);
 
+/**
+ * 知识卡 `perf:` 性能画像受控词表（单一事实源）。
+ *
+ * 卡片 frontmatter 可选声明（块列表，与 use_when 同格式）：
+ *   perf:
+ *     - cpu-bound
+ * 词表外标签 → check-knowledge-drift ERROR（fail-closed，ADR-043 契约）。
+ * 扩展新维度（远期能耗 energy-* 等）只改本常量，检查器/生成器自动跟上。
+ */
+export const PERF_TAGS = {
+  'cpu-bound': 'CPU 密集（解析/编译/解算/编码）',
+  'io-bound': 'IO 密集（批量读写/RPC/网络）',
+  'gpu-bound': 'GPU/显存敏感（纹理/3D 渲染）',
+  'concurrent': '多核并行（goroutine 池/Worker 池/pthread/Promise 竞速）',
+  'single-thread': '单线程顺序执行（顺序流水线/串行队列）',
+  'memory-heavy': '内存/显存大户（大缓冲/长驻缓存）',
+};
+
 /** 知识卡目录（供各 gen-* 脚本复用，避免各自 path.join 漂移）。 */
 export const KNOW_DIR = path.join(ROOT, 'docs', 'knowledge');

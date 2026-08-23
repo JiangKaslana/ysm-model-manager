@@ -12,6 +12,9 @@ use_when:
   - download
   - 进度条
   - 下载进度
+perf:
+  - io-bound
+  - single-thread
 ---
 
 # 下载器 go/download

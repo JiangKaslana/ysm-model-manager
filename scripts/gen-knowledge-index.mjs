@@ -19,7 +19,7 @@ import { parseArgs } from './_lib/parse-args.mjs';
 // [ADR-114 §被补充] 常量共享层：CATEGORY_LABELS / NON_CARDS / KNOW_DIR 从 _lib/knowledge-cards.mjs 引入
 // （原散落本文件 / gen-knowledge-adr / gen-knowledge-h1 / gen-knowledge-tests / gen-vitepress-sidebar 5 处，
 // 本文件为第一处消解）
-import { CATEGORY_LABELS, KNOWLEDGE_NON_CARDS as NON_CARDS, KNOW_DIR as KC_DIR } from './_lib/knowledge-cards.mjs';
+import { CATEGORY_LABELS, KNOWLEDGE_NON_CARDS as NON_CARDS, KNOW_DIR as KC_DIR, PERF_TAGS } from './_lib/knowledge-cards.mjs';
 
 const { check: CHECK } = parseArgs(process.argv.slice(2), { bools: ['check'] });
 
@@ -96,6 +96,7 @@ function buildIndex() {
       category: getScalar(fm, 'category') || 'unknown',
       tier: getScalar(fm, 'tier') || 'architecture',
       keywords: getList(fm, 'use_when'),
+      perf: getList(fm, 'perf'),
       summary: extractSummary(text),
     });
   }
@@ -115,12 +116,13 @@ function buildIndex() {
     const label = CATEGORY_LABELS[cat] || '';
     out += `## ${cat}（${items.length} 张）\n\n`;
     if (label) out += `*${label}*\n\n`;
-    out += '| 标识 | 名称 | tier | 关键词 |\n';
-    out += '|------|------|------|--------|\n';
+    out += '| 标识 | 名称 | tier | 性能 | 关键词 |\n';
+    out += '|------|------|------|------|--------|\n';
     for (const c of items) {
       const marker = c.tier === 'architecture' ? '🏗' : '🍃';
       const kw = c.keywords.length ? c.keywords.join(', ') : '—';
-      out += `| ${marker} ${c.kind} | ${c.name} | ${c.tier} | ${kw} |\n`;
+      const perf = c.perf.length ? c.perf.join(', ') : '—';
+      out += `| ${marker} ${c.kind} | ${c.name} | ${c.tier} | ${perf} | ${kw} |\n`;
     }
     out += '\n';
 
@@ -133,6 +135,27 @@ function buildIndex() {
       }
       out += '\n';
     }
+  }
+
+  // 性能画像汇总段：按标签反查卡片（「哪些功能并发/谁是 GPU 大户」一类问题直答）
+  const byPerf = new Map();
+  for (const c of cards) {
+    for (const t of c.perf) {
+      if (!byPerf.has(t)) byPerf.set(t, []);
+      byPerf.get(t).push(c.kind);
+    }
+  }
+  out += '## 性能画像（perf 标签）\n\n';
+  out += '> 卡片 frontmatter 的 `perf:` 字段（受控词表 = `scripts/_lib/knowledge-cards.mjs` PERF_TAGS）；词表外标签由 check-knowledge-drift 报 ERROR。扩展新维度（如能耗）只加词表。\n\n';
+  if (byPerf.size === 0) {
+    out += '（暂无标注卡——在卡 frontmatter 加 `perf:` 块列表即可，见 AGENTS.md 格式规范。）\n\n';
+  } else {
+    out += '| 标签 | 含义 | 卡片 |\n';
+    out += '|------|------|------|\n';
+    for (const [t, kinds] of [...byPerf.entries()].sort((a, b) => b[1].length - a[1].length)) {
+      out += `| ${t} | ${PERF_TAGS[t] || ''} | ${kinds.sort().join(', ')} |\n`;
+    }
+    out += '\n';
   }
 
   out += '---\n\n';

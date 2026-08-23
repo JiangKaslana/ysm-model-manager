@@ -36,6 +36,11 @@ use_when:
   - 闪退
   - 泄漏
   - dispose
+perf:
+  - cpu-bound
+  - gpu-bound
+  - concurrent
+  - memory-heavy
 ---
 
 # 优化记录 optimization-log

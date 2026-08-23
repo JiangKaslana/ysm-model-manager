@@ -19,6 +19,9 @@ use_when:
   - rust_backend
   - 桥 DLL
   - Wails 后端迁移 Rust
+perf:
+  - io-bound
+  - concurrent
 ---
 
 # Rust 桥 rustbridge

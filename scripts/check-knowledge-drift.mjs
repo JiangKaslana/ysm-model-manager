@@ -31,6 +31,7 @@ import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
 import { toPosix } from './_lib/to-posix.mjs';
 import { parseFrontmatter, getScalar, getList, parseSourceFiles } from './_lib/frontmatter.mjs';
+import { PERF_TAGS } from './_lib/knowledge-cards.mjs';
 
 const KC_DIR = path.join(ROOT, 'docs', 'knowledge');
 
@@ -121,6 +122,14 @@ function checkKnowledgeMeta() {
     const tier = getScalar(fm, 'tier');
     if (tier && !TIER_ENUM.has(tier)) {
       errors.push(`知识卡 ${cf} 的 tier 非法: ${tier}（应为 ${[...TIER_ENUM].join('|')} 之一）`);
+    }
+
+    // perf 性能画像值域（受控词表，单一事实源 = _lib/knowledge-cards.mjs PERF_TAGS）
+    const PERF_ENUM = Object.keys(PERF_TAGS);
+    for (const t of getList(fm, 'perf')) {
+      if (!PERF_ENUM.includes(t)) {
+        errors.push(`知识卡 ${cf} 的 perf 标签非法: ${t}（词表见 _lib/knowledge-cards.mjs PERF_TAGS: ${PERF_ENUM.join('|')}）`);
+      }
     }
 
     // H1 vs name 一致性（WARN）

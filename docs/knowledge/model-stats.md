@@ -19,6 +19,9 @@ use_when:
   - 数值筛选
   - Web Worker
   - 批量统计
+perf:
+  - cpu-bound
+  - concurrent
 invariant_anchors:
   - frontend/src/workers/stats-core.ts|statsFromDecodedFiles
   - frontend/src/backend/web-stats.ts|batchStatsWebModels

@@ -17,6 +17,9 @@ use_when:
   - MEMFS
   - node 解码
   - callMain
+perf:
+  - cpu-bound
+  - single-thread
 ---
 
 # WASM 解析器 ysm-parser

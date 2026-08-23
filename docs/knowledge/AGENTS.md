@@ -24,6 +24,8 @@ source_files:                # 必须真实存在于磁盘；仓库相对 POSIX 
 use_when:                    # 用户自然语言关键词
   - 事件
   - 事件总线
+perf:                        # 可选，性能画像标签（受控词表 = scripts/_lib/knowledge-cards.mjs PERF_TAGS）
+  - cpu-bound                # 词表：cpu-bound|io-bound|gpu-bound|concurrent|single-thread|memory-heavy
 ---
 # {name}
 
@@ -100,6 +102,7 @@ node scripts/check-knowledge-drift.mjs --affected <f>…  # 主动：源码变�
 - `source_files` 路径格式非法（反斜杠 / 绝对路径 / `..` 逃逸）→ [ERROR]；指向生成物（bindings/dist/node_modules）或测试文件 → [WARN]
 - `kind` **必须**是 kebab-case，且等于文件名（去掉 .md 后的 kebab 形式）
 - `name` **必须**等于 H1 标题
+- `perf` 标签**必须**在 PERF_TAGS 词表内（cpu-bound / io-bound / gpu-bound / concurrent / single-thread / memory-heavy），词表外 → [ERROR]；扩展新维度只改词表常量
 - 生成物（`index.md`）**禁止手改**
 - 卡片正文为人工维护内容，生成物仅为索引
 
@@ -108,7 +111,7 @@ node scripts/check-knowledge-drift.mjs --affected <f>…  # 主动：源码变�
 | 脚本 | 用途 |
 |------|------|
 | `scripts/_lib/frontmatter.mjs` | frontmatter 解析共享库 |
-| `scripts/_lib/knowledge-cards.mjs` | 知识卡常量共享层（KNOWLEDGE_ORDER / CATEGORY_LABELS / NON_CARDS） |
+| `scripts/_lib/knowledge-cards.mjs` | 知识卡常量共享层（KNOWLEDGE_ORDER / CATEGORY_LABELS / NON_CARDS / PERF_TAGS） |
 | `scripts/gen-knowledge-index.mjs` | 按分类生成 `index.md` |
 | `scripts/gen-routes.mjs` | AI 意图路由表自动生成（`routes.md`） |
 | `scripts/gen-routes-quick.mjs` | AI 高频路由表自动生成（`routes-quick.md`，第一站） |

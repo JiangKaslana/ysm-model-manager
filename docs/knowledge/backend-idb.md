@@ -44,6 +44,8 @@ use_when:
   - 模型库
   - browser adapter
   - web mode
+perf:
+  - io-bound
 invariant_anchors:
   - frontend/src/backend/idb.ts|openDB
   - frontend/src/backend/browser-adapter.ts|browserAdapter

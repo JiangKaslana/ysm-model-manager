@@ -26,6 +26,8 @@ use_when:
   - 数字滚动
   - stagger 入场
   - 关闭动画
+perf:
+  - cpu-bound
 ---
 
 # 动画系统 animation

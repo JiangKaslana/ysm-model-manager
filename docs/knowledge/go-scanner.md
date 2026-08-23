@@ -14,6 +14,9 @@ use_when:
   - 作者提取
   - ScanEntries
   - 索引生成
+perf:
+  - io-bound
+  - concurrent
 invariant_anchors:
   - go/scanner/scanner.go|fsutil.IsRecycleDir
   - go/scanner/scanner.go|IsYsmEntryJSON
