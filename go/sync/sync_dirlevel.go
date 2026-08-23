@@ -72,6 +72,25 @@ func isDirTypeModelFolder(path string, rtype string) bool {
 	return false
 }
 
+// containsModelSubfolder 判断目录是否直接含子模型文件夹（即它是「容器」而非「叶子模型夹」）。
+// 用于 collectEntries：容器目录即使含直接平铺 .ysm/.zip 也不整体收编，避免吞掉子夹层级。
+// 只查直接子目录一次（子目录自身是否是模型文件夹），不递归——更深层由 Walk 逐级处理。
+func containsModelSubfolder(path string, rtype string) bool {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if isDirTypeModelFolder(filepath.Join(path, e.Name()), rtype) {
+			return true
+		}
+	}
+	return false
+}
+
 // findNestedModelDir 在指定目录下递归查找嵌套模型目录
 // 返回第一个符合模式的模型目录路径，找不到返回空字符串
 // 关键设计：返回实际的模型目录路径（包含入口文件的目录），
@@ -228,6 +247,13 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 			}
 			// 模型文件夹：在任意深度收集（不再限定一级子目录）
 			if isDirTypeModelFolder(path, rtype) {
+				// 容器目录混入直接平铺模型文件（.ysm/.zip）也会被 isDirTypeModelFolder 判真，
+				// 但若它同时含子模型文件夹，则是「容器」而非「叶子模型夹」——整体收编 SkipDir
+				// 会吞掉子夹层级（如 嵌套1/ 内含平铺 .ysm + 01_taisho_maid/ + 嵌套2/ 深层）。
+				// 此时下钻保留各子夹层级，让 nestDirLevelTree 重建容器；自身不作为单元。
+				if containsModelSubfolder(path, rtype) {
+					return nil
+				}
 				if key := relKeyDirLevel(rootDir, path); key != "" {
 					entries[key] = path
 				}

@@ -708,3 +708,61 @@ func TestPushResources_FolderLevelMMD_Compatibility(t *testing.T) {
 		t.Fatalf("根层级模型文件夹应按原语义落位: %v", err)
 	}
 }
+
+// TestSyncResourcesDirLevel_FlatFileNotAbove_SubfolderKept 验证「容器目录混入直接平铺模型文件」
+// 的层级不被吞掉。场景（用户真实数据）：
+//
+//	嵌套1/
+//	├── [kyln默寒寒冰]【机械动力】动力臂.ysm   ← 直接平铺 .ysm，令 isDirTypeModelFolder(嵌套1)=true
+//	├── 01_taisho_maid/ysm.json              ← 子模型夹
+//	└── 嵌套2/02_new_year/ysm.json           ← 更深子模型夹
+//
+// 若 isDirTypeModelFolder(嵌套1) 命中后整体 SkipDir 收编，子模型夹层级会被吞——前端只能看到
+// 摊平的子文件行（01_taisho_maid/ysm.json 等），违背「仓库怎么来，整合包就怎么来」。
+// 正解：目录同时含子模型文件夹时是「容器」而非「叶子模型夹」，应下钻保留各子夹层级。
+func TestSyncResourcesDirLevel_FlatFileNotAbove_SubfolderKept(t *testing.T) {
+	if !types.IsDirLevelSync("ysm") {
+		t.Skip("ysm 非 dirLevel 类型，跳过")
+	}
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+
+	container := filepath.Join(globalDir, "嵌套1")
+	_ = os.MkdirAll(filepath.Join(container, "01_taisho_maid"), 0755)
+	_ = os.MkdirAll(filepath.Join(container, "嵌套2", "02_new_year"), 0755)
+	// 直接平铺 .ysm（令容器目录被 isDirTypeModelFolder 判定为真）
+	_ = os.WriteFile(filepath.Join(container, "[kyln默寒寒冰]【机械动力】动力臂.ysm"), []byte("y"), 0644)
+	// 子模型夹入口
+	_ = os.WriteFile(filepath.Join(container, "01_taisho_maid", "ysm.json"), []byte("{}"), 0644)
+	_ = os.WriteFile(filepath.Join(container, "嵌套2", "02_new_year", "ysm.json"), []byte("{}"), 0644)
+
+	result := SyncResourcesDirLevel(globalDir, instDir, "ysm")
+
+	// 平铺 .ysm 应作为一个条目（容器内的平铺文件）
+	foundFlat := false
+	for _, p := range result.Missing {
+		if strings.Contains(p, "动力臂") {
+			foundFlat = true
+		}
+	}
+	if !foundFlat {
+		t.Errorf("容器内直接平铺 .ysm 应作为独立条目，got Missing=%v", result.Missing)
+	}
+	// 子模型夹层级必须保留：01_taisho_maid 与嵌套2/02_new_year 都是独立条目
+	foundSub := false
+	foundDeep := false
+	for _, p := range result.Missing {
+		if strings.Contains(p, "01_taisho_maid") && !strings.Contains(p, "动力臂") {
+			foundSub = true
+		}
+		if strings.Contains(p, "嵌套2") && strings.Contains(p, "02_new_year") {
+			foundDeep = true
+		}
+	}
+	if !foundSub {
+		t.Errorf("子模型夹 01_taisho_maid 应保留为独立条目（未被摊平吞掉），got Missing=%v", result.Missing)
+	}
+	if !foundDeep {
+		t.Errorf("深层子模型夹 嵌套2/02_new_year 应保留为独立条目，got Missing=%v", result.Missing)
+	}
+}
