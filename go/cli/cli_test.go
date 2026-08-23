@@ -1917,10 +1917,10 @@ func TestTruncate_RuneAware(t *testing.T) {
 		width int
 		want  string
 	}{
-		{"模型", 5, "模型"},          // 6 字节但 2 rune，宽 5 不截断（rune 计数）
-		{"模型管理器", 4, "模型管…"}, // 5 rune 超宽 4 → 取 3 rune + 省略号
-		{"abc", 5, "abc"},           // ASCII 不超宽
-		{"abcdef", 4, "abc…"},       // ASCII 超宽
+		{"模型", 5, "模型"},       // 6 字节但 2 rune，宽 5 不截断（rune 计数）
+		{"模型管理器", 4, "模型管…"},  // 5 rune 超宽 4 → 取 3 rune + 省略号
+		{"abc", 5, "abc"},     // ASCII 不超宽
+		{"abcdef", 4, "abc…"}, // ASCII 超宽
 		{"", 3, ""},
 	}
 	for _, c := range cases {
