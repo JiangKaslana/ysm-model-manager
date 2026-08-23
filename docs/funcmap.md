@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 149 | 595 |
+| 前端·工具 | 149 | 594 |
 | frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **458** | **1946** |
+| **合计** | **458** | **1945** |
 
 ## Go·头像
 
@@ -1303,12 +1303,11 @@
 | `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:149` | 获取共享解码器（懒创建） |
 | `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:169` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
 | `bytesToBase64()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay` | — |
-| `findZipEntry()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay` | — |
-| `MmdZipConfig()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:21` | ZIP 解析产物（传给 overlay 的配置） |
-| `resolveMmdZipConfig()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:40` | 解压 zip + 找 .pmx/.pmd 模型 → 返回 MmdZipConfig。 |
-| `makeZipOverlayPort()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:113` | 创建 ZIP Overlay Port：包装 MmdDataPort， 将 zip 内路径前缀（如 "/repo/miku.zip!/"）路由到内存中的 zip entries。 |
-| `prepareMmdZipInput()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:227` | 构造完整的 zip 包装流程： 检测 zip → 解析 zip → 创建 overlay → 返回 { port, rootPath, modelUrl } 调用方只需： cons |
-| `zipFindEntry()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:244` | 从 zip entries 中按名称查找（大小写不敏感，basename 匹配） |
+| `MmdZipConfig()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:20` | ZIP 解析产物（传给 overlay 的配置） |
+| `resolveMmdZipConfig()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:39` | 解压 zip + 找 .pmx/.pmd 模型 → 返回 MmdZipConfig。 |
+| `makeZipOverlayPort()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:112` | 创建 ZIP Overlay Port：包装 MmdDataPort， 将 zip 内路径前缀（如 "/repo/miku.zip!/"）路由到内存中的 zip entries。 |
+| `prepareMmdZipInput()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:204` | 构造完整的 zip 包装流程： 检测 zip → 解析 zip → 创建 overlay → 返回 { port, rootPath, modelUrl } 调用方只需： cons |
+| `zipFindEntry()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:221` | 从 zip entries 中按名称查找（大小写不敏感，basename 匹配） |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:73` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:92` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:118` | — |

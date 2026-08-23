@@ -21,6 +21,7 @@ import { Ktx2TextureLoader } from "./mmd-ktx2-texture-loader.ts";
 import { startMainThreadWatch, formatLongTask } from "../../../utils/main-thread-watch.ts";
 import { recordLoadTrace } from "../load-trace.ts";
 import { b64ToBytes, bytesToArrayBuffer } from "../base64.ts";
+import { prepareMmdZipInput, bytesToBase64 } from "./mmd-zip-overlay.ts";
 import type {
   MmdBottomNavCtx,
   MmdPlayBridge,
@@ -186,14 +187,34 @@ export async function buildMmdScene(
   // 主线程长任务观测（ADR-101 观测增强）：>50ms 同步阻塞塞环形日志，
   // 排查卡顿不再依赖 DevTools trace；dispose / build 失败时断开。
   const stopLongTaskWatch = startMainThreadWatch((info) => {
-    void mmdDiag(port, "main-thread", formatLongTask(info), "warn");
+    void mmdDiag(effectivePort, "main-thread", formatLongTask(info), "warn");
   });
 
-  const b64 = await port.readFileBytes(path);
-  await mmdDiag(port, "read-model", path, b64 ? "ok" : "fail", b64 ? `bytes=${b64.length}` : "ReadFileBytes 返回空（路径语义/守卫？）");
-  if (!b64) throw new Error("ReadFileBytes 返回空");
-  const bytes = b64ToBytes(b64);
-  const modelBase = (path.split(/[/\\]/).pop() || "").toLowerCase();
+  // ---- ZIP 检测：overlay port 包装，内部逻辑零改动 ----
+  const origPath = path;
+  let effectivePort = port;
+  let effectivePath = path;
+  let zipModelOverride: { bytes: Uint8Array; base: string; b64: string } | null = null;
+
+  if (path.toLowerCase().endsWith(".zip")) {
+    const zip = await prepareMmdZipInput(effectivePath, port);
+    effectivePort = zip.port;
+    effectivePath = zip.rootPath + zip.modelEntry;
+    zipModelOverride = {
+      bytes: zip.modelBytes,
+      base: zip.modelBase,
+      b64: bytesToBase64(zip.modelBytes),
+    };
+    void mmdDiag(effectivePort, "zip-preprocess", origPath, "ok",
+      `model=${zip.modelBase} zip内文件已映射到虚拟路径`);
+  }
+
+  const modelB64 = zipModelOverride?.b64 ?? await effectivePort.readFileBytes(effectivePath);
+  await mmdDiag(effectivePort, "read-model", effectivePath, modelB64 ? "ok" : "fail",
+    modelB64 ? `bytes=${modelB64.length}` : "ReadFileBytes 返回空");
+  if (!modelB64) throw new Error("ReadFileBytes 返回空");
+  const bytes = zipModelOverride?.bytes ?? b64ToBytes(modelB64);
+  const modelBase = zipModelOverride?.base ?? (effectivePath.split(/[/\\]/).pop() || "").toLowerCase();
 
   // ---- PMX 二进制解析：开关 mmd-pmx-worker=1 启用 Worker 解析（实验态：无 IK/物理/morph/
   // toon，ADR-101 方向 C 待评估）；默认主线程 MMDLoader 完整加载（IK/物理/morph/toon 全保留）----
@@ -203,14 +224,14 @@ export async function buildMmdScene(
   if (usePmxWorker) {
     pmxParser = createPmxParser();
     pmxParsePromise = pmxParser.parse(bytesToArrayBuffer(bytes));
-    void mmdDiag(port, "pmx-parse-dispatch", path, "ok", "PMX binary parse dispatched to worker (mmd-pmx-worker=1)");
+    void mmdDiag(effectivePort, "pmx-parse-dispatch", effectivePath, "ok", "PMX binary parse dispatched to worker (mmd-pmx-worker=1)");
   } else {
-    void mmdDiag(port, "pmx-parse-dispatch", path, "ok", "主线程 MMDLoader 路径（mmd-pmx-worker 默认关）");
+    void mmdDiag(effectivePort, "pmx-parse-dispatch", effectivePath, "ok", "主线程 MMDLoader 路径（mmd-pmx-worker 默认关）");
   }
 
   // ---- 同目录文件清单：ListAllFilePaths 递归列全部文件（不能用 ScanModelEntries——
   // 它只返回主文件条目，纹理/VMD 拿不到，URLModifier 全放行导致纹理 502）----
-  const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
+  const dirPath = effectivePath.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
   const texMap = new Map<string, string>();
   // 加载剖析追踪变量（trace 在函数末尾消费，需提前声明）
   let _traceFiles = 0;
@@ -235,116 +256,110 @@ export async function buildMmdScene(
   const blobUrlToRel = new Map<string, string>();
   // blob URL → hash 映射（后台 KTX2 编码用）
   const blobUrlToHash = new Map<string, string>();
+  // ---- 纹理处理辅助：将字节 → blob URL → 注册到 texMap ----
+  function registerTextureBlob(rel: string, bytes: Uint8Array): void {
+    const lower = rel.toLowerCase().replace(/\\/g, "/");
+    const baseName = lower.split("/").pop() || "";
+    // 假 TGA 检测
+    if (lower.endsWith(".tga") && !isLikelyTga(bytes)) return;
+    const blob = new Blob([bytesToArrayBuffer(bytes)]);
+    const url = URL.createObjectURL(blob);
+    blobUrls.push(url);
+    // Worker 解码任务（TGA 跳过）
+    if (!lower.endsWith(".tga")) {
+      const ext = lower.split(".").pop() || "";
+      const mimeMap: Record<string, string> = {
+        png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+        bmp: "image/bmp", gif: "image/gif", webp: "image/webp",
+      };
+      const mime = mimeMap[ext] || "image/png";
+      decodeTasks.push({ relPath: rel || baseName, bytes: bytesToArrayBuffer(bytes), mimeType: mime });
+    }
+    texMap.set(rel, url);
+    texMap.set(baseName, url);
+    blobUrlToRel.set(url, rel);
+  }
+
+  // ---- 文件清单：ListAllFilePaths 递归列全部文件（磁盘/zip 统一走此路径）----
   try {
-    const files = (await port.listAllFilePaths(dirPath)) || [];
-    _traceFiles = files.length;
-    // ADR-101：批量读取纹理（1 次 RPC 替代 N 次 readFileBytes，减少 Go↔JS IPC 往返）
-    const texFiles = files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext)));
-    // 优先用 readFileBytesBatchWithMeta（数据 + hash 一次性返回），降级到 readFileBytesBatch
-    let texBatch: Record<string, string | null> = {};
-    let texHashBatch: Record<string, string> = {};
-    if (texFiles.length > 0) {
-      try {
-        if (port.readFileBytesBatchWithMeta) {
-          const metaBatch = await port.readFileBytesBatchWithMeta(texFiles);
-          if (metaBatch) {
-            for (const p of texFiles) {
-              const entry = metaBatch[p];
-              if (entry) {
-                texBatch[p] = entry.data;
-                if (entry.hash) texHashBatch[p] = entry.hash;
+      const files = (await effectivePort.listAllFilePaths(dirPath)) || [];
+      _traceFiles = files.length;
+      const texFiles = files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext)));
+      let texBatch: Record<string, string | null> = {};
+      let texHashBatch: Record<string, string> = {};
+      if (texFiles.length > 0) {
+        try {
+          if (effectivePort.readFileBytesBatchWithMeta) {
+            const metaBatch = await effectivePort.readFileBytesBatchWithMeta(texFiles);
+            if (metaBatch) {
+              for (const p of texFiles) {
+                const entry = metaBatch[p];
+                if (entry) {
+                  texBatch[p] = entry.data;
+                  if (entry.hash) texHashBatch[p] = entry.hash;
+                }
               }
             }
           }
-        }
-        // 回退：如果 readFileBytesBatchWithMeta 不可用或未返回全部数据，用普通 batch 补缺
-        if (Object.keys(texBatch).length < texFiles.length) {
-          const fallback = await port.readFileBytesBatch(texFiles);
-          for (const p of texFiles) {
-            if (!(p in texBatch) && fallback[p] !== undefined) {
-              texBatch[p] = fallback[p];
+          if (Object.keys(texBatch).length < texFiles.length) {
+            const fallback = await effectivePort.readFileBytesBatch(texFiles);
+            for (const p of texFiles) {
+              if (!(p in texBatch) && fallback[p] !== undefined) {
+                texBatch[p] = fallback[p];
+              }
             }
           }
-        }
-      } catch {
-        // P0-3 fallback：批量读取失败时降级为并发分片 readFileBytes
-        void mmdDiag(port, "batch-read", dirPath, "warn", "批量读取失败，降级并发分片读取");
-        const fallbackResults = await concurrentMap(texFiles, async (p) => {
-          try {
-            return [p, await port.readFileBytes(p)] as const;
-          } catch {
-            return [p, null] as const;
-          }
-        });
-        for (const [p, v] of fallbackResults) {
-          texBatch[p] = v;
+        } catch {
+          void mmdDiag(effectivePort, "batch-read", dirPath, "warn", "批量读取失败，降级并发分片读取");
+          const fallbackResults = await concurrentMap(texFiles, async (p) => {
+            try { return [p, await effectivePort.readFileBytes(p)] as const; }
+            catch { return [p, null] as const; }
+          });
+          for (const [p, v] of fallbackResults) texBatch[p] = v;
         }
       }
-    }
-    for (const p of texFiles) {
-      // 先计算相对路径（rel），后续 KTX2 和 PNG 分支都用到
-      const lower = p.toLowerCase().replace(/\\/g, "/");
-      const dirNorm = dirPath.toLowerCase().replace(/\\/g, "/");
-      const rel = lower.startsWith(dirNorm + "/")
-        ? lower.slice(dirNorm.length + 1)
-        : lower;
-      const baseName = lower.split("/").pop() || "";
-
-      // 从批量读取结果取纹理数据（避免每纹理一次 RPC + SHA256，ADR-101）
-      const texB64 = texBatch[p] ?? null;
-      if (!texB64) continue;
-      const texBytes = b64ToBytes(texB64);
-      // 假 TGA（扩展名 .tga 但头部类型非法）：不注册 blob → TGALoader 不会加载它 → 无刷屏错误
-      if (p.toLowerCase().endsWith(".tga") && !isLikelyTga(texBytes)) continue;
-      const blob = new Blob([bytesToArrayBuffer(texBytes)]);
-      const url = URL.createObjectURL(blob);
-      blobUrls.push(url);
-      // 收集 Worker 解码任务（与 PMX 解析并行，避免主线程 Decode Image 阻塞）
-      // TGA 跳过：浏览器 createImageBitmap 不支持 TGA
-      if (!p.toLowerCase().endsWith(".tga")) {
-        const ext = p.split(".").pop()?.toLowerCase() || "";
-        const mimeMap: Record<string, string> = {
-          png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
-          bmp: "image/bmp", gif: "image/gif", webp: "image/webp",
-        };
-        const mime = mimeMap[ext] || "image/png";
-        decodeTasks.push({ relPath: rel || baseName, bytes: bytesToArrayBuffer(texBytes), mimeType: mime });
+      for (const p of texFiles) {
+        const lower = p.toLowerCase().replace(/\\/g, "/");
+        const dirNorm = dirPath.toLowerCase().replace(/\\/g, "/");
+        const rel = lower.startsWith(dirNorm + "/") ? lower.slice(dirNorm.length + 1) : lower;
+        const baseName = lower.split("/").pop() || "";
+        const texB64 = texBatch[p] ?? null;
+        if (!texB64) continue;
+        const texBytes = b64ToBytes(texB64);
+        if (p.toLowerCase().endsWith(".tga") && !isLikelyTga(texBytes)) continue;
+        const blob = new Blob([bytesToArrayBuffer(texBytes)]);
+        const url = URL.createObjectURL(blob);
+        blobUrls.push(url);
+        if (!p.toLowerCase().endsWith(".tga")) {
+          const ext = p.split(".").pop()?.toLowerCase() || "";
+          const mimeMap: Record<string, string> = {
+            png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+            bmp: "image/bmp", gif: "image/gif", webp: "image/webp",
+          };
+          const mime = mimeMap[ext] || "image/png";
+          decodeTasks.push({ relPath: rel || baseName, bytes: bytesToArrayBuffer(texBytes), mimeType: mime });
+        }
+        texMap.set(rel, url);
+        texMap.set(baseName, url);
+        blobUrlToRel.set(url, rel);
+        if (texHashBatch[p] && !p.toLowerCase().endsWith(".tga")) {
+          texHashMap.set(rel, texHashBatch[p]);
+          blobUrlToHash.set(url, texHashBatch[p]);
+        }
       }
-      // 键1：相对目录路径（PMX 内记录如 "textures/face.png"，对齐 URLModifier 收到的 fullPath）
-      texMap.set(rel, url);
-      // 键2：basename 兜底（同名不同子目录由最长后缀匹配区分）
-      texMap.set(baseName, url);
-      // 反向映射：blob URL → 相对路径（post-load KTX2 替换溯源）
-      blobUrlToRel.set(url, rel);
-      // 存储 hash（来自 readFileBytesBatchWithMeta 的 Go 侧 SHA256，免费）
-      // TGA 不参与 KTX2 编码：浏览器 Image 无法解码 TGA（blobUrlToImageData 必然 onerror），跳过
-      if (texHashBatch[p] && !p.toLowerCase().endsWith(".tga")) {
-        texHashMap.set(rel, texHashBatch[p]);
-        blobUrlToHash.set(url, texHashBatch[p]);
+      if (decodeTasks.length > 0) {
+        const decoder = getTextureDecoder();
+        decodedTexturesPromise = decoder.decodeAll(decodeTasks);
+        void mmdDiag(effectivePort, "tex-decode-dispatch", dirPath, "ok",
+          `dispatched=${decodeTasks.length} textures to decode workers`);
       }
+      vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
+      vpdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vpd")));
+      await mmdDiag(effectivePort, "list-files", dirPath, "ok",
+        `files=${files.length} tex=${files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext))).length} vmd=${vmdPaths.length}`);
+    } catch (e) {
+      await mmdDiag(effectivePort, "list-files", dirPath, "fail", safeErrorMessage(e));
     }
-    // ---- Worker 纹理解码：与 MMDLoader 解析并行执行，主线程解码被 Worker 接管 ----
-    if (decodeTasks.length > 0) {
-      const decoder = getTextureDecoder();
-      decodedTexturesPromise = decoder.decodeAll(decodeTasks);
-      void mmdDiag(port, "tex-decode-dispatch", dirPath, "ok",
-        `dispatched=${decodeTasks.length} textures to decode workers`);
-    }
-    // 同目录 VMD 动作文件（模型加载后逐个解析）
-    vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
-    // 同目录 VPD 姿势文件（模型加载后逐个应用）
-    vpdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vpd")));
-    await mmdDiag(
-      port,
-      "list-files",
-      dirPath,
-      "ok",
-      `files=${files.length} tex=${files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext))).length} vmd=${vmdPaths.length}`,
-    );
-  } catch (e) {
-    await mmdDiag(port, "list-files", dirPath, "fail", safeErrorMessage(e));
-    /* 目录不可列 → 白模降级，不阻断模型渲染 */
-  }
 
   // ---- URLModifier：模型自身 + 纹理 URL → blob URL（未命中原样返回，toon 内置 dataURL 天然放行）----
   const manager = new THREE.LoadingManager();
@@ -393,9 +408,9 @@ export async function buildMmdScene(
     const gpuMb = (gpuBytes / (1024 * 1024)).toFixed(1);
     _traceGpuMb = parseFloat(gpuMb);
     void mmdDiag(
-      port,
+      effectivePort,
       "perf",
-      path,
+      effectivePath,
       "ok",
       `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${Math.round(textureLoadedAt - tParseEnd)}ms build=${Math.round(buildMs)}ms tex=${texSizes} gpu≈${gpuMb}MB`,
     );
@@ -468,15 +483,15 @@ export async function buildMmdScene(
         workerParseOk = true;
         workerBuilt = await buildPmxSceneSliced(pmxResult, { texUrlMap: texMap });
         if (workerBuilt) {
-          await mmdDiag(port, "pmx-worker-build", path, "ok",
+          await mmdDiag(effectivePort, "pmx-worker-build", effectivePath, "ok",
             `vertices=${pmxResult.vertices.count} faces=${pmxResult.faces.count} bones=${pmxResult.bones?.length ?? 0} mats=${pmxResult.materials?.length ?? 0} (Worker path)`);
         }
       } else if (!pmxResult.ok) {
-        await mmdDiag(port, "pmx-worker-build", path, "warn",
+        await mmdDiag(effectivePort, "pmx-worker-build", effectivePath, "warn",
           `Worker parse failed: ${pmxResult.error ?? "unknown"} (fallback to MMDLoader)`);
       }
     } catch {
-      await mmdDiag(port, "pmx-worker-build", path, "warn", "Worker parse threw, fallback to MMDLoader");
+      await mmdDiag(effectivePort, "pmx-worker-build", effectivePath, "warn", "Worker parse threw, fallback to MMDLoader");
     }
   }
 
@@ -507,11 +522,11 @@ export async function buildMmdScene(
 
     // Worker 路径日志：记录物理/IK 限制
     if (pmxParsedData?.bones && pmxParsedData.bones.some(b => b.hasIK)) {
-      await mmdDiag(port, "worker-limit", path, "warn",
+      await mmdDiag(effectivePort, "worker-limit", effectivePath, "warn",
         "Worker 路径：包含 IK 骨骼的模型，IK 计算将在主线程 fallback 模式下可用");
     }
     if (pmxParsedData?.rigidBodies && pmxParsedData.rigidBodies.length > 0) {
-      await mmdDiag(port, "worker-limit", path, "warn",
+      await mmdDiag(effectivePort, "worker-limit", effectivePath, "warn",
         `Worker 路径：含 ${pmxParsedData.rigidBodies.length} 个刚体，物理模拟需 MMDLoader fallback`);
     }
 
@@ -524,17 +539,17 @@ export async function buildMmdScene(
     const loader = new MMDLoader(manager).register(MMDAmmoPlugin);
     tParseStart = performance.now();
     try {
-      mmd = await loader.loadAsync(path);
+      mmd = await loader.loadAsync(effectivePath);
     } catch (e) {
       // 加载失败：回收已建 blob（模型 + 已读纹理），避免 WebView2 会话期内泄漏内存
       for (const url of blobUrls) URL.revokeObjectURL(url);
-      await mmdDiag(port, "parse", path, "fail", safeErrorMessage(e));
+      await mmdDiag(effectivePort, "parse", effectivePath, "fail", safeErrorMessage(e));
       throw e;
     }
     await mmdDiag(
-      port,
+      effectivePort,
       "parse",
-      path,
+      effectivePath,
       "ok",
       `bones=${mmd?.pmx?.bones?.length ?? 0} mats=${mmd?.pmx?.materials?.length ?? 0} morphs=${mmd?.pmx?.morphs?.length ?? 0}`,
     );
@@ -551,20 +566,20 @@ export async function buildMmdScene(
       const allMats2: THREE.Material[] = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
       const pendingMats = allMats2.filter(m => (m.userData as Record<string, unknown>)?.pendingTexture);
       if (pendingMats.length === 0 && decoded.size > 0) {
-        await mmdDiag(port, "tex-decode-apply", path, "warn",
+        await mmdDiag(effectivePort, "tex-decode-apply", effectivePath, "warn",
           `decoded=${decoded.size} bitmaps but 0 materials have pendingTexture! mats=${allMats2.length} userDatas=[${allMats2.map(m => Object.keys(m.userData || {}).join(",")).join("|")}]`);
       } else if (decoded.size > 0) {
         const { replaced, total } = applyWorkerDecodedTextures(mesh, decoded, blobUrlToRel);
         if (replaced > 0) {
-          await mmdDiag(port, "tex-decode-apply", path, "ok",
+          await mmdDiag(effectivePort, "tex-decode-apply", effectivePath, "ok",
             `worker-decoded=${replaced}/${total} textures (${decoded.size} bitmaps from workers)`);
         } else {
-          await mmdDiag(port, "tex-decode-apply", path, "warn",
+          await mmdDiag(effectivePort, "tex-decode-apply", effectivePath, "warn",
             `decoded=${decoded.size} bitmaps but replaced=0 (PMX路径与磁盘路径可能不匹配, pendingTexture keys=[...查环形日志tex-decode-dispatch])`);
         }
       }
     } catch {
-      await mmdDiag(port, "tex-decode-apply", path, "warn",
+      await mmdDiag(effectivePort, "tex-decode-apply", effectivePath, "warn",
         "Worker 解码纹理应用失败，使用主线程 fallback");
     }
   }
@@ -583,7 +598,7 @@ export async function buildMmdScene(
       const idx = geo.index;
       const allMats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
       const hasMap = allMats.filter(m => (m as THREE.MeshStandardMaterial).map).length;
-      await mmdDiag(port, "mesh-debug", path, "warn",
+      await mmdDiag(effectivePort, "mesh-debug", effectivePath, "warn",
         `posAttr=${posAttr?.count ?? "null"} idx=${idx?.count ?? "null"} bb=${bb.min.toArray().map(v=>v.toFixed(1))}/${bb.max.toArray().map(v=>v.toFixed(1))} visible=${mesh.visible} frustumCulled=${mesh.frustumCulled} mats=${allMats.length} hasMap=${hasMap} wm=${mesh.matrixWorld.elements[12].toFixed(1)},${mesh.matrixWorld.elements[13].toFixed(1)},${mesh.matrixWorld.elements[14].toFixed(1)} worldPos=${mesh.getWorldPosition(new THREE.Vector3()).toArray().map(v=>v.toFixed(1))}`);
     }
 
@@ -643,15 +658,15 @@ export async function buildMmdScene(
         // 并行执行所有替换
         await Promise.all(replaceTasks);
         // 命中日志（环形日志可见性：缓存是否真正生效）
-        await mmdDiag(port, "ktx2-replace", "cache-hit", "ok", `cached=${cachedHashes.size} replaced=${replaceTasks.length} total=${allHashes.length}`);
+        await mmdDiag(effectivePort, "ktx2-replace", "cache-hit", "ok", `cached=${cachedHashes.size} replaced=${replaceTasks.length} total=${allHashes.length}`);
       } else {
-        await mmdDiag(port, "ktx2-replace", "cache-miss", "warn", `total=${allHashes.length}（缓存未命中，将后台编码）`);
+        await mmdDiag(effectivePort, "ktx2-replace", "cache-miss", "warn", `total=${allHashes.length}（缓存未命中，将后台编码）`);
       }
     }
   }
 
   // ---- 后台 KTX2 编码：未缓存的纹理在后台编码并保存到 Go 侧缓存 ----
-  if (blobUrlToHash.size > 0 && port.getCachedTexture) {
+  if (blobUrlToHash.size > 0 && effectivePort.getCachedTexture) {
     // 已缓存的 hash 跳过编码（防重复落盘/重复 WASM 编码）；cachedHashes 为 null 表示替换链路未执行（无 renderer），全量调度
     const toEncode = cachedHashes
       ? new Map([...blobUrlToHash].filter(([, h]) => !cachedHashes!.has(h)))
@@ -668,21 +683,21 @@ export async function buildMmdScene(
   const customAnimPath = await getCustomAnimPath();
   if (customAnimPath) {
     try {
-      const animFiles = (await port.listAllFilePaths(customAnimPath)) || [];
+      const animFiles = (await effectivePort.listAllFilePaths(customAnimPath)) || [];
       const extraAnims = filterAnimFiles(animFiles);
       if (extraAnims.length > 0) {
         vmdPaths.push(...extraAnims.filter((p) => p.toLowerCase().endsWith(".vmd")));
         vpdPaths.push(...extraAnims.filter((p) => p.toLowerCase().endsWith(".vpd")));
-        void mmdDiag(port, "anim-lib-scan", customAnimPath, "ok",
+        void mmdDiag(effectivePort, "anim-lib-scan", customAnimPath, "ok",
           `found=${extraAnims.length} (vmd=${extraAnims.filter((p) => p.toLowerCase().endsWith(".vmd")).length})`);
       }
     } catch (e) {
-      void mmdDiag(port, "anim-lib-scan", customAnimPath, "fail", safeErrorMessage(e));
+      void mmdDiag(effectivePort, "anim-lib-scan", customAnimPath, "fail", safeErrorMessage(e));
     }
   }
   // ADR-101：批量读取 VMD/VPD（1 次 RPC 替代 N 次 readFileBytes）
   const allAnimPaths = [...vmdPaths, ...vpdPaths];
-  const animBatch = allAnimPaths.length > 0 ? await port.readFileBytesBatch(allAnimPaths) : {};
+  const animBatch = allAnimPaths.length > 0 ? await effectivePort.readFileBytesBatch(allAnimPaths) : {};
   /** 轨道相机：每个 VMD 对应的相机动画 clip（无相机关键帧 → null），与 clips 下标对齐。
    *  取数组而非单个：select 切换动作时相机轨道须跟随所选 VMD，不能永远播首个相机的轨道。 */
   const cameraClips: Array<THREE.AnimationClip | null> = [];
@@ -778,8 +793,8 @@ export async function buildMmdScene(
   const navCtx: MmdBottomNavCtx = {
     mmd: mmd!,
     mesh,
-    modelName: path.split(/[/\\]/).pop() || "",
-    modelPath: path,
+    modelName: origPath.split(/[/\\]/).pop() || "",
+    modelPath: origPath,
     cameraControls: ctx.cameraControls,
     switchTo: ctx.switchTo,
   };
@@ -1033,7 +1048,7 @@ export async function buildMmdScene(
   recordLoadTrace({
     ts: Date.now(),
     format: "mmd",
-    path,
+    path: origPath,
     stages: _stages,
     assets: {
       files: _traceFiles,
