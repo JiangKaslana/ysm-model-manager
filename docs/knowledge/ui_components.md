@@ -23,45 +23,45 @@ use_when:
 
 ## 概览
 
-`frontend/src/ui/` 是前端 Web Components 的通用 UI 组件库，提供可复用的展示型组件：卡片、折叠面板、加载动画、行排列、滑块、幻灯片菜单、图标等。所有组件为无业务逻辑的纯 UI 层。
+`frontend/src/ui/` 是前端通用 UI **helper 函数库**（自 MikuMikuAR 迁移，ADR-191 去桶化）：提供卡片、折叠面板、加载遮罩、行排列、滑块、幻灯片菜单、预设 chip、图标工厂等无业务逻辑的 DOM 构建函数。**不是 Web Components 库**——`frontend/src/ui/` 内无任何 `customElements.define`（全仓自定义元素一律在 `views/app-*` 定义）；本库函数直接操作 light-DOM 或返回元素/handle，由消费方挂载到自身容器。
 
 ## 核心职责
 
-| 组件 | 文件 | 用途 |
+| 模块 | 文件 | 用途 |
 |------|------|------|
-| 卡片 | `ui-card.ts` | 通用卡片容器（标题/内容/操作栏） |
-| 折叠面板 | `ui-collapsible.ts` | 可折叠/展开的内容区 |
-| 加载动画 | `ui-loading.ts` | 加载中状态指示器 |
-| 行排列 | `ui-rows.ts` | 列表行容器（排列/间距/选择态） |
-| 高级行 | `ui-advanced-rows.ts` | 带额外控制的行排列 |
+| 行排列 | `ui-rows.ts` | `addToggleRow`/`addSliderRow`/`toggleRow`/`addFieldRow`/`initControl`（绑定后即时 update） |
+| 高级行 | `ui-advanced-rows.ts` | `addColorSliderRow`/`addModeSlider`/`addVector3SliderRow`（带额外控制的滑块行） |
+| 折叠面板 | `ui-collapsible.ts` | `addCollapsible`（含 header toggle / mat 变体）/`addSectionTitle`/`addPresetChip`；折叠状态经 `panel.inert` 移出 Tab 序（可访问性） |
+| 幻灯片菜单 | `ui-slide-menu.ts` | `createSlideMenu` → `SlideMenuHandle`（轻量导航栈外壳，见 [ui_slide_menu](./ui-slide-menu.md)） |
+| 幻灯片行 | `ui-slide-row.ts` | `slideRow` 单行构建 |
+| 卡片 | `ui-card.ts` | `cardContainer(container, fn)` — 包一层 `.lcard`，返回内部 dispose |
+| 加载 | `ui-loading.ts` | `withLoadingIndicator` 自包含加载遮罩 |
+| 顶部切换 | `ui-header-toggle.ts` | `createHeaderToggle` 紧凑 toggle |
+| 预设 | `ui-preset.ts` | 预设选择器 |
 | 滑块 | `ui-slider-controller.ts` | 数值范围滑块控件 |
-| 幻灯片菜单 | `ui-slide-menu.ts` | 轻量导航栈菜单（ADR-075/076 去桶化） |
-| 幻灯片行 | `ui-slide-row.ts` | 幻灯片菜单的行组件 |
-| 预设选择 | `ui-preset.ts` | 预设/模板选择器 |
-| 顶部切换 | `ui-header-toggle.ts` | 头部切换按钮 |
-| 图标 | `icons.ts` | 统一图标映射（emoji/SVG） |
-| 样式 | `ui-components-styles.ts` | 组件共享样式串 |
+| 图标 | `icons.ts` | `createIcon` 图标工厂（Iconify + emoji 回退） |
+| 样式 | `ui-components-styles.ts` | `uiComponentsCss` → `CSSStyleSheet`（供 Shadow 组件 `adoptedStyleSheets` 消费）+ `installUiComponentsStyles()`（light-DOM 注入，幂等，仅一次） |
 | 常量 | `ui-constants.ts` | 组件尺寸/间距常量 |
-| 类型 | `ui-types.ts` | 组件共享 TypeScript 类型 |
-| 工具 | `ui-helpers.ts` | 组件辅助函数（DOM 创建/样式注入） |
-| 控制注册 | `control-registry.ts` | 控件注册表（动态组件映射） |
-| 契约 | `dom-contract.ts` | Shadow DOM 与 light DOM 的交互契约 |
+| 类型 | `ui-types.ts` | 共享 TypeScript 类型（`ControlOptions`） |
+| 工具 | `ui-helpers.ts` | barrel re-export（14 值 + 3 type，2026-08-23 清理后） |
+| 控制注册 | `control-registry.ts` | 控件自更新注册表（可选接入外部响应式系统，默认 no-op） |
+| 契约 | `dom-contract.ts` | role/class 契约单源（禁手写字符串） |
 
 ## 对外 API / 入口
 
-组件通过 `app-modules.ts` 统一注册为 Web Components 自定义元素：
-
-```ts
-import './ui/ui-card';
-import './ui/ui-collapsible';
-```
+- **barrel**：`import { ... } from "../ui/ui-helpers.ts"` — 统一 re-export 主要 helper（`slideRow` / `addToggleRow` / `toggleRow` / `addSliderRow` / `addFieldRow` / `initControl` / `createHeaderToggle` / `addColorSliderRow` / `addModeSlider` / `addVector3SliderRow` / `cardContainer` / `withLoadingIndicator` / `createSlideMenu` + type `ControlOptions` / `SlideMenuHandle` / `SlideMenuView`）
+- **非 barrel**：`addCollapsible`（`ui-collapsible.ts`）、`installUiComponentsStyles`（`ui-components-styles.ts`）、`addPresetChip` 等按需直接 import
+- **不注册自定义元素**：本库无 `customElements.define`，消费方自行挂载返回值；不依赖 app-modules 装配（旧卡「经 app-modules.ts 统一注册为 Web Components」描述失真已修正）
 
 ## 与其他子系统关系
 
-- **app-modules** — 组件装配入口，所有 UI 组件在此注册
-- **shared-styles** — 共享按钮/焦点样式被 UI 组件引用
+- **消费方（3D 预览）**：`mount-preview-core.ts`（环境面板 `createSlideMenu` + `installUiComponentsStyles` + `createHeaderToggle`）、`preview-menu.ts`（`createSlideMenu`）、`mmd-controls.ts`（`cardContainer`/`addFieldRow`）
+- **shared-styles** — 共享按钮/焦点样式被本库样式引用
+- **views/app-*** — 各视图在 Shadow DOM 内经 `adoptedStyleSheets = [uiComponentsStyleSheet, ...]` 消费样式串（`var()` 不跨 Shadow 边界继承的坑按前端 AGENTS 处理）
 
 ## 不变量
 
-- 纯 UI 组件，零业务逻辑引用
-- 组件通过 Shadow DOM 样式隔离，不影响全局样式
+- 纯 UI helper，零业务逻辑、零 app-state import
+- 样式串经 `adoptedStyleSheets` 注入（Shadow 组件）/ `installUiComponentsStyles` 注入（light-DOM，幂等 `_installed` 守卫）；改样式走 MikuMikuAR 源重跑迁移脚本，勿手改生成串
+- 控件自更新：默认 `registerControl` 为 no-op（依赖各 `initControl` 挂载时立即 update），接入 `setControlRegistry` 后持续自更新才生效
+- 行/面板 role/class 一律取自 `dom-contract.ts`，禁止手写字符串
