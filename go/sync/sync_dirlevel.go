@@ -289,7 +289,8 @@ type FileDiffEntry struct {
 // 设计原则：
 //   - 只扫描模型文件（通过 IsTypeModelFile 过滤）
 //   - 使用相对路径作为 key，保留层级信息
-//   - 只返回存在差异的文件（全 synced 的文件夹返回空切片）
+//   - 返回全局侧文件清单（synced 条目含在结果中——前端子文件列表需全量展示；
+//     差异判定由调用方按 Status 区分——code review P3 注释对齐实现）
 func DiffFolderContents(globalFolder, instanceFolder, rtype string) []FileDiffEntry {
 	// 扫描全局文件夹内的模型文件
 	globalFiles := collectFolderFiles(globalFolder, rtype)

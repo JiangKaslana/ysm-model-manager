@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 145 | 564 |
+| 前端·工具 | 146 | 578 |
 | frontend/views | 117 | 332 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **454** | **1914** |
+| **合计** | **455** | **1928** |
 
 ## Go·头像
 
@@ -396,7 +396,7 @@
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
 | `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:201` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
-| `DiffFolderContents()` | `go/sync/sync_dirlevel:293` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
+| `DiffFolderContents()` | `go/sync/sync_dirlevel:294` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
 | `FileDiffEntry()` | `go/sync/sync_dirlevel:268` | FileDiffEntry 文件级差异条目（用于文件夹内容级 diff） |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
@@ -586,8 +586,8 @@
 | `SetDecoder()` | `go/ysm/decode_inject:25` | SetDecoder 注入 .ysm 解码器（internal/app init 阶段调用，替换 FindCLI 模式） |
 | `DecodeYSM()` | `go/ysm/decode_inject:32` | DecodeYSM 解码 .ysm 字节；解码器未注入或解码失败返回 nil |
 | `DecodedFile()` | `go/ysm/decode_inject:11` | DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径） |
-| `FindGeometryInExtractedYSM()` | `go/ysm/extracted:50` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
-| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:392` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
+| `FindGeometryInExtractedYSM()` | `go/ysm/extracted:51` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
+| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:393` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
 | `AnalyzeYSMHeader()` | `go/ysm/header:172` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
 | `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:325` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
 | `YSMHeader()` | `go/ysm/header:17` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |
@@ -1416,6 +1416,20 @@
 | `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:15` | — |
 | `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:36` | — |
 | `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:48` | — |
+| `GroundSurfaceMode()` | `frontend/src/utils/3d/caps/ground-surface-spec:17` | 地面表面模式（扁平枚举：来源 × 画布样式合一，避免双字段耦合守卫） |
+| `GroundMaterialParams()` | `frontend/src/utils/3d/caps/ground-surface-spec:19` | — |
+| `DEFAULT_GROUND_SURFACE_PARAMS()` | `frontend/src/utils/3d/caps/ground-surface-spec:40` | — |
+| `GroundSurfaceStructuralSpec()` | `frontend/src/utils/3d/caps/ground-surface-spec:52` | — |
+| `GroundSurfaceAppearanceSpec()` | `frontend/src/utils/3d/caps/ground-surface-spec:61` | — |
+| `GroundSurfaceSpec()` | `frontend/src/utils/3d/caps/ground-surface-spec:69` | — |
+| `buildGroundSurfaceSpec()` | `frontend/src/utils/3d/caps/ground-surface-spec:80` | — |
+| `surfaceSpecKey()` | `frontend/src/utils/3d/caps/ground-surface-spec:102` | structural 子集确定性序列化：新增结构字段后在此补一行即自动纳入重建判别 |
+| `groundSurfaceNeedsRebuild()` | `frontend/src/utils/3d/caps/ground-surface-spec:114` | 结构性变化 → 需要重建材质与纹理；否则原地更新即可 |
+| `TILE_WORLD_SIZE()` | `frontend/src/utils/3d/caps/ground-surface-spec:121` | 每格世界单位基准：50 单位地面默认铺 5×5 次重复 |
+| `textureRepeat()` | `frontend/src/utils/3d/caps/ground-surface-spec:123` | — |
+| `generateSurfacePixels()` | `frontend/src/utils/3d/caps/ground-surface-spec:129` | ============ 程序化像素生成（RGBA，node 可测）============ |
+| `applyGroundSurfaceStructural()` | `frontend/src/utils/3d/caps/ground-surface-spec:170` | 重建路径专用：把 structural 落到新材质上。 |
+| `applyGroundSurfaceAppearance()` | `frontend/src/utils/3d/caps/ground-surface-spec:189` | 原地/重建通用：appearance 字段统一落地（唯一入口）。 |
 | `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:32` | ============ 参数类型 ============ |
 | `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:42` | — |
 | `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:47` | — |
@@ -2073,7 +2087,7 @@
 | `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:14` | — |
 | `performSingleOp()` | `frontend/src/views/app-sync-manager/network:27` | 统一推送 / 拉取单文件操作。 |
 | `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:20` | — |
-| `render()` | `frontend/src/views/app-sync-manager/renderer:34` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
+| `render()` | `frontend/src/views/app-sync-manager/renderer:33` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
 | `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/state:13` | — |
 | `_lastSelectedType()` | `frontend/src/views/app-sync-manager/state:17` | — |
 | `setLastSelectedType()` | `frontend/src/views/app-sync-manager/state:19` | — |
@@ -2088,8 +2102,8 @@
 | `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:123` | 容器骨架 |
 | `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:166` | 状态筛选标签 HTML |
 | `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:195` | 列表项 HTML（扁平文件行，按 isDir 为 false 渲染） |
-| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:257` | 空状态 HTML |
-| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:271` | 加载中 |
+| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:260` | 空状态 HTML |
+| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:274` | 加载中 |
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
 | `AuthorInfo()` | `frontend/src/views/app-tree/authors:5` | 作者统计（Go ListModelAuthors 返回） |
 | `loadAuthors()` | `frontend/src/views/app-tree/authors:13` | 从 Go 端加载作者列表 |

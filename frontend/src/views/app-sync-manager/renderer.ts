@@ -19,14 +19,13 @@ import type { SyncManagerSelf } from "./index.ts";
 
 export type SyncRenderSelf = SyncManagerSelf;
 
-// 类型统计计数（包含 diverged）
+// 类型统计计数（diverged 折叠进 missing tab——counts 不含 diverged 字段，防误导）
 interface TypeCounts {
   synced: number;
   missing: number;
   disabled: number;
   optional: number;
   legacy: number;
-  diverged: number;
   total: number;
 }
 
@@ -50,7 +49,7 @@ export async function render(self: SyncRenderSelf): Promise<void> {
   const typeCounts: Record<string, TypeCounts> = {};
   for (const tc of self._typeConfig) {
     typeCounts[tc.id] = {
-      synced: 0, missing: 0, disabled: 0, optional: 0, legacy: 0, diverged: 0, total: 0,
+      synced: 0, missing: 0, disabled: 0, optional: 0, legacy: 0, total: 0,
     };
   }
   for (const item of self._allItems) {
@@ -63,7 +62,7 @@ export async function render(self: SyncRenderSelf): Promise<void> {
     }
   }
   const globalCounts: TypeCounts = {
-    synced: 0, missing: 0, disabled: 0, optional: 0, legacy: 0, diverged: 0, total: 0,
+    synced: 0, missing: 0, disabled: 0, optional: 0, legacy: 0, total: 0,
   };
   for (const item of self._allItems) {
     const tabStatus = item.status === "diverged" ? "missing" : item.status;

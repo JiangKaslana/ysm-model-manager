@@ -80,10 +80,10 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 			if _, err2 := os.Stat(instPath); err2 != nil {
 				return nil
 			}
+			// DiffFolderContents 返回全局侧文件清单（synced 条目含在结果中——前端
+			// 子文件列表需全量展示）；code review P3：移除早期 len(diffs)==0 返回
+			// （实现从不返回空——含模型文件的文件夹必有 synced 条目——死代码）
 			diffs := ysmsync.DiffFolderContents(globalPath, instPath, rt.ID)
-			if len(diffs) == 0 {
-				return nil
-			}
 			children := make([]types.ResourceSyncItem, 0, len(diffs))
 			for _, d := range diffs {
 				childStatus := d.Status
@@ -153,7 +153,9 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 							break
 						}
 					}
-					if hasDiff {
+					// code review P2：diverged 提升不覆盖 Disabled/Legacy（status 仍为默认才
+					// 提升——禁用/遗留文件夹的 ⛔/🔗 状态优先，UI 不提供禁用内容的推送按钮）
+					if hasDiff && status == defaultStatus {
 						status = types.SyncStatusDiverged
 						icon = "🗂️"
 					}

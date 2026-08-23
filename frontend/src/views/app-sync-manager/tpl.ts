@@ -220,7 +220,10 @@ export function itemHTML(item: SyncItem, index: number): string {
       '<button class="sm-item-btn" data-action="pull" style="border:1px solid var(--muted);color:var(--muted);font-size:var(--fs-tiny)">' + t("syncManager.pullHere") + '</button>';
   }
   return (
-    '<div class="sm-item" data-path="' +
+    // code review P1：class 补 sm-file——children/扁平文件行统一 .sm-item sm-file
+    //（旧 syncFileRowHTML 语义；渲染层 children 走 itemHTML，无 sm-file 会让
+    // 展开后的子文件行无法被 .sm-file 选择器命中）
+    '<div class="sm-item sm-file" data-path="' +
     esc(item.path) +
     '" data-status="' +
     esc(item.status) +

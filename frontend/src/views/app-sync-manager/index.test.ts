@@ -168,10 +168,16 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     };
     self._selectedType = "EntityPlayer";
     self._typeConfig = [{ id: "EntityPlayer", dirLevelSync: true }];
+    // code review P1：更新为新 renderer 的 isDir 契约（旧 subdir 分组语义已移除——
+    // 文件夹行 = isDir:true + children 数组，展开渲染 children）
     self._allItems = [
-      { path: "SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "EntityPlayer", icon: "🎭", size: 10, isDir: false, subdir: "SceneModel" },
-      { path: "角色A.pmx", name: "角色A", status: "missing", type: "EntityPlayer", icon: "🎭", size: 20, isDir: false },
-      { path: "CustomAnim/动作.pmx", name: "动作", status: "synced", type: "EntityPlayer", icon: "🎭", size: 30, isDir: false, subdir: "CustomAnim" },
+      { path: "SceneModel", name: "SceneModel", status: "synced", type: "EntityPlayer", icon: "🎭", size: 10, isDir: true, children: [
+        { path: "SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "EntityPlayer", icon: "🎭", size: 10, isDir: false },
+      ] },
+      { path: "角色A.pmx", name: "角色A", status: "missing", type: "EntityPlayer", icon: "🎭", size: 20, isDir: true, children: [] },
+      { path: "CustomAnim", name: "CustomAnim", status: "synced", type: "EntityPlayer", icon: "🎭", size: 30, isDir: true, children: [
+        { path: "CustomAnim/动作.pmx", name: "动作", status: "synced", type: "EntityPlayer", icon: "🎭", size: 30, isDir: false },
+      ] },
     ];
     self._filteredItems = self._allItems;
     self._filesRoots = { "EntityPlayer": "/repo" };
@@ -188,16 +194,16 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     expect(dirKeys).toEqual(expect.arrayContaining(["SceneModel", "CustomAnim", "角色A.pmx"]));
     // 未展开无子文件
     expect(el.querySelectorAll(".sm-file").length).toBe(0);
-    // 展开 SceneModel → 出现子文件（无 scan 时 files=[]，但文件夹仍可见）
+    // 展开 SceneModel → 出现 children 行（isDir 契约——.sm-file 渲染）
     (dirs[0] as HTMLElement).click();
     await sleep(200);
-    // 文件夹行仍在，且箭头变为 ▾
+    // 文件夹行仍在，且箭头变为 ▾（dirs 数不变——children 是 .sm-file 行）
     dirs = el.querySelectorAll(".sm-dir");
+    expect(dirs.length).toBe(3);
     expect((dirs[0] as HTMLElement).querySelector(".sm-dir-arrow")?.textContent).toBe("▾");
-    // 展开后 SceneModel 组下出现内部模型行（舞台），data-path 用后端绝对路径
-    expect(dirs.length).toBe(4);
-    const keysAfter = Array.from(dirs).map((d) => (d as HTMLElement).dataset.path || "");
-    expect(keysAfter).toEqual(expect.arrayContaining(["SceneModel/舞台.pmx"]));
+    // 展开后 SceneModel 的 children 行（舞台）以 .sm-file 渲染，data-path 为完整路径
+    const filesAfter = Array.from(el.querySelectorAll(".sm-file")).map((f) => (f as HTMLElement).dataset.path || "");
+    expect(filesAfter).toEqual(expect.arrayContaining(["SceneModel/舞台.pmx"]));
     // 恢复全局状态
     bus.emit("repo:rtype-changed", "ysm");
     await sleep(100);
@@ -315,8 +321,8 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     // 直接驱动组件私有状态（绕过 mock 链的多重 getApp 调用，避免 mockResolvedValue 被 afterEach 还原污染）
     const self = el as unknown as {
       _selectedType: string;
-      _allItems: Array<{ path: string; name: string; status: string; type: string; icon: string; size: number }>;
-      _filteredItems: Array<{ path: string; name: string; status: string; type: string; icon: string; size: number }>;
+      _allItems: SyncItem[];
+      _filteredItems: SyncItem[];
       _typeConfig: Array<{ id: string; name: string; icon: string; dirLevelSync: boolean }>;
       _dirOpen: Record<string, boolean>;
       _filesRoots: Record<string, string>;
@@ -325,17 +331,20 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     self._selectedType = "blueprint";
     self._typeConfig = [{ id: "blueprint", name: "蓝图", icon: "⚙️", dirLevelSync: true }];
     // 真实场景：蓝图在仓库、整合包缺失 → missing；path 为仓库绝对路径
+    // code review P1：新 renderer 的 isDir 契约——children 直接携带（不再依赖
+    // ScanModelEntriesWithLabel 仓库扫描——新 renderer 无 scan 路径）
     self._allItems = [
-      { path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core", name: "hello_new_generation_core", status: "missing", type: "blueprint", icon: "⚙️", size: 4096 },
+      { path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core", name: "hello_new_generation_core", status: "missing", type: "blueprint", icon: "⚙️", size: 4096, isDir: true, children: [
+        { path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core/建筑.nbt", name: "建筑.nbt", status: "missing", type: "blueprint", icon: "⚙️", size: 2048, isDir: false },
+        { path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core/建筑.schematic", name: "建筑.schematic", status: "missing", type: "blueprint", icon: "⚙️", size: 1024, isDir: false },
+      ] },
     ];
     self._filteredItems = self._allItems;
     self._filesRoots = { "blueprint": "/repo" };
     self._dirOpen = {};
 
-    mocks.ScanModelEntriesWithLabel.mockResolvedValue([
-      { Name: "建筑.nbt", Path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core/建筑.nbt", Size: 2048 },
-      { Name: "建筑.schematic", Path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core/建筑.schematic", Size: 1024 },
-    ]);
+    // code review P1：新 renderer 无 ScanModelEntriesWithLabel 路径——children 已内联
+    void mocks.ScanModelEntriesWithLabel;
 
     self._doRender();
     await sleep(100);
@@ -343,7 +352,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     let dirs = el.querySelectorAll(".sm-dir");
     expect(dirs.length).toBe(1);
     expect(el.querySelectorAll(".sm-file").length).toBe(0);
-    // 点击展开（missing 条目也应能扫描出仓库内 nbt）
+    // 点击展开（isDir 契约——展开渲染 children）
     (dirs[0] as HTMLElement).click();
     await sleep(300);
     dirs = el.querySelectorAll(".sm-dir");
@@ -359,6 +368,46 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     dirs = el.querySelectorAll(".sm-dir");
     expect((dirs[0] as HTMLElement).querySelector(".sm-dir-arrow")?.textContent).toBe("▸");
     expect(el.querySelectorAll(".sm-file").length).toBe(0);
+    unmountElement(el);
+  });
+
+  it("diverged 条目 → missing tab 显示 + 计数 + 文件夹行推送按钮 + 展开 children（code review P3）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+
+    const self = el as unknown as {
+      _selectedType: string;
+      _allItems: SyncItem[];
+      _filteredItems: SyncItem[];
+      _typeConfig: Array<{ id: string; dirLevelSync: boolean }>;
+      _dirOpen: Record<string, boolean>;
+      _statusFilter: string;
+      _filesRoots: Record<string, string>;
+      _doRender: () => void;
+    };
+    self._selectedType = "EntityPlayer";
+    self._typeConfig = [{ id: "EntityPlayer", dirLevelSync: true }];
+    self._allItems = [
+      { path: "模型A", name: "模型A", status: "diverged", type: "EntityPlayer", icon: "🗂️", size: 10, isDir: true, children: [
+        { path: "模型A/a.pmx", name: "a.pmx", status: "missing", type: "EntityPlayer", icon: "🎭", size: 10, isDir: false },
+      ] },
+    ];
+    self._filteredItems = self._allItems;
+    self._statusFilter = "missing"; // diverged 折叠进 missing tab（store.applyFilter 契约）
+    self._filesRoots = { "EntityPlayer": "/repo" };
+    self._dirOpen = {};
+
+    self._doRender();
+    await sleep(100);
+    // missing 筛选下 diverged 文件夹行可见（含推送按钮——继承可操作属性）
+    expect(el.querySelectorAll(".sm-dir").length).toBe(1);
+    expect(el.querySelector('[data-testid="sm-push"]')).toBeTruthy();
+    // 展开渲染 children（真实状态子文件）
+    (el.querySelector(".sm-dir") as HTMLElement).click();
+    await sleep(200);
+    expect(el.querySelectorAll(".sm-file").length).toBe(1);
     unmountElement(el);
   });
 });
