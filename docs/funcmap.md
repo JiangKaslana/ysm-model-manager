@@ -1799,7 +1799,7 @@
 | `contentLayoutCSS()` | `frontend/src/views/app-content/content-layout:5` | — |
 | `contentRepoCSS()` | `frontend/src/views/app-content/content-repo:2` | — |
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
-| `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:15` | — |
+| `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:16` | — |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
 | `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
@@ -1807,15 +1807,15 @@
 | `formatSize()` | `frontend/src/views/app-content/diagnostics/health:178` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:22` | 初始化诊断页所有功能 |
-| `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
-| `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
-| `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `setHTML()` | `frontend/src/views/app-content/diagnostics/perf-cli:20` | 写入某容器 HTML；容器不存在时静默跳过 |
-| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:36` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
-| `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:76` | — |
-| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:192` | — |
-| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:276` | — |
-| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:369` | — |
+| `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:9` | 转义函数签名（与组件 _esc 一致） |
+| `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:45` | — |
+| `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:160` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
+| `setHTML()` | `frontend/src/views/app-content/diagnostics/perf-cli:21` | 写入某容器 HTML；容器不存在时静默跳过 |
+| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:37` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
+| `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:77` | — |
+| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:193` | — |
+| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:277` | — |
+| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:370` | — |
 | `formatTime()` | `frontend/src/views/app-content/diagnostics/perf-trace:11` | — |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf-trace:18` | 渲染加载剖析区段（取最近一条 trace 渲染甘特图 + 资产清单） |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf` | — |
@@ -1956,7 +1956,7 @@
 | `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:166` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
 | `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:182` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `fillMmdShotPanel()` | `frontend/src/views/app-preview/mmd-controls:263` | MMD 截图面板填充（ADR-052 P3：对齐 ysm-controls fillYsmShotPanel 范式）。 |
-| `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:9` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
+| `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:10` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntriesFiltered 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:12` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:24` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:53` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组（P0 优化：纹理缓存池，同 URL 复用） |

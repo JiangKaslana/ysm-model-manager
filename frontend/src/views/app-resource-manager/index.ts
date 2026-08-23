@@ -174,7 +174,6 @@ export class AppResourceManager extends WebComponentBase {
     const {
       GetRepoRoot,
       ReadPackMeta,
-      ScanModelEntries,
       ToggleResourcePack,
       IsResourcePackEnabled,
       SelectImportZip,
