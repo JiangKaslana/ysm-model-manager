@@ -8,7 +8,6 @@ import (
 	"log"
 	"math"
 	"strconv"
-	"strings"
 
 	"ysm-model-manager/go/types"
 )
@@ -147,28 +146,19 @@ func buildModelGroup(model types.BedrockModel, compID string, texIdxBase int) (M
 	if compName == "" {
 		compName = compID
 	}
-	// 组件可见性分类：仅 main（角色主体）默认可见；
-	// arm/载具/投射物等辅助组件默认隐藏，由动画控制器按游戏状态点亮。
-	// 多组件模型（如 wine_fox 的 player+foxcar）若全部点亮，
-	// 载具 bounding box 会撑大整体剔除范围 → 视锥边界抖动 → 角色闪烁。
+	// 全组件默认可见：UI「全部组件」初始选中态须与渲染一致——「仅 main 默认可见」
+	// 会让主体不叫 main 的拆分模型（部分车万女仆等）整组隐藏，打开一片空。
+	// 视锥剔除 bbox 已只计可见子树（frustum-cull 修复②），全亮无「载具撑大 box→闪烁」顾虑。
 	return ModelGroup{
 		ID:             compID,
 		Name:           compName,
-		DefaultVisible: isDefaultVisibleComponent(compName),
+		DefaultVisible: true,
 		TextureWidth:   texW,
 		TextureHeight:  texH,
 		TextureID:      texID,
 		Bones:          bones,
 		MeshGroups:     meshes,
 	}, nil
-}
-
-// isDefaultVisibleComponent 判断组件是否默认可见。
-// 仅 main（角色主体）默认可见；arm/载具/投射物等辅助组件默认隐藏。
-func isDefaultVisibleComponent(compName string) bool {
-	base := strings.ToLower(compName)
-	base = strings.TrimSuffix(base, ".geo")
-	return base == "main"
 }
 
 // buildCubeMeshData 立方体几何构建（测试直接调用，保留为导出符号）。

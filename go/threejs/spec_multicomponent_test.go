@@ -68,6 +68,13 @@ func TestBuildMulti_TwoComponents(t *testing.T) {
 			}
 		}
 	}
+	// 全组件默认可见契约：UI「全部组件」初始选中态须与渲染一致；
+	// 「仅 main 默认可见」已废除（主体不叫 main 的拆分模型会整组隐藏 → 打开一片空）
+	for mi, m := range spec.Models {
+		if !m.DefaultVisible {
+			t.Errorf("组件 %d (%s) 应默认可见", mi, m.Name)
+		}
+	}
 }
 
 // TestBuildMulti_Empty 验证空组件列表返回空 spec。

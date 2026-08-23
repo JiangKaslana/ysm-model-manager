@@ -267,25 +267,17 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
 
   // Name 用组件源模型文件名（main/arm/arrow，UI 组件选择器显示），空则回退 compID
   const compName = model.sourceName || compID;
-  // 组件可见性分类：仅 main（角色主体）默认可见；
-  // arm/载具/投射物等辅助组件默认隐藏，由动画控制器按游戏状态点亮。
-  // 多组件模型（如 wine_fox 的 player+foxcar）若全部点亮，
-  // 载具 bounding box 会撑大整体剔除范围 → 视锥边界抖动 → 角色闪烁。
+  // 全组件默认可见（与 Go spec.go 同步）：UI「全部组件」初始选中态须与渲染一致——
+  // 「仅 main 默认可见」会让主体不叫 main 的拆分模型整组隐藏，打开一片空。
+  // 视锥剔除 bbox 已只计可见子树（frustum-cull 修复②），全亮无闪烁顾虑。
   return {
     id: compID,
     name: compName,
-    defaultVisible: isDefaultVisibleComponent(compName),
+    defaultVisible: true,
     textureWidth: texW,
     textureHeight: texH,
     textureId: texID,
     bones,
     meshGroups: meshes,
   };
-}
-
-/** 组件默认可见性判定：仅 main（角色主体）默认可见；其余辅助组件默认隐藏 */
-function isDefaultVisibleComponent(compName: string): boolean {
-  let base = compName.toLowerCase();
-  base = base.replace(/\.geo$/, "");
-  return base === "main";
 }
