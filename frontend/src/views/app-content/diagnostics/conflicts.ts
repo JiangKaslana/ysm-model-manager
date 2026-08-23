@@ -73,7 +73,7 @@ export async function scanConflicts(root: ShadowRoot, esc: EscFn): Promise<void>
       if (!ins.Exists) continue;
       const entries = (await ScanModelEntriesWithLabel(ins.CustomDir, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
       instanceFiles[ins.Name] = entries.map((e) => ({
-        name: e.Name.replace(/\.ban$/i, ""),
+        name: e.Name.replace(/\.(disabled|ban)$/i, ""),
       }));
     }
 

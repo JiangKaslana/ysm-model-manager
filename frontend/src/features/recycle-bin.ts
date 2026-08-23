@@ -150,7 +150,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
       if (count) count.textContent = icon + " " + entries.length + " 个文件";
       list.innerHTML = entries
         .map((e, i) => {
-          const name = e.Name.replace(/\.(ysm|zip|7z)\.ban$/i, ".$1");
+          const name = e.Name.replace(/\.(ysm|zip|7z)\.(disabled|ban)$/i, ".$1");
           const size = Number.isFinite(e.Size) ? fmtSize(e.Size as number) : "?";
           return `<div class="recy-item" data-testid="recy-item" style="animation-delay:${stagger(i, 25, 400)}ms;display:flex;flex-direction:column;gap:2px;padding:5px 8px;border-radius:5px;background:var(--bg);font-size:var(--fs-sm)">
 <div style="display:flex;align-items:center;gap:6px">

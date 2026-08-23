@@ -1652,7 +1652,7 @@
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter` | — |
 | `AdvFilterResult()` | `frontend/src/utils/dom/dialogs/adv-filter:18` | — |
 | `modalAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter:25` | 弹出高级筛选弹窗 |
-| `rebuildParsedName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:16` | 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.ban)` - 作者/作品空值跳过；角色缺省回退到「剥 .ban 与扩展名后的文件名」； - 扩展名取原 |
+| `rebuildParsedName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:16` | 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.disabled)` - 作者/作品空值跳过；角色缺省回退到「剥禁用尾缀与扩展名后的文件名」； - 扩展 |
 | `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:31` | — |
 | `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:41` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
 | `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:20` | 应用变更载荷 |

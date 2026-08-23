@@ -84,7 +84,7 @@ export async function loadOldestModel(
       const hashMap: Record<string, number> = {};
       entries.forEach((e) => {
         totalSize += e.Size || 0;
-        if ((e.Name || "").toLowerCase().endsWith(".ban")) banned++;
+        if (/\.(disabled|ban)$/i.test(e.Name || "")) banned++;
         if (e.Hash) hashMap[e.Hash] = (hashMap[e.Hash] || 0) + 1;
       });
       const dupGroups = Object.values(hashMap).filter((c) => c > 1).length;

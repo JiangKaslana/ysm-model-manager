@@ -1,15 +1,15 @@
 // ===== 批量重命名纯函数层 =====
 // 从 utils/dom/dialogs/batch-rename.ts 抽出：解析名重建 + 查找替换，供单测覆盖（ADR-023 L3）。
 // 与单个重命名对话框（rename-format.ts）语义差异：
-// 批量重建空段跳过（无缺省「未知」/「?」），并保留 .ban 尾缀与「角色名回退到文件名」。
+// 批量重建空段跳过（无缺省「未知」/「?」），并保留禁用尾缀与「角色名回退到文件名」。
 import type { ParsedModelName } from "../../dom/display.ts";
 import { RESOURCE_TYPES } from "../../resource/types.ts";
 import { buildModelName } from "./rename-format.ts";
 
 /**
- * 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.ban)`
- * - 作者/作品空值跳过；角色缺省回退到「剥 .ban 与扩展名后的文件名」；
- * - 扩展名取原名（缺省 ysm）；banned 文件保留 `.ban` 尾缀。
+ * 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.disabled)`
+ * - 作者/作品空值跳过；角色缺省回退到「剥禁用尾缀与扩展名后的文件名」；
+ * - 扩展名取原名（缺省 ysm）；banned 文件保留 `.disabled` 尾缀。
  * 调用方负责比较 newName !== name 判定 changed。
  * 拼接收敛至 rename-format 的 buildModelName 引擎（索引 4.9：空段跳过 + keepBan）。
  */
@@ -18,8 +18,8 @@ export function rebuildParsedName(
   p: ParsedModelName,
   overrides?: { author?: string; work?: string },
 ): string {
-  const isBan = /\.ban$/i.test(name);
-  const clean = name.replace(/\.ban$/i, "");
+  const isBan = /\.(disabled|ban)$/i.test(name);
+  const clean = name.replace(/\.(disabled|ban)$/i, "");
   const a = overrides?.author || p.author;
   const w = overrides?.work || p.work;
   const c = p.chara || clean.replace(/\.\w+$/, "");
