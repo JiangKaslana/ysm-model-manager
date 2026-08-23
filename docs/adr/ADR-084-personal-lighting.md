@@ -60,7 +60,7 @@ core 初始化
 
 运行中切换：`lightCap.setVolumetricEngine('cone' | 'postprocess')` → core animate 循环自动创建/销毁 composer。
 
-### 2.4 参数类型：DeepPartial<LightParams>
+### 2.4 参数类型：`DeepPartial<LightParams>`
 
 `setParams()` 接受 `DeepPartial<LightParams>` 而非 `Partial<LightParams>`——因为 `LightParams` 嵌套 `{ key, fill, rim, ambient, spotlight, volumetric }` 6 个子对象，`Partial` 要求整子对象全传，用户只想调 `key.intensity` 一个字段时必须允许 `setParams({ key: { intensity: 1.5 } })`。
 
