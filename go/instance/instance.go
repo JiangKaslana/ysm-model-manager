@@ -200,7 +200,7 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 
 		// dirLevel 类型：重建展示树，中间目录变容器节点，镜像磁盘层级
 		if isDirLevel {
-			typeItems = nestDirLevelTree(typeItems, globalDir, instDir)
+			typeItems = nestDirLevelTree(typeItems, globalDir, instDir, rt.ID)
 		}
 		items = append(items, typeItems...)
 	}
@@ -226,7 +226,7 @@ type nestTreeNode struct {
 // 顶层只返回根下直接子项（children 深度嵌套），镜像磁盘真实层级。
 // 路径基准：Synced/Missing 是全局路径（globalDir 下），Extra 是实例路径（instDir 下）——
 // 逐条按命中 root 剥离出相对路径段。
-func nestDirLevelTree(flat []types.ResourceSyncItem, globalDir, instDir string) []types.ResourceSyncItem {
+func nestDirLevelTree(flat []types.ResourceSyncItem, globalDir, instDir, rtype string) []types.ResourceSyncItem {
 	root := &nestTreeNode{children: map[string]*nestTreeNode{}}
 	relOf := func(p string) (string, bool) {
 		for _, basedir := range []string{globalDir, instDir} {
@@ -284,13 +284,13 @@ func nestDirLevelTree(flat []types.ResourceSyncItem, globalDir, instDir string) 
 		}
 		insert(it, segs)
 	}
-	return treeChildren(root, "", globalDir, instDir)
+	return treeChildren(root, "", globalDir, instDir, rtype)
 }
 
 // treeChildren 把容器节点 children 展平为 ResourceSyncItem 列表
 // 容器：isDir=true + 聚合状态（若子项有非 synced 差异 → diverged）；叶子原样返回
 // baseRel：容器相对 root 的路径（段连接符 "/"）；root 用于还原容器绝对路径供 push/pull
-func treeChildren(node *nestTreeNode, baseRel, globalDir, instDir string) []types.ResourceSyncItem {
+func treeChildren(node *nestTreeNode, baseRel, globalDir, instDir, rtype string) []types.ResourceSyncItem {
 	if len(node.children) == 0 {
 		return nil
 	}
@@ -311,7 +311,7 @@ func treeChildren(node *nestTreeNode, baseRel, globalDir, instDir string) []type
 		}
 		// 容器：递归构建 children，聚合状态
 		childRel := joinRel(baseRel, k)
-		children := treeChildren(c, childRel, globalDir, instDir)
+		children := treeChildren(c, childRel, globalDir, instDir, rtype)
 		status := aggregateStatus(children)
 		icon := "📁"
 		if status == types.SyncStatusDiverged || status == types.SyncStatusMissing {
@@ -320,10 +320,13 @@ func treeChildren(node *nestTreeNode, baseRel, globalDir, instDir string) []type
 		// 容器绝对路径：按聚合 status 选根——optional(可拉取) 源在实例侧，其余(可推送/同步) 源在
 		// 全局侧。作为前端展开 key 与容器级 push/pull 的 data-path；避免混合夹锁错源侧
 		containerPath := dirLevelContainerPath(status, childRel, globalDir, instDir)
+		// Type 必填：前端 applyFilter 按 i.type === 选中类型过滤，容器若缺 Type(=空串)
+		// 会被整体丢弃，导致整棵嵌套子树消失（嵌套1→嵌套2→动力臂 不显示的根因）
 		out = append(out, types.ResourceSyncItem{
 			Path:     containerPath,
 			Name:     k,
 			Status:   status,
+			Type:     rtype,
 			Icon:     icon,
 			IsDir:    true,
 			Children: children,

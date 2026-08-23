@@ -737,6 +737,13 @@ func TestBuildSyncItems_NestedContainer_DeepHierarchy(t *testing.T) {
 	if authors.Name != "authors" || !authors.IsDir {
 		t.Fatalf("authors 应为容器，got %+v", authors)
 	}
+	// 容器必须带 Type（前端 applyFilter 按 type 过滤，缺 Type 会整体丢弃整棵子树）
+	if vendor.Type != "ysm" {
+		t.Errorf("vendor 容器 Type 应为 ysm，实际 %q", vendor.Type)
+	}
+	if authors.Type != "ysm" {
+		t.Errorf("authors 容器 Type 应为 ysm，实际 %q", authors.Type)
+	}
 	if len(authors.Children) != 1 {
 		t.Fatalf("authors.children 应为 character，实际 %d", len(authors.Children))
 	}
