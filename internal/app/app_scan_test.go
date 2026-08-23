@@ -505,24 +505,44 @@ func TestResolveInstDirTarget_MaidModelStandard(t *testing.T) {
 }
 
 // TestResolveInstDirTarget_MmdSubtype_3dSkinPrefix 防回归：ADR-094 位置路由要求
-// MMD 子类型（SceneModel 等）实例目录必须带 3d-skin/ 前缀，否则会在版本根直拼
-// 裸子目录名（如 versions/x/SceneModel）导致目录不存在报错。
+// MMD 子类型实例目录必须带 3d-skin/ 前缀（游戏实际生成 6 个子目录）。
+// 游戏真实生成的目录（D:\PCL2\...\[实例]\3d-skin\ 下）：
+//   SceneModel / EntityPlayer / CustomMorph / CustomAnim / DefaultMorph / DefaultAnim
+// 这几个类型的 instanceDir 必须是 "3d-skin/<子名>"，漏写一级（只写 "3d-skin"）
+// 会导致右键打开文件夹差一级、打开到错误父目录。
+// 注：StageAnim / mmd-shader 游戏未实际生成独立子目录，保持 "3d-skin" 父目录兜底（打开到父级仍可定位）。
 func TestResolveInstDirTarget_MmdSubtype_3dSkinPrefix(t *testing.T) {
-	for _, id := range []string{"SceneModel", "CustomMorph", "mmd-shader", "fbx", "CustomAnim"} {
-		if types.RegistryType(id) == nil {
-			t.Skipf("注册表暂无 %s 条目，跳过", id)
-		}
+	// 游戏实际生成的 6 个子目录类型：instanceDir 必须精确为 "3d-skin/<子名>"
+	mustHaveSubdir := map[string]string{
+		"SceneModel":    "3d-skin/SceneModel",
+		"EntityPlayer":  "3d-skin/EntityPlayer",
+		"CustomMorph":   "3d-skin/CustomMorph",
+		"CustomAnim":    "3d-skin/CustomAnim",
+		"DefaultMorph":  "3d-skin/DefaultMorph",
+		"DefaultAnim":   "3d-skin/DefaultAnim",
+	}
+	for id, wantDir := range mustHaveSubdir {
 		rt := types.RegistryType(id)
-		// 位置路由约定：MMD 组 instanceDir 必须是 3d-skin 整树根或其子目录（3d-skin/<子名>）。
-		// CustomAnim/StageAnim/DefaultAnim 等壳类型合法值为 "3d-skin" 本身；
-		// SceneModel/CustomMorph/mmd-shader/fbx 必须是 "3d-skin/<子名>"。
-		if rt.InstanceDir != "3d-skin" && !strings.HasPrefix(rt.InstanceDir, "3d-skin/") {
-			t.Errorf("%s instanceDir = %q, 期望为 3d-skin 或 3d-skin/ 前缀（位置路由）", id, rt.InstanceDir)
+		if rt == nil {
+			t.Fatalf("注册表缺失 %s 条目（测试前提被破坏）", id)
+		}
+		if rt.InstanceDir != wantDir {
+			t.Errorf("%s instanceDir = %q, 期望 %q（游戏实际生成 3d-skin/%s 子目录）", id, rt.InstanceDir, wantDir, id)
 		}
 		instDir := t.TempDir()
-		want := filepath.Join(instDir, rt.InstanceDir)
+		want := filepath.Join(instDir, wantDir)
 		if got := resolveInstDirTarget(instDir, id); got != want {
 			t.Errorf("%s 拼接 = %q, 期望 %q", id, got, want)
+		}
+	}
+	// 游戏未生成独立子目录的类型：instanceDir 允许为 "3d-skin" 父目录（兜底不报错）
+	for _, id := range []string{"StageAnim", "mmd-shader"} {
+		rt := types.RegistryType(id)
+		if rt == nil {
+			t.Skipf("注册表暂无 %s 条目，跳过", id)
+		}
+		if rt.InstanceDir != "3d-skin" && !strings.HasPrefix(rt.InstanceDir, "3d-skin/") {
+			t.Errorf("%s instanceDir = %q, 期望为 3d-skin 或 3d-skin/ 前缀（位置路由）", id, rt.InstanceDir)
 		}
 	}
 }
