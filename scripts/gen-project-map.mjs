@@ -68,12 +68,16 @@ function subdirs(dir) {
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
-/** 一级文件名的子集（按扩展名过滤，跳过隐藏项）。 */
+/** 一级文件名的子集（按扩展名过滤，跳过隐藏项与工具产物）。
+ * 工具产出（link-checker-out.json / opencode.json）已在 .gitignore 显式排除，
+ * 此处同步过滤，避免它们出现在项目地图里污染「根级结构」视图。 */
+const ROOT_EXCLUDED = new Set(['link-checker-out.json', 'opencode.json']);
+
 function topFiles(dir, exts) {
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir, { withFileTypes: true })
-    .filter((d) => d.isFile() && !d.name.startsWith('.') && exts.some((e) => d.name.endsWith(e)))
+    .filter((d) => d.isFile() && !d.name.startsWith('.') && !ROOT_EXCLUDED.has(d.name) && exts.some((e) => d.name.endsWith(e)))
     .map((d) => d.name)
     // 字节序比较（排序名全 ASCII）：locale 无关，跨 ICU/CLDR 版本确定性最强（code_review P1-1）
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
