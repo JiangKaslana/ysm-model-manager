@@ -12,7 +12,9 @@ export async function resolveMorphSiblings(): Promise<string[]> {
     const morphRoot = (await app["GetRepoRoot"]("CustomMorph")) as string;
     if (!morphRoot) return [];
     const raw = (await app["ScanModelEntriesFiltered"](morphRoot, "CustomMorph", "", "自定义表情")) as Array<{ Path?: string }> | null;
-    return (raw || []).map((e) => e.Path || "");
+    // code review P3：CustomMorph 白名单含 .zip（非 VPD 姿势）——VPD 应用流程
+    // 只认 vpd——保留最小扩展名守卫，防列表出现不可应用的条目（失败应用）
+    return (raw || []).map((e) => e.Path || "").filter((p) => /\.(vpd)$/i.test(p));
   } catch {
     return [];
   }

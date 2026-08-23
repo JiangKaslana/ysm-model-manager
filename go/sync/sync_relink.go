@@ -77,6 +77,10 @@ func RelinkDir(customDir, filesRoot, rtype, linkMode string, scanFn func(string)
 		baseName = strings.TrimSuffix(baseName, ".disabled")
 		baseName = strings.TrimSuffix(baseName, ".ban")
 		isDirType := types.IsDirLevelSync(rtype) && types.IsTypeModelFile(baseName, rtype)
+		// 注：此处传剥 .disabled/.ban 后的 baseName（relink 需识别禁用文件的目录型——
+		// 原 ce.Path 未剥后缀时 filepath.Ext 得 ".ban" 不匹配任何扩展集，测试红）。
+		// 代价：MMD 目录型 .zip 在 relink 不识别（裸名 zip 分支开不了文件）——
+		// 如需 zip 目录型 relink，需拆路径感知 + 剥离感知的专门 API（本轮不做）
 		if isDirType {
 			srcDir := filepath.Dir(srcPath)
 			// ce.Path 已在目标子目录内，父层才是 InstallDir 要写入的基础目录

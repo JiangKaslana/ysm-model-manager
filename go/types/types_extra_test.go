@@ -540,6 +540,16 @@ func TestIsTypeModelFile_ZipEntry_NonZipEntryTypeUnaffected(t *testing.T) {
 	}
 }
 
+// TestIsTypeModelFile_ZipEntry_BareNameFails code review P1（conf 0.85→确认）：
+// 生产调用方曾传裸文件名（instance/sync_dirlevel/sync_relink）——zip 分支
+// zip.OpenReader(裸名) 相对 CWD 失败 → 返回 false——锁契约：zipentry 类型必须
+// 传完整路径才能开 zip 内含校验（调用方已全部改传完整路径）。
+func TestIsTypeModelFile_ZipEntry_BareNameFails(t *testing.T) {
+	if IsTypeModelFile("motion.zip", "DefaultAnim") {
+		t.Fatalf("裸文件名不应被识别为模型（zip 分支需完整路径开文件）: motion.zip")
+	}
+}
+
 // TestFindInstDir_Blueprint_FallbackKept 唯一合法兜底用例：blueprint scanInstance=true，
 // 标准 schematics 为空时仍兜底到 Sable-Schematics/（保留 ADR-104 前真实模组布局兼容）。
 func TestFindInstDir_Blueprint_FallbackKept(t *testing.T) {
@@ -575,4 +585,3 @@ func TestFindInstDir_Resourcepack_NoFallback(t *testing.T) {
 		t.Fatalf("resourcepack 不得兜底，应返回标准路径: got=%s, 期望 %s", got, want)
 	}
 }
-

@@ -78,7 +78,7 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 					isDirEntry = true
 				}
 			}
-			if !types.IsTypeModelFile(filepath.Base(p), rt.ID) &&
+			if !types.IsTypeModelFile(p, rt.ID) &&
 				!fsutil.IsResourcePackFolder(p) && !isDirEntry {
 				return
 			}

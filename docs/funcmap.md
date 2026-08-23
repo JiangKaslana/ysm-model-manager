@@ -484,23 +484,23 @@
 | `NormalizeResourceName()` | `go/types/extensions:133` | NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）： 小写 + 去除 .disabled/.ban 禁用后缀。原 sync.isSyn |
 | `IsResourceAllowed()` | `go/types/extensions:145` | IsResourceAllowed 判断文件名是否属于受支持的同步资源（ADR-064 收敛）： 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json（ |
 | `IsTypeModelFile()` | `go/types/extensions:164` | IsTypeModelFile 判断文件名是否为指定资源类型的模型文件（ADR-064 收敛）： 扩展名命中该类型注册表扩展集（SupportedExtsForType），.jso |
-| `ShouldHashExt()` | `go/types/extensions:199` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配）。 |
-| `IsDirLevelSync()` | `go/types/extensions:217` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
-| `IsScanInstance()` | `go/types/extensions:230` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录。 |
-| `InstallExtsFor()` | `go/types/extensions:239` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
-| `MatchZipEntry()` | `go/types/extensions:250` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
-| `ExtBelongsTo()` | `go/types/extensions:265` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个）。 |
-| `SupportedExtsForType()` | `go/types/extensions:284` | SupportedExtsForType 返回指定资源类型的所有扩展名。 |
-| `SupportedExtsForSubtype()` | `go/types/extensions:297` | SupportedExtsForSubtype 返回指定资源类型的扩展名。 |
-| `StorageSubDir()` | `go/types/extensions:303` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
-| `GroupOf()` | `go/types/extensions:312` | GroupOf 返回资源类型所属分组 id（ADR-092） 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。 |
-| `GroupStorageRoot()` | `go/types/extensions:324` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
-| `GroupLabel()` | `go/types/extensions:341` | GroupLabel 返回分组显示名（从注册表各类型的 groupLabel 字段派生，消除 resourceGroups 冗余源）； 取该组第一个有 groupLabel 的类型 |
-| `GroupIcon()` | `go/types/extensions:355` | GroupIcon 返回分组图标（从注册表各类型的 groupIcon 字段派生）。 |
-| `SubDirMap()` | `go/types/extensions:380` | SubDirMap 返回指定资源类型在整合包实例版本目录中的实例子目录 |
-| `SubDirAll()` | `go/types/extensions:396` | SubDirAll 返回所有资源类型在整合包实例中的版本子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:408` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
-| `SubDirEntry()` | `go/types/extensions:369` | SubDirEntry 资源类型的版本子目录信息 |
+| `ShouldHashExt()` | `go/types/extensions:202` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配）。 |
+| `IsDirLevelSync()` | `go/types/extensions:220` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
+| `IsScanInstance()` | `go/types/extensions:233` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录。 |
+| `InstallExtsFor()` | `go/types/extensions:242` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
+| `MatchZipEntry()` | `go/types/extensions:253` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
+| `ExtBelongsTo()` | `go/types/extensions:268` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个）。 |
+| `SupportedExtsForType()` | `go/types/extensions:287` | SupportedExtsForType 返回指定资源类型的所有扩展名。 |
+| `SupportedExtsForSubtype()` | `go/types/extensions:300` | SupportedExtsForSubtype 返回指定资源类型的扩展名。 |
+| `StorageSubDir()` | `go/types/extensions:306` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
+| `GroupOf()` | `go/types/extensions:315` | GroupOf 返回资源类型所属分组 id（ADR-092） 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。 |
+| `GroupStorageRoot()` | `go/types/extensions:327` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
+| `GroupLabel()` | `go/types/extensions:344` | GroupLabel 返回分组显示名（从注册表各类型的 groupLabel 字段派生，消除 resourceGroups 冗余源）； 取该组第一个有 groupLabel 的类型 |
+| `GroupIcon()` | `go/types/extensions:358` | GroupIcon 返回分组图标（从注册表各类型的 groupIcon 字段派生）。 |
+| `SubDirMap()` | `go/types/extensions:383` | SubDirMap 返回指定资源类型在整合包实例版本目录中的实例子目录 |
+| `SubDirAll()` | `go/types/extensions:399` | SubDirAll 返回所有资源类型在整合包实例中的版本子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:411` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirEntry()` | `go/types/extensions:372` | SubDirEntry 资源类型的版本子目录信息 |
 | `FindInstDir()` | `go/types/findinst:71` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
 | `SetBundledRegistryJSON()` | `go/types/resource:20` | SetBundledRegistryJSON 由根包 main 注入编译期内嵌的注册表字节（单源：仓库根 resource_types.json）。 |
 | `ResourceType.EffectiveExtensions()` | `go/types/resource:78` | EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。 |

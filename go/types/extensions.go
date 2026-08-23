@@ -162,7 +162,10 @@ func IsResourceAllowed(name string) bool {
 // 与 isModelFile 严格语义一致；extMatch 的空集放行分支在 BuildSyncItems 中
 // 不会触发——未知类型早被 SubDirMap 空拦截跳过）。
 func IsTypeModelFile(name, rtype string) bool {
-	base := NormalizeResourceName(name)
+	// filepath.Base 兼容裸名与完整路径调用（code review P1：4 个调用点已改传完整
+	// 路径——裸名精确判断（ysm.json 特判/ext）对完整路径失效会误判）；zip 分支
+	// 用原始 name 开文件（见下），不受 base 取 Base 影响
+	base := NormalizeResourceName(filepath.Base(name))
 	// ysm.json 特判（.json 扩展名在注册表中但只有 ysm.json 算模型文件）：
 	// 仅当该类型扩展集含 .json（ysm）时放行——resourcepack/shaderpack 扩展集
 	// 只有 .zip，整合包目录散落的 ysm.json 不得作为其独立同步条目（P3 修复：

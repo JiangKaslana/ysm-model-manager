@@ -162,9 +162,9 @@ func TestBuildSyncItems_UnknownTypeSkip(t *testing.T) {
 func TestBuildSyncItems_IndependentTypes(t *testing.T) {
 	base := t.TempDir()
 
-	// EntityPlayer 全局与实例目录（位置路由：instanceDir=3d-skin 壳根）
+	// EntityPlayer 全局与实例目录（位置路由：instanceDir=3d-skin/EntityPlayer 壳根）
 	epGlobal := filepath.Join(base, "mmd")
-	epInst := filepath.Join(base, "inst", "3d-skin")
+	epInst := filepath.Join(base, "inst", "3d-skin", "EntityPlayer")
 	_ = os.MkdirAll(epGlobal, 0755)
 	_ = os.MkdirAll(epInst, 0755)
 
