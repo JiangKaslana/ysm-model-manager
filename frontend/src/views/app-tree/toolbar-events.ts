@@ -2,6 +2,7 @@
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { currentRepoType } from "../../features/repo-rtype.ts";
 import { bus } from "../../bus.ts";
 import { flashBtn } from "../../utils/dom/feedback.ts";
 import { spinnerHTML } from "./tpl.ts";
@@ -301,7 +302,9 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
         try {
           const { GenerateRepoIndex, GetRepoRoot } =
             await getApp();
-          const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+          // 任意仓库类型：GenerateRepoIndex 已下沉 Go（scanner.GenerateRepoIndex
+          // 接收任意 repoPath，通用）——调用处不再硬编码 YSM，跟随当前仓库类型
+          const filesRoot = await GetRepoRoot(currentRepoType());
           if (!filesRoot) {
             bus.emit("toast:show", {
               msg: "请先配置存储路径",

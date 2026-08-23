@@ -2102,7 +2102,7 @@
 | `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:27` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:34` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
-| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:59` | — |
+| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:60` | — |
 | `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:42` | — |
 | `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:236` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
