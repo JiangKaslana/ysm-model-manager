@@ -121,3 +121,51 @@ func TestL0_TexSlot_MissingTexture_NoPanic(t *testing.T) {
 		}
 	}
 }
+
+// TestL0_TexSlot_MixedCaseEntries 验证：zip 条目名含大写（Windows 工具产物，本仓其他
+// 注释反复防御的混合大小写场景）时，L0 路径的纹理收集与 texSlot 绑定不受大小写断裂影响。
+// 回归（code review 7efe6aa9）：
+//   - resolveL0Texture 形式 B 候选分支返回 e.Name()（原始大小写），但 entryByPath 的 key
+//     全小写 → 主循环 entryByPath[texAbs] 重查 miss → 纹理静默丢弃；
+//   - l0ModelOrder 小写化（modelAbs[len(maidNs):]），但 orderMap/texIdxMap 查询键用
+//     geoFiles[i].name（原始大小写）→ miss → cube TexSlot 不绑定（全 0）。
+func TestL0_TexSlot_MixedCaseEntries(t *testing.T) {
+	maidModel := `{
+		"pack_name": "大小写混合条目测试",
+		"model": [
+			{"model_id": "mypack:hero",    "name": "勇者"},
+			{"model_id": "mypack:heroine", "name": "女主角"}
+		]
+	}`
+	// 模型/纹理条目名含大写（Windows 工具产出 zip 的常见形态）
+	data := testutil.MakeZipBytes(t, map[string]string{
+		"assets/mypack/maid_model.json":             maidModel,
+		"assets/mypack/Models/Entity/Hero.json":     maidMiniGeo("hero", 0),
+		"assets/mypack/Models/Entity/Heroine.json":  maidMiniGeo("heroine", 1),
+		"assets/mypack/Textures/Entity/Hero.png":    "HERO",
+		"assets/mypack/Textures/Entity/Heroine.png": "HEROINE",
+	})
+	model, pngs, _ := ParseFromZip(data, int64(len(data)))
+	if model == nil {
+		t.Fatal("模型不应为 nil")
+	}
+	if len(model.SubModels) != 2 {
+		t.Fatalf("SubModels = %d, 期望 2", len(model.SubModels))
+	}
+	// 纹理不得静默丢失（resolveL0Texture 候选分支大小写断裂 → entryByPath miss）
+	if len(pngs) != 2 {
+		t.Fatalf("pngs = %d, 期望 2（大小写混合条目纹理不得丢失）", len(pngs))
+	}
+	// texSlot 必须正确绑定（l0ModelOrder 小写 vs geoFiles.name 原始大小写断裂 → 全 0）
+	wantSlots := map[string]int{"勇者": 0, "女主角": 1}
+	for _, sm := range model.SubModels {
+		want, ok := wantSlots[sm.Name]
+		if !ok {
+			t.Errorf("未知角色 %q", sm.Name)
+			continue
+		}
+		if sm.TexSlot != want {
+			t.Errorf("角色 %s TexSlot = %d, 期望 %d（大小写断裂致 texSlot 绑定失效）", sm.Name, sm.TexSlot, want)
+		}
+	}
+}

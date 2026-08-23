@@ -733,9 +733,13 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if mid != "" {
 				namePart := extractName(mid, "")
 				if namePart != "" {
-					if e, _, hit := tryCandidates(namePart, textureCandidates); hit {
-						log.Printf("%s L0 形式B 纹理(候选): %s → %s", logPrefix, mid, e.Name())
-						return e.Name()
+					if _, abs, hit := tryCandidates(namePart, textureCandidates); hit {
+						// 返回 tryCandidates 的小写 abs（与 resolveL0Model 候选分支一致）：
+						// entryByPath 的 key 全小写（593 行），返回 e.Name() 原始大小写会让
+						// 主循环 entryByPath[texAbs] 重查 miss → 大写条目纹理静默丢弃
+						// （code review P2，Windows 工具产出混合大小写 zip 的常见形态）。
+						log.Printf("%s L0 形式B 纹理(候选): %s → %s", logPrefix, mid, abs)
+						return abs
 					}
 					lazyBuildBasenameIdx()
 					if match, ok := nsPngBasenames[namePart]; ok && len(match) > 0 {
@@ -822,13 +826,16 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	if len(modelOrder) > 0 {
 		orderMap := make(map[string]int, len(modelOrder))
 		for i, p := range modelOrder {
-			orderMap[filepath.ToSlash(p)] = i
+			// key 统一小写：L0 路径 l0ModelOrder 已小写（modelAbs[len(maidNs):]），
+			// 查询键 geoFiles[i].name 是 zip 条目原始大小写——大小写敏感会 miss
+			// → 声明序排序失效（code review P3，Windows 混合大小写 zip）。
+			orderMap[strings.ToLower(filepath.ToSlash(p))] = i
 		}
 		sort.SliceStable(geoFiles, func(i, j int) bool {
-			// 查询键须与 orderMap 键同口径（"\\"→"/" 归一化）：Windows 工具
-			// 产出的归档条目名可能含反斜杠，原实现未归一化导致声明序排序失效
-			ai, oki := orderMap[filepath.ToSlash(geoFiles[i].name)]
-			aj, okj := orderMap[filepath.ToSlash(geoFiles[j].name)]
+			// 查询键须与 orderMap 键同口径（"\\"→"/" 归一化 + 小写化）：Windows 工具
+			// 产出的归档条目名可能含反斜杠/混合大小写，原实现未归一化导致声明序排序失效
+			ai, oki := orderMap[strings.ToLower(filepath.ToSlash(geoFiles[i].name))]
+			aj, okj := orderMap[strings.ToLower(filepath.ToSlash(geoFiles[j].name))]
 			if oki && okj {
 				return ai < aj
 			}
@@ -856,7 +863,10 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 		}
 		mp = strings.TrimSuffix(strings.TrimSuffix(mp, ".geo.json"), ".json")
 		// texName: 小写 basename 去扩展名（收敛自内联，口径与 texBasenameNoExt 同）
-		modelTexName[mp] = texBasenameNoExt(pm.texName)
+		// key 统一小写：查询端 bn 来自 modelOrder（L0 路径已小写），projModel 声明
+		// 可能含大写——大小写敏感会让声明纹理名查表 miss → texSlot 绑定失效
+		// （code review P3，Windows 混合大小写 zip）。
+		modelTexName[strings.ToLower(mp)] = texBasenameNoExt(pm.texName)
 	}
 	if len(modelOrder) > 0 {
 		for i, p := range modelOrder {
@@ -864,7 +874,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if idx := strings.LastIndex(p, "/"); idx >= 0 {
 				p = p[idx+1:]
 			}
-			bn := strings.TrimSuffix(strings.TrimSuffix(p, ".json"), ".geo.json")
+			bn := strings.ToLower(strings.TrimSuffix(strings.TrimSuffix(p, ".json"), ".geo.json"))
 			// 优先按声明的纹理名查 texOrder 位置；查不到再按 modelOrder 序号兜底
 			ti := -1
 			if texName, ok := modelTexName[bn]; ok && texName != "" {
@@ -898,13 +908,14 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			}
 		}
 		// 按模型文件位置设置 cube 纹理索引
-		// geoName 须先归一化 "\\"→"/" 再取 basename：条目名含反斜杠时
-		// 原实现取不到 basename → texIdxMap 永不命中 → TexSlot 绑定失效
+		// geoName 须先归一化 "\\"→"/" 再取 basename，且统一小写（与 texIdxMap 构建端
+		// bn 同口径）：条目名含反斜杠/混合大小写时原实现取不到 basename 或大小写不匹配
+		// → texIdxMap 永不命中 → TexSlot 绑定失效（code review P3，Windows 混合大小写 zip）
 		geoName := filepath.ToSlash(gf.name)
 		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
 			geoName = geoName[idx+1:]
 		}
-		geoName = strings.TrimSuffix(strings.TrimSuffix(geoName, ".json"), ".geo.json")
+		geoName = strings.ToLower(strings.TrimSuffix(strings.TrimSuffix(geoName, ".json"), ".geo.json"))
 		ti, hasTex := texIdxMap[geoName]
 		if hasTex {
 			for bi := range g.Bones {
