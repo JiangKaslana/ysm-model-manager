@@ -254,8 +254,9 @@ function analyzeModel(modelDir, modelName) {
           if (fm === "blend") blendFaces++;
           if (fm === "cutout") cutoutFaces++;
           if (fm !== texGlobalMode) { divergent++; divArea += area; }
-          const gmThr = modesThr.get(primary);
-          if (fm !== gmThr) { divergentThr++; divAreaThr += area; }
+          // code review：复用上方 hoisted 的 texGlobalModeThr（230 行），
+          // 面级循环内不再重复 Map.get(primary)（全模型面数级热循环）
+          if (fm !== texGlobalModeThr) { divergentThr++; divAreaThr += area; }
         }
       }
     }

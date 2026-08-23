@@ -129,6 +129,10 @@ func TestL0_TexSlot_MissingTexture_NoPanic(t *testing.T) {
 //     全小写 → 主循环 entryByPath[texAbs] 重查 miss → 纹理静默丢弃；
 //   - l0ModelOrder 小写化（modelAbs[len(maidNs):]），但 orderMap/texIdxMap 查询键用
 //     geoFiles[i].name（原始大小写）→ miss → cube TexSlot 不绑定（全 0）。
+//
+// fixture 刻意让两个 cube 都 texture=0（不烘焙槽位）：若 texIdxMap 重绑（geoName ToLower）
+// 失效，cube.TexSlot 保持解析值 0/0，heroine 断言 1 必失败——真实暴露绑定路径回归；
+// 若烘焙 texture=0/1 会与期望槽位恰好一致，掩盖绑定失效（code review 补强）。
 func TestL0_TexSlot_MixedCaseEntries(t *testing.T) {
 	maidModel := `{
 		"pack_name": "大小写混合条目测试",
@@ -141,7 +145,7 @@ func TestL0_TexSlot_MixedCaseEntries(t *testing.T) {
 	data := testutil.MakeZipBytes(t, map[string]string{
 		"assets/mypack/maid_model.json":             maidModel,
 		"assets/mypack/Models/Entity/Hero.json":     maidMiniGeo("hero", 0),
-		"assets/mypack/Models/Entity/Heroine.json":  maidMiniGeo("heroine", 1),
+		"assets/mypack/Models/Entity/Heroine.json":  maidMiniGeo("heroine", 0),
 		"assets/mypack/Textures/Entity/Hero.png":    "HERO",
 		"assets/mypack/Textures/Entity/Heroine.png": "HEROINE",
 	})
@@ -166,6 +170,21 @@ func TestL0_TexSlot_MixedCaseEntries(t *testing.T) {
 		}
 		if sm.TexSlot != want {
 			t.Errorf("角色 %s TexSlot = %d, 期望 %d（大小写断裂致 texSlot 绑定失效）", sm.Name, sm.TexSlot, want)
+		}
+	}
+	// cube 级 TexSlot 断言：geoName ToLower / texIdxMap 重绑（archive.go 918-925）的真实守护点。
+	// geoFiles 按 modelOrder 排序后 hero 在前、heroine 在后（各 1 骨骼 1 方块）。
+	if len(model.Bones) != 2 {
+		t.Fatalf("Bones = %d, 期望 2（hero + heroine）", len(model.Bones))
+	}
+	wantCubeSlots := []int{0, 1} // hero → 0, heroine → 1（texOrder 位置）
+	for bi, want := range wantCubeSlots {
+		cubes := model.Bones[bi].Cubes
+		if len(cubes) == 0 {
+			t.Fatalf("Bones[%d] 无 cube", bi)
+		}
+		if cubes[0].TexSlot != want {
+			t.Errorf("Bones[%d].Cubes[0].TexSlot = %d, 期望 %d（texIdxMap 重绑失效）", bi, cubes[0].TexSlot, want)
 		}
 	}
 }

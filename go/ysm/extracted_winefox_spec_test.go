@@ -46,7 +46,13 @@ func TestWineFoxBoatSpecTexIdx(t *testing.T) {
 					t.Errorf("boat mesh[%d].texIdx = %d, 期望 0", j, mesh.TexIdx)
 				}
 			}
-			t.Logf("✓ boat: %d 个 mesh，首项 texIdx=%d", len(doc.Models[i].MeshGroups), doc.Models[i].MeshGroups[0].TexIdx)
+			// 首项 texIdx 先守卫再读（code review：与上方 log 循环同款 len 检查，
+			// 空 meshGroups 时干净报错而非 index out of range panic 掩盖结果）
+			var firstTexIdx int
+			if len(doc.Models[i].MeshGroups) > 0 {
+				firstTexIdx = doc.Models[i].MeshGroups[0].TexIdx
+			}
+			t.Logf("✓ boat: %d 个 mesh，首项 texIdx=%d", len(doc.Models[i].MeshGroups), firstTexIdx)
 			return
 		}
 	}
