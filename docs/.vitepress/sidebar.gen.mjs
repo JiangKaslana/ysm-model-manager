@@ -284,6 +284,10 @@ export const autoSidebar = [
         "link": "/releases/v1.13.1"
       },
       {
+        "text": "v1.13.2 — 导入/启禁/去重修复 + 并行化与缓存优化",
+        "link": "/releases/v1.13.2"
+      },
+      {
         "text": "v1.2.0 — 开发者对比（技术细节）",
         "link": "/releases/v1.2.0-compare"
       },
