@@ -106,7 +106,7 @@ export function computeBoneLocalPos(
 
 - `keymap.ts` — 键位/相机偏好持久化（`loadTdKeymap` / `loadTdCamSpeed` / `loadTdRotMode`）
 - `debug-render.ts` — debug 叠加层渲染（pivot 标记 / 骨骼线框）
-- `model3d-spec.ts` — **历史 JS 兜底 spec 构建（已废弃不消费）**：与 Go `threejs.Build()` 口径不一致（cubePivot/cubeOrigin 不做 X 取反），保留仅作测试参考。`fetchSpec` 在桌面通道空 models throw，`buildSpecFromModel` 全项目无调用方
+- `model3d-spec.ts` — JS 端 spec 类型定义与 `buildSpecFromModel` 构建器；`CUBE_EPS` 被 cube-mesh.ts 消费（零厚度面修正/合并 epsilon 单点），`fetchSpec` 被 model3d-loader.ts 调用。与 Go `threejs.Build()` 口径不一致（cubePivot/cubeOrigin 不做 X 取反），仅作前端 spec 类型枢纽与测试黄金样本使用
 
 ## 加载/桥接层
 
