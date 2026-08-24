@@ -8,6 +8,7 @@
 
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuItemDef, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
 import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
+import { renderEnvLevel } from "./preview-menu-env.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { createSlideMenu, type SlideMenuView, type SlideMenuHandle } from "../../../ui/ui-slide-menu.ts";
 import { buildCameraControls, type CameraControlBridge } from "./camera-controls.ts";
@@ -545,7 +546,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   // 在函数末尾才构造——先声明占位，fillRoles 点击回调经闭包取用（调用时已赋值）。
   let menuHandleOut: PreviewMenuHandle | null = null;
   const fillers: Record<string, (list: HTMLElement, menu?: SlideMenuHandle) => void> = {
-    environment: (list, _menu) => fillEnvironment(list, ctx, menu),
+    environment: (list, menu) => renderEnvLevel(list, ctx, menu),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
     roles: (list, menu) => fillRoles(list, ctx, hideMenu, makeRow, makePanelView, menu!, (items) => menuHandleOut?.setAdapterItems(items)),
     lighting: (list) => fillLighting(list, ctx),
@@ -736,261 +737,6 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
  *    · ground：仅一个 visible toggle、无数值 → 纯 toggle 行，无 ›
  *  - › 点击 → menu.navigate(subView)，subView 渲染该 cap 的完整 getMenuControls()
  *  - 无 menu 句柄（旧调用路径）→ 回退到平铺渲染，保持向后兼容 */
-function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMenuHandle): void {
-  const ENV_IDS = new Set(["sky", "ground", "environment", "fog", "reflector"]);
-  let allCaps = sceneCapabilityRegistry.getAll().filter((cap) => ENV_IDS.has(cap.id));
-
-  // 注册表为空时回退到 ctx getter（测试场景）：把 skyCap/groundCap 当 cap 用
-  if (allCaps.length === 0) {
-    const skyCap = ctx.getSkyCap();
-    const groundCap = ctx.getGroundCap();
-    const fallback: SceneCapability[] = [];
-    if (skyCap && "getMenuControls" in skyCap) {
-      // 包装一层注入 id（fake cap 无 id 字段；注册表路径的 cap 自带 id）
-      fallback.push({
-        ...(skyCap as unknown as SceneCapability),
-        id: "sky",
-        labelKey: "preview.timeOfDay",
-        icon: "🌤️",
-        descKey: "",
-      });
-    }
-    if (groundCap && "getMenuControls" in groundCap) {
-      fallback.push({
-        ...(groundCap as unknown as SceneCapability),
-        id: "ground",
-        labelKey: "preview.ground",
-        icon: "🟫",
-        descKey: "",
-      });
-    }
-    allCaps = fallback;
-  }
-
-  if (allCaps.length === 0) {
-    const row = document.createElement("div");
-    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-    row.textContent = tr("preview.noEnvironment", "进入 3D 后再打开环境面板");
-    list.appendChild(row);
-    return;
-  }
-
-  // 无 menu 句柄 → 旧平铺路径（legacy 调用方）；collectAllControls 复用 allCaps
-  const collectAllControls = (): MenuControlDef[] => {
-    const controls: MenuControlDef[] = [];
-    allCaps.forEach((cap, idx) => {
-      if (idx > 0) {
-        controls.push({
-          id: "__divider_" + cap.id,
-          kind: "divider",
-          labelKey: "",
-          fallback: "",
-          getValue: () => false,
-          setValue: () => { /* 占位 */ },
-        });
-      }
-      controls.push(...cap.getMenuControls());
-    });
-    return controls;
-  };
-
-  if (!menu) {
-    renderCapControls(list, collectAllControls());
-    return;
-  }
-
-  // ── 预设快捷栏（第一层顶部）──
-  // 一排按钮：☀️工作室 / 🌅日落 / 🌙夜景 / 🌳森林 / 🌤️天空
-  // 点击 → ENV_PRESET_LINKAGE 联动 sky/fog/env，再 navigate 到 environment 子面板让用户看效果
-  const presetBar = document.createElement("div");
-  presetBar.style.cssText = "display:flex;gap:4px;padding:6px 10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.08)";
-  const PRESET_ORDER: Array<{ id: Exclude<EnvPresetId, "custom">; icon: string; labelKey: string }> = [
-    { id: "studio", icon: "☀️", labelKey: "preview.presetQuickStudio" },
-    { id: "sunset", icon: "🌅", labelKey: "preview.presetQuickSunset" },
-    { id: "night", icon: "🌙", labelKey: "preview.presetQuickNight" },
-    { id: "forest", icon: "🌳", labelKey: "preview.presetQuickForest" },
-    { id: "sky", icon: "🌤️", labelKey: "preview.presetQuickSky" },
-  ];
-
-  const applyPresetLinkage = (presetId: Exclude<EnvPresetId, "custom">): void => {
-    const link = ENV_PRESET_LINKAGE[presetId];
-    if (!link) return;
-
-    // sky 联动
-    if (link.sky) {
-      const skyCap = sceneCapabilityRegistry.getById("sky") as (SkyCapability & { setTime?(h: number): void; setCloudCoverage?(v: number, regen?: boolean): void }) | null;
-      if (skyCap) {
-        skyCap.setTime?.(link.sky.time);
-        skyCap.setCloudCoverage?.(link.sky.cloud, true);
-      } else {
-        // 回退 ctx getter（测试场景）
-        const fromCtx = ctx.getSkyCap() as (SkyCapability & { setTime?(h: number): void; setCloudCoverage?(v: number, regen?: boolean): void }) | null;
-        if (fromCtx) {
-          fromCtx.setTime?.(link.sky.time);
-          fromCtx.setCloudCoverage?.(link.sky.cloud, true);
-        }
-      }
-    }
-
-    // fog 联动
-    if (link.fog) {
-      const fogCap = sceneCapabilityRegistry.getById("fog") as FogCapability | null;
-      const target = fogCap ?? null;
-      if (target) {
-        target.setEnabled(link.fog.enabled);
-        if (link.fog.mode) target.setMode(link.fog.mode);
-        if (link.fog.density !== undefined) target.setDensity(link.fog.density);
-        if (link.fog.near !== undefined || link.fog.far !== undefined) {
-          target.setLinearRange(link.fog.near, link.fog.far);
-        }
-      }
-    }
-
-    // environment 联动：切 preset + intensity
-    const envCap = sceneCapabilityRegistry.getById("environment") as (import("../caps/environment-capability.ts").EnvironmentCapability) | null;
-    if (envCap) {
-      envCap.setPresetId(presetId);
-      if (link.envIntensity !== undefined) envCap.setIntensity(link.envIntensity);
-    }
-  };
-
-  PRESET_ORDER.forEach((p) => {
-    const btn = document.createElement("button");
-    btn.style.cssText = "flex:1;min-width:48px;padding:4px 6px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;background:transparent;color:rgba(255,255,255,0.85);cursor:pointer;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px";
-    const ic = document.createElement("span");
-    ic.textContent = p.icon;
-    ic.style.cssText = "font-size:14px";
-    const lb = document.createElement("span");
-    lb.textContent = tr(p.labelKey, p.id);
-    btn.append(ic, lb);
-    btn.onclick = (e: MouseEvent): void => {
-      e.stopPropagation();
-      applyPresetLinkage(p.id);
-      // 应用后刷新当前视图（让第一层各 cap 的主控件读最新值）
-      menu.refresh();
-    };
-    btn.dataset.testid = "env-preset-" + p.id;
-    presetBar.appendChild(btn);
-  });
-  list.appendChild(presetBar);
-
-  // 按 ENV_IDS 声明顺序渲染（注册顺序 = 菜单渲染顺序，见 scene_capability_registry 知识卡）
-  const orderedIds = ["sky", "ground", "environment", "fog", "reflector"];
-  const orderedCaps = orderedIds
-    .map((id) => allCaps.find((c) => c.id === id))
-    .filter((c): c is NonNullable<typeof c> => Boolean(c));
-
-  orderedCaps.forEach((cap) => {
-    const controls = cap.getMenuControls();
-    if (controls.length === 0) return;
-
-    // 第一层摘要行：第一个非 divider 控件作为该行的"主控件"
-    const primaryIdx = controls.findIndex((c) => c.kind !== "divider");
-    if (primaryIdx === -1) return;
-    const primary = controls[primaryIdx];
-    const hasSubPanel = controls.length > 1;
-
-    const row = document.createElement("div");
-    row.className = "slide-item";
-    row.dataset.testid = "cap-row-" + cap.id;
-    // hasSubPanel → 整行可点下钻（cursor:pointer）；纯开关行 → 默认 cursor
-    row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-
-    // 主控件渲染（toggle/slider 各自一行内控件）
-    // 主控件容器 stopPropagation：点 toggle/slider 不触发 row 下钻
-    const renderPrimaryInline = (): void => {
-      if (primary.kind === "toggle") {
-        const label = document.createElement("span");
-        label.className = "slide-label";
-        label.textContent = tr(primary.labelKey, primary.fallback);
-        label.style.cssText = "flex:1;font-size:13px";
-        const toggle = createHeaderToggle({
-          value: primary.getValue() as boolean,
-          onChange: (v: boolean): void => primary.setValue(v),
-          bind: (): boolean => primary.getValue() as boolean,
-        });
-        // toggle 点击不冒泡到 row（否则会触发下钻）
-        toggle.addEventListener("click", (e: MouseEvent): void => e.stopPropagation());
-        row.append(label, toggle);
-      } else if (primary.kind === "slider") {
-        // sky 特例：第一层直接放 sky-time slider（无 toggle）
-        const head = document.createElement("div");
-        head.style.cssText = "display:flex;flex-direction:column;gap:2px;flex:1;min-width:0";
-        const nameRow = document.createElement("div");
-        nameRow.style.cssText = "display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.85)";
-        const name = document.createElement("span");
-        name.className = "slide-label";
-        name.textContent = tr(primary.labelKey, primary.fallback);
-        const val = document.createElement("span");
-        const numVal = primary.getValue() as number;
-        val.textContent = primary.slider?.unit === "h"
-          ? `${String(Math.floor(numVal)).padStart(2, "0")}:${String(Math.round((numVal % 1) * 60)).padStart(2, "0")}`
-          : primary.slider?.unit === "%"
-            ? `${Math.round(numVal * 100)}%`
-            : primary.slider?.unit
-              ? `${numVal}${primary.slider.unit}`
-              : numVal.toFixed(2);
-        nameRow.append(name, val);
-        const slider = document.createElement("input");
-        slider.type = "range";
-        slider.min = String(primary.slider?.min ?? 0);
-        slider.max = String(primary.slider?.max ?? 1);
-        slider.step = String(primary.slider?.step ?? 0.01);
-        slider.value = String(numVal);
-        slider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-        slider.oninput = (): void => {
-          const v = Number(slider.value);
-          primary.setValue(v);
-          val.textContent = primary.slider?.unit === "h"
-            ? `${String(Math.floor(v)).padStart(2, "0")}:${String(Math.round((v % 1) * 60)).padStart(2, "0")}`
-            : primary.slider?.unit === "%"
-              ? `${Math.round(v * 100)}%`
-              : primary.slider?.unit
-                ? `${v}${primary.slider.unit}`
-                : v.toFixed(2);
-        };
-        // slider 所有指针事件不冒泡到 row，防 mousedown→drag→mouseup 冒泡触发整行下钻
-        slider.addEventListener("click", (e: MouseEvent): void => e.stopPropagation());
-        slider.addEventListener("mousedown", (e: MouseEvent): void => e.stopPropagation());
-        slider.addEventListener("touchstart", (e: TouchEvent): void => e.stopPropagation());
-        head.append(nameRow, slider);
-        row.appendChild(head);
-      } else {
-        // primary 是 select/button 等非 toggle/slider → 退化：整行点击下钻，不内联渲染
-        const label = document.createElement("span");
-        label.className = "slide-label";
-        label.textContent = tr(cap.labelKey, cap.id);
-        label.style.cssText = "flex:1;font-size:13px";
-        row.appendChild(label);
-      }
-    };
-
-    renderPrimaryInline();
-
-    // 整行可点下钻（仅 hasSubPanel）；› 箭头纯装饰（pointer-events:none）
-    if (hasSubPanel) {
-      row.style.cursor = "pointer";
-      row.onclick = (): void => {
-        menu.navigate({
-          title: tr(cap.labelKey, cap.id),
-          render: (subList: HTMLElement): void => {
-            subList.innerHTML = "";
-            renderCapControls(subList, controls);
-          },
-        });
-      };
-      const chev = document.createElement("span");
-      chev.textContent = "›";
-      chev.dataset.testid = "row-chevron";
-      // 装饰性：不抢点击、不改变 cursor（row 已 pointer）
-      chev.style.cssText = "margin-left:auto;font-size:18px;font-weight:700;opacity:0.5;user-select:none;padding:0 4px;pointer-events:none";
-      row.appendChild(chev);
-    }
-
-    list.appendChild(row);
-  });
-}
-
 /** 上次选中的类型 tab 持久化键（全局记忆，跨模型/跨会话）："" = 当前目录 */
 const PREVIEW_LAST_RTYPE_KEY = "ysm.preview.lastRtype";
 
@@ -998,7 +744,7 @@ const PREVIEW_LAST_RTYPE_KEY = "ysm.preview.lastRtype";
  *  默认高亮优先级：① 用户手动记忆的类型（localStorage）② 当前模型自身类型（getCurrentRtype）
  *  ③ 第一个类型 tab。「当前目录」tab 已移除（记忆/当前类型生效后可少一个 tab）；
  *  rtypes 为空（无注册路由）时仍走 siblings 列表兜底，不空白。 */
-function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void, menu: SlideMenuHandle): void {
+function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, menu: SlideMenuHandle): void {
   const cur = ctx.getCurrentPath();
   const rtypes = ctx.getTypeTabs?.() ?? [];
   const curRtype = ctx.getCurrentRtype?.() ?? "";
@@ -1123,7 +869,8 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
               ? ctx.switchExternal(p, ctx.getSiblings(), { keepInScene: true })
               : ctx.switchTo(p, { keepInScene: true });
             if (r && typeof (r as Promise<void>).then === "function") {
-              void (r as Promise<void>).then(() => menu.refresh());
+              // 失败已由 mount 层 .catch(logWarn) 记录，这里吞掉避免 unhandled rejection
+              void (r as Promise<void>).then(() => menu.refresh()).catch(() => {});
             }
           };
           row.appendChild(append);
@@ -1134,7 +881,8 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
             ? ctx.switchExternal(p, ctx.getSiblings())
             : ctx.switchTo(p);
           if (r && typeof (r as Promise<void>).then === "function") {
-            void (r as Promise<void>).then(() => menu.refresh());
+            // 失败已由 mount 层 .catch(logWarn) 记录，这里吞掉避免 unhandled rejection
+            void (r as Promise<void>).then(() => menu.refresh()).catch(() => {});
           }
         };
         listBody.appendChild(row);
@@ -1505,7 +1253,7 @@ function fillRoles(
   const sep = document.createElement("div");
   sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
   list.appendChild(sep);
-  fillSwitch(list, ctx, closePopup, menu);
+  fillSwitch(list, ctx, menu);
 }
 
 /** 能力面板通用渲染：cap 存在 → renderCapControls；不存在 → 渲染单行 fallback 提示 */
