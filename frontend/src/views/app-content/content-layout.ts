@@ -42,10 +42,9 @@ export const contentLayoutCSS: string = `
 ${btnBaseCSS}
 ${focusVisibleCSS}
 
-/* ===== 旧按钮兼容层（逐步替换为 .btn-base 后删除） ===== */
-.hdr-btn { padding:var(--pad-btn-primary) 8px; border-radius:var(--radius-sm); border:1px solid var(--bd); background:transparent; color:var(--txt); cursor:pointer; font-size:var(--fs-btn-primary); font-family:inherit; }
-.hdr-btn:hover { background:var(--hover); }
-.hdr-btn.accent { background:var(--accent-btn-bg); color:var(--accent-btn-color); border-color:var(--accent-btn-border); }
+/* ===== 旧按钮兼容层 ===== */
+/* .hdr-btn 已删除：app-tree/app-tree-styles.ts 有独立定义且 tpl 已改用 .btn-base（见其 L41 注释），content-layout 内为死代码 */
+/* .btn 裸类仅设置页 3 处遗留（tpl-settings.ts:90,96 / path-cards.ts:244），待迁移 .btn-base 后删除 */
 .btn { padding:var(--pad-btn-primary) 8px; border-radius:var(--radius-sm); border:1px solid var(--bd); background:transparent; color:var(--txt); cursor:pointer; font-size:var(--fs-btn-primary); font-family:inherit; transition:background var(--tr-fast); }
 .btn:hover { background:var(--hover); }
 .btn.accent { background:var(--accent-btn-bg); color:var(--accent-btn-color); border-color:var(--accent-btn-border); }
