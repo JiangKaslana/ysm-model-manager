@@ -500,6 +500,8 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   };
   // 根级 ✕（SlideMenu onClose）语义 = 关闭整个 3D 预览（对齐旧 close 菜单项）
   menu.setOnClose(() => {
+    // 【临时诊断】菜单根级 ✕ / ←（栈根时）触发关闭——若替换后误触此处则面板/预览消失
+    logWarn("preview-close", "menu.setOnClose 触发——根级 ✕/← 关闭整个 3D 预览");
     hideMenu();
     ctx.close();
   });
