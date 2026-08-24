@@ -276,7 +276,7 @@ async function reload(vm: AppTree): Promise<void> {
     const App = await getApp();
     if (App.ClearScanCache) await App.ClearScanCache();
     // 同步清除 JS 侧社区缓存，确保导入/删除后创作者/扫描数据即时更新
-    import("../../views/app-content/community-data.ts").then(m => m.clearAllCommunityCache()).catch(() => {});
+    import("../../views/app-content/community-data.ts").then(m => m.clearAllCommunityCache()).catch((e) => console.warn("[app-tree] clearAllCommunityCache:", e));
   } catch (e) { console.warn("[app-tree] ClearScanCache:", e); }
   const gen = vm._gen; // P2-1 代际捕获（不 ++，避免打断 connected 初始渲染）
   try {
