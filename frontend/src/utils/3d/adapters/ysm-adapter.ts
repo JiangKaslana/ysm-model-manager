@@ -8,7 +8,7 @@
 // WASM/Go 兜底，由 skeleton 层注入），switchTo(newPath) 对 YSM 生效。
 //
 // YSM 特色保留：骨骼射线拾取（绑核心 renderer.domElement）、声明式根菜单专属项
-// （model/截图/骨骼 经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单，ADR-076 v2 Phase 2）。
+// （model/截图/骨骼 经 built.menuItems 由 mount 层统一 feed dock + 角色详情归口，ADR-076 v2 Phase 2、ADR-093）。
 // 已知降级（后续补）：调试模式（F 键 normal/pivot/bone 可视化）暂不接入 shared。
 // ⚠️ 已解除：F 键调试模式现已接入 shared 模式，经 rebuildDebug 复用旧 renderModel3D 的
 // 相同逻辑（pivot 线 + 骨骼连接 + Sprite 标签），与旧单例路径行为一致。
@@ -295,7 +295,8 @@ export async function buildYsmScene(
     fillPlayPanel: opts.fillPlayPanel,
     perception: { state: perceptionState, caps: perceptionCaps },
   });
-  ctx.menu.setAdapterItems(menuItems);
+  // dock 🧍 平铺 + 角色详情归口统一走 built.menuItems（mount 层统一 feed/注册，对齐 litematic 范本），
+  // 不再在此直调 ctx.menu.setAdapterItems，避免双 feed 导致 dock 重复三连。
 
   // ---- F 键调试模式（旧 renderModel3D 功能，shared 模式接入）----
   // 三态循环：normal（无调试）→ pivot（pivot 线 + 标签）→ bone（骨骼连接线）→ normal

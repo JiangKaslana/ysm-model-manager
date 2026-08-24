@@ -116,7 +116,7 @@ describe("角色面板（roles）", () => {
     handle.dispose();
   });
 
-  it("点击角色名 → 详情子面板按该角色 menuItems（model 组 panel）列出，点击项渲染其面板", () => {
+  it("dock-model 直达活跃角色详情（1 跳）；详情「切换角色 ›」回列表后点角色名仍进详情", () => {
     const matPanel: PreviewMenuItemDef = {
       id: "material",
       icon: "🎨",
@@ -130,13 +130,19 @@ describe("角色面板（roles）", () => {
     };
     regRole("/m/a.ysm", [matPanel]);
     const handle = mountPreviewRootMenu(overlay, makeCtx());
+    // 1) dock 🧍 捷径：活跃角色有其 menuItems → 直达其详情，模型面板项直接可见（1 跳模型信息）
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
-    const aRow = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="m1"]`);
-    (aRow!.querySelector('[data-testid="preview-role-name"]') as HTMLElement).click();
-    // 详情子面板：material 行出现（makeRow 的 testid = preview-<id>）
     const matRow = overlay.querySelector('[data-testid="preview-material"]');
     expect(matRow).not.toBeNull();
-    (matRow as HTMLElement).click();
+    // 2) 详情顶部「切换角色 ›」→ 回角色列表（多角色同框仍可达）
+    (overlay.querySelector('[data-testid="preview-role-switch"]') as HTMLElement).click();
+    const aRow = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="m1"]`);
+    expect(aRow).not.toBeNull();
+    // 3) 点角色名 → 仍进详情，点击项渲染其面板
+    (aRow!.querySelector('[data-testid="preview-role-name"]') as HTMLElement).click();
+    const matRow2 = overlay.querySelector('[data-testid="preview-material"]');
+    expect(matRow2).not.toBeNull();
+    (matRow2 as HTMLElement).click();
     expect(overlay.textContent).toContain("MAT-PANEL");
     handle.dispose();
   });

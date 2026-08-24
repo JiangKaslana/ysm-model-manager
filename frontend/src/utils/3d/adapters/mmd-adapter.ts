@@ -857,7 +857,8 @@ export async function buildMmdScene(
       : null,
     perception: { state: perceptionState, caps: perceptionCaps },
   });
-  ctx.menu.setAdapterItems(items);
+  // dock 🧍 平铺 + 角色详情归口统一走 built.menuItems（mount 层统一 feed/注册，对齐 litematic 范本），
+  // 不再在此直调 ctx.menu.setAdapterItems，否则该角色详情将无可查看项。
 
   // MMD 语义骨骼：候选名匹配表移植自 MikuMikuAR motion-algos；消费方读取驱动感知层
   const semanticBones = boneTree ? mmdSemanticBoneMap(boneTree) : undefined;
@@ -882,6 +883,8 @@ export async function buildMmdScene(
   const footIK = createFootIKController(boneTree, semanticBones);
 
   const result: PreviewScene = {
+    // dock 🧍 平铺 + 角色详情归口：built.menuItems 由 mount 层统一 feed/注册（对齐 litematic 范本）
+    menuItems: items,
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
     update: (dt: number): void => {
       // 轨道相机：推进相机动画并同步到真实相机/controls（VMD 相机关键帧驱动，ADR 轨道相机）。

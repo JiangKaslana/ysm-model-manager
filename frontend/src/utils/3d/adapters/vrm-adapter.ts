@@ -297,8 +297,9 @@ export async function buildVrmScene(
     { id: "blink", labelKey: "preview.perceptionBlink", fallback: "眨眼" },
   ];
 
-  ctx.menu.setAdapterItems(
-    vrmMenuItems({
+  // dock 🧍 平铺 + 角色详情归口统一走 built.menuItems（mount 层统一 feed/注册，对齐 litematic 范本），
+  // 不再在此直调 ctx.menu.setAdapterItems，否则该角色详情将无可查看项。
+  const menuItems = vrmMenuItems({
       panels,
       screenshot: () => Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
       modelPanel: panels?.makeModelPanelRenderer,
@@ -341,8 +342,7 @@ export async function buildVrmScene(
           }
         : null,
       perception: { state: perceptionState, caps: perceptionCaps },
-    }),
-  );
+  });
 
   // VRM humanoid 天然语义化：humanBones 键即语义名，零候选匹配直产映射
   const semanticBones = vrmSemanticBoneMap(vrm.humanoid.humanBones);
@@ -384,6 +384,8 @@ export async function buildVrmScene(
     ok: true,
   });
   return {
+    // dock 🧍 平铺 + 角色详情归口：built.menuItems 由 mount 层统一 feed/注册（对齐 litematic 范本）
+    menuItems,
     // VRM 动态部分（VRMA 动画 + SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
     update: (dt: number): void => {
       if (!vrm.scene.visible) return; // Frustum Culling 不可见 → 跳过 springBone/感知层，省 CPU

@@ -616,11 +616,27 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       btn.innerHTML = `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
         e.stopPropagation();
-        // 模型组：🧍 永远快捷直达 roles 面板（角色级管理，多角色同框核心）。
-        // 单模型实例工具（模型信息/截图/骨骼/材料）保留 dockGroup:"model" 不变，
+        // 模型组：🧍 若存在活跃角色且有其技能（menuItems）→ 直达其详情（1 跳模型信息，多角色同框走详情内「切换角色」）；
+        // 否则回退直达 roles 列表。单模型实例工具（模型信息/截图/骨骼/材料）保留 dockGroup:"model" 不变，
         // 下沉到角色详情内可达（roleDetailView 按 dockGroup:"model" 过滤 entry.menuItems）。
         if (g.id === "model") {
           const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
+          // dock 🧍 捷径：存在活跃角色且有其技能（menuItems）→ 直达该角色详情（1 跳模型信息，呼应「最想进入」），
+          // 详情顶部带「切换角色 ›」返回角色列表（多角色同框仍可达）
+          const active = sceneRegistry.getActiveId()
+            ? sceneRegistry.getAll().find((x) => x.id === sceneRegistry.getActiveId())
+            : undefined;
+          if (active?.menuItems) {
+            showMenu(roleDetailView(active, {
+              makeRow,
+              makePanelView,
+              menu,
+              onSwitchRole: () => {
+                if (rolesDef) showMenu(makePanelView(rolesDef));
+              },
+            }));
+            return;
+          }
           if (rolesDef) {
             showMenu(makePanelView(rolesDef));
             return;
@@ -1132,6 +1148,60 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
  * 间接解决不同格式可查看内容不一致的问题）、行尾 ⚙ 进工具面板（卸载角色，
  * 少用但重要）；底部复用 fillSwitch 加载入口（siblings + 类型 tab）。
  */
+/** 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移） */
+function roleBaseName(e: ModelEntry): string {
+  return e.path.split(/[/\\]/).pop() || e.path;
+}
+
+/**
+ * 角色详情子面板：该角色 menuItems 的 model 组 panel 项（各适配器能力内显示）。
+ * 模块级共享：fillRoles 点角色名进入；dock 🧍 捷径当存在活跃角色 menuItems 时直接进入（1 跳直达模型信息）。
+ * onSwitchRole（可选）→ 详情顶部渲染「切换角色 ›」行（dock 捷径直达时回角色列表；fillRoles 内由 back 返回即可，不再加）。
+ */
+function roleDetailView(
+  e: ModelEntry,
+  deps: {
+    makeRow: (def: PreviewMenuItemDef, opts?: { chevron?: boolean }) => HTMLElement;
+    makePanelView: (def: PreviewMenuItemDef) => SlideMenuView;
+    menu: SlideMenuHandle;
+    onSwitchRole?: () => void;
+  },
+): SlideMenuView {
+  const items = (e.menuItems ?? []).filter((d) => d.kind === "panel" && d.dockGroup === "model");
+  return {
+    title: roleBaseName(e),
+    render: (l) => {
+      l.innerHTML = "";
+      if (deps.onSwitchRole) {
+        const switchRow = document.createElement("div");
+        switchRow.dataset.testid = "preview-role-switch";
+        switchRow.style.cssText =
+          "display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.85)";
+        switchRow.textContent = "🎭 " + tr("preview.switchRole", "切换角色 ›");
+        switchRow.onclick = (): void => { deps.onSwitchRole!(); };
+        l.appendChild(switchRow);
+        const sep = document.createElement("div");
+        sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
+        l.appendChild(sep);
+      }
+      if (items.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+        empty.textContent = tr("preview.roleNoDetail", "（该角色无可查看项）");
+        l.appendChild(empty);
+        return;
+      }
+      items.forEach((def) => {
+        const row = deps.makeRow(def, { chevron: true });
+        row.onclick = (): void => {
+          deps.menu.navigate(deps.makePanelView(def));
+        };
+        l.appendChild(row);
+      });
+    },
+  };
+}
+
 function fillRoles(
   list: HTMLElement,
   ctx: PreviewMenuCtx,
@@ -1142,7 +1212,6 @@ function fillRoles(
   setAdapterItems: (items: PreviewMenuItemDef[]) => void,
 ): void {
   list.innerHTML = "";
-  const base = (e: ModelEntry): string => e.path.split(/[/\\]/).pop() || e.path;
 
   // ---- 角色列表区（radio 焦点 + 名字详情 + ⚙ 工具）----
   const rolesBox = document.createElement("div");
@@ -1189,11 +1258,11 @@ function fillRoles(
       // 角色名：点击 → 详情子面板（该角色能力内的 model 组面板项）
       const name = document.createElement("span");
       name.dataset.testid = "preview-role-name";
-      name.textContent = base(e);
+      name.textContent = roleBaseName(e);
       name.title = e.path;
       name.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
       row.onclick = (): void => {
-        menu.navigate(roleDetailView(e));
+        menu.navigate(roleDetailView(e, { makeRow, makePanelView, menu }));
       };
       // 行尾 ⚙：工具面板（卸载角色等少用但重要操作）
       const tools = document.createElement("button");
@@ -1211,32 +1280,9 @@ function fillRoles(
     }
   };
 
-  // ---- 角色详情子面板：该角色 menuItems 的 model 组 panel 项（各适配器能力内显示）----
-  const roleDetailView = (e: ModelEntry): SlideMenuView => ({
-    title: base(e),
-    render: (l) => {
-      l.innerHTML = "";
-      const items = (e.menuItems ?? []).filter((d) => d.kind === "panel" && d.dockGroup === "model");
-      if (items.length === 0) {
-        const empty = document.createElement("div");
-        empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-        empty.textContent = tr("preview.roleNoDetail", "（该角色无可查看项）");
-        l.appendChild(empty);
-        return;
-      }
-      items.forEach((def) => {
-        const row = makeRow(def, { chevron: true });
-        row.onclick = (): void => {
-          menu.navigate(makePanelView(def));
-        };
-        l.appendChild(row);
-      });
-    },
-  });
-
   // ---- 工具子面板：少用但重要（卸载角色）----
   const toolsView = (e: ModelEntry): SlideMenuView => ({
-    title: `${base(e)} ${tr("preview.roleTools", "模型工具")}`,
+    title: `${roleBaseName(e)} ${tr("preview.roleTools", "模型工具")}`,
     render: (l) => {
       l.innerHTML = "";
       const unload = document.createElement("div");
