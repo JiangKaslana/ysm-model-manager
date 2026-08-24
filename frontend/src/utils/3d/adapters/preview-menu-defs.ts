@@ -4,6 +4,16 @@
 // 渲染与 handler 见 preview-menu.ts；测试遍历本表 + 适配器真实注入项断言结构与
 // dock 渲染（preview-menu-items.test.ts，对齐 MikuMikuAR 声明式菜单测试范式）。
 //
+// ⚠️ 与声明式节点类型的映射（方案 A 第 1 步，见 preview-menu-node-types.ts）：
+// 本文件 PreviewMenuItemDef 是 flat 面板项（dock 壳用）；未来声明式渲染器按
+// preview-menu-node-types.ts 的 PreviewMenuNode（含 children / visibleWhen / control）
+// 递归渲染。两者关系：
+//   PreviewMenuItemDef.render  → PreviewMenuNode.renderCustom（逃生舱）
+//   PreviewMenuItemDef.run     → PreviewMenuNode.action
+//   PreviewMenuItemDef.dockGroup / sharedOnly / requiresEnvironment → 节点同名字段
+// 迁移路径：新菜单项优先写成 PreviewMenuNode（可嵌套、可守卫），存量 flat 项经
+// 逃生舱过渡，逐步把高频面板（模型信息/截图/骨骼）迁成数据节点。
+//
 // 能力驱动显示（用户 2026-08-16 决策 + 2026-08-19 环境拆组）：
 // - 有骨骼/模型工具（适配器注入 model 组项）→ 显示「🧍 模型」
 // - 有动作/播放（适配器注入 motion 组项）→ 显示「💃 动作」
