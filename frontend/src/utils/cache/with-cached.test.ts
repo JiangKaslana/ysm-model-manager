@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { withCached, invalidateCache, clearAllCache, getCacheTtlMs, type CachePolicy } from "./with-cached.ts";
+import { withCached, invalidateCache, clearAllCache, getCacheTtlMs } from "./with-cached.ts";
 
 beforeEach(() => {
   // 清除缓存状态

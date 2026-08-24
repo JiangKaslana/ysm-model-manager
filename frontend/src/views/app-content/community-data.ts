@@ -337,7 +337,13 @@ async function _fetchCommunitySitesRaw(mirror?: string): Promise<WorkshopSite[]>
       label: "⏳ 站点索引: api…",
     },
   ];
-  return fetchWithFallback<WorkshopSite>(attempts, mirror);
+  const sites = await fetchWithFallback<WorkshopSite>(attempts, mirror);
+  // 全部源失败 → fetchWithFallback 返回 []
+  // 抛错让 withCached 不缓存失败结果（失败不缓存契约）
+  if (sites.length === 0) {
+    throw new Error("fetchCommunitySites: all sources failed");
+  }
+  return sites;
 }
 
 /**

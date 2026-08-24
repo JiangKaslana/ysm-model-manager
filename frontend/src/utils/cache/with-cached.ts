@@ -72,9 +72,10 @@ export async function withCached<T>(
     // 过期但返回旧值，后台刷新（并发去重）
     dbg("cache", `[stale] ${fullKey} 已过期，返回旧值并后台刷新`);
     if (!_pending.has(fullKey)) {
-      const p = refreshInBackground(fullKey, ttlMs, fn)
-        .catch((e) => dbg("cache", `refreshInBackground ${fullKey} 失败:`, e));
+      // 存 typed Promise<T>，让并发 NORMAL awaiter 拿到 T 而非 undefined
+      const p = refreshInBackground(fullKey, ttlMs, fn) as Promise<unknown>;
       _pending.set(fullKey, p);
+      p.catch((e) => dbg("cache", `refreshInBackground ${fullKey} 失败:`, e));
       p.finally(() => _pending.delete(fullKey));
     }
     return entry.value;
@@ -108,19 +109,21 @@ export async function withCached<T>(
   );
 }
 
-/** 后台刷新缓存（不阻塞调用方） */
+/** 后台刷新缓存（不阻塞调用方），返回刷新后的值供 _pending awaiter 复用 */
 async function refreshInBackground<T>(
   fullKey: string,
   ttlMs: number,
   fn: () => Promise<T>,
-): Promise<void> {
+): Promise<T> {
   try {
     const value = await fn();
     _cache.set(fullKey, { value, expiryMs: Date.now() + ttlMs });
     dbg("cache", `[refresh] ${fullKey} 刷新成功`);
+    return value;
   } catch (e) {
     dbg("cache", `[refresh-fail] ${fullKey}:`, e);
-    // 刷新失败不删除旧缓存，维持 STALE 值
+    // 刷新失败不删除旧缓存，维持 STALE 值；rethrow 让 _pending awaiter 知晓
+    throw e;
   }
 }
 
@@ -150,10 +153,10 @@ export function clearAllCache(namespace?: string): void {
   }
 }
 
-/** 获取缓存条目的剩余 TTL（毫秒），未命中返回 -1 */
+/** 获取缓存条目的剩余 TTL（毫秒），未命中或已过期返回 -1 */
 export function getCacheTtlMs(key: string, namespace?: string): number {
   const fullKey = mkKey(namespace ?? DEFAULT_NS, key);
   const entry = _cache.get(fullKey) as CacheEntry<unknown> | undefined;
-  if (!entry) return -1;
-  return Math.max(0, entry.expiryMs - Date.now());
+  if (!entry || Date.now() >= entry.expiryMs) return -1;
+  return entry.expiryMs - Date.now();
 }
