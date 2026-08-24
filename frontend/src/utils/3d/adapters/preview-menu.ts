@@ -616,13 +616,11 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       btn.innerHTML = `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
         e.stopPropagation();
-        // 模型组：🧍 若存在活跃角色且有其技能（menuItems）→ 直达其详情（1 跳模型信息，多角色同框走详情内「切换角色」）；
-        // 否则回退直达 roles 列表。单模型实例工具（模型信息/截图/骨骼/材料）保留 dockGroup:"model" 不变，
-        // 下沉到角色详情内可达（roleDetailView 按 dockGroup:"model" 过滤 entry.menuItems）。
-        if (g.id === "model") {
+        // 模型组 + 动作组：存在活跃角色且有其技能（menuItems）→ 直达其详情，分别聚焦「模型/动作」section（1 跳）；
+        // 否则回退 roles 列表（模型）/ 通用组根（动作）。per-model 工具（信息/截图/骨骼）+ play/perception
+        // 统一收进角色详情（roleDetailView 按 dockGroup 过滤 entry.menuItems 并分 section）。多角色同框走详情内「切换角色」。
+        if (g.id === "model" || g.id === "motion") {
           const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
-          // dock 🧍 捷径：存在活跃角色且有其技能（menuItems）→ 直达该角色详情（1 跳模型信息，呼应「最想进入」），
-          // 详情顶部带「切换角色 ›」返回角色列表（多角色同框仍可达）
           const active = sceneRegistry.getActiveId()
             ? sceneRegistry.getAll().find((x) => x.id === sceneRegistry.getActiveId())
             : undefined;
@@ -631,13 +629,14 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
               makeRow,
               makePanelView,
               menu,
+              initialSection: g.id === "motion" ? "motion" : "model",
               onSwitchRole: () => {
                 if (rolesDef) showMenu(makePanelView(rolesDef));
               },
             }));
             return;
           }
-          if (rolesDef) {
+          if (g.id === "model" && rolesDef) {
             showMenu(makePanelView(rolesDef));
             return;
           }
@@ -1158,6 +1157,57 @@ function roleBaseName(e: ModelEntry): string {
  * 模块级共享：fillRoles 点角色名进入；dock 🧍 捷径当存在活跃角色 menuItems 时直接进入（1 跳直达模型信息）。
  * onSwitchRole（可选）→ 详情顶部渲染「切换角色 ›」行（dock 捷径直达时回角色列表；fillRoles 内由 back 返回即可，不再加）。
  */
+/** 角色详情子面板内的单个能力分组 section（模型/动作），可折叠；initialSection 决定默认展开哪个 */
+function renderRoleSection(
+  l: HTMLElement,
+  cfg: {
+    testid: string;
+    titleKey: string;
+    fallback: string;
+    items: PreviewMenuItemDef[];
+    collapsed: boolean;
+    makeRow: (def: PreviewMenuItemDef, opts?: { chevron?: boolean }) => HTMLElement;
+    makePanelView: (def: PreviewMenuItemDef) => SlideMenuView;
+    menu: SlideMenuHandle;
+  },
+): void {
+  if (cfg.items.length === 0) return;
+  const section = document.createElement("div");
+  section.dataset.testid = cfg.testid;
+  const header = document.createElement("div");
+  header.className = "cap-section-header";
+  header.style.cssText =
+    "display:flex;align-items:center;gap:6px;padding:8px 10px;min-height:32px;cursor:pointer;user-select:none;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+  const arrow = document.createElement("span");
+  arrow.textContent = cfg.collapsed ? "▸" : "▾";
+  arrow.style.cssText = "font-size:10px;display:inline-block";
+  const title = document.createElement("span");
+  title.textContent = tr(cfg.titleKey, cfg.fallback);
+  header.append(arrow, title);
+  const body = document.createElement("div");
+  body.style.cssText = "display:" + (cfg.collapsed ? "none" : "block");
+  header.addEventListener("click", (ev: MouseEvent): void => {
+    ev.stopPropagation();
+    const nowCollapsed = body.style.display === "none";
+    body.style.display = nowCollapsed ? "block" : "none";
+    arrow.textContent = nowCollapsed ? "▾" : "▸";
+  });
+  cfg.items.forEach((def) => {
+    const row = cfg.makeRow(def, { chevron: true });
+    row.onclick = (): void => {
+      cfg.menu.navigate(cfg.makePanelView(def));
+    };
+    body.appendChild(row);
+  });
+  section.append(header, body);
+  l.appendChild(section);
+}
+
+/**
+ * 角色详情子面板：该角色 menuItems 的 model/motion 组 panel 项，按「模型/动作」两 section 渲染。
+ * 模块级共享：fillRoles 点角色名进入；dock 🧍（初始模型 section）/💃（初始动作 section）捷径直达。
+ * onSwitchRole（可选）→ 详情顶部渲染「切换角色 ›」行（dock 捷径直达时回角色列表；fillRoles 内由 back 返回即可，不再加）。
+ */
 function roleDetailView(
   e: ModelEntry,
   deps: {
@@ -1165,9 +1215,11 @@ function roleDetailView(
     makePanelView: (def: PreviewMenuItemDef) => SlideMenuView;
     menu: SlideMenuHandle;
     onSwitchRole?: () => void;
+    initialSection?: "model" | "motion";
   },
 ): SlideMenuView {
-  const items = (e.menuItems ?? []).filter((d) => d.kind === "panel" && d.dockGroup === "model");
+  const modelItems = (e.menuItems ?? []).filter((d) => d.kind === "panel" && d.dockGroup === "model");
+  const motionItems = (e.menuItems ?? []).filter((d) => d.kind === "panel" && d.dockGroup === "motion");
   return {
     title: roleBaseName(e),
     render: (l) => {
@@ -1184,19 +1236,32 @@ function roleDetailView(
         sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
         l.appendChild(sep);
       }
-      if (items.length === 0) {
+      if (modelItems.length === 0 && motionItems.length === 0) {
         const empty = document.createElement("div");
         empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
         empty.textContent = tr("preview.roleNoDetail", "（该角色无可查看项）");
         l.appendChild(empty);
         return;
       }
-      items.forEach((def) => {
-        const row = deps.makeRow(def, { chevron: true });
-        row.onclick = (): void => {
-          deps.menu.navigate(deps.makePanelView(def));
-        };
-        l.appendChild(row);
+      renderRoleSection(l, {
+        testid: "preview-role-model",
+        titleKey: "preview.roleModelSection",
+        fallback: "模型",
+        items: modelItems,
+        collapsed: deps.initialSection === "motion",
+        makeRow: deps.makeRow,
+        makePanelView: deps.makePanelView,
+        menu: deps.menu,
+      });
+      renderRoleSection(l, {
+        testid: "preview-role-motion",
+        titleKey: "preview.roleMotionSection",
+        fallback: "动作",
+        items: motionItems,
+        collapsed: deps.initialSection === "model",
+        makeRow: deps.makeRow,
+        makePanelView: deps.makePanelView,
+        menu: deps.menu,
       });
     },
   };

@@ -289,15 +289,15 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
       expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).toBeNull();
     });
 
-    // 多 panel 组（play + perception）→ 渲染组根行列表
+    // 单 panel 组（motion 组仅 play 一项，fakeMmdOpts 无 perception）→ 快捷直达 play 面板（不渲染组根行）
     const motionGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "motion")!.id;
     const motionBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${motionGroupId}"]`);
     expect(motionBtn).not.toBeNull();
     motionBtn!.click();
-    const adapterDockMotion = deriveTestIds(items.filter((d) => d.dockGroup === "motion"));
-    adapterDockMotion.forEach((tid) => {
-      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
-    });
+    // 组内仅 1 panel → 直达其面板（play 控件出现），而非组根行
+    const playPanelBtn = overlay.querySelector("#mmd-play-btn");
+    expect(playPanelBtn).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-play"]')).toBeNull();
     handle.dispose();
   });
 
@@ -327,17 +327,17 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const sceneBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${sceneGroupId}"]`);
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
-    // scene 组菜单项从 CORE_MENU_ITEMS 推导（camera 已移至 motion，environment 已拆离）
+    // scene 组菜单项从 CORE_MENU_ITEMS 推导（camera/lighting/shadow/postproc 全在 scene；environment 已拆离）
     const sceneCoreItems = CORE_MENU_ITEMS.filter(
-      (d) => d.dockGroup === "scene" && d.id !== "camera" && d.id !== "environment",
+      (d) => d.dockGroup === "scene" && d.id !== "environment",
     );
     for (const eid of deriveTestIds(sceneCoreItems)) {
       expect(overlay.querySelector(`[data-testid="${eid}"]`), eid).not.toBeNull();
     }
-    // camera / environment 从 CORE_MENU_ITEMS 推导 testId，验证不在 scene 组渲染
+    // camera 属 scene 组 → 出现；environment 属 env 组 → 不在 scene 渲染
     const camId = CORE_MENU_ITEMS.find((d) => d.id === "camera")!.id;
     const envId = CORE_MENU_ITEMS.find((d) => d.id === "environment")!.id;
-    expect(overlay.querySelector(`[data-testid="preview-${camId}"]`)).toBeNull();
+    expect(overlay.querySelector(`[data-testid="preview-${camId}"]`)).not.toBeNull();
     expect(overlay.querySelector(`[data-testid="preview-${envId}"]`)).toBeNull();
     // 环境组独立 root 按钮存在（有 fakeCap → requiresEnvironment 放行）
     const envGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "env")!.id;

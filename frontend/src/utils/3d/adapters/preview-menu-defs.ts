@@ -93,8 +93,7 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     labelKey: "preview.cameraView",
     fallback: "视图",
     kind: "panel",
-    sharedOnly: true,
-    dockGroup: "motion",
+    dockGroup: "scene",
   },
   {
     id: "lighting",
