@@ -190,6 +190,7 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int, int, error) {
 	installer.InstallLock.Lock()
 	defer installer.InstallLock.Unlock()
+	defer InvalidateSyncScanCaches() // 启禁会改实例目录名，清同步扫盘缓存防陈旧
 	if scanFn == nil {
 		return 0, 0, fmt.Errorf("scanFn 为空")
 	}
@@ -365,11 +366,20 @@ func SyncResourcesWithConfig(globalDir, instanceDir string, config *types.SyncCo
 	// collect 全树递归扫描一侧目录：文件条目 + 资源包文件夹条目。
 	// key 为相对路径（relKey），过滤与归一化统一走 types，对比归并统一走
 	// ResourceDiff（ADR-064：scanner 口径 + 单点对比，消除手工对齐漂移）。
+	// 结果叠 30s sync 目录扫描缓存：同一 root+rtype 在 TTL 内只真正 Walk 一次。
 	collect := func(rootDir string) map[string]DiffEntry {
+		cacheKey := syncDirectoryScanKey{kind: "resources", root: rootDir, rtype: rtypeID}
+		if cached, ok := loadSyncScanCache[map[string]DiffEntry](&syncResourcesScanCache, cacheKey); ok {
+			return cached
+		}
+		rootFailed := false
 		entries := make(map[string]DiffEntry)
 		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				log.Printf("[sync] Walk 错误 %s: %v", path, err)
+				if path == rootDir {
+					rootFailed = true
+				}
 				return nil
 			}
 			if info.IsDir() {
@@ -393,6 +403,9 @@ func SyncResourcesWithConfig(globalDir, instanceDir string, config *types.SyncCo
 			}
 			return nil
 		})
+		if !rootFailed {
+			storeSyncScanCache(&syncResourcesScanCache, cacheKey, entries)
+		}
 		return entries
 	}
 

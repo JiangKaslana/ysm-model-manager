@@ -223,6 +223,7 @@ func relKeyDirLevel(root, path string, isDir bool) string {
 //   - 平铺模型文件在任意深度收集
 //   - 模型文件夹在任意深度收集
 //   - 非模型空子目录跳过（SkipDir 优化），避免无意义遍历
+//
 // ScanEntriesFn 可选注入：复用 scanner 已缓存的扫描结果，避免对已被扫描层走盘过的
 // 目录（如全局仓库根）重复全树 Walk。返回 (entries, hit)；hit=false 时调用方回退
 // filepath.Walk 原行为。
@@ -247,7 +248,8 @@ func syncResourcesDirLevel(globalDir, instanceDir, rtype string, scanFn ScanEntr
 
 	// collectEntries 收集整棵树的同步单元：以相对路径（relKeyDirLevel）为 key，
 	// 保留完整目录层级。scanFn 命中时从已扫描文件列表反推（避免重复 Walk），
-	// 否则退回 filepath.Walk 原行为。
+	// 否则退回 filepath.Walk 原行为（结果叠 30s sync 目录扫描缓存，
+	// 使 maid-model 等嵌套类型的回退 Walk 在 TTL 内也只真正走一次）。
 	collectEntries := func(rootDir string) map[string]string {
 		if scanFn != nil {
 			if entries, hit := scanFn(rootDir); hit && len(entries) > 0 {
@@ -256,7 +258,7 @@ func syncResourcesDirLevel(globalDir, instanceDir, rtype string, scanFn ScanEntr
 				}
 			}
 		}
-		return collectEntriesWalk(rootDir, rtype)
+		return collectEntriesWalkCached(rootDir, rtype)
 	}
 
 	globalDirs := collectEntries(globalDir)
@@ -334,6 +336,21 @@ func collectEntriesWalk(rootDir string, rtype string) map[string]string {
 		// 非模型子目录：继续递归（可能包含深层嵌套的模型文件夹/文件）
 		return nil
 	})
+	return entries
+}
+
+// collectEntriesWalkCached 与 collectEntriesWalk 语义一致，但结果叠 30s
+// sync 目录扫描缓存；用于嵌套类型（maid-model）等无法从 scanner 扁平列表
+// 精确反推、必须回退 Walk 的路径。
+func collectEntriesWalkCached(rootDir, rtype string) map[string]string {
+	cacheKey := syncDirectoryScanKey{kind: "dirlevel", root: rootDir, rtype: rtype}
+	if cached, ok := loadSyncScanCache[map[string]string](&syncDirLevelScanCache, cacheKey); ok {
+		return cached
+	}
+	entries := collectEntriesWalk(rootDir, rtype)
+	if _, err := os.Stat(rootDir); err == nil {
+		storeSyncScanCache(&syncDirLevelScanCache, cacheKey, entries)
+	}
 	return entries
 }
 
@@ -511,7 +528,7 @@ func DiffFolderContentsScan(globalFolder, instanceFolder, rtype string, scanFn S
 	}
 	// 全局侧：从组根全量条目按 globalFolder 前缀过滤（零 Walk）
 	globalFiles := collectFolderFilesFromScan(globalFolder, rtype, entries)
-	// 实例侧：保持 Walk（实例根不在扫描缓存体系内）
+	// 实例侧：collectFolderFiles 内部已叠 30s sync 目录扫描缓存，不再每次实走
 	instanceFiles := collectFolderFiles(instanceFolder, rtype)
 
 	var diffs []FileDiffEntry
@@ -582,10 +599,16 @@ func collectFolderFilesFromScan(folder, rtype string, entries []types.ModelEntry
 
 // collectFolderFiles 扫描文件夹内的所有模型文件
 // 返回以相对路径为 key 的映射
+// 结果叠 30s sync 目录扫描缓存：同一 folder+rtype 在 TTL 内只真正 Walk 一次，
+// 覆盖 DiffFolderContents 的实例侧（原来每次 BuildSyncItems 展开都实走）。
 func collectFolderFiles(folder, rtype string) map[string]string {
 	entries := make(map[string]string)
 	if folder == "" {
 		return entries
+	}
+	cacheKey := syncDirectoryScanKey{kind: "folder", root: folder, rtype: rtype}
+	if cached, ok := loadSyncScanCache[map[string]string](&syncFolderScanCache, cacheKey); ok {
+		return cached
 	}
 	filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -611,6 +634,9 @@ func collectFolderFiles(folder, rtype string) map[string]string {
 		}
 		return nil
 	})
+	if _, err := os.Stat(folder); err == nil {
+		storeSyncScanCache(&syncFolderScanCache, cacheKey, entries)
+	}
 	return entries
 }
 

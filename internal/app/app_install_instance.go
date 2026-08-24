@@ -273,6 +273,7 @@ func (a *App) SyncModelToggleStatus(instanceCustomDir, filesRoot string) (int, i
 	// 启禁同步会改实例侧文件名，但当前不走 scanner 失效；这里显式清同步结果缓存，
 	// 否则新增的 30s 同步结果缓存会让整合包页继续展示旧启禁状态。
 	instance.InvalidateSyncItemsCache()
+	ysmsync.InvalidateSyncScanCaches()
 	return n1, n2, err
 }
 
@@ -290,6 +291,7 @@ func (a *App) RelinkCustomDir(customDir, filesRoot string) (int, error) {
 	// 重链接会改实例目录，显式清同步结果缓存（RelinkAll 已走 scanner.InvalidateCache，
 	// 单目录入口补这一处防 30s 同步结果缓存遮盖变更）。
 	instance.InvalidateSyncItemsCache()
+	ysmsync.InvalidateSyncScanCaches()
 	return n, err
 }
 
@@ -400,6 +402,7 @@ func (a *App) PushResourceToInstance(rtype, instanceName string) (int, error) {
 	n, opErr := ysmsync.PushResources(rtype, globalDir, targetDir, a.getLinkMode(), a.logger.Add)
 	// 推送会改实例目录；该入口当前不走 scanner.InvalidateCache，显式清同步结果缓存。
 	instance.InvalidateSyncItemsCache()
+	ysmsync.InvalidateSyncScanCaches()
 	return n, opErr
 }
 
@@ -421,6 +424,7 @@ func (a *App) PullResourceFromInstance(rtype, instanceName string) (int, error) 
 	n, opErr := ysmsync.PullResources(rtype, globalDir, targetDir, a.logger.Add)
 	// 拉取会改全局仓库目录；该入口当前不走 scanner.InvalidateCache，显式清同步结果缓存。
 	instance.InvalidateSyncItemsCache()
+	ysmsync.InvalidateSyncScanCaches()
 	return n, opErr
 }
 
@@ -461,6 +465,7 @@ func (a *App) PullSingleResourceFromInstance(rtype, srcPath, instanceName string
 	opErr := ysmsync.PullSingleResource(globalDir, targetDir, srcPath)
 	// 拉取单条会改全局仓库；显式清同步结果缓存（保持单文件操作后立即刷新）。
 	instance.InvalidateSyncItemsCache()
+	ysmsync.InvalidateSyncScanCaches()
 	return opErr
 }
 
@@ -481,6 +486,7 @@ func (a *App) PushSingleResourceToInstance(rtype, instanceName, filePath string)
 	opErr := ysmsync.PushSingleResource(filePath, customDir, globalDir, a.getLinkMode(), rtype)
 	// 推送单条会改实例目录；显式清同步结果缓存（保持单文件操作后立即刷新）。
 	instance.InvalidateSyncItemsCache()
+	ysmsync.InvalidateSyncScanCaches()
 	return opErr
 }
 

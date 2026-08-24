@@ -29,7 +29,7 @@ invariant_anchors:
 
 ## 对外 API / 入口
 
-- `BuildSyncItems(ins, rtypes, repoRoots)` — 构建实例的资源同步项（供同步管理界面展示）；dirLevel 类型（YSM/MMD/蓝图）走 `ysmsync.SyncResourcesDirLevelScan`（注入 `scanner.ScanEntriesWithHit` 复用刷新已缓存的组根扫描结果，消除重复全树 Walk），file-level 类型走 `ysmsync.SyncResources`（ADR-064 相对路径口径）；非 `CompareGlobalInstanceHashes`（知识卡旧文漂移已修正）。每个 dirLevel 文件夹的子条目通过 `DiffFolderContentsScan` 做内容级 diff（全局侧同样复用缓存反推，实例侧保持 Walk）。**2026-08-24 新增 30s 同步结果缓存**：`BuildSyncItems` 最终结果按 `实例名+VersionDir+subtype+roots+rtypes` 缓存 30s，`scanner.InvalidateCache/InvalidatePath` 经 `OnCacheInvalidated` 自动清理；`SyncModelToggleStatus`、Push/Pull、`SyncCustomToRepo`、`RelinkCustomDir` 等不走 scanner 失效的入口显式调 `InvalidateSyncItemsCache()`；**`ImportModelFile*` 落在 Go 侧 `ClearScanCache()` 统一收口**，不依赖前端事后失效。
+- `BuildSyncItems(ins, rtypes, repoRoots)` — 构建实例的资源同步项（供同步管理界面展示）；dirLevel 类型（YSM/MMD/蓝图）走 `ysmsync.SyncResourcesDirLevelScan`（注入 `scanner.ScanEntriesWithHit` 复用刷新已缓存的组根扫描结果，消除重复全树 Walk），file-level 类型走 `ysmsync.SyncResources`（ADR-064 相对路径口径）；非 `CompareGlobalInstanceHashes`（知识卡旧文漂移已修正）。每个 dirLevel 文件夹的子条目通过 `DiffFolderContentsScan` 做内容级 diff（全局侧复用组根扫描反推，实例侧走 `collectFolderFiles`，已叠 30s 同步目录扫描缓存）。**2026-08-24 新增 30s 同步结果缓存**：`BuildSyncItems` 最终结果按 `实例名+VersionDir+subtype+roots+rtypes` 缓存 30s，`scanner.InvalidateCache/InvalidatePath` 经 `OnCacheInvalidated` 自动清理；`SyncModelToggleStatus`、Push/Pull、`SyncCustomToRepo`、`RelinkCustomDir` 等不走 scanner 失效的入口显式调 `InvalidateSyncItemsCache()`；**`ImportModelFile*` 落在 Go 侧 `ClearScanCache()` 统一收口**，不依赖前端事后失效。
 
 ## 与其他子系统关系
 

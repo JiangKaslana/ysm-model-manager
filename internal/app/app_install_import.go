@@ -49,6 +49,7 @@ func (a *App) SyncCustomToRepo(customDir, repoDir string) (int, error) {
 	n, err := ysmsync.SyncCustomToRepo(customDir, repoDir, a.ScanModelEntries, a.logger.Add)
 	// 收编会改全局仓库目录；显式清同步结果缓存（该入口当前不走 scanner.InvalidateCache）。
 	instance.InvalidateSyncItemsCache()
+	ysmsync.InvalidateSyncScanCaches()
 	return n, err
 }
 

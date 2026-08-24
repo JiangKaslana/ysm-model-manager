@@ -26,6 +26,7 @@ type Logger func(name, src, dst string, size int64, status, msg string)
 //	例如仓库 maid-model/vendor/character/pack.zip 推送后落位到
 //	targetDir/vendor/character/pack.zip，而非扁平化的 targetDir/pack.zip。
 func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) (int, error) {
+	defer InvalidateSyncScanCaches() // 推送会改实例/全局目录，清同步扫盘缓存防陈旧
 	count := 0
 	failed := 0
 
@@ -92,6 +93,7 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, error) {
 	installer.InstallLock.Lock()
 	defer installer.InstallLock.Unlock()
+	defer InvalidateSyncScanCaches() // 拉取会改全局仓库目录，清同步扫盘缓存防陈旧
 	// 找出 extra 的文件并复制到全局
 	// 对 YSM/MMD 使用文件夹级同步
 	var result types.ResourceSyncResult
@@ -192,6 +194,7 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 func PullSingleResource(globalDir, targetDir, srcPath string) error {
 	installer.InstallLock.Lock()
 	defer installer.InstallLock.Unlock()
+	defer InvalidateSyncScanCaches() // 拉取会改全局仓库目录，清同步扫盘缓存防陈旧
 	// 文件夹级拉取：整体复制文件夹到全局（保留相对 targetDir 的子类层级）。
 	// 越界（srcPath 不在 targetDir 内）直接报错——与文件分支 mapSrcToGlobal 严格口径
 	// 一致；旧行为退化为 basename 会把越界目录错误落到 globalDir 根（丢子类层级 + 同名覆盖）。
@@ -228,6 +231,7 @@ func PullSingleResource(globalDir, targetDir, srcPath string) error {
 // ⚠️ 毒舌审核 P0：原硬编码 ext == ".json" 会误判普通 readme.json 为 YSM 文件夹级安装。
 // 改为 IsYsmEntryJSON 精确匹配 ysm.json，避免非 YSM 场景的 .json 误触发。
 func PushSingleResource(filePath, customDir, globalDir, linkMode, rtype string) error {
+	defer InvalidateSyncScanCaches() // 推送会改实例目录，清同步扫盘缓存防陈旧
 	fi, stErr := os.Stat(filePath)
 	if stErr == nil && fi.IsDir() {
 		return installer.InstallDir(filePath, customDir, globalDir, linkMode, rtype)
@@ -248,6 +252,7 @@ func PushSingleResource(filePath, customDir, globalDir, linkMode, rtype string) 
 
 // SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重）
 func SyncCustomToRepo(customDir, repoDir string, scanFn func(string) []types.ModelEntry, logger Logger) (int, error) {
+	defer InvalidateSyncScanCaches() // 收编会改全局仓库目录，清同步扫盘缓存防陈旧
 	customDir = strings.TrimSpace(customDir)
 	repoDir = strings.TrimSpace(repoDir)
 	if customDir == "" || repoDir == "" {
