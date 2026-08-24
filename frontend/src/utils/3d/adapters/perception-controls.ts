@@ -53,6 +53,7 @@ export function buildPerceptionControls(
   for (const mod of ordered) {
     const row = document.createElement("div");
     row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+    row.dataset.testid = "perception-" + mod.id;
 
     const label = document.createElement("span");
     label.style.cssText = "flex:1;font-size:12px;color:rgba(255,255,255,0.85)";

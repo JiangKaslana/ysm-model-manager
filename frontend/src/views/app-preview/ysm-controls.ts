@@ -124,6 +124,7 @@ export function fillYsmShotPanel(list: HTMLElement, ctx: YsmControlsContext): vo
     item.type = "button";
     item.className = "ysm-3d-popbtn ysm-3d-popbtn--row";
     item.textContent = "📷 " + shotLabels[i];
+      item.dataset.testid = "shot-" + key;
     item.onclick = (): void => {
       void saveShot(key);
     };

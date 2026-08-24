@@ -73,9 +73,9 @@ function fakeMmdOpts(overrides: Partial<MmdMenuItemsOpts> = {}): MmdMenuItemsOpt
     bonePanel: null,
     panels: {
       fillModelPanel: (list) => setHtml(list, '<div data-testid="mmd-model-card">测试.pmx</div>'),
-      fillPlayPanel: (list) => setHtml(list, '<button id="mmd-play-btn"></button><select id="mmd-motion-sel"></select>'),
+      fillPlayPanel: (list) => setHtml(list, '<button data-testid="mmd-play"></button><select data-testid="mmd-motion"></select>'),
       fillShotPanel: () => {},
-      buildMaterialControls: (list) => setHtml(list, '<div data-testid="mmd-mat-0"></div>'),
+      buildMaterialControls: (list) => setHtml(list, '<div data-testid="mat-0"></div>'),
     },
     ...overrides,
   };
@@ -102,7 +102,7 @@ function fakeVrmOpts(): VrmMenuItemsOpts {
       setOpacity: vi.fn(),
     },
     panels: {
-      makePanelRenderer: () => (list) => setHtml(list, '<div data-testid="vrm-mat-0"></div>'),
+      makePanelRenderer: () => (list) => setHtml(list, '<div data-testid="mat-0"></div>'),
       makeModelPanelRenderer: (list) => setHtml(list, '<div data-testid="vrm-model-card">测试.vrm</div>'),
       makeShotPanelRenderer: () => () => {},
     },
@@ -341,7 +341,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     expect(motionBtn).not.toBeNull();
     motionBtn!.click();
     // 组内仅 1 panel → 直达其面板（play 控件出现），而非组根行
-    const playPanelBtn = overlay.querySelector("#mmd-play-btn");
+    const playPanelBtn = overlay.querySelector("[data-testid=mmd-play]");
     expect(playPanelBtn).not.toBeNull();
     expect(overlay.querySelector('[data-testid="preview-play"]')).toBeNull();
     handle.dispose();
@@ -465,22 +465,22 @@ describe("面板渲染（安全 panel 逐个打开）", () => {
   it("mmd play 面板：#mmd-play-btn + 动作选择器", () => {
     const { overlay, handle } = mountWith(mmdMenuItems(fakeMmdOpts()));
     handle.openPanel("play");
-    expect(overlay.querySelector("#mmd-play-btn")).not.toBeNull();
-    expect(overlay.querySelector("#mmd-motion-sel")).not.toBeNull();
+    expect(overlay.querySelector("[data-testid=mmd-play]")).not.toBeNull();
+    expect(overlay.querySelector("[data-testid=mmd-motion]")).not.toBeNull();
     handle.dispose();
   });
 
-  it("mmd material 面板：材质行渲染（data-testid=mmd-mat-<i>）", () => {
+  it("mmd material 面板：材质行渲染（data-testid=mat-<i>）", () => {
     const { overlay, handle } = mountWith(mmdMenuItems(fakeMmdOpts()));
     handle.openPanel("material");
-    expect(overlay.querySelector('[data-testid="mmd-mat-0"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid=mat-0]')).not.toBeNull();
     handle.dispose();
   });
 
-  it("vrm material 面板：材质行渲染（data-testid=vrm-mat-<i>）", () => {
+  it("vrm material 面板：材质行渲染（data-testid=mat-<i>）", () => {
     const { overlay, handle } = mountWith(vrmMenuItems(fakeVrmOpts()));
     handle.openPanel("material");
-    expect(overlay.querySelector('[data-testid="vrm-mat-0"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="mat-0"]')).not.toBeNull();
     handle.dispose();
   });
 

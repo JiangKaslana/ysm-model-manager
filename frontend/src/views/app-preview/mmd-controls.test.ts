@@ -419,13 +419,13 @@ describe("buildMaterialControls", () => {
     expect(container.querySelector(".mmd-mat-op")).not.toBeNull();
   });
 
-  it("行元素的 data-testid 格式正确（mmd-mat-<index>）", () => {
+  it("行元素的 data-testid 格式正确（mat-<index>）", () => {
     const { ctx } = makeCtx();
     const container = document.createElement("div");
     buildMaterialControls(container, makeMatBridge(ctx));
-    const firstRow = container.querySelector<HTMLElement>('[data-testid="mmd-mat-0"]');
+    const firstRow = container.querySelector<HTMLElement>('[data-testid="mat-0"]');
     expect(firstRow).not.toBeNull();
-    const lastRow = container.querySelector<HTMLElement>('[data-testid="mmd-mat-27"]');
+    const lastRow = container.querySelector<HTMLElement>('[data-testid="mat-27"]');
     expect(lastRow).not.toBeNull();
   });
 });

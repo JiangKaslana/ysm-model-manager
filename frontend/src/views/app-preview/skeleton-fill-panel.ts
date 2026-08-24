@@ -49,6 +49,8 @@ export function fill3DPanel(
     panel.appendChild(sec("🎨 纹理 (" + switchableCount + ")" + (texArr.length > switchableCount ? " / " + texArr.length + " 全量" : "")));
     // 当前组件绑定：显示选中组件声明的纹理（方案 B：声明纹理 vs 实际绑定两层显示）
     const bindingRow = document.createElement("div");
+    bindingRow.className = "binding-row";
+    bindingRow.dataset.testid = "tex-binding";
     bindingRow.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0;margin-bottom:2px";
     const bindingLabel = document.createElement("span");
     bindingLabel.textContent = "当前组件绑定";
@@ -92,6 +94,8 @@ export function fill3DPanel(
       const url = model.textures?.[i] || "";
       const name = model.textureNames?.[i] || url.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") || "纹理 " + (i + 1);
       const d = document.createElement("div");
+      d.className = "tex-row";
+      d.dataset.testid = "tex-" + i;
       d.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer";
       const img = document.createElement("canvas");
       img.width = 16;
@@ -133,12 +137,15 @@ export function fill3DPanel(
   let boneContainer: HTMLElement | null = null;
   if (boneList.length > 0) {
     const secHdr = document.createElement("div");
+    secHdr.className = "bone-section-header";
+    secHdr.dataset.testid = "bone-section";
     secHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-top:12px;margin-bottom:4px";
     secHdr.innerHTML = `<span style="font-weight:600;color:rgba(255,255,255,0.9);font-size:12px">🦴 ${t("preview.bones", { n: boneList.length })}</span>`;
     const btnGroup = document.createElement("div");
     btnGroup.style.cssText = "display:flex;gap:4px";
-    Array.of<[string, boolean]>(["👁", true], ["⊘", false]).forEach(([sym, v]) => {
+    Array.of<[string, boolean]>(["👁", true], ["⊘", false]).forEach(([sym, v], i) => {
       const btn = document.createElement("button");
+      btn.dataset.testid = v ? "bone-show-all" : "bone-hide-all";
       btn.textContent = sym;
       btn.style.cssText = "font-size:10px;padding:1px 4px;border-radius:3px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.6);cursor:pointer;line-height:1";
       btn.onclick = (): void => {
@@ -152,11 +159,15 @@ export function fill3DPanel(
 
     const searchInput = document.createElement("input");
     searchInput.type = "text";
+    searchInput.className = "bone-search";
+    searchInput.dataset.testid = "bone-search";
     searchInput.placeholder = "🔍 过滤骨骼…";
     searchInput.style.cssText = "width:100%;padding:3px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);font-size:11px;font-family:inherit;box-sizing:border-box;margin-bottom:4px;outline:none";
 
     const depthMap = buildDepthMap(boneList);
     boneContainer = document.createElement("div");
+    boneContainer.className = "bone-list";
+    boneContainer.dataset.testid = "bone-list";
     boneContainer.style.cssText = "max-height:300px;overflow-y:auto";
 
     const renderBones = (filter: string): void => {
@@ -188,10 +199,16 @@ export function fill3DPanel(
 
   // 骨骼详情框
   const boneDetail = document.createElement("div");
+  boneDetail.className = "bone-detail";
+  boneDetail.dataset.testid = "bone-detail";
   boneDetail.style.cssText = "margin-top:6px;border-radius:3px;font-size:10px;color:rgba(255,255,255,0.7);line-height:1.5;display:none;font-family:inherit";
   const boneDetailText = document.createElement("div");
+  boneDetailText.className = "bone-detail-text";
+  boneDetailText.dataset.testid = "bone-detail-text";
   boneDetailText.style.cssText = "padding:4px 6px;background:rgba(255,255,255,0.05);border-radius:3px 3px 0 0;white-space:pre;max-height:100px;overflow-y:auto";
   const boneDetailCopy = document.createElement("button");
+  boneDetailCopy.className = "bone-detail-copy";
+  boneDetailCopy.dataset.testid = "bone-detail-copy";
   boneDetailCopy.textContent = "📋 " + t("common.copy");
   boneDetailCopy.style.cssText = "font-size:10px;padding:1px 6px;border:none;background:rgba(124,131,255,0.3);color:#fff;cursor:pointer;border-radius:0 0 3px 3px;width:100%;font-family:inherit";
   boneDetailCopy.onclick = function (): void {
@@ -214,12 +231,16 @@ export function fill3DPanel(
 // ===== 内部辅助（从 skeleton-render.ts 复用）=====
 function sec(label: string, border = true): HTMLDivElement {
   const d = document.createElement("div");
+  d.className = "stat-section";
+  d.dataset.testid = "stat-section";
   d.style.cssText = `font-weight:600;color:rgba(255,255,255,0.9);font-size:11px;margin-top:${border ? "12px" : "0"};margin-bottom:4px;border-top:${border ? "1px solid rgba(255,255,255,0.1)" : "none"};padding-top:${border ? "6px" : "0"}`;
   d.textContent = label;
   return d;
 }
 function iRow(k: string, v: string): HTMLDivElement {
   const d = document.createElement("div");
+  d.className = "stat-row";
+  d.dataset.testid = "stat-" + k.toLowerCase();
   d.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0";
   d.innerHTML = `<span>${k}</span><span style="color:rgba(255,255,255,0.9)">${v}</span>`;
   return d;

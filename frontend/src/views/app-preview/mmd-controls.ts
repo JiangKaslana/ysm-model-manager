@@ -196,7 +196,7 @@ export function buildMaterialControls(container: HTMLElement, bridge: MaterialCo
 
     const row = document.createElement("div");
     row.className = "slide-item mmd-mat-row";
-    row.setAttribute("data-testid", "mmd-mat-" + it.index);
+    row.setAttribute("data-testid", "mat-" + it.index);
     row.tabIndex = 0;
     row.setAttribute("role", "button");
 
@@ -227,7 +227,7 @@ export function buildMaterialControls(container: HTMLElement, bridge: MaterialCo
     op.max = "100";
     op.value = String(opacity);
     op.className = "mmd-mat-op";
-    op.setAttribute("data-testid", "mmd-mat-op-" + it.index);
+    op.setAttribute("data-testid", "mat-op-" + it.index);
     op.style.cssText = "flex:0 0 auto;width:72px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
     op.oninput = (): void => {
       bridge.setOpacity(it.index, Number(op.value) / 100);
@@ -301,6 +301,7 @@ export function fillMmdShotPanel(
     item.type = "button";
     item.className = "ysm-3d-popbtn ysm-3d-popbtn--row";
     item.textContent = "📷 " + shotLabels[i];
+      item.dataset.testid = "shot-" + key;
     item.onclick = (): void => {
       void saveShot(key);
     };

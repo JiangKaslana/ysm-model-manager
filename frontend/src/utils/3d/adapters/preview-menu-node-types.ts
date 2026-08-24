@@ -34,11 +34,14 @@ export type PreviewMenuNodeKind =
   | "action"
   | "slider"
   | "toggle"
+  | "button"
+  | "field" // 键值对行（统计/信息展示）
+  | "row" // 列表行（纹理/材质/bone 等动态列表）
   | "divider"
   | "sectionTitle"
   | "custom";
 
-/** 控件绑定规格（slider/toggle/modeSlider 用；ysm 侧 state 映射表建立后 bind 生效） */
+/** 控件绑定规格（slider/toggle/button/field 用；ysm 侧 state 映射表建立后 bind 生效） */
 export interface PreviewControlSpec {
   bind: PreviewStatePath;
   min?: number;
@@ -52,6 +55,10 @@ export interface PreviewControlSpec {
   set?: (v: unknown) => unknown;
   /** 控件值变更后的副作用 */
   onChange?: (v: unknown) => void;
+  /** field 类型：显示值（静态或衍生） */
+  value?: string | number | boolean;
+  /** button 类型：按钮文案（i18n key 或字面量） */
+  text?: string;
 }
 
 /** 声明式菜单节点：菜单即数据。与 PreviewMenuItemDef 的映射见 preview-menu-defs.ts 顶部注释 */
@@ -70,6 +77,8 @@ export interface PreviewMenuNode {
   children?: PreviewMenuNode[];
   /** slider/toggle 等控件绑定 */
   control?: PreviewControlSpec;
+  /** 静态显示值（field 类型用，无需控制绑定） */
+  value?: string | number;
   /** 逃生舱：无法数据化的内容直接渲染（对应 PreviewMenuItemDef.render）；closePopup 可选（兼容 MikuMikuAR 单参用法） */
   renderCustom?: (container: HTMLElement, closePopup?: () => void) => (() => void) | void;
   /** 条件守卫：返回 false 时不渲染（如 self 模式隐藏 camera） */
