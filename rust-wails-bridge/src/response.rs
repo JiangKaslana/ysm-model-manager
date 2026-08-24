@@ -165,12 +165,21 @@ pub(crate) fn scan_json_manifest(
     };
     let candidates: Vec<Candidate> = manifest
         .into_iter()
-        .map(|entry| Candidate {
-            name: entry.name,
-            path: PathBuf::from(entry.path),
-            ext: entry.ext,
-            subdir: entry.subdir,
-            rtype: entry.rtype,
+        .map(|entry| {
+            // 锚定 scan root：相对路径 join root，避免 fs::metadata 相对进程 CWD 解析
+            let path = PathBuf::from(&entry.path);
+            let anchored = if path.is_absolute() {
+                path
+            } else {
+                root.join(path)
+            };
+            Candidate {
+                name: entry.name,
+                path: anchored,
+                ext: entry.ext,
+                subdir: entry.subdir,
+                rtype: entry.rtype,
+            }
         })
         .collect();
     let mut report = scan_impl_manifest(candidates, &policy);

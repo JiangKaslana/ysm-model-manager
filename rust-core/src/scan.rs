@@ -137,12 +137,15 @@ pub fn scan_impl_manifest(mut candidates: Vec<Candidate>, policy: &ScanPolicy) -
             return false;
         }
         if c.ext.eq_ignore_ascii_case(".json") {
+            // 对称 scan_impl L52-57：先 strip disable suffix 再查白名单，
+            // 否则 ysm.json.disabled 被 jwalk 保留、被 manifest 路径丢弃（ADR-120 契约）
             let base = c
                 .path
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("");
-            return is_model_json_name(base);
+            let stripped = strip_disable_suffix(base);
+            return is_model_json_name(stripped);
         }
         true
     });
