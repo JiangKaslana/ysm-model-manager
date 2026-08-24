@@ -1288,9 +1288,12 @@ function renderMenu(
 }
 
 /**
- * 角色详情子面板：该角色 menuItems 的 model/motion 组 panel 项，按「模型/动作」两 section 渲染。
- * 模块级共享：fillRoles 点角色名进入；dock 🧍（初始模型 section）/💃（初始动作 section）捷径直达。
- * onSwitchRole（可选）→ 详情顶部渲染「切换角色 ›」行（dock 捷径直达时回角色列表；fillRoles 内由 back 返回即可，不再加）。
+ * 角色详情子面板（目标态「详情=模型信息面板本体」）：
+ *  - model 组第一个 panel（恒为「模型信息」）→ renderCustom 直渲进详情主体（1 跳看内容，用户「最想进入」）；
+ *  - 其余 model 项（截图/材质/骨骼）→ 工具区可折叠 section（点击 navigate 各自面板，不再平行平铺）；
+ *  - motion 组 → 「动作」可折叠 section（dock 💃 直达时展开、模型主体隐藏）；
+ *  - onSwitchRole → 详情底部工具行（不占首屏，用户批评「切换角色放第一位」）。
+ * 模块级共享：fillRoles 点角色名进入；dock 🧍 / 💃 捷径直达。
  */
 function roleDetailView(
   e: ModelEntry,
@@ -1304,22 +1307,12 @@ function roleDetailView(
 ): SlideMenuView {
   const modelItems = (e.menuItems ?? []).filter((d) => d.kind === "panel" && d.dockGroup === "model");
   const motionItems = (e.menuItems ?? []).filter((d) => d.kind === "panel" && d.dockGroup === "motion");
+  const primary = modelItems[0];
+  const toolItems = modelItems.slice(1);
   return {
     title: roleBaseName(e),
     render: (l) => {
       l.innerHTML = "";
-      if (deps.onSwitchRole) {
-        const switchRow = document.createElement("div");
-        switchRow.dataset.testid = "preview-role-switch";
-        switchRow.style.cssText =
-          "display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.85)";
-        switchRow.textContent = "🎭 " + tr("preview.switchRole", "切换角色 ›");
-        switchRow.onclick = (): void => { deps.onSwitchRole!(); };
-        l.appendChild(switchRow);
-        const sep = document.createElement("div");
-        sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
-        l.appendChild(sep);
-      }
       if (modelItems.length === 0 && motionItems.length === 0) {
         const empty = document.createElement("div");
         empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
@@ -1327,30 +1320,59 @@ function roleDetailView(
         l.appendChild(empty);
         return;
       }
-      // 声明式树驱动（方案 A 第 2 步）：模型/动作两 section 改为 PreviewMenuNode 数据，
-      // 由 renderMenu 统一渲染——消除 renderRoleSection 命令式 DOM，新增面板只改数据。
-      renderMenu(
-        l,
-        [
-          {
-            id: "preview-role-model",
-            kind: "folder",
-            labelKey: "preview.roleModelSection",
-            fallback: "模型",
-            defaultOpen: deps.initialSection !== "motion",
-            children: modelItems.map(previewItemToNode),
+      // ① 模型信息面板本体直渲（dock 🧍 / 默认聚焦模型时；💃 直达动作时隐藏本体）
+      if (primary?.render && deps.initialSection !== "motion") {
+        try {
+          primary.render(l, () => deps.menu.back());
+        } catch (err) {
+          console.error("[preview-menu] 模型信息面板渲染失败", primary.id, err);
+          const errRow = document.createElement("div");
+          errRow.style.cssText = "padding:8px 10px;color:#ff7b7b;font-size:12px";
+          errRow.textContent = "面板渲染失败: " + safeErrorMessage(err);
+          l.appendChild(errRow);
+        }
+        const sep = document.createElement("div");
+        sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
+        l.appendChild(sep);
+      }
+      // ② 其余 model 项（截图/材质/骨骼）→ 工具区 section
+      const sections: PreviewMenuNode[] = [];
+      if (toolItems.length > 0) {
+        sections.push({
+          id: "preview-role-tools",
+          kind: "folder",
+          labelKey: "preview.roleToolsSection",
+          fallback: "工具",
+          defaultOpen: deps.initialSection === "motion",
+          children: toolItems.map(previewItemToNode),
+        });
+      }
+      // ③ motion 组 → 动作 section
+      if (motionItems.length > 0) {
+        sections.push({
+          id: "preview-role-motion",
+          kind: "folder",
+          labelKey: "preview.roleMotionSection",
+          fallback: "动作",
+          defaultOpen: deps.initialSection === "motion",
+          children: motionItems.map(previewItemToNode),
+        });
+      }
+      // ④ onSwitchRole → 详情底部「切换角色 ›」工具行（不占首屏）
+      if (deps.onSwitchRole) {
+        sections.push({
+          // id 不带 preview- 前缀：makeRow 渲染时自动补 preview- 前缀（data-testid="preview-role-switch"）
+          id: "role-switch",
+          kind: "action",
+          labelKey: "preview.switchRole",
+          fallback: "切换角色 ›",
+          icon: "🎭",
+          action: (): void => {
+            deps.onSwitchRole?.();
           },
-          {
-            id: "preview-role-motion",
-            kind: "folder",
-            labelKey: "preview.roleMotionSection",
-            fallback: "动作",
-            defaultOpen: deps.initialSection === "motion",
-            children: motionItems.map(previewItemToNode),
-          },
-        ],
-        deps,
-      );
+        });
+      }
+      renderMenu(l, sections, deps);
     },
   };
 }
