@@ -271,7 +271,8 @@ invariant_anchors:
 - `ReadLitematicMeta(path) → string` — 读取投影文件元数据（作者/时间/版本/方块统计/预览图）
 - `GetLitematicVoxelData(path) → string` — 读取投影文件体素数据（按颜色分组的方块位置）
 - `SetVoxelMaxBlocks(limit) → void` — 设置 3D 体素渲染上限，0=恢复默认 200000
-- `FindDuplicateFiles(dir) → string` — 扫描目录返回所有重复文件分组（JSON 字符串）
+- `FindDuplicateFiles(dir, configStr) → string` — 扫描目录返回所有重复文件分组（JSON 字符串）
+  - 可选入参 `configStr`：去重配置 JSON（`{"strategy","keepPolicy","priorityPath"}`），经 `go/types.ParseDedupConfig` 解析（空串→未配置）
   - **返回契约**：成功 → `DedupGroup[]`（数组）；失败 → `{"error": string}`（对象，非数组）
   - 失败场景：路径守卫拒绝（`isPathInRootOrSelf` 返回 false）、底层 dedup 扫描异常（根符号链接/权限错误）
   - 前端解析：`JSON.parse` 后 `Array.isArray` 区分成功/失败，失败时走 `t("diagnostics.scanFailed", ...)` 兜底展示
