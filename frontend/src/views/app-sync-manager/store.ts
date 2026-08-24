@@ -57,23 +57,62 @@ export async function loadData(self: SyncStoreSelf): Promise<void> {
   }
 }
 
+/** tabStatus：diverged 折叠进 missing tab（继承可操作属性——与 renderer 计数同规，
+ * 逐节点复用以防口径漂移）。返回该条目在 status tab 下归属的展示状态。
+ * 导出供 renderer 计数递归复用（点3：筛选谓词与统计口径一致）。 */
+export function tabStatus(item: SyncItem): string {
+  return item.status === "diverged" ? "missing" : item.status;
+}
+
+/** matches：item 自身是否命中「类型 + 状态」筛选（type/status 逐节点独立判定，点4） */
+function matches(self: SyncStoreSelf, item: SyncItem): boolean {
+  if (self._selectedType && item.type !== self._selectedType) return false;
+  if (self._statusFilter === "all") return true;
+  return tabStatus(item) === self._statusFilter;
+}
+
 /**
- * 应用类型 + 状态筛选，写入 self._filteredItems。
+ * filterNode：递归筛选一个节点（keep-ancestors 语义）。
+ * - 自身命中 → 保留；
+ * - 任一后代命中（type/status）→ 保留父链（filter-keep-ancestors）；
+ * - 都不命中 → 丢弃。
+ * 仅当 status 筛选激活（非 all）且该目录「有命中的后代」时，将其 path 记入
+ * forceOpen——渲染层据此展开命中目录，使折叠下的命中子项可见（点1）。
+ * 返回 null 表示该节点（含其后代）均不命中，应整体过滤掉。
+ */
+function filterNode(self: SyncStoreSelf, item: SyncItem, force: Set<string>): SyncItem | null {
+  const selfHit = matches(self, item);
+  let keptChildren: SyncItem[] | undefined;
+  if (item.children?.length) {
+    const filtered: SyncItem[] = [];
+    for (const c of item.children) {
+      const kept = filterNode(self, c, force);
+      if (kept) filtered.push(kept);
+    }
+    if (filtered.length) {
+      keptChildren = filtered;
+      // 有命中的后代 → 该目录需展开显示它们（仅 status 筛选激活时；type 筛选是常态，不 force）
+      if (self._statusFilter !== "all") force.add(item.path);
+    }
+  }
+  if (!selfHit && !keptChildren?.length) return null;
+  return keptChildren ? { ...item, children: keptChildren } : item;
+}
+
+/**
+ * 应用类型 + 状态筛选，写入 self._filteredItems（递归 + keep-ancestors）。
  * 子目录过滤已由后端路径限定处理（GetInstanceSyncStatus 走 subtype 参数），
  * 前端不再需要 MMD 子目录过滤——回归事实源（resource_types.json subtype.instanceDir）。
+ * 同时维护 self._forceOpenPaths：status 筛选下「有命中后代的目录」集合，
+ * 供 renderer 渲染时无视 _dirOpen 强制展开（点1）。
  */
 export function applyFilter(self: SyncStoreSelf): void {
-  let items = self._allItems;
-  if (self._selectedType) {
-    items = items.filter((i) => i.type === self._selectedType);
+  const force = new Set<string>();
+  const out: SyncItem[] = [];
+  for (const item of self._allItems) {
+    const kept = filterNode(self, item, force);
+    if (kept) out.push(kept);
   }
-  if (self._statusFilter !== "all") {
-    const filter = self._statusFilter;
-    items = items.filter((i) => {
-      // diverged 状态在 missing tab 下显示（继承可操作属性）
-      if (filter === "missing" && i.status === "diverged") return true;
-      return i.status === filter;
-    });
-  }
-  self._filteredItems = items;
+  self._filteredItems = out;
+  self._forceOpenPaths = force;
 }

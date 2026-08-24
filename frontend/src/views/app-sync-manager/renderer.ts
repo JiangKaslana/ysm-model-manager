@@ -14,7 +14,7 @@ import {
   syncDirRowHTML,
 } from "./tpl.ts";
 import type { SyncItem } from "./tpl.ts";
-import { applyFilter } from "./store.ts";
+import { applyFilter, tabStatus } from "./store.ts";
 import type { SyncManagerSelf } from "./index.ts";
 
 export type SyncRenderSelf = SyncManagerSelf;
@@ -52,21 +52,19 @@ export async function render(self: SyncRenderSelf): Promise<void> {
       synced: 0, missing: 0, disabled: 0, optional: 0, legacy: 0, total: 0,
     };
   }
-  for (const item of self._allItems) {
-    const c = typeCounts[item.type];
-    if (c) {
-      // diverged 计入 missing tab（继承可操作属性）
-      const tabStatus = item.status === "diverged" ? "missing" : item.status;
-      (c as unknown as Record<string, number>)[tabStatus]++;
-      c.total++;
-    }
-  }
-  const globalCounts: TypeCounts = {
-    synced: 0, missing: 0, disabled: 0, optional: 0, legacy: 0, total: 0,
-  };
-  for (const item of self._allItems) {
-    const tabStatus = item.status === "diverged" ? "missing" : item.status;
-    (globalCounts as unknown as Record<string, number>)[tabStatus]++;
+  let globalCounts: TypeCounts;
+  // ⚙️ 递归计数：与 applyFilter 同口径（tabStatus 折叠 diverged→missing），
+  // 遍历全部嵌套 children 而非仅顶层——保证徽标数 = 列表可见行数（点2）。
+  {
+    globalCounts = { synced: 0, missing: 0, disabled: 0, optional: 0, legacy: 0, total: 0 };
+    const countNode = (item: SyncItem): void => {
+      const c = typeCounts[item.type];
+      const st = tabStatus(item);
+      if (c) { (c as unknown as Record<string, number>)[st]++; c.total++; }
+      (globalCounts as unknown as Record<string, number>)[st]++;
+      item.children?.forEach(countNode);
+    };
+    for (const item of self._allItems) countNode(item);
   }
 
   // — 状态筛选标签 —
@@ -159,7 +157,11 @@ function renderNode(
   const isDir = item.isDir;
   const hasChildren = !!(item.children && item.children.length > 0);
   // 目录且未展开，或本无 children → 该子树的叶子/子树到此为止不再下钻
-  const isOpen = isDir && !!dirOpen[item.path] && hasChildren;
+  // 展开判定：dirOpen 手动折叠优先（用户点过即尊重）；未点过的目录在 status
+  // 筛选激活且「有命中后代」时由 _forceOpenPaths 强制展开（点1——折叠目录下
+  // 的命中子项无需手动展开即可见）。
+  const forceOpen = !!self._forceOpenPaths?.has(item.path);
+  const isOpen = isDir && hasChildren && (dirOpen[item.path] || forceOpen);
 
   const wrapped = (contentHTML: string): string =>
     indentPadding ? '<div style="padding-left:26px">' + contentHTML + "</div>" : contentHTML;

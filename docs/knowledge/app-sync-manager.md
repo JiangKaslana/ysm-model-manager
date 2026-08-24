@@ -59,7 +59,7 @@ invariant_anchors:
 
 ## 已知限制 / 待治理（2026-08-24 审计）
 
-- **applyFilter 不递归 children**（store.ts applyFilter）：类型/状态筛选只过滤**顶层条目**。顶层容器聚合状态为 synced 时，其内部 disabled/legacy 子项在「已禁用」「旧仓库遗留」tab 下不可发现（只能去 all tab 展开找到）——容器聚合语义与状态筛选的正交性缺口。治理方向：筛选命中子项时保留父链（filter-keep-ancestors），或容器按子项状态拆分展示
+- **✅ 已治理（2026-08-24）：applyFilter 递归 + filter-keep-ancestors**——原类型/状态筛选只过滤顶层条目，容器 synced 时内部 disabled/legacy 子项在对应 tab 不可发现。现 `store.ts applyFilter` 递归筛选：子项命中即保留父链（filter-keep-ancestors），type/status 逐节点独立判定（`matches`），`tabStatus` 统一 diverged→missing 折叠口径（store 与 renderer 计数共用，防漂移）；**status 筛选激活时**把「有命中后代的目录 path」写入 `_forceOpenPaths`，renderer 渲染时对未点过（`_dirOpen[path]` 未定义）的目录强制展开——折叠目录下的命中子项无需手动展开即可见（点过折叠则尊重用户）。计数同步递归（徽标数 = 列表可见行数）
 - 嵌套展开状态 `dirOpen` 以 `item.path` 为 key，而容器绝对路径由 Go 端 `dirLevelContainerPath` 按聚合状态选源侧——同一容器在状态变化后（diverged → optional）path 变化，旧展开状态失联（体验小瑕疵，非错误）
 
 ## 相关

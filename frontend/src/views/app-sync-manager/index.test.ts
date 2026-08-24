@@ -468,4 +468,126 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     expect(el.querySelector('.sm-file[data-path="/repo/ysm/vendor/authors/character/model.ysm"]')).toBeTruthy();
     unmountElement(el);
   });
+
+  it("容器 synced + 子项 disabled → disabled tab 显示该子行及其父链（点1 递归筛选）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+
+    const self = el as unknown as {
+      _selectedType: string;
+      _allItems: SyncItem[];
+      _filteredItems: SyncItem[];
+      _typeConfig: Array<{ id: string; dirLevelSync: boolean }>;
+      _dirOpen: Record<string, boolean>;
+      _statusFilter: string;
+      _filesRoots: Record<string, string>;
+      _doRender: () => void;
+    };
+    self._selectedType = "resourcepack";
+    self._typeConfig = [{ id: "resourcepack", dirLevelSync: true }];
+    // 容器 synced，内部 disabled 子文件——旧 applyFilter 顶层过滤会整体丢弃容器
+    self._allItems = [{
+      path: "packs", name: "packs", status: "synced", type: "resourcepack", icon: "📁", size: 0, isDir: true,
+      children: [
+        { path: "packs/a.zip", name: "a.zip", status: "disabled", type: "resourcepack", icon: "📦", size: 10, isDir: false },
+        { path: "packs/b.zip", name: "b.zip", status: "synced", type: "resourcepack", icon: "📦", size: 10, isDir: false },
+      ],
+    }];
+    self._filteredItems = self._allItems;
+    self._statusFilter = "disabled";
+    self._filesRoots = { resourcepack: "/repo" };
+    self._dirOpen = {};
+
+    self._doRender();
+    await sleep(100);
+    // 父链保留（容器行）+ disabled 子文件在 disabled tab 可见
+    expect(el.querySelectorAll(".sm-dir").length).toBe(1);
+    expect(el.querySelector('.sm-file[data-path="packs/a.zip"]')).toBeTruthy();
+    // 非命中的 b.zip 不出现
+    expect(el.querySelector('[data-path="packs/b.zip"]')).toBeNull();
+    unmountElement(el);
+  });
+
+  it("递归计数：子项计入 status 徽标（synced 容器 + 1 disabled 子 → disabled 徽标=1）点2", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+
+    const self = el as unknown as {
+      _selectedType: string;
+      _allItems: SyncItem[];
+      _filteredItems: SyncItem[];
+      _typeConfig: Array<{ id: string; dirLevelSync: boolean }>;
+      _dirOpen: Record<string, boolean>;
+      _statusFilter: string;
+      _filesRoots: Record<string, string>;
+      _doRender: () => void;
+    };
+    self._selectedType = "resourcepack";
+    self._typeConfig = [{ id: "resourcepack", dirLevelSync: true }];
+    self._allItems = [{
+      path: "packs", name: "packs", status: "synced", type: "resourcepack", icon: "📁", size: 0, isDir: true,
+      children: [
+        { path: "packs/a.zip", name: "a.zip", status: "disabled", type: "resourcepack", icon: "📦", size: 10, isDir: false },
+      ],
+    }];
+    self._filteredItems = self._allItems;
+    self._statusFilter = "all";
+    self._filesRoots = { resourcepack: "/repo" };
+    self._dirOpen = {};
+
+    self._doRender();
+    await sleep(100);
+    // disabled 徽标应显示 1（子项递归计入），非 0/2
+    const disabledTab = el.querySelector('.sm-status-tab[data-status="disabled"]');
+    expect(disabledTab).toBeTruthy();
+    // 徽标数字由 statusTabHTML 渲染，断言文本含 1
+    expect(disabledTab!.textContent).toContain("1");
+    unmountElement(el);
+  });
+
+  it("折叠目录下的命中子项 → 筛选时强制展开可见（点1 展开语义）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+
+    const self = el as unknown as {
+      _selectedType: string;
+      _allItems: SyncItem[];
+      _filteredItems: SyncItem[];
+      _typeConfig: Array<{ id: string; dirLevelSync: boolean }>;
+      _dirOpen: Record<string, boolean>;
+      _statusFilter: string;
+      _filesRoots: Record<string, string>;
+      _doRender: () => void;
+    };
+    self._selectedType = "ysm";
+    self._typeConfig = [{ id: "ysm", dirLevelSync: true }];
+    // 三层嵌套，最深层 leaf 是 disabled——旧逻辑需逐层手动展开才可见
+    self._allItems = [{
+      path: "vendor", name: "vendor", status: "synced", type: "ysm", icon: "🗂️", size: 0, isDir: true,
+      children: [{
+        path: "vendor/authors", name: "authors", status: "synced", type: "ysm", icon: "🗂️", size: 0, isDir: true,
+        children: [{
+          path: "vendor/authors/character", name: "character", status: "missing", type: "ysm", icon: "💎", size: 10, isDir: true,
+          children: [{ path: "vendor/authors/character/model.ysm", name: "model.ysm", status: "disabled", type: "ysm", icon: "💎", size: 5, isDir: false }],
+        }],
+      }],
+    }];
+    self._filteredItems = self._allItems;
+    self._statusFilter = "disabled";
+    self._filesRoots = { ysm: "/repo" };
+    self._dirOpen = {}; // 全部折叠
+
+    self._doRender();
+    await sleep(100);
+    // 无手动展开，但命中子项经 forceOpen 强制展开可见
+    expect(el.querySelector('[data-path="vendor/authors/character/model.ysm"]')).toBeTruthy();
+    // 非命中 synced 中间目录不强制展开其内部（此处仅验证命中路径即可见）
+    unmountElement(el);
+  });
 });
