@@ -74,10 +74,10 @@ describe("mountPreviewRootMenu", () => {
     }
   });
 
-  it("selfMode → scene 组隐藏；model 组始终显示（路径输入兜底）", () => {
+  it("selfMode → scene 组仍可见（lighting/shadow/postproc 已去 sharedOnly，self 模式亦可调）；model 组始终显示", () => {
     mountPreviewRootMenu(overlay, makeCtx({ selfMode: true }));
     expect(overlay.querySelector(`[data-testid="dock-model"]`)).not.toBeNull();
-    expect(overlay.querySelector(`[data-testid="dock-scene"]`)).toBeNull();
+    expect(overlay.querySelector(`[data-testid="dock-scene"]`)).not.toBeNull();
   });
 
   it("点击 scene 组（多 panel：lighting + shadow + postproc）→ 组根视图列项；camera 已在 motion 组", () => {

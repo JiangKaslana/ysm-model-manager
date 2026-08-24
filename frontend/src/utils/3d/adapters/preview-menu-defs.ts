@@ -102,7 +102,6 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     labelKey: "preview.lighting",
     fallback: "灯光",
     kind: "panel",
-    sharedOnly: true,
     dockGroup: "scene",
   },
   {
@@ -111,7 +110,6 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     labelKey: "preview.shadow",
     fallback: "阴影",
     kind: "panel",
-    sharedOnly: true,
     dockGroup: "scene",
   },
   {
@@ -120,7 +118,6 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     labelKey: "preview.postprocessing",
     fallback: "后处理",
     kind: "panel",
-    sharedOnly: true,
     dockGroup: "scene",
   },
   // 设置面板：聚合所有 sceneCapabilityRegistry 中的 cap 控件，平铺渲染。

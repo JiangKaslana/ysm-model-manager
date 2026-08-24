@@ -349,18 +349,18 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("能力驱动：无 siblings → model dock 仍显示（路径输入兜底）；selfMode + 无环境能力 → 无 🌍/🎛️ 组", () => {
+  it("能力驱动：无 siblings → model dock 仍显示（路径输入兜底）；selfMode + 无环境能力 → 仅 🌍 环境组空（🎛️ 场景组仍显：lighting/shadow/postproc 已去 sharedOnly）", () => {
     // roles 为模型组恒定 core 项（内嵌加载入口含路径兜底），dock-model 始终可见
     const noSib = mountWith([], {});
     const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
     expect(noSib.overlay.querySelector(`[data-testid="dock-${modelGroupId}"]`)).not.toBeNull();
     noSib.handle.dispose();
-    // selfMode → camera/lighting/shadow/postproc(sharedOnly) 过滤 → 🎛️ 场景组空；
-    // 无 cap → environment(requiresEnvironment) 过滤 → 🌍 环境组空 → 两组 dock 均不渲染
+    // selfMode 不再过滤 lighting/shadow/postproc（已去 sharedOnly）→ 🎛️ 场景组显；
+    // 无 cap → environment(requiresEnvironment) 过滤 → 🌍 环境组空
     const noScene = mountWith([], { selfMode: true, getSkyCap: () => null, getGroundCap: () => null });
     const sceneGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "scene")!.id;
     const envGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "env")!.id;
-    expect(noScene.overlay.querySelector(`[data-testid="dock-${sceneGroupId}"]`)).toBeNull();
+    expect(noScene.overlay.querySelector(`[data-testid="dock-${sceneGroupId}"]`)).not.toBeNull();
     expect(noScene.overlay.querySelector(`[data-testid="dock-${envGroupId}"]`)).toBeNull();
     noScene.handle.dispose();
   });
