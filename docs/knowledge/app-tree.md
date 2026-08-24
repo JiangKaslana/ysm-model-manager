@@ -54,6 +54,12 @@ invariant_anchors:
 - `_initKeyboardShortcuts` / `_deleteSelected` — 键盘快捷键 / 批量删除
 - 子模块：`bus-handlers.ts`（事件处理）/ `events.ts`（委托）/ `virtual-scroll.ts`（虚拟滚动）/ `loader.ts`（数据加载抽象层）/ `authors.ts`（作者列表加载）/ `toolbar-events.ts`（工具栏 UI 绑定）
 
+### 渲染性能要点（2026-08-24）
+
+- **搜索输入 debounce 150ms**（`toolbar-events.ts`）：`input` 事件里 `_search` 立即更新（后续其他渲染读取到最新值），仅 `_renderTree` 延迟合并——万级条目打字不再每字符全量 buildTree+渲染。测试用 `vi.useFakeTimers()` + `advanceTimersByTime` 推进。
+- **文件夹启禁用短路判定**（`render.ts` `hasFlag`）：文件夹行的 `hasEnabled/hasDisabled` 用短路递归（命中即停、不建数组）替代 `dirEntries().some()`——旧实现为算两个布尔对每个文件夹递归展开全子树，深层嵌套 O(n·depth)。行为不变（ckCls：全启 `" on"`、混合 `" on partial"`、全禁空）。
+- **方向键导航（P2 观察）**：`selectSingle` 后仍全量 `_renderTree`，但行 HTML 预缓存 + 可见区 slice<100，实际开销低，未优化。
+
 ## 响应式属性与代际守卫
 
 - `observedAttributes` 仅声明 `root` 属性，`attributeChangedCallback` 响应 root 值变更，触发 `_load` → `_renderTree` 重新加载并渲染
