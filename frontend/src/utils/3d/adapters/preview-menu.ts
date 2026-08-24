@@ -1155,9 +1155,16 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
  * 间接解决不同格式可查看内容不一致的问题）、行尾 ⚙ 进工具面板（卸载角色，
  * 少用但重要）；底部复用 fillSwitch 加载入口（siblings + 类型 tab）。
  */
-/** 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移） */
-function roleBaseName(e: ModelEntry): string {
-  return e.path.split(/[/\\]/).pop() || e.path;
+/** 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。
+ *  剥离扩展名（.ysm/.json/.zip/.vrm/.pmx/.fbx/.litematic 等任意单段后缀）——
+ *  用户实测 ysm.json 当标题反直觉：entry.path 可能指向包内入口文件（如 ysm.json），
+ *  basename 直接展示会露出无意义的技术文件名；剥后缀后保留模型真名
+ *  （如 [vup]子言-水手服(...)[VUP曼云]1.2.zip → [vup]子言-水手服(...)[VUP曼云]1.2）。 */
+export function roleBaseName(e: ModelEntry): string {
+  const base = e.path.split(/[/\\]/).pop() || e.path;
+  // 剥最后一段 .ext（任意后缀，保留带点号的版本号如 1.2）
+  const dot = base.lastIndexOf(".");
+  return dot > 0 ? base.slice(0, dot) : base;
 }
 
 /**

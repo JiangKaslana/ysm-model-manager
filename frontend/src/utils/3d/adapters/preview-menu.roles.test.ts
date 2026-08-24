@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
 import { CORE_MENU_ITEMS, type PreviewMenuItemDef } from "./preview-menu-defs.ts";
-import { mountPreviewRootMenu, type PreviewMenuCtx } from "./preview-menu.ts";
+import { mountPreviewRootMenu, roleBaseName, type PreviewMenuCtx } from "./preview-menu.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 
 function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
@@ -209,5 +209,22 @@ describe("角色面板（roles）", () => {
     expect(overlay.querySelector('[data-testid="preview-play"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="preview-shot"]')).not.toBeNull();
     handle.dispose();
+  });
+
+  it("roleBaseName 剥扩展名：ysm.json/zip/vrm 等入口文件不露技术名，版本号保留", () => {
+    const cases: Array<[string, string]> = [
+      ["/m/a.ysm", "a"],
+      ["/m/foo.json", "foo"],
+      ["/m/bar.zip", "bar"],
+      ["/m/[vup]子言-水手服(纯黑-地雷系-墨绿发)[VUP曼云]1.2.zip", "[vup]子言-水手服(纯黑-地雷系-墨绿发)[VUP曼云]1.2"],
+      ["/m/model.vrm", "model"],
+      ["/m/pose.pmx", "pose"],
+      ["/m/无扩展名路径", "无扩展名路径"],
+    ];
+    for (const [path, expected] of cases) {
+      const id = regRole(path);
+      const e = sceneRegistry.get(id)!;
+      expect(roleBaseName(e), path).toBe(expected);
+    }
   });
 });
