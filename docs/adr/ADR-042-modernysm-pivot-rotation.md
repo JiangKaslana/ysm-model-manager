@@ -1,6 +1,6 @@
 # ADR-042：渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植
 
-- **状态**：✅ 已采纳（§2.1 骨骼矩阵算法——旋转序 ZYX、cube 变换链已落地 commit b8fc3211，知识卡 go-threejs.md 沉淀；§2.1 四项核对 2026-08-24：scale ✅ 已落地、隐藏联动 ✅ 已落地、glow ❌ 确实未建模、世界坐标回填 ⏭️ 无需实现，验证脚本 `tests/verify-adr-042.mjs`；§2.2 二进制直读 / §2.3 动画纯计算移植仍排期，属后续演进项）
+- **状态**：✅ 已采纳（§2.1 骨骼矩阵算法——旋转序 ZYX、cube 变换链已落地 commit b8fc3211，知识卡 go-threejs.md 沉淀；§2.1 四项核对 2026-08-24：scale ✅ 已落地、隐藏联动 ✅ 已落地、glow ✅ 已落地 commit a93b61ba（isGlowBone + BoneData.Glow + MeshStandardMaterial emissive）、世界坐标回填 ⏭️ 无需实现，验证脚本 `tests/verify-adr-042.mjs`；§2.2 bone 层二进制直读已落地（C++ 解析器 YSMParserV3.cpp:862-876 直读 pivot/rotation 并导出到 geometry JSON，我们已在用），cube 层反推猜错属另一条链路待解决；§2.3 动画纯计算移植仍排期，属后续演进项）
 - **日期**：2026-08-09
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`upstream/ModernYSM-1.20.1-forge` / `go/threejs/spec.go` / `frontend/src/utils/3d/model3d.ts` / `frontend/src/utils/animation/` / `docs/knowledge/ysm_baked.md` / `docs/knowledge/animation-system.md` / `tests/port-verification/`
@@ -47,7 +47,11 @@
 
 理由：游戏端（`YSMBinaryDeserializer.java:463-498` + `YSMClientMapper.java:452`）用的是原始保留值，从不反推，所以游戏内永远正确；反推猜错（复杂嵌套旋转 / 重合顶点崩溃，`ysm_baked.md:58`）是预览特有的已知限制，本项从根上消除。
 
-> 可行性约束：WASM 导出的是反推后的 `minecraft:geometry` JSON，是否保留 bone 原始 pivot/rotation 需评估 YSMParser C++ 侧是否已保留（`upstream/YesSteveModel-Parser`）。若 C++ 侧未导出，需在解析层补充导出或在 Go 侧直接二次解析二进制字节流的 bone 段（`.000` 字节序）。本决策只锁定"优先原始值"的方向，具体取数落点排期验证。
+> **核对结论（2026-08-24）**：C++ 解析器 `upstream/YesSteveModel-Parser/YSMParser/parsers/v3/YSMParserV3.cpp:862-876` 已从二进制**直读** bone 层原始 pivot/rotation（`bone.pivot.x/y/z = reader.readFloat()`，`bone.rotation.x/y/z = reader.readFloat()`，原始单位为弧度）。导出到 `minecraft:geometry` JSON 时（`:925-938`）已做符号修正——pivot X 取负（`-parsedBone.pivot.x`），rotation X/Y 取负并弧度转度（`(-rotation.x) * 180/PI`），Z 轴不取反。我们 `go/geometry/parse.go` 读 JSON 的 `bone.pivot` / `bone.rotation` 即为这些原始值，**bone 层二进制直读已落地**。
+>
+> 尚未解决的是 **cube 层反推猜错**：C++ 解析器导出的 cube 是烘焙 quad（4 顶点 + 法线 + UV），不是 Blockbench 的 `origin/size` 格式，`restore_blockbench_cube` 从 quad 反推 `origin/size` 时复杂嵌套旋转会猜错。此问题属另一条链路，与本 §2.2 的 bone 层直读无关。
+
+> ~~可行性约束：WASM 导出的是反推后的 `minecraft:geometry` JSON，是否保留 bone 原始 pivot/rotation 需评估 YSMParser C++ 侧是否已保留（`upstream/YesSteveModel-Parser`）。若 C++ 侧未导出，需在解析层补充导出或在 Go 侧直接二次解析二进制字节流的 bone 段（`.000` 字节序）。本决策只锁定"优先原始值"的方向，具体取数落点排期验证。~~ → **已验证（2026-08-24）**：C++ 侧已保留并导出 bone 原始 pivot/rotation 到 geometry JSON，我们已在用。
 
 > 过渡性落地（2026-08-09 code_review P2）：在二进制直读上线前，Go 兜底侧（`go/geometry/parse.go` + `go/threejs/spec.go`）已把 cube pivot 的**缺席判定**从零值哨兵改为 `PivotSet` 标志（`*[3]float64` nil=缺席）——显式 `pivot:[0,0,0]`（绕模型原点旋转的铰接件）不再被误判为缺失、旋转中心不再漂移到 cube 中心。这与本 ADR「优先原始 pivot 值、不猜符号」的方向一致，属于反推链路上的口径修正（详见 `docs/knowledge/go-threejs.md` 不变量段、`docs/pitfalls.md` #17）。
 
