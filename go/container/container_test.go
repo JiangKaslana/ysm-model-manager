@@ -87,6 +87,58 @@ func TestOpen_UnsupportedExt(t *testing.T) {
 	}
 }
 
+// 剥离禁用后缀后分派（c08c62bc P3 回归锁）：ToggleEnable 改名后的 xxx.zip.disabled
+// 必须仍按真实容器类型打开，否则指纹核验对禁用容器失效、扫描结果跨 tab 泄漏错类。
+func TestOpen_DisableSuffixDispatch(t *testing.T) {
+	if got := stripDisableSuffix("a.zip"); got != "a.zip" {
+		t.Errorf("无后缀应原样返回: %q", got)
+	}
+	if got := stripDisableSuffix("a.zip.disabled"); got != "a.zip" {
+		t.Errorf(".disabled 应剥离: %q", got)
+	}
+	if got := stripDisableSuffix("A.ZIP.BAN"); got != "A.ZIP" {
+		t.Errorf(".ban 大小写不敏感剥离且保留原名大小写: %q", got)
+	}
+
+	data := makeTestZip(t, map[string]string{"ysm.json": `{}`})
+	dir := t.TempDir()
+	for _, name := range []string{"m.zip.disabled", "m.zip.ban", "M.ZIP.DISABLED"} {
+		p := dir + "/" + name
+		if err := os.WriteFile(p, data, 0644); err != nil {
+			t.Fatal(err)
+		}
+		r, err := Open(p)
+		if err != nil {
+			t.Fatalf("%s 应按 zip 容器打开: %v", name, err)
+		}
+		if n := len(r.Entries()); n != 1 {
+			t.Errorf("%s 条目数期望 1, 实际 %d", name, n)
+		}
+		r.Close()
+	}
+
+	// 剥离只影响分派：非容器格式 + 禁用后缀仍拒绝；目录 + 禁用后缀仍走目录直读
+	txt := dir + "/x.txt.disabled"
+	if err := writeFile(txt, "x"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(txt); err == nil {
+		t.Error(".txt.disabled 不应作为容器打开")
+	}
+	sub := dir + "/d.disabled"
+	if err := os.MkdirAll(sub, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFile(sub+"/e.json", "{}"); err != nil {
+		t.Fatal(err)
+	}
+	rd, err := Open(sub)
+	if err != nil {
+		t.Fatalf("目录 + 禁用后缀应走目录直读: %v", err)
+	}
+	rd.Close()
+}
+
 func TestOpenDir_Entries(t *testing.T) {
 	dir := t.TempDir()
 	if err := writeFile(dir+"/a.json", "{}"); err != nil {

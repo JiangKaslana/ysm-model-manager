@@ -13,10 +13,10 @@ import (
 type ConflictType string
 
 const (
-	// ConflictContentModified 内容冲突：本地和远端文件内容都被修改
+	// ConflictContentModified 内容冲突：本地和远端文件内容都被修改（hash 不同）
 	ConflictContentModified ConflictType = "content_modified"
-	// ConflictAddedInBoth 双端新增：本地和远端都新增了同名文件
-	ConflictAddedInBoth ConflictType = "added_in_both"
+	// ConflictSizeMismatch 大小不匹配：路径存在但文件大小不同（快速检测，可能后续 hash 验证为同一内容）
+	ConflictSizeMismatch ConflictType = "size_mismatch"
 )
 
 // ResolutionStrategy 冲突解决策略
@@ -45,11 +45,11 @@ type FileConflict struct {
 	LocalSize int64 `json:"localSize"`
 	// RemoteSize 远端文件大小
 	RemoteSize int64 `json:"remoteSize"`
-	// LocalHash 本地文件哈希（可选，用于精确比较）
+	// LocalHash 本地文件哈希
 	LocalHash string `json:"localHash,omitempty"`
-	// RemoteHash 远端文件哈希（可选，用于精确比较）
+	// RemoteHash 远端文件哈希
 	RemoteHash string `json:"remoteHash,omitempty"`
-	// SuggestedStrategy 建议的解决策略（如：保留较新版本）
+	// SuggestedStrategy 建议的解决策略
 	SuggestedStrategy ResolutionStrategy `json:"suggestedStrategy"`
 }
 
@@ -62,18 +62,16 @@ type ConflictReport struct {
 }
 
 // DetectConflicts 检测本地和远端之间的冲突
-// localDir: 本地目录路径
-// remoteDir: 远端（全局/主仓库）目录路径
+// 基于文件哈希比较：两端都存在且哈希不同 → 内容冲突
+// localDir: 本地目录路径（整合包）
+// remoteDir: 远端目录路径（全局/主仓库）
 // rtype: 资源类型 ID
-// 返回冲突报告
 func DetectConflicts(localDir, remoteDir, rtype string) (*ConflictReport, error) {
-	// 收集本地文件
 	localFiles, err := collectFileEntries(localDir)
 	if err != nil {
 		return nil, fmt.Errorf("收集本地文件失败: %w", err)
 	}
 
-	// 收集远端文件
 	remoteFiles, err := collectFileEntries(remoteDir)
 	if err != nil {
 		return nil, fmt.Errorf("收集远端文件失败: %w", err)
@@ -85,15 +83,11 @@ func DetectConflicts(localDir, remoteDir, rtype string) (*ConflictReport, error)
 	for path, localInfo := range localFiles {
 		remoteInfo, exists := remoteFiles[path]
 		if !exists {
-			continue // 远端不存在，是新增或删除，不算冲突
+			continue // 远端不存在，是本地独有文件，不算冲突
 		}
 
-		// 检查是否修改过（通过修改时间和大小判断）
-		localModified := localInfo.ModTime.After(localInfo.InitTime)
-		remoteModified := remoteInfo.ModTime.After(remoteInfo.InitTime)
-
-		if localModified && remoteModified {
-			// 两端都修改了，这是内容冲突
+		// 内容冲突判定：两端都存在且哈希不同
+		if localInfo.Hash != remoteInfo.Hash && localInfo.Hash != "" && remoteInfo.Hash != "" {
 			conflict := FileConflict{
 				Path:              path,
 				Type:              ConflictContentModified,
@@ -101,44 +95,26 @@ func DetectConflicts(localDir, remoteDir, rtype string) (*ConflictReport, error)
 				RemoteModTime:     remoteInfo.ModTime,
 				LocalSize:         localInfo.Size,
 				RemoteSize:        remoteInfo.Size,
+				LocalHash:         localInfo.Hash,
+				RemoteHash:        remoteInfo.Hash,
 				SuggestedStrategy: suggestStrategy(localInfo.ModTime, remoteInfo.ModTime),
 			}
 			conflicts = append(conflicts, conflict)
-		}
-	}
-
-	// 检查双端新增的文件（本地和远端都有，但不在对方的原始基线中）
-	// 简化处理：如果文件两端都存在但大小和时间完全不同，且都不是基线版本，视为双端新增
-	for path, localInfo := range localFiles {
-		remoteInfo, exists := remoteFiles[path]
-		if !exists {
-			continue
-		}
-		// 如果修改时间都很近（比如都在最近 24 小时内），且大小不同，可能是双端新增
-		now := time.Now()
-		if now.Sub(localInfo.ModTime) < 24*time.Hour && now.Sub(remoteInfo.ModTime) < 24*time.Hour {
-			if localInfo.Size != remoteInfo.Size && localInfo.Hash != remoteInfo.Hash {
-				// 避免重复添加
-				found := false
-				for _, c := range conflicts {
-					if c.Path == path {
-						found = true
-						break
-					}
-				}
-				if !found {
-					conflict := FileConflict{
-						Path:              path,
-						Type:              ConflictAddedInBoth,
-						LocalModTime:      localInfo.ModTime,
-						RemoteModTime:     remoteInfo.ModTime,
-						LocalSize:         localInfo.Size,
-						RemoteSize:        remoteInfo.Size,
-						SuggestedStrategy: suggestStrategy(localInfo.ModTime, remoteInfo.ModTime),
-					}
-					conflicts = append(conflicts, conflict)
-				}
+		} else if localInfo.Size != remoteInfo.Size {
+			// 大小不匹配但哈希可能一致（极端情况），标记为 size_mismatch 供参考
+			// 注：哈希一致但大小不同在理论上不可能，此分支为防御性分支
+			conflict := FileConflict{
+				Path:              path,
+				Type:              ConflictSizeMismatch,
+				LocalModTime:      localInfo.ModTime,
+				RemoteModTime:     remoteInfo.ModTime,
+				LocalSize:         localInfo.Size,
+				RemoteSize:        remoteInfo.Size,
+				LocalHash:         localInfo.Hash,
+				RemoteHash:        remoteInfo.Hash,
+				SuggestedStrategy: suggestStrategy(localInfo.ModTime, remoteInfo.ModTime),
 			}
+			conflicts = append(conflicts, conflict)
 		}
 	}
 
@@ -151,25 +127,29 @@ func DetectConflicts(localDir, remoteDir, rtype string) (*ConflictReport, error)
 }
 
 // ResolveConflict 解决单个文件冲突
-// conflict: 冲突详情
-// strategy: 解决策略
-// localDir: 本地目录
-// remoteDir: 远端目录
-// 返回操作结果（保留/覆盖/重命名）
+// 先备份再操作，确保安全
 func ResolveConflict(conflict FileConflict, strategy ResolutionStrategy, localDir, remoteDir string) error {
-	localPath := localDir + "/" + conflict.Path
-	remotePath := remoteDir + "/" + conflict.Path
+	localPath := filepath.Join(localDir, conflict.Path)
+	remotePath := filepath.Join(remoteDir, conflict.Path)
 
 	switch strategy {
 	case ResolveForceRemote:
-		// 强制使用远端：删除本地，拷贝远端
-		if err := os.Remove(localPath); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("删除本地文件失败: %w", err)
+		// 强制使用远端：先备份本地，再用远端覆盖
+		backupPath := localPath + ".bak"
+		if err := copyFileSafe(localPath, backupPath); err != nil {
+			return fmt.Errorf("备份本地文件失败: %w", err)
 		}
-		return copyConflictFile(remotePath, localPath)
+		if err := copyFileSafe(remotePath, localPath); err != nil {
+			// 恢复备份
+			_ = copyFileSafe(backupPath, localPath)
+			_ = os.Remove(backupPath)
+			return fmt.Errorf("拷贝远端文件失败: %w", err)
+		}
+		_ = os.Remove(backupPath)
+		return nil
 
 	case ResolveForceLocal:
-		// 强制保留本地：不做任何操作（标记为已解决）
+		// 强制保留本地：不做任何操作
 		return nil
 
 	case ResolveManual:
@@ -182,11 +162,6 @@ func ResolveConflict(conflict FileConflict, strategy ResolutionStrategy, localDi
 }
 
 // ResolveConflicts 批量解决冲突
-// conflicts: 冲突列表
-// defaultStrategy: 默认策略（用于自动解决）
-// localDir: 本地目录
-// remoteDir: 远端目录
-// 返回解决结果（成功数、失败数、需手动处理数）
 func ResolveConflicts(conflicts []FileConflict, defaultStrategy ResolutionStrategy, localDir, remoteDir string) (resolved, failed, manual int) {
 	for _, c := range conflicts {
 		strategy := c.SuggestedStrategy
@@ -212,46 +187,57 @@ func ResolveConflicts(conflicts []FileConflict, defaultStrategy ResolutionStrate
 
 // fileEntryInfo 文件条目信息
 type fileEntryInfo struct {
-	Path     string
-	Size     int64
-	ModTime  time.Time
-	InitTime time.Time // 初始化/基线时间
-	Hash     string
+	Path    string
+	Size    int64
+	ModTime time.Time
+	Hash    string
 }
 
 // collectFileEntries 收集目录下的所有文件信息
 func collectFileEntries(dir string) (map[string]fileEntryInfo, error) {
 	entries := make(map[string]fileEntryInfo)
+	var walkErr error
+
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("目录不存在: %s", dir)
+	}
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil // 忽略单个文件错误
+			// 收集访问错误但继续遍历其他文件（部分文件权限问题不影响整体扫描）
+			return nil
 		}
 		if info.IsDir() {
 			return nil
 		}
 
-		// 计算相对路径
-		relPath, err := filepath.Rel(dir, path)
-		if err != nil {
+		relPath, relErr := filepath.Rel(dir, path)
+		if relErr != nil {
+			walkErr = relErr
 			return nil
 		}
 		relPath = filepath.ToSlash(relPath)
 
-		// 计算文件哈希
-		hash, _ := computeFileHash(path)
+		hash, hashErr := computeFileHash(path)
+		if hashErr != nil {
+			// 哈希失败但仍记录条目（无 hash），不中断流程
+			walkErr = hashErr
+		}
 
 		entries[relPath] = fileEntryInfo{
-			Path:     relPath,
-			Size:     info.Size(),
-			ModTime:  info.ModTime(),
-			InitTime: info.ModTime(), // 简化：初始时间 = 修改时间（实际应从基线记录获取）
-			Hash:     hash,
+			Path:    relPath,
+			Size:    info.Size(),
+			ModTime: info.ModTime(),
+			Hash:    hash,
 		}
 		return nil
 	})
 
-	return entries, err
+	if err != nil {
+		walkErr = err
+	}
+
+	return entries, walkErr
 }
 
 // computeFileHash 计算文件 SHA256 哈希
@@ -271,32 +257,41 @@ func computeFileHash(path string) (string, error) {
 
 // suggestStrategy 根据修改时间建议解决策略
 func suggestStrategy(localTime, remoteTime time.Time) ResolutionStrategy {
-	// 如果远端更新，建议使用远端
 	if remoteTime.After(localTime) {
 		return ResolveForceRemote
 	}
-	// 如果本地更新，建议保留本地
 	if localTime.After(remoteTime) {
 		return ResolveForceLocal
 	}
-	// 时间相同，建议手动解决
 	return ResolveManual
 }
 
-// copyConflictFile 拷贝文件
-func copyConflictFile(src, dst string) error {
+// copyFileSafe 安全拷贝文件（先备份再覆盖模式）
+func copyFileSafe(src, dst string) error {
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer srcFile.Close()
 
+	// 确保目标目录存在
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+
 	dstFile, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer dstFile.Close()
+	defer dstFile.Close() // 兜底：仅 io.Copy 早退路径触发
 
-	_, err = io.Copy(dstFile, srcFile)
-	return err
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+	// 写路径 Close 错误必须检查：缓冲写失败可能在 Close/Flush 才浮现（Windows/网络盘），
+	// 静默吞掉会把截断的目标文件当成功解决（code_review P3 回归）
+	if err := dstFile.Close(); err != nil {
+		return err
+	}
+	return nil
 }

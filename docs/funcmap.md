@@ -128,7 +128,7 @@
 | `dirContainer.Entries()` | `go/container/container:238` | — |
 | `dirContainer.Close()` | `go/container/container:239` | — |
 | `OpenDir()` | `go/container/container:242` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
-| `ZipMatchesEntries()` | `go/container/container:251` | ZipMatchesEntries 打开 zip 容器并枚举条目名，任一命中 match 即返回 true。 |
+| `ZipMatchesEntries()` | `go/container/container:254` | ZipMatchesEntries 打开 zip 容器并枚举条目名，任一命中 match 即返回 true。 |
 | `Entry()` | `go/container/container:26` | Entry 统一容器条目（zip.File / sevenzip.File / 目录文件）。 |
 | `Reader()` | `go/container/container:34` | Reader 容器读取器。 |
 
@@ -986,7 +986,7 @@
 | `toast()` | `frontend/src/core/context-menu-shared:21` | 显示 toast 通知 |
 | `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:26` | 路径安全过滤：禁止逃逸段（. |
 | `resolveDstDir()` | `frontend/src/core/context-menu-shared:38` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
-| `registerContextMenus()` | `frontend/src/core/context-menus:76` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
+| `registerContextMenus()` | `frontend/src/core/context-menus:77` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
 | `__TEST__resetDiary()` | `frontend/src/core/error-diary:29` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
 | `registerErrorDiary()` | `frontend/src/core/error-diary:51` | 注册 UI 报错落日记功能。 |
 | `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:17` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |
@@ -1875,10 +1875,10 @@
 | `contentRepoCSS()` | `frontend/src/views/app-content/content-repo:2` | — |
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:16` | — |
-| `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:134` | — |
-| `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:83` | 初始化去重配置面板（标签页打开时调用，配置实时保存） |
-| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:134` | 获取当前去重配置（供外部调用） |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:147` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:129` | — |
+| `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:87` | 初始化去重配置面板（标签页打开时调用，配置实时保存） 扫描结果不覆盖面板，控件扫描后仍可改；code_review P3） |
+| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:138` | 获取当前去重配置（供外部调用） |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:151` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
 | `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:125` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
@@ -1904,10 +1904,10 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:268` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:275` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:283` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:287` | — |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:272` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:279` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:287` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:291` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:37` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:143` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |

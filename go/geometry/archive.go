@@ -318,22 +318,6 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 	return modelOrder, texOrder, geoFiles, pngs, pngNames, animJSONs, md.ModelTexName
 }
 
-// parseModelFromEntries 共享主体：ysm.json 解析 + model/texture 顺序 + geo/png/anim 收集，
-// 构建 BedrockModel。logTag 用于日志前缀（"zip" / "7z"）。
-//
-// 清单分层（L0 权威 → L1 兜底）：
-//
-//	L0：maid_model.json model[] / model_list[] 数组（TLM 自有结构）
-//	    —— 条目支持两种形式：
-//	     (a) 完整路径：{name, model, texture} （直接指向 zip 内相对路径）
-//	     (b) model_id：{name, model_id} （从 model_id 去命名空间前缀 + 候选路径字典推断 zip 路径）
-//	L1：遍历 zip 内 .json 枚举 + 文件名排序（无 L0 或 L0 非法时启用）
-//
-// 多命名空间处理：zip 内可能存在多个 maid_model.json（如 credits_authors 致谢清单 + 主包清单），
-// 选 model/model_list 条目数最长者作为主命名空间（"最长清单即主包" 启发式）。
-//
-// L0 生效时：geoFiles / pngs / modelOrder / texOrder 全部从清单派生，多余的文件
-// （如 junk_geo.json、外来命名空间内容）一律丢弃，避免顺序/纹理绑定被污染。
 // maidManifestItem 对应 L0 maid_model.json model[] / model_list[] 的单条
 // 支持两种描述形式，两个字段组合使用：
 //   - 形式 A（完整路径，老/自定义包）：Model + Texture 直接给出相对路径
@@ -694,6 +678,22 @@ func resolveL0(entries []container.Entry, maidNs string, manifest []maidManifest
 	return res
 }
 
+// parseModelFromEntries 共享主体：ysm.json 解析 + model/texture 顺序 + geo/png/anim 收集，
+// 构建 BedrockModel。logTag 用于日志前缀（"zip" / "7z"）。
+//
+// 清单分层（L0 权威 → L1 兜底）：
+//
+//	L0：maid_model.json model[] / model_list[] 数组（TLM 自有结构）
+//	    —— 条目支持两种形式：
+//	     (a) 完整路径：{name, model, texture} （直接指向 zip 内相对路径）
+//	     (b) model_id：{name, model_id} （从 model_id 去命名空间前缀 + 候选路径字典推断 zip 路径）
+//	L1：遍历 zip 内 .json 枚举 + 文件名排序（无 L0 或 L0 非法时启用）
+//
+// 多命名空间处理：zip 内可能存在多个 maid_model.json（如 credits_authors 致谢清单 + 主包清单），
+// 选 model/model_list 条目数最长者作为主命名空间（"最长清单即主包" 启发式）。
+//
+// L0 生效时：geoFiles / pngs / modelOrder / texOrder 全部从清单派生，多余的文件
+// （如 junk_geo.json、外来命名空间内容）一律丢弃，避免顺序/纹理绑定被污染。
 func parseModelFromEntries(entries []container.Entry, logTag string) (*types.BedrockModel, [][]byte, []string, []geoEntry) {
 	logPrefix := "[geometry]"
 	if logTag != "zip" {

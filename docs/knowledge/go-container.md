@@ -50,6 +50,7 @@ invariant_anchors:
 - `Close()` 对 bytes 版为 no-op（内存容器无句柄）；path 版必须 defer Close（zip/7z 的 `ReadCloser`）
 - 7z 只读库无 Writer，测试仅覆盖坏数据路径（非 7z 魔数 → `sevenzip.NewReader` 报错，不得 panic 或静默返回空容器）
 - 不支持格式必须显式报错（`Open` 对非 zip/7z/目录拒绝），不静默降级
+- **`Open` 分派前剥离禁用后缀（`.disabled`/`.ban`，大小写不敏感，包内 `stripDisableSuffix` 与 types 同语义但独立实现——types 依赖本包，反向引用成环）**：ToggleEnable 改名后的 `xxx.zip.disabled` 仍按真实容器类型打开（c08c62bc P3 回归——否则指纹核验对禁用容器失效、扫描归类错乱跨 tab 泄漏）；打开路径用原值（磁盘文件就叫 xxx.zip.disabled）。契约锁：`TestOpen_DisableSuffixDispatch`
 
 ## 相关
 

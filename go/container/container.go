@@ -248,8 +248,11 @@ func OpenDir(root string) (Reader, error) {
 // 不含目标指纹的 zip 安全排除，绝不误判为某类型资源（同步推送/拉取链路
 // 据此避免把纯打包物或坏包当模型搬运）。match 接收小写条目名（与
 // types.ResourceType.MatchZipEntry 内部 ToLower 幂等一致）。
+// 禁用后缀文件（xxx.zip.disabled）：扩展名判定剥离 .disabled/.ban（与
+// Open/DetectResourceType 同口径，code_review P3——否则同步指纹链路把
+// 禁用容器当非 zip 排除，与指纹核验路径分类分叉）。
 func ZipMatchesEntries(path string, match func(string) bool) bool {
-	if !strings.EqualFold(filepath.Ext(path), ".zip") {
+	if !strings.EqualFold(filepath.Ext(stripDisableSuffix(path)), ".zip") {
 		return false
 	}
 	rc, err := OpenZipPath(path)
