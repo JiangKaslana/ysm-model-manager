@@ -434,7 +434,7 @@ func TestExtractAvatarURI_FromZip_PathTraversal(t *testing.T) {
 }
 
 func TestExtractAvatarURI_FromZip_MissingAvatar(t *testing.T) {
-	// 作者匹配但 zip 内无对应头像文件 → 空
+	// 作者匹配但 zip 内无对应头像文件 → 降级扫描 avatar/ 目录找到 face.png → 非空
 	ysmJSON := `{"metadata":{"authors":[{"name":"测试用户","avatar":"avatar/missing.png"}]}}`
 	data := makeZip(t, map[string]string{
 		"ysm.json":        ysmJSON,
@@ -444,20 +444,22 @@ func TestExtractAvatarURI_FromZip_MissingAvatar(t *testing.T) {
 	if err := os.WriteFile(zipPath, data, 0644); err != nil {
 		t.Fatal(err)
 	}
-	if result := ExtractAvatarURI(zipPath, "测试用户"); result != "" {
-		t.Fatalf("zip 内缺头像文件应返回空, 得到 %q", result)
+	result := ExtractAvatarURI(zipPath, "测试用户")
+	if result == "" {
+		t.Fatal("降级路径应返回降级头像, 得到空")
 	}
 }
 
 func TestExtractAvatarURI_FromZip_NoYSMJSON(t *testing.T) {
-	// zip 内无 ysm.json → authors 为空 → 空
+	// zip 内无 ysm.json → authors 为空 → 降级扫描 avatar/ 目录找到 face.png → 非空
 	data := makeZip(t, map[string]string{"avatar/face.png": "face-data"})
 	zipPath := filepath.Join(t.TempDir(), "model.zip")
 	if err := os.WriteFile(zipPath, data, 0644); err != nil {
 		t.Fatal(err)
 	}
-	if result := ExtractAvatarURI(zipPath, "测试用户"); result != "" {
-		t.Fatalf("无 ysm.json 的 zip 应返回空, 得到 %q", result)
+	result := ExtractAvatarURI(zipPath, "测试用户")
+	if result == "" {
+		t.Fatal("降级路径应返回降级头像, 得到空")
 	}
 }
 
