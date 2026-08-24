@@ -241,7 +241,7 @@ export function initAdvancedGrid(
           ? '<span class="stg-custom-badge">' + t("settings.path.customized") + '</span>'
           : "") +
         (isOverridden
-          ? '<button class="btn stg-adv-reset" data-rtype="' +
+          ? '<button class="btn-base sm stg-adv-reset" data-rtype="' +
             at.rtype +
             '" style="font-size:var(--fs-btn-tool);padding:2px 6px">↩️ ' + t("settings.path.default") + '</button>'
           : "") +

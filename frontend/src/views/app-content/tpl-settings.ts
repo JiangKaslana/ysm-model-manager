@@ -87,13 +87,13 @@ export function settingsHTML(): string {
     <div class="stg-card-hdr">📁 ${t("settings.webRepo.title")}</div>
     <div class="stg-card-body">
       <div class="stg-card-desc">${t("settings.webRepo.desc")}</div>
-      <button class="btn" id="web-repo-auth-btn" style="margin-top:8px;font-size:11px;padding:4px 12px">📂 ${t("settings.webRepo.authorize")}</button>
+      <button class="btn-base sm" id="web-repo-auth-btn" style="margin-top:8px;font-size:11px;padding:4px 12px">📂 ${t("settings.webRepo.authorize")}</button>
       <div id="web-repo-auth-status" style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5"></div>
     </div>
   </div>
   ` : `
   <div class="stg-card" id="stg-files-card" style="margin-top:8px;animation-delay:180ms">
-    <div class="stg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">📁 ${t("settings.storage.title")}<button class="btn" id="set-advanced-toggle" style="font-size:9px;padding:2px 8px">📂 ${t("settings.storage.expand")} ▸</button></div>
+    <div class="stg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">📁 ${t("settings.storage.title")}<button class="btn-base sm" id="set-advanced-toggle" style="font-size:9px;padding:2px 8px">📂 ${t("settings.storage.expand")} ▸</button></div>
     <div class="stg-card-body">
       <div class="stg-path-val" id="set-files-root">${t("common.loading")}</div>
       <div class="stg-card-desc">${t("settings.storage.desc")}</div>

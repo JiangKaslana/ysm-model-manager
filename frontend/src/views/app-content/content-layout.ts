@@ -44,13 +44,7 @@ ${focusVisibleCSS}
 
 /* ===== 旧按钮兼容层 ===== */
 /* .hdr-btn 已删除：app-tree/app-tree-styles.ts 有独立定义且 tpl 已改用 .btn-base（见其 L41 注释），content-layout 内为死代码 */
-/* .btn 裸类仅设置页 3 处遗留（tpl-settings.ts:90,96 / path-cards.ts:244），待迁移 .btn-base 后删除 */
-.btn { padding:var(--pad-btn-primary) 8px; border-radius:var(--radius-sm); border:1px solid var(--bd); background:transparent; color:var(--txt); cursor:pointer; font-size:var(--fs-btn-primary); font-family:inherit; transition:background var(--tr-fast); }
-.btn:hover { background:var(--hover); }
-.btn.accent { background:var(--accent-btn-bg); color:var(--accent-btn-color); border-color:var(--accent-btn-border); }
-.btn.accent:hover { background: color-mix(in srgb, var(--accent) 33%, transparent); }
-.btn.danger { background: color-mix(in srgb, var(--status-error) 13%, transparent); color: var(--status-error); border-color: color-mix(in srgb, var(--status-error) 33%, transparent); }
-.btn.danger:hover { background: color-mix(in srgb, var(--status-error) 27%, transparent); }
+/* .btn 裸类兼容层已删除：设置页 3 处遗留（web-repo-auth-btn / set-advanced-toggle / stg-adv-reset）均已迁移至 .btn-base，统一按钮系统见 utils/dom/css.ts */
 
 /* ===== 通用卡片系统（元老页原型 → 全项目复用） ===== */
 /* ring-fill 动画已废弃，health-ring 改用 breathe-subtle */
