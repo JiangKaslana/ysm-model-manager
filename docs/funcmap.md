@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 150 | 599 |
-| frontend/views | 116 | 337 |
+| frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **462** | **1995** |
+| **合计** | **462** | **1993** |
 
 ## Go·头像
 
@@ -1703,10 +1703,10 @@
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
 | `CachePolicy()` | `frontend/src/utils/cache/with-cached:15` | 缓存策略 |
-| `withCached()` | `frontend/src/utils/cache/with-cached:34` | 带过期时间的异步缓存包装器 策略行为（优先级从高到低）： FORCE  — 忽略缓存，强制重新计算（不写入缓存） STALE  — 命中缓存直接返回；过期则立即返回旧值 + 后台刷 |
-| `invalidateCache()` | `frontend/src/utils/cache/with-cached:88` | 清除指定缓存条目 |
-| `clearAllCache()` | `frontend/src/utils/cache/with-cached:94` | 清除所有缓存 |
-| `getCacheTtlMs()` | `frontend/src/utils/cache/with-cached:100` | 获取缓存条目的剩余 TTL（毫秒），未命中返回 -1 |
+| `withCached()` | `frontend/src/utils/cache/with-cached:48` | 带过期时间的异步缓存包装器 策略行为（优先级从高到低）： FORCE  — 忽略缓存，强制重新计算（不写入缓存） STALE  — 命中缓存直接返回；过期则立即返回旧值 + 后台刷 |
+| `invalidateCache()` | `frontend/src/utils/cache/with-cached:125` | 清除指定缓存条目 |
+| `clearAllCache()` | `frontend/src/utils/cache/with-cached:133` | 清除所有缓存 |
+| `getCacheTtlMs()` | `frontend/src/utils/cache/with-cached:151` | 获取缓存条目的剩余 TTL（毫秒），未命中返回 -1 |
 | `swallowError()` | `frontend/src/utils/core/async:11` | 吞掉 promise 的异常并记录日志（比空 `.catch(() =&gt; {})` 可调试）。 |
 | `fireAndForget()` | `frontend/src/utils/core/async:16` | 启动一个异步操作但不等待，异常由 swallowError 兜底。 |
 | `delay()` | `frontend/src/utils/core/async:21` | Promise 包装的延迟。 |
@@ -1879,16 +1879,14 @@
 | `forceRefreshCommunityMerge()` | `frontend/src/views/app-content/community-data:47` | 供测试强制刷新缓存 |
 | `forceRefreshScanAuthors()` | `frontend/src/views/app-content/community-data:52` | 供测试清除扫描缓存 |
 | `forceRefreshCommunitySites()` | `frontend/src/views/app-content/community-data:57` | 清除站点索引缓存 |
-| `CommunityCacheStrategy()` | `frontend/src/views/app-content/community-data:75` | 动态缓存策略选择器（预留扩展点） 策略矩阵： 在线 + 非手动 → STALE（旧值立即可用，后台静默刷新） 在线 + 手动   → FORCE（用户明确要最新数据） 离线 + 有 |
-| `chooseCommunityCacheStrategy()` | `frontend/src/views/app-content/community-data:77` | — |
-| `clearAllCommunityCache()` | `frontend/src/views/app-content/community-data:90` | 统一失效入口：数据变更时一次性清除所有社区相关缓存 供导入/同步/下载完成后调用，替代分散的 invalidateCache 调用 |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:101` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:222` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:276` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:305` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:342` | 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:389` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:410` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `clearAllCommunityCache()` | `frontend/src/views/app-content/community-data:65` | 统一失效入口：数据变更时一次性清除所有社区相关缓存 供导入/同步/下载完成后调用，替代分散的 invalidateCache 调用 |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:76` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:197` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:251` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:280` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:317` | 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:346` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:367` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:14` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:4` | — |

@@ -73,4 +73,31 @@ describe("withCached", () => {
     await withCached("inv-key", 60000, fn);
     expect(fn).toHaveBeenCalledTimes(2);
   });
+
+
+  it("并发 miss 只执行一次 fn（stampede guard）", async () => {
+    const fn = vi.fn(async () => {
+      await new Promise(r => setTimeout(r, 10));
+      return "computed";
+    });
+    // 两个并发调用同一个 key
+    const [r1, r2] = await Promise.all([
+      withCached("stampede-key", 60000, fn),
+      withCached("stampede-key", 60000, fn),
+    ]);
+    expect(r1).toBe("computed");
+    expect(r2).toBe("computed");
+    expect(fn).toHaveBeenCalledTimes(1); // 只执行一次
+  });
+
+  it("fn 抛错时不写入缓存，下次调用仍重试", async () => {
+    const fn = vi.fn()
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce("ok");
+    await expect(withCached("fail-key", 60000, fn)).rejects.toThrow("boom");
+    // 缓存应为空，下次调用重新执行 fn
+    const result = await withCached("fail-key", 60000, fn);
+    expect(result).toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
 });
