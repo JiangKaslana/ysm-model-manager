@@ -1,5 +1,10 @@
 // ===== <app-content> 基础层：host 变量 + 通用 keyframes + 骨架 + 通用卡片系统 + 工坊(ws-*)通用按钮类 =====
-// 全局 fadeSlideUp / fadeSlideLeft / fadeSlideDown / breathe-subtle 由 app shell 注入，此处直接引用。
+// CSS 自定义属性可穿透 Shadow DOM 边界，但 @keyframes 不能。<app-content> 是 Shadow DOM 组件
+// （index.ts: adoptedStyleSheets=[appContentStyle]），document 层 components.css 定义的
+// fadeSlideUp / fadeSlideLeft / fadeSlideDown / breathe-subtle 在 shadow 内不生效。
+// 故这些 keyframes 必须在本 shadow 层本地重定义（见下方 contentLayoutCSS 内的 @keyframes 块），
+// 引用它们的 .stg-card / .setting-row / .gh-card / .repo-tab / .recy-item 等规则才能产生动画。
+// components.css 的全局副本仅服务 document 层光 DOM（dialog 等）。
 import { btnBaseCSS, focusVisibleCSS } from "../../utils/dom/css.ts";
 
 export const contentLayoutCSS: string = `
@@ -20,6 +25,14 @@ export const contentLayoutCSS: string = `
 @keyframes card-in { from{opacity:0;transform:translateY(8px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
 @keyframes detail-in { from{opacity:0;transform:scale(.92) translateY(12px)} to{opacity:1;transform:scale(1) translateY(0)} }
 @keyframes fade-in { from{opacity:0} to{opacity:1} }
+/* 以下 4 个 keyframes 为 components.css 全局副本的 shadow 本地化：
+   document 层定义的 keyframes 不穿透 Shadow DOM 边界，shadow 内 .stg-card / .setting-row /
+   .gh-card / .repo-tab / .recy-item / .rm-* 等引用的 fadeSlide*/breathe-subtle 必须在本层重定义。
+   components.css 的全局副本仅服务 document 层光 DOM（dialog 等），两处定义并存但作用域不同。 */
+@keyframes fadeSlideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeSlideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeSlideLeft { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:translateX(0); } }
+@keyframes breathe-subtle { 0%,100% { filter:brightness(1); } 50% { filter:brightness(1.18); } }
 
 /* ===== 页头 & 段落标题（跨域通用） ===== */
 .section-title { font-size:var(--fs-lg); font-weight:600; color:var(--txt); padding:16px 16px 8px; }

@@ -1876,9 +1876,9 @@
 | `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:295` | 合并社区站点到本地 workshop_sites.json |
 | `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:316` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
-| `contentCSS()` | `frontend/src/views/app-content/content-css:13` | — |
+| `contentCSS()` | `frontend/src/views/app-content/content-css:14` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:2` | — |
-| `contentLayoutCSS()` | `frontend/src/views/app-content/content-layout:5` | — |
+| `contentLayoutCSS()` | `frontend/src/views/app-content/content-layout:10` | — |
 | `contentRepoCSS()` | `frontend/src/views/app-content/content-repo:2` | — |
 | `contentStgCSS()` | `frontend/src/views/app-content/content-stg:7` | — |
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |

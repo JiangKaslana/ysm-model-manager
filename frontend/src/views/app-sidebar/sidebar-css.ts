@@ -60,4 +60,7 @@ ${btnBaseCSS}
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+/* 本地化 fadeSlideLeft：.instance-card (L30) 引用，document 层 components.css 定义的同名 keyframes
+   不穿透 Shadow DOM 边界，须在 sidebar shadow 内重定义。 */
+@keyframes fadeSlideLeft { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:translateX(0); } }
 `;
