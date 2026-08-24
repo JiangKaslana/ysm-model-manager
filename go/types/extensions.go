@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 
 	"ysm-model-manager/go/container"
 )
@@ -97,19 +98,49 @@ func IsContainerExt(ext string) bool {
 	return low == ".zip" || low == ".7z"
 }
 
-// IsSupportedExt 检查扩展名是否被任何资源类型支持。
-// 壳类型（有 subtypes）自动派生并集——不再依赖手动维护的父级 extensions。
-func IsSupportedExt(ext string) bool {
-	ext = strings.ToLower(ext)
-	reg := LoadRegistry()
+// ===== 扩展名集合 map 缓存 =====
+// IsSupportedExt / ShouldHashExt 原是每文件双层 for 循环遍历全注册表（且 EffectiveExtensions
+// 每次调用临时分配 slice），注册表膨胀后线性劣化。改为 atomic.Value 缓存扩展名集合：
+// 以注册表实例指针为失效 key——SetRegistryPath 重置注册表 → LoadRegistry 返回新实例 → 自动重建，
+// 语义与逐次遍历完全一致（行为锁定测试 extensions_map_test.go 防误用 sync.Once 永久缓存）。
+
+type extCacheEntry struct {
+	reg     *ResourceTypeRegistry
+	extSet  map[string]bool // 全部扩展名（小写）
+	hashSet map[string]bool // 仅 hashable 类型声明的扩展名（小写）
+}
+
+var extCache atomic.Value // *extCacheEntry
+
+// loadExtCache 返回与当前注册表匹配的扩展名集合缓存（实例变化时重建）。
+// atomic.Value 无锁热路径：并发重建幂等，最后 Store 者胜。
+func loadExtCache(reg *ResourceTypeRegistry) *extCacheEntry {
+	if c, ok := extCache.Load().(*extCacheEntry); ok && c.reg == reg {
+		return c
+	}
+	c := &extCacheEntry{
+		reg:     reg,
+		extSet:  make(map[string]bool),
+		hashSet: make(map[string]bool),
+	}
 	for _, rt := range reg.ResourceTypes {
-		for _, e := range rt.EffectiveExtensions() {
-			if strings.ToLower(e) == ext {
-				return true
+		hashable := rt.Hashable
+		for _, e := range rt.EffectiveExtensions() { // 已小写
+			c.extSet[e] = true
+			if hashable {
+				c.hashSet[e] = true
 			}
 		}
 	}
-	return false
+	extCache.Store(c)
+	return c
+}
+
+// IsSupportedExt 检查扩展名是否被任何资源类型支持。
+// 壳类型（有 subtypes）自动派生并集——不再依赖手动维护的父级 extensions。
+func IsSupportedExt(ext string) bool {
+	reg := LoadRegistry()
+	return loadExtCache(reg).extSet[strings.ToLower(ext)]
 }
 
 // IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感）
@@ -224,19 +255,8 @@ func IsTypeModelFile(name, rtype string) bool {
 // 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。
 // 壳类型（有 subtypes）自动派生并集——不再依赖手动维护的父级 extensions。
 func ShouldHashExt(ext string) bool {
-	ext = strings.ToLower(ext)
 	reg := LoadRegistry()
-	for _, rt := range reg.ResourceTypes {
-		if !rt.Hashable {
-			continue
-		}
-		for _, e := range rt.EffectiveExtensions() {
-			if strings.ToLower(e) == ext {
-				return true
-			}
-		}
-	}
-	return false
+	return loadExtCache(reg).hashSet[strings.ToLower(ext)]
 }
 
 // IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型
