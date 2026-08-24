@@ -1,5 +1,5 @@
 // ===== sidebar 渲染层 =====
-import { vcHeaderHTML } from "./tpl.ts";
+import { instanceCardHeaderHTML } from "./tpl.ts";
 import type { SidebarInstance } from "./data.ts";
 import { t } from "../../core/i18n/t.ts";
 import { currentRepoType } from "../../features/repo-rtype.ts";
@@ -20,7 +20,7 @@ export function renderVersionCards(
     card.className = "instance-card";
     card.dataset.idx = String(idx);
     card.style.animationDelay = `${idx * 40}ms`;
-    card.innerHTML = vcHeaderHTML(
+    card.innerHTML = instanceCardHeaderHTML(
       ins.name,
       ins.synced,
       ins.missing,

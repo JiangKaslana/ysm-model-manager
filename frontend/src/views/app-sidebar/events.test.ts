@@ -9,7 +9,7 @@ const { emitMock } = vi.hoisted(() => ({
 
 vi.mock("../../bus.ts", () => ({ bus: { emit: emitMock, on: vi.fn() } }));
 vi.mock("./tpl.ts", () => ({
-  vcHeaderHTML: () => '<div class="instance-card-header"><div class="name"></div></div>',
+  instanceCardHeaderHTML: () => '<div class="instance-card-header"><div class="name"></div></div>',
 }));
 // bindFooter 的 btn-mc 检测走 getApp → 动态 import bindings：mock 阻断
 // Wails runtime（getApp 在 node/jsdom 下 window.go 不存在 → 走动态 import 路径）

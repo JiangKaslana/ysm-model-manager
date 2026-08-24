@@ -97,7 +97,7 @@ function noModLabelOf(rtype: string): string {
 
 /** 单个整合包卡片头部。
  *  idx 用于绑定安装缺失按钮的 data-idx */
-export function vcHeaderHTML(
+export function instanceCardHeaderHTML(
   name: string,
   synced: number,
   missing: number,
