@@ -19,6 +19,9 @@ use_when:
   - 虚拟网格
   - 数学计算
   - 路径工具
+invariant_anchors:
+  - frontend/src/utils/core/async.ts|swallowError
+  - frontend/src/utils/core/async.ts|fireAndForget
 ---
 
 # 核心工具函数 core-utils

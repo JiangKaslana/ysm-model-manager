@@ -26,6 +26,9 @@ use_when:
   - 放大预览
 invariant_anchors:
   - frontend/src/views/app-preview/index.ts|_previewGen
+  - frontend/src/views/app-preview/detail.ts|nextDetailGen
+  - frontend/src/views/app-preview/skeleton.ts|closeActive3DOverlay
+  - frontend/src/views/app-preview/loader.ts|loadModelData
 ---
 
 # 预览面板 app-preview

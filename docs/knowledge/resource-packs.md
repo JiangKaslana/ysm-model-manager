@@ -3,7 +3,14 @@ kind: resource-packs
 name: 资源包功能 resource-packs
 tier: architecture
 category: feature
-source_files: []
+source_files:
+  - frontend/src/views/app-preview/detail.ts
+  - frontend/src/views/app-nav/
+tests:
+  - frontend/src/views/app-preview/detail.test.ts
+invariant_anchors:
+  - frontend/src/views/app-preview/detail.ts|showResourcePack
+  - frontend/src/views/app-preview/detail.ts|showShaderpack
 use_when:
   - 资源包
   - 光影包

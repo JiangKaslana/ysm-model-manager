@@ -14,6 +14,9 @@ use_when:
   - 纹理尺寸
   - 按标签筛选
   - 条件过滤
+invariant_anchors:
+  - frontend/src/utils/dom/dialogs/adv-filter.ts|modalAdvFilter
+  - frontend/src/utils/dom/dialogs/adv-filter-util.ts|validateAdvFilter
 ---
 
 # 高级筛选 adv-filter

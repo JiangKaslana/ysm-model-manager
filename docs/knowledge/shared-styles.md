@@ -14,6 +14,9 @@ use_when:
   - tree 样式
   - Shadow DOM 样式
   - CSS 变量
+invariant_anchors:
+  - frontend/src/utils/dom/css.ts|btnBaseCSS
+  - frontend/src/views/app-tree/app-tree-styles.ts|treeCSS
 ---
 
 # 共享样式 shared-styles

@@ -12,6 +12,9 @@ use_when:
   - 质量闸门重叠
   - doctor gate 差异
   - 治理红线下沉
+invariant_anchors:
+  - scripts/doctor.mjs|function delegate
+  - scripts/check-redlines.mjs|function runChecks
 ---
 
 # 质量闸门双调度器重叠审计

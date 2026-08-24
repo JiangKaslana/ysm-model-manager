@@ -14,6 +14,9 @@ use_when:
   - 作者信息
   - 动画分组
   - 免费付费
+invariant_anchors:
+  - frontend/src/utils/format/summarize.ts|summaryCardHTML
+  - frontend/src/utils/format/summarize.ts|summarizeDecoded
 ---
 
 # 摘要生成 summarize

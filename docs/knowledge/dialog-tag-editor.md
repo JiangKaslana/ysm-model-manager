@@ -15,6 +15,9 @@ use_when:
   - tag
   - 标签弹窗
   - 分类标记
+invariant_anchors:
+  - frontend/src/utils/dom/dialogs/tag-editor.ts|modalTagEditor
+  - frontend/src/utils/dom/dialogs/tag-set.ts|addTagToSet
 ---
 
 # 标签编辑器 tag-editor

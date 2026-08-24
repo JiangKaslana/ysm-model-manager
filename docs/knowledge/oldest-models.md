@@ -13,6 +13,8 @@ use_when:
   - 月度活动
   - 热力图
   - 仓库健康
+invariant_anchors:
+  - frontend/src/features/oldest-models.ts|bus.emit
 ---
 
 # 资历最深模型 oldest-models

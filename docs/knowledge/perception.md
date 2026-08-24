@@ -15,6 +15,10 @@ use_when:
   - 节拍检测
   - 模型感知
   - 自动运动
+invariant_anchors:
+  - frontend/src/utils/3d/perception/autodance.ts|createAutoDanceController
+  - frontend/src/utils/3d/perception/beat-detector.ts|createBeatDetector
+  - frontend/src/utils/3d/perception/blink.ts|createBlinkController
 ---
 
 # 3D 感知系统 perception

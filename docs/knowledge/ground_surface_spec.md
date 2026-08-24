@@ -12,6 +12,9 @@ use_when:
   - 程序化纹理生成（grid/checker/solid 像素）
   - 自定义图片上传到地面（TextureLoader）
   - GroundMaterialSpec / specKey / textureToken
+invariant_anchors:
+  - frontend/src/utils/3d/caps/ground-surface-spec.ts|buildGroundSurfaceSpec
+  - frontend/src/utils/3d/caps/ground-surface-spec.ts|groundSurfaceNeedsRebuild
 ---
 # 地面材质 spec 单一事实源 ground-surface-spec
 

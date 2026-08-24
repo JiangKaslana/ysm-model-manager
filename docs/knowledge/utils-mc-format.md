@@ -15,6 +15,9 @@ use_when:
   - 资源包版本
   - renderFormattedText
   - 版本兼容
+invariant_anchors:
+  - frontend/src/utils/format/mc-format.ts|renderFormattedText
+  - frontend/src/utils/format/pack-format.ts|describeVersionRange
 ---
 
 # MC 格式判定 mc-format

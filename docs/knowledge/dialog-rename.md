@@ -13,6 +13,9 @@ use_when:
   - 作者 品牌 角色
   - rename
   - 读取头部
+invariant_anchors:
+  - frontend/src/utils/dom/dialogs/rename-format.ts|buildRenameName
+  - frontend/src/utils/dom/dialogs/rename-format.ts|validateRenameFields
 ---
 
 # 重命名弹窗 rename

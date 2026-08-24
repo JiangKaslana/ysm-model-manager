@@ -41,6 +41,9 @@ perf:
   - gpu-bound
   - concurrent
   - memory-heavy
+invariant_anchors:
+  - frontend/src/utils/3d/adapters/mmd-adapter.ts|mmdMenuItems
+  - frontend/src/utils/main-thread-watch.ts|startMainThreadWatch
 ---
 
 # 优化记录 optimization-log

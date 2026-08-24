@@ -22,6 +22,8 @@ use_when:
 perf:
   - io-bound
   - concurrent
+invariant_anchors:
+  - go/rustbridge/bridge_windows.go|func Scan
 ---
 
 # Rust 桥 rustbridge

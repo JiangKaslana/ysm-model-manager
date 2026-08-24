@@ -16,6 +16,9 @@ use_when:
   - 统一作者
   - 预设
   - batch-rename
+invariant_anchors:
+  - frontend/src/utils/dom/dialogs/batch-rename.ts|showBatchRenameDialog
+  - frontend/src/utils/dom/dialogs/batch-rename-util.ts|rebuildParsedName
 ---
 
 # 批量重命名 batch-rename

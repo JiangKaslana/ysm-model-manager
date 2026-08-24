@@ -757,8 +757,8 @@
 | `App.OpenFolder()` | `internal/app/app_scan:609` | — |
 | `App.OpenInstanceFolder()` | `internal/app/app_scan:645` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
 | `progressReader.Read()` | `internal/app/app_scan:679` | — |
-| `App.DetectConflicts()` | `internal/app/app_sync:16` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
-| `App.ResolveConflicts()` | `internal/app/app_sync:52` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
+| `App.DetectConflicts()` | `internal/app/app_sync:43` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
+| `App.ResolveConflicts()` | `internal/app/app_sync:87` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:29` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:38` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -1876,9 +1876,9 @@
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:16` | — |
 | `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:134` | — |
-| `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:29` | 初始化去重配置面板（标签页打开时调用，配置实时保存） |
-| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:80` | 获取当前去重配置（供外部调用） |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:93` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:83` | 初始化去重配置面板（标签页打开时调用，配置实时保存） |
+| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:134` | 获取当前去重配置（供外部调用） |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:147` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
 | `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:125` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |

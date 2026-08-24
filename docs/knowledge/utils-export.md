@@ -17,6 +17,9 @@ use_when:
   - 预览缓存
   - 缩略图
   - blob URL 释放
+invariant_anchors:
+  - frontend/src/views/app-preview/cache.ts|cacheSet
+  - frontend/src/views/app-preview/cache.ts|collectBlobUrls
 ---
 
 # 截图与导出 export

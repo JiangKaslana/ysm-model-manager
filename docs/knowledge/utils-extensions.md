@@ -13,6 +13,9 @@ use_when:
   - ALL_EXTS
   - 导入过滤
   - 扩展名归属
+invariant_anchors:
+  - frontend/src/utils/resource/extensions.ts|RESOURCE_EXTS
+  - frontend/src/utils/resource/extensions.ts|isSupportedExt
 ---
 
 # 扩展名映射 extensions

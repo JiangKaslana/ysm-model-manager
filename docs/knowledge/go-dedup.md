@@ -43,6 +43,7 @@ invariant_anchors:
 - 重复检测不影响已安装资源
 - `CleanEmptyDirs` 只删空**子目录**，根目录自身永不删除（与 `go/fsutil.CleanEmptyDirs` 语义对齐）
 - **`.recycle` 判定大小写不敏感**（P3 修复：`strings.EqualFold`，与 fsutil.isRecycleDir 对齐——原大小写敏感，Windows `.RECYCLE` 目录会漏排）
+- **`computeHash` 是包级可注入变量（测试承重点，删改须同步测试）**：`dedup_parallel_test.go` 通过替换它验证「并行管道确定性」「size 预分组跳过哈希」。49afd979 重构时曾将其内联删除，测试包 `undefined: computeHash` 编译失败（go vet 兜住）。重构此文件时保留该注入点；若确需移除，必须同步改写两个测试
 
 ## 相关
 

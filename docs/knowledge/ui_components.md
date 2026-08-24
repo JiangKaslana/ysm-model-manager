@@ -17,6 +17,9 @@ use_when:
   - 图标
   - 幻灯片菜单
   - 组件样式
+invariant_anchors:
+  - frontend/src/ui/control-registry.ts|registerControl
+  - frontend/src/ui/control-registry.ts|getControl
 ---
 
 # UI 组件库 ui-components

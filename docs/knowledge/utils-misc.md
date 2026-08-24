@@ -12,6 +12,9 @@ use_when:
   - 环形日志
   - debugGetSpec
   - 全局常量
+invariant_anchors:
+  - frontend/src/utils/debug/debug.ts|dbg
+  - frontend/src/utils/debug/debug.ts|safeStr
 ---
 
 # 常量与调试 constants/debug
