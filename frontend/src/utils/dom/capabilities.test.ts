@@ -10,6 +10,7 @@ const KEY = "__YSM_BACKEND__";
 const webImplKeys = [
   "ScanModelEntries",
   "ToggleModelEnable",
+  "ToggleEnable",
   "DeleteResourcePack",
   "RenameFile",
   "ReadPackMeta",
@@ -53,6 +54,7 @@ describe("can() — 三级能力门控", () => {
     vi.stubGlobal("window", { wails: { requestStoragePermission: () => {} } });
     expect(can("DeleteResourcePack")).toBe(false);
     expect(can("ToggleModelEnable")).toBe(false);
+    expect(can("ToggleEnable")).toBe(false);
     expect(can("ScanModelEntries")).toBe(false);
   });
 

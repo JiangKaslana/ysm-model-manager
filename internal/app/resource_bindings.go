@@ -312,18 +312,10 @@ func specificRoot(cfg types.AppConfig, rtype string) string {
 // 传入仓库根时 os.Rename(root, root+".disabled") 会把整个仓库移出配置位置（镜像 DeleteModelDir
 // 的 rel=="." 拒绝同类输入）
 func (a *App) ToggleResourcePack(path string) bool {
-	cfg := a.LoadAppConfig()
-	roots := []string{cfg.FilesRoot, cfg.McRoot}
-	// ADR-095：专属根统一从 CustomRoots map 收集（不再反射结构体字段）
-	if cfg.CustomRoots != nil {
-		for _, s := range cfg.CustomRoots {
-			if s != "" {
-				roots = append(roots, s)
-			}
-		}
-	}
+	// 根集合与 ToggleEnable 同口径（复用 toggleAllowedRoots：FilesRoot + McRoot +
+	// CustomRoots 值）；path==root 显式拒绝（os.Rename 无 fileops 根守卫兜底）
 	allowed := false
-	for _, root := range roots {
+	for _, root := range a.toggleAllowedRoots() {
 		if root == "" {
 			continue
 		}

@@ -54,8 +54,8 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
     });
     return;
   }
-  // 能力门控：web 已实现 ToggleModelEnable（IDB ban 标记）→ 解锁；Android viewer 无此能力 → 封禁
-  if (!can("ToggleModelEnable")) {
+  // 能力门控：web 已实现 ToggleEnable（IDB ban 标记）→ 解锁；Android viewer 无此能力 → 封禁
+  if (!can("ToggleEnable")) {
     bus.emit("toast:show", {
       msg: "网页版不支持启用/禁用模型",
       duration: 3000,
@@ -65,7 +65,7 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
   }
   vm._batchBusy = true;
   try {
-  const { ToggleModelEnable } = await getApp();
+  const { ToggleEnable } = await getApp();
   const ck = fhEl.querySelector(".ck");
   if (!ck) return;
   const dirKey = fhEl.dataset.dir;
@@ -80,7 +80,7 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
   for (const e of targets) {
     if (e.banned === !enable) continue;
     try {
-      await ToggleModelEnable(e.fullPath);
+      await ToggleEnable(e.fullPath);
       ok++;
     } catch (err) {
       fail++;
@@ -166,8 +166,8 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
     const flCk = target.closest(".fl .ck, .fl-list .ck") as HTMLElement | null;
     if (flCk) {
       e.stopPropagation();
-      // 能力门控：web 已实现 ToggleModelEnable → 解锁；Android viewer 封禁
-      if (!can("ToggleModelEnable")) {
+      // 能力门控：web 已实现 ToggleEnable → 解锁；Android viewer 封禁
+      if (!can("ToggleEnable")) {
         bus.emit("toast:show", {
           msg: "网页版不支持启用/禁用模型",
           duration: 3000,
@@ -189,7 +189,7 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
       const fl = flCk.closest(".fl, .fl-list") as HTMLElement | null;
       flashBtn(fl);
       getApp()
-        .then(({ ToggleModelEnable }) => ToggleModelEnable(fullPath || ""))
+        .then(({ ToggleEnable }) => ToggleEnable(fullPath || ""))
         .then(async () => {
           const gen = vm._gen; // P2-1 代际捕获：_load 期间 root 切换/新加载 → 丢弃过期渲染
           await vm._load();
@@ -199,7 +199,7 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
           bus.emit("stats:refresh");
         })
         .catch((err) => {
-          console.warn("[tree] ToggleModelEnable 失败:", fullPath, err);
+          console.warn("[tree] ToggleEnable 失败:", fullPath, err);
           bus.emit("toast:show", {
             msg:
               "❌ 切换失败: " +

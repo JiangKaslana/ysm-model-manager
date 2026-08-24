@@ -738,6 +738,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-119：dedup 并行化：共享并行哈希管道（串行收集+并行哈希+序号还原）",
+        "link": "/adr/ADR-119-dedup-parallel-hash"
+      },
+      {
         "text": "ADR-118：面级透明分类：mesh 级 alpha 误判数据与分阶段落地",
         "link": "/adr/ADR-118-face-level-translucency"
       },

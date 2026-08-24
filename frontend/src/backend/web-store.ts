@@ -233,6 +233,9 @@ export const webStoreBindings = {
   // 启用开关：ban 标记翻转，返回新「已启用」态（对齐桌面 ToggleModelEnable 语义）
   IsFileBanned: (path: string) => isWebBanned(path),
   ToggleModelEnable: (path: string) => toggleWebEnable(path),
+  // 统一启禁（兄弟会话裁定：无 rtype，纯路径判定）——web 无 .disabled 文件系统，
+  // 统一走 IDB ban 标记，与 ToggleModelEnable 语义一致
+  ToggleEnable: (path: string) => toggleWebEnable(path),
   // 标签：config store tags:<path>
   GetModelTags: (path: string) => getWebTags(path),
   SetModelTags: (path: string, tags: string[] | null) => setWebTags(path, tags),

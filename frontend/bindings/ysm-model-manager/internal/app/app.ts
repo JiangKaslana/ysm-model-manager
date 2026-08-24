@@ -613,6 +613,8 @@ export function ImportModelFolder(folderName: string, subpath: string, files: ty
  * 空串/未注册类型回退 inferFolderType 内容推断（兼容导入页等无上下文入口）。
  * 提醒非阻断：内容明确归属其他单一类型且与上下文不符时记一条 warn 日志，
  * 落盘仍按上下文执行——用户拖到哪页就落哪页的根。
+ * 例外（审核 P3-4）：上下文为默认中性类型时让位内容推断、整条走 ImportModelFolder
+ * 旧路（含 ysm.json 入口优先级与兜底），最常用入口不静默改数据落点。
  */
 export function ImportModelFolderTo(folderName: string, subpath: string, rtype: string, files: types$0.ImportFileItem[] | null): $CancellablePromise<void> {
     return $Call.ByID(435971586, folderName, subpath, rtype, files);
@@ -1196,6 +1198,17 @@ export function SyncModelToggleStatus(instanceCustomDir: string, filesRoot: stri
  */
 export function SyncResources(rtype: string, instanceName: string): $CancellablePromise<string> {
     return $Call.ByID(2551449925, rtype, instanceName);
+}
+
+/**
+ * ========== 统一启用/禁用（兄弟会话裁定：无 rtype，纯路径包含判定）==========
+ * ToggleEnable 统一启禁入口——root 归属由「哪个已知根包含此路径」判定，而非按
+ * rtype 路由：前端零类型信息过桥，杜绝「rtype 与实际位置不一致」（文件移动/复制后
+ * rtype 过期）错根；允许集合与 ToggleResourcePack 同口径（FilesRoot + McRoot +
+ * CustomRoots 值），内部复用 fileops 的 .disabled 统一机制（新标准，兼容历史 .ban）。
+ */
+export function ToggleEnable(path: string): $CancellablePromise<boolean> {
+    return $Call.ByID(1450559684, path);
 }
 
 /**

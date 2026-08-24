@@ -31,7 +31,7 @@ invariant_anchors:
 - 模型移动/复制（**目录感知**：`ysm.json` 提升为父目录整组操作，ADR-038 D3）
 - 模型删除（目录感知：`ysm.json` 整组删父目录，守卫拒绝时回退单文件）
 - **文件夹整组导入统一**（`folder_import.go` / `WriteModelFolder`）：不区分 YSM 解压目录与普通文件夹，只要组内含至少 1 个支持文件即整体入仓，**保留嵌套子目录层级**
-- 启用/禁用（`.ban` 是**文件名重命名约定**：`ToggleModelEnable` 把 `path` 重命名为 `path+".ban"`，目录级 `.ban` 整组禁用，ADR-038 D3.7）
+- 启用/禁用（`fileops_enable.go`，新标准 **`.disabled`** 是文件名重命名约定：`ToggleModelEnable` 把 `path` 重命名为 `path+".disabled"`，目录级 `.disabled` 整组禁用，兼容历史 `.ban`——`StripDisableSuffix` 单源识别，ADR-038 D3.7）
 - 预览图/纹理提取（zip/7z/ysm/json 容器）
 - **跨设备移动 fallback**：`MoveModelFile` 在 `os.Rename` 返回 EXDEV 时自动回退到 copy+delete（`renameForMove` 可注入，供测试强制触发）
 
@@ -71,7 +71,8 @@ invariant_anchors:
 
 ## 与其他子系统关系
 
-- `internal/app/app_files.go` / `resource_bindings.go`：薄壳转发（`ToggleModelEnable` 传 `a.ysmRoot()`、`DeleteResourcePack` 传 `a.ysmRoot()`、`ImportModelFolder` 传 `GetRepoRoot("ysm")`）
+- `internal/app/app_files.go` / `resource_bindings.go`：薄壳转发（`DeleteResourcePack` 传 `a.ysmRoot()`、`ImportModelFolder` 传 `GetRepoRoot("ysm")`）
+- **统一启禁入口 `App.ToggleEnable(path)`**（app_files.go，2026-08-24 修复）：**无 rtype，纯路径包含判定**——root 归属由「哪个已知根包含此路径」决定（`toggleAllowedRoots` = FilesRoot + McRoot + ysmRoot(`GetRepoRoot("ysm")`) + CustomRoots 值），取最具体（最深）匹配根后复用 `fileops.ToggleModelEnable(root, path)`；成功 rename 后内部 `scanner.InvalidatePath`，缓存失效收进绑定。修复「资源包/整合包内路径被旧 `ToggleModelEnable` 的 `a.ysmRoot()` 单根守卫拒绝」（ysmRoot 是单类型时代化石，多类型扩展后各类型根统一走 `GetRepoRoot(rtype)`，写死它的旧守卫是本 bug 病灶）。`ToggleResourcePack` 的根集合同步复用 `toggleAllowedRoots`
 - `go/scanner/`：扫描缓存失效（`InvalidatePath` / 整组导入后 `InvalidateCache`）
 - `go/types/`：`IsYsmEntryJSON` 辅助（`ysm.json` 识别）、`IsSupportedExt`、`ImportFileItem`、`ModelEntry`
 - 前端拖拽整组入口见 [import_queue](./import-queue.md)（`import-executor.importFolder` → `ImportModelFolder`）

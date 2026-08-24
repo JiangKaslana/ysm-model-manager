@@ -179,3 +179,13 @@ describe("契约 B1 — ToggleModelEnable/IsFileBanned 语义对齐 Go fileops.g
     expect(await browserAdapter.IsFileBanned(p)).toBe(false);
   });
 });
+
+describe("契约 B1b — ToggleEnable 统一启禁（web 语义与 ToggleModelEnable 一致，IDB ban 标记）", () => {
+  it("统一入口翻转语义同 ToggleModelEnable（无 rtype，纯路径）", async () => {
+    const p = await importOne("狐狸.ysm");
+    expect(await browserAdapter.IsFileBanned(p)).toBe(false);
+    expect(await browserAdapter.ToggleEnable(p)).toBe(false); // 首次 → 禁用
+    expect(await browserAdapter.ToggleEnable(p)).toBe(true); // 再次 → 启用
+    expect(await browserAdapter.IsFileBanned(p)).toBe(false);
+  });
+});

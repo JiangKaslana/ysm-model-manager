@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { getByTestId, queryAllByTestId, waitFor } from "../../test-utils/index.ts";
 import { selectState } from "./data.ts";
 import { bus } from "../../bus.ts";
-import { ToggleModelEnable } from "../../../bindings/ysm-model-manager/internal/app/app.js";
+import { ToggleEnable } from "../../../bindings/ysm-model-manager/internal/app/app.js";
 import "./index.ts"; // 注册 app-tree 自定义元素（constructor 里 attachShadow）
 import type { TreeEntry } from "./loader.ts";
 
@@ -30,7 +30,7 @@ const flatEntries = (): TreeEntry[] => [
 
 // mock bindings（bus-handlers 静态 import，必须 mock）
 vi.mock("../../../bindings/ysm-model-manager/internal/app/app.js", () => ({
-  ToggleModelEnable: vi.fn().mockResolvedValue(true),
+  ToggleEnable: vi.fn().mockResolvedValue(true),
   SelectDirectory: vi.fn().mockResolvedValue(""),
   SaveAppConfig: vi.fn().mockResolvedValue(undefined),
   RenameFile: vi.fn().mockResolvedValue(undefined),
@@ -116,7 +116,7 @@ describe("app-tree 组件（testid 钩子 + 交互路径）", () => {
     expect(selectState.keys.size).toBe(2);
   });
 
-  it("5. 连点文件开关防重入：ToggleModelEnable 只调一次", async () => {
+  it("5. 连点文件开关防重入：ToggleEnable 只调一次", async () => {
     const el = await mountTree();
     const toggle = getByTestId(el.shadowRoot!, "tree-toggle");
     (toggle as HTMLElement).click();
@@ -125,8 +125,8 @@ describe("app-tree 组件（testid 钩子 + 交互路径）", () => {
     expect(row?.classList.contains("flash")).toBe(true);
     // 第一次点击同步置位 _toggleBusy（events.ts:136），第二次点击在同步阶段被拦截
     (toggle as HTMLElement).click(); // 第二次被 _toggleBusy 拦截（events.ts:135）
-    // ToggleModelEnable 经 getApp().then 异步链触发（events.ts:141-142），需等待断言
-    await waitFor(() => (ToggleModelEnable as unknown as { mock: { calls: unknown[] } }).mock.calls.length === 1);
+    // ToggleEnable 经 getApp().then 异步链触发（events.ts:141-142），需等待断言
+    await waitFor(() => (ToggleEnable as unknown as { mock: { calls: unknown[] } }).mock.calls.length === 1);
   });
 
   it("6. 子路径文件渲染出文件夹行（tree-dir）", async () => {

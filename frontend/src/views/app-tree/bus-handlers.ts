@@ -311,9 +311,9 @@ async function runBatchToggle(
   enable: boolean,
   opts: { prefix?: string; label: string },
 ): Promise<void> {
-  // 能力门控：web 已实现 ToggleModelEnable（与 events.ts 单文件/文件夹开关一致）
+  // 能力门控：web 已实现 ToggleEnable（与 events.ts 单文件/文件夹开关一致）
   // → 解锁批量启用/禁用；Android viewer 无此能力 → 封禁
-  if (!can("ToggleModelEnable")) {
+  if (!can("ToggleEnable")) {
     bus.emit("toast:show", {
       msg: "网页版不支持启用/禁用模型",
       duration: 3000,
@@ -332,7 +332,7 @@ async function runBatchToggle(
   }
   vm._batchBusy = true;
   try {
-    const { ToggleModelEnable } = await getApp();
+    const { ToggleEnable } = await getApp();
     const prefix = opts.prefix?.replace(/\\/g, "/");
     const snapshot = vm._entries
       .filter(
@@ -346,7 +346,7 @@ async function runBatchToggle(
       fail = 0;
     for (const fullPath of snapshot) {
       try {
-        await ToggleModelEnable(fullPath);
+        await ToggleEnable(fullPath);
         ok++;
       } catch (err) {
         fail++;

@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // mock bindings（静态 import 全导出），阻断 Wails runtime 加载链
 vi.mock("../../../bindings/ysm-model-manager/internal/app/app.js", () => ({
-  ToggleModelEnable: vi.fn().mockResolvedValue(undefined),
+  ToggleEnable: vi.fn().mockResolvedValue(undefined),
   SelectDirectory: vi.fn().mockResolvedValue(""),
   SaveAppConfig: vi.fn().mockResolvedValue(undefined),
   RenameFile: vi.fn().mockResolvedValue(undefined),

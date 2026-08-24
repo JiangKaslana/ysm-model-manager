@@ -62,6 +62,8 @@ export const MOCK_DATA = {
     ],
   }),
   ToggleModelEnable: true,
+  // 统一启禁（方案 A）：e2e 未直接触达，补键防绑定契约守卫报错（undefined 最安全）
+  ToggleEnable: undefined,
   // 对齐 binding 契约 Promise<boolean>——原 undefined 类型错位（子代理审计 P2）
   ToggleResourcePack: true,
   SaveAppConfig: undefined,

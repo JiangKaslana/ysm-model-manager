@@ -13,6 +13,7 @@ import (
 
 	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fileops"
+	"ysm-model-manager/go/paths"
 	"ysm-model-manager/go/scanner"
 	"ysm-model-manager/go/types"
 )
@@ -226,18 +227,23 @@ func inferExplicitFolderType(files []types.ImportFileItem) string {
 }
 
 // inferFolderType 从文件夹文件列表推断资源类型：
-// 扫首个「支持文件」（扩展名命中注册表且非 ysm.json 附属）经 ExtBelongsTo 判定，
+// 两遍扫描：先扫 ysm.json 入口（YSM 解压目录唯一入口，优先级不依赖 items 顺序——
+// 前端收集顺序随 OS 枚举/拖拽序变化，审核 P3-1 修复顺序敏感性），
+// 再扫首个「支持文件」（扩展名命中注册表且非 ysm.json 附属）经 ExtBelongsTo 判定，
 // 单归属则用该类型；歧义/未知回退 ysm（保持向后兼容）。
 // 关键：MMD 文件夹（含 .pmx/.pmd）不再落到 ysm 根。
 func inferFolderType(files []types.ImportFileItem) string {
+	// 第一遍：ysm.json 是 YSM 解压目录入口，任意位置出现即优先
+	for _, f := range files {
+		rel := filepath.Clean(filepath.FromSlash(strings.TrimSpace(f.RelPath)))
+		if types.IsYsmEntryJSON(filepath.Base(rel)) {
+			return fallbackRepoType
+		}
+	}
+	// 第二遍：按首个单归属支持文件判定
 	for _, f := range files {
 		rel := filepath.Clean(filepath.FromSlash(strings.TrimSpace(f.RelPath)))
 		ext := strings.ToLower(filepath.Ext(rel))
-		base := filepath.Base(rel)
-		// ysm.json 是 YSM 解压目录入口，优先
-		if ext == ".json" && types.IsYsmEntryJSON(base) {
-			return fallbackRepoType
-		}
 		if ext == ".json" {
 			continue // 其他 json 不参与类型判定
 		}
@@ -289,4 +295,59 @@ func (a *App) ToggleModelEnable(path string) (bool, error) {
 
 func (a *App) IsFileBanned(path string) bool {
 	return fileops.IsFileBanned(path)
+}
+
+// ========== 统一启用/禁用（兄弟会话裁定：无 rtype，纯路径包含判定）==========
+// ToggleEnable 统一启禁入口——root 归属由「哪个已知根包含此路径」判定，而非按
+// rtype 路由：前端零类型信息过桥，杜绝「rtype 与实际位置不一致」（文件移动/复制后
+// rtype 过期）错根；允许集合与 ToggleResourcePack 同口径（FilesRoot + McRoot +
+// CustomRoots 值），内部复用 fileops 的 .disabled 统一机制（新标准，兼容历史 .ban）。
+func (a *App) ToggleEnable(path string) (bool, error) {
+	root := a.toggleRootFor(path)
+	if root == "" {
+		return false, fmt.Errorf("拒绝操作仓库外路径: %s", path)
+	}
+	enabled, err := fileops.ToggleModelEnable(root, path)
+	if err == nil {
+		scanner.InvalidatePath(filepath.Dir(path))
+	}
+	return enabled, err
+}
+
+// toggleAllowedRoots 收集启禁允许的根集合（与 ToggleResourcePack 同口径：
+// FilesRoot + McRoot + CustomRoots 值），并追加 ysmRoot（GetRepoRoot("ysm")），
+// 使「对 ysm 仓库子根本身启禁」也落入根守卫（path==root 拒绝）。
+func (a *App) toggleAllowedRoots() []string {
+	cfg := a.LoadAppConfig()
+	roots := []string{cfg.FilesRoot, cfg.McRoot}
+	if ysm, _ := a.GetRepoRoot("ysm"); ysm != "" {
+		roots = append(roots, ysm)
+	}
+	if cfg.CustomRoots != nil {
+		for _, s := range cfg.CustomRoots {
+			if s != "" {
+				roots = append(roots, s)
+			}
+		}
+	}
+	return roots
+}
+
+// toggleRootFor 返回 path 所在的启禁合法根：取「最具体（最深）匹配根」——
+// 路径同时落在 FilesRoot 与 ysmRoot 内时选 ysmRoot，使子仓库内文件走更严的
+// 子根守卫、path==子根时正确拒绝；不在任何根内返回空 = 拒绝。
+func (a *App) toggleRootFor(path string) string {
+	best := ""
+	for _, root := range a.toggleAllowedRoots() {
+		if root == "" {
+			continue
+		}
+		if paths.IsInside(root, path) != nil {
+			continue
+		}
+		if best == "" || len(root) > len(best) {
+			best = root
+		}
+	}
+	return best
 }

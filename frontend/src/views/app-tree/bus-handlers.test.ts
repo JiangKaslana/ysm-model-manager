@@ -11,7 +11,7 @@ const {
   SelectDirectoryMock,
   SaveAppConfigMock,
   LoadAppConfigMock,
-  ToggleModelEnableMock,
+  ToggleEnableMock,
   RenameDirMock,
   CreateDirMock,
   ListAllFilePathsMock,
@@ -29,7 +29,7 @@ const {
   SelectDirectoryMock: vi.fn(),
   SaveAppConfigMock: vi.fn(),
   LoadAppConfigMock: vi.fn(),
-  ToggleModelEnableMock: vi.fn(),
+  ToggleEnableMock: vi.fn(),
   RenameDirMock: vi.fn(),
   CreateDirMock: vi.fn(),
   ListAllFilePathsMock: vi.fn(),
@@ -50,7 +50,7 @@ vi.mock("../../backend/app.ts", () => ({
     SelectDirectory: SelectDirectoryMock,
     SaveAppConfig: SaveAppConfigMock,
     LoadAppConfig: LoadAppConfigMock,
-    ToggleModelEnable: ToggleModelEnableMock,
+    ToggleEnable: ToggleEnableMock,
     RenameDir: RenameDirMock,
     CreateDir: CreateDirMock,
     ListAllFilePaths: ListAllFilePathsMock,
@@ -141,7 +141,7 @@ beforeEach(() => {
   SelectDirectoryMock.mockResolvedValue("/pick/x");
   SaveAppConfigMock.mockResolvedValue(undefined);
   LoadAppConfigMock.mockResolvedValue({ linkMode: "copy" });
-  ToggleModelEnableMock.mockResolvedValue(undefined);
+  ToggleEnableMock.mockResolvedValue(undefined);
   RenameDirMock.mockResolvedValue(undefined);
   CreateDirMock.mockResolvedValue(undefined);
   ListAllFilePathsMock.mockResolvedValue(["/repo/a.ysm", "/repo/b.ysm"]);
@@ -187,8 +187,8 @@ describe("bindBusEvents — 批量启用/禁用", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     // 仅 banned=true 的 a.ysm 被启用
-    expect(ToggleModelEnableMock).toHaveBeenCalledTimes(1);
-    expect(ToggleModelEnableMock).toHaveBeenCalledWith("/repo/a.ysm");
+    expect(ToggleEnableMock).toHaveBeenCalledTimes(1);
+    expect(ToggleEnableMock).toHaveBeenCalledWith("/repo/a.ysm");
     expect(toasts.some((t) => t.msg.includes("全部启用: 1 成功"))).toBe(true);
   });
 
@@ -202,8 +202,8 @@ describe("bindBusEvents — 批量启用/禁用", () => {
     bus.emit("batch:disable-all");
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(ToggleModelEnableMock).toHaveBeenCalledTimes(1);
-    expect(ToggleModelEnableMock).toHaveBeenCalledWith("/repo/a.ysm");
+    expect(ToggleEnableMock).toHaveBeenCalledTimes(1);
+    expect(ToggleEnableMock).toHaveBeenCalledWith("/repo/a.ysm");
   });
 
   it("batch:enable（目录前缀）→ 只处理该目录下条目", async () => {
@@ -216,17 +216,17 @@ describe("bindBusEvents — 批量启用/禁用", () => {
     bus.emit("batch:enable", { dir: "dir1" });
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(ToggleModelEnableMock).toHaveBeenCalledTimes(1);
-    expect(ToggleModelEnableMock).toHaveBeenCalledWith("/repo/dir1/a.ysm");
+    expect(ToggleEnableMock).toHaveBeenCalledTimes(1);
+    expect(ToggleEnableMock).toHaveBeenCalledWith("/repo/dir1/a.ysm");
   });
 
-  it("ToggleModelEnable 部分失败 → toast 报告成功/失败数", async () => {
+  it("ToggleEnable 部分失败 → toast 报告成功/失败数", async () => {
     const vm = makeVM([
       makeEntry({ name: "a.ysm", fullPath: "/repo/a.ysm", banned: true }),
       makeEntry({ name: "b.ysm", fullPath: "/repo/b.ysm", banned: true }),
     ]);
     await bind(vm);
-    ToggleModelEnableMock
+    ToggleEnableMock
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error("EACCES"));
 
@@ -244,7 +244,7 @@ describe("bindBusEvents — 批量启用/禁用", () => {
     bus.emit("batch:enable-all");
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(ToggleModelEnableMock).not.toHaveBeenCalled();
+    expect(ToggleEnableMock).not.toHaveBeenCalled();
   });
 
   it("目录下无待处理条目 → 不调后端不 toast", async () => {
@@ -254,7 +254,7 @@ describe("bindBusEvents — 批量启用/禁用", () => {
     bus.emit("batch:enable", { dir: "dir1" });
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(ToggleModelEnableMock).not.toHaveBeenCalled();
+    expect(ToggleEnableMock).not.toHaveBeenCalled();
   });
 });
 

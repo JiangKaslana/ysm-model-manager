@@ -15,7 +15,7 @@
 | `avatar/` | 创作者头像提取与缓存 〔源码 4: avatar.go avatar_decode.go avatar_extract.go avatar_zip.go · 测试 4〕 |
 | `cli/` | CLI 命令（脱离 GUI 的模型管理/诊断/缓存操作，入口 main.go 经 cli.RunCLI 接线） 〔源码 25 · 测试 3〕 |
 | `container/` | 统一容器桥接层（zip/7z/目录 Entry-Reader 抽象，ADR-068） 〔源码 1: container.go · 测试 2〕 |
-| `dedup/` | 文件去重检测（纯函数，不绑回收站/UI） 〔源码 1: dedup.go · 测试 3〕 |
+| `dedup/` | 文件去重检测（纯函数，不绑回收站/UI） 〔源码 1: dedup.go · 测试 4〕 |
 | `download/` | 纯下载逻辑（不依赖 Wails runtime） 〔源码 1: download.go · 测试 5〕 |
 | `executil/` | 外部进程工具（HideWindow 平台双实现，收敛自三处副本） 〔源码 2: hidewindow_other.go hidewindow_windows.go · 测试 3〕 |
 | `fileops/` | 文件操作 + 预览提取 + 包信息（ADR-003 P3 下沉） 〔源码 4: fileops.go fileops_enable.go fileops_preview.go folder_import.go · 测试 10〕 |
@@ -51,7 +51,7 @@
 
 | 包 | 用途 |
 |----|------|
-| `app/` | Wails Binding 入口（app.go / resource_bindings.go） 〔源码 37 · 测试 17〕 |
+| `app/` | Wails Binding 入口（app.go / resource_bindings.go） 〔源码 37 · 测试 18〕 |
 
 <!-- /GEN: internal-structure -->
 

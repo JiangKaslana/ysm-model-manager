@@ -148,11 +148,13 @@ export function registerSync(unsubs: Array<() => void>): void {
           AddImportLog,
           GetRepoRoot,
         } = await getApp();
-        // 语义边界（硬编码排查确认）：sync:toggle:status 是模型 .ban 启禁同步，
-        // 由 app-tree 的 ToggleModelEnable（模型专属操作）触发；SyncModelToggleStatus
-        // 的 instanceCustomDir 取 ins.CustomDir（ysm custom 路径）——本 handler 锁
-        // YSM 仓库根是语义正确（resourcepack 用 .disabled 机制走 ToggleResourcePack，
-        // 不在此链路）。mmd/vrchat 启禁同步需 per-type 实例目录支持，另行扩展。
+        // 语义边界（硬编码排查确认）：sync:toggle:status 是模型 .ban/.disabled 启禁同步，
+        // 由 app-tree 的启禁操作触发——前端已统一走 ToggleEnable（无 rtype 纯路径判定，
+        // 根集合 FilesRoot/McRoot/CustomRoots/ysmRoot，内部复用 fileops 的 .disabled
+        // 统一机制）；SyncModelToggleStatus 的 instanceCustomDir 取 ins.CustomDir
+        // （ysm custom 路径）——本 handler 锁 YSM 仓库根是语义正确（resourcepack 同走
+        // .disabled 机制，但启禁由 ToggleEnable 处理整合包内路径，不在此 YSM 同步链路）。
+        // mmd/vrchat 启禁同步需 per-type 实例目录支持，另行扩展。
         const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
         const mcRoot = await requireMcRoot();
         if (!filesRoot || !mcRoot) {
