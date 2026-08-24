@@ -240,12 +240,17 @@ describe("角色面板（roles）", () => {
         };
       });
     });
+    // 回归防护：curType 为空串（空白页加载场景）时 .ysm 候选必须判同源走 switchTo，
+    // 不得误判跨源触发 switchExternal（cleanupPreview 整段销毁 = 「替换后界面被关」根因）
+    const switchExternal = vi.fn();
     const handle = mountPreviewRootMenu(
       overlay,
       makeCtx({
         getCurrentPath: () => currentPath,
         getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
+        getCurrentRtype: () => "", // 模拟空白页加载：opts.rtype 空串
         switchTo,
+        switchExternal,
       }),
     );
     // 🧍 → 角色列表 → 底部加载区（fillSwitch）列出候选
@@ -260,10 +265,11 @@ describe("角色面板（roles）", () => {
     ) as HTMLElement | undefined;
     expect(itemA).toBeDefined();
     expect(itemB).toBeDefined();
-    // 点 b 行替换：菜单保持打开（不 closePopup）、switchTo 被调
+    // 点 b 行替换：菜单保持打开（不 closePopup）、switchTo 被调、switchExternal 不被调
     itemB!.click();
     expect(popup.style.display).toBe("flex");
     expect(switchTo).toHaveBeenCalledWith("/m/b.ysm");
+    expect(switchExternal).not.toHaveBeenCalled();
     // switchTo resolve 后：列表局部刷新，新当前项 b 变 ✓（原 a 行恢复 📦）
     resolveSwitch!();
     await Promise.resolve();

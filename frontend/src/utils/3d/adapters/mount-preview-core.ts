@@ -177,8 +177,6 @@ export function invalidatePreview(): void {
 
 /** 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） */
 export function cleanupPreview(): void {
-  // 【临时诊断】整段销毁日志：跨类型替换 switchExternal 走此路径（界面消失头号嫌疑）
-  logWarn("preview-close", "cleanupPreview 被调用——整段销毁全部 3D 预览会话");
   _gen++;
   for (const h of _handles) {
     try { h.handle.cleanup(); } catch (_) {}
@@ -356,7 +354,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getCamBridge: () => camBridge,
     getSiblings: () => (opts.siblings ?? []).filter((p) => p !== currentPath),
     getCurrentPath: () => currentPath,
-    getCurrentRtype: () => opts.rtype ?? adapter.id,
+    getCurrentRtype: () => (opts.rtype && opts.rtype.trim() ? opts.rtype : adapter.id),
     getCurrentSubtype: () => opts.subtype ?? "",
     getModelsByType: opts.getModelsByType ? (t: string, s?: string) => opts.getModelsByType!(t, s) : undefined,
     getTypeTabs: opts.getTypeTabs ? () => opts.getTypeTabs!() : undefined,
@@ -403,8 +401,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     }
   };
   function closeOverlay(): void {
-    // 【临时诊断】关闭链路日志：定位「替换角色后面板被关」是哪条路径触发
-    logWarn("preview-close", `closeOverlay 被调用（aborted=${aborted.v}）——ESC/✕/close 触发`);
     aborted.v = true;
     document.removeEventListener("keydown", escH);
     // 早期路径（cleanupFn 尚未赋值）：清理 tip 定时器 + 菜单，再拆 overlay
@@ -754,7 +750,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     environmentCap,
     getCurrentPath: () => currentPath,
     setCurrentPath: (p) => { currentPath = p; },
-    getCurrentRtype: () => opts.rtype ?? adapter.id,
+    getCurrentRtype: () => (opts.rtype && opts.rtype.trim() ? opts.rtype : adapter.id),
     getCurrentSubtype: () => opts.subtype ?? "",
     getPerFrame: () => perFrame,
     setPerFrame: (f) => {

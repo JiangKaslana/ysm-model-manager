@@ -9,7 +9,6 @@
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuItemDef, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
 import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
-import { logWarn } from "../../core/log.ts";
 import { createSlideMenu, type SlideMenuView, type SlideMenuHandle } from "../../../ui/ui-slide-menu.ts";
 import { buildCameraControls, type CameraControlBridge } from "./camera-controls.ts";
 import type { SkyCapability } from "../caps/sky-capability.ts";
@@ -116,6 +115,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
     if (c.kind === "toggle") {
       const row = document.createElement("div");
       row.className = "slide-item";
+      row.dataset.testid = "cap-" + c.id;
       row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
       const labelBox = document.createElement("div");
       labelBox.style.cssText = "flex:1;display:flex;align-items:center;gap:8px;min-width:0";
@@ -139,6 +139,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
     if (c.kind === "slider") {
       const row = document.createElement("div");
       row.className = "slide-item";
+      row.dataset.testid = "cap-" + c.id;
       row.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
       const head = document.createElement("div");
       head.style.cssText = "display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.7)";
@@ -168,6 +169,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
     if (c.kind === "select") {
       const row = document.createElement("div");
       row.className = "slide-item";
+      row.dataset.testid = "cap-" + c.id;
       row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
       const label = document.createElement("span");
       label.className = "slide-label";
@@ -191,6 +193,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
     if (c.kind === "button") {
       const row = document.createElement("div");
       row.className = "slide-item";
+      row.dataset.testid = "cap-" + c.id;
       row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
       const label = document.createElement("span");
       label.className = "slide-label";
@@ -500,8 +503,6 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   };
   // 根级 ✕（SlideMenu onClose）语义 = 关闭整个 3D 预览（对齐旧 close 菜单项）
   menu.setOnClose(() => {
-    // 【临时诊断】菜单根级 ✕ / ←（栈根时）触发关闭——若替换后误触此处则面板/预览消失
-    logWarn("preview-close", "menu.setOnClose 触发——根级 ✕/← 关闭整个 3D 预览");
     hideMenu();
     ctx.close();
   });
@@ -868,6 +869,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
       // 应用后刷新当前视图（让第一层各 cap 的主控件读最新值）
       menu.refresh();
     };
+    btn.dataset.testid = "env-preset-" + p.id;
     presetBar.appendChild(btn);
   });
   list.appendChild(presetBar);
@@ -890,6 +892,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
 
     const row = document.createElement("div");
     row.className = "slide-item";
+    row.dataset.testid = "cap-row-" + cap.id;
     // hasSubPanel → 整行可点下钻（cursor:pointer）；纯开关行 → 默认 cursor
     row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
 
@@ -1077,16 +1080,17 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         // 类型判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型（resolveTypeSafe 解析）。
         // 候选类型无法可靠识别（歧义扩展名如 .vrm/.zip 经 resolveTypeSafe 返回 null）时，
         // 保守判定为「不同源」——走 switchExternal 跨适配器替换，避免用当前适配器 build
-        // 认不得的类型导致加载失败。这同时也修正了原 curType="" 时同源 YSM(.ysm/.json)
-        // 被误判跨源、触发整段重建的 bug（现 curType 由 adapter.id 兜底为 "ysm"）。
+        // 认不得的类型导致加载失败。空 curType（未传 rtype）时判定层兜底为同源（见下）。
         const candType = resolveTypeSafe(p);
         const curType = ctx.getCurrentRtype?.() ?? "";
+        // sameType 判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型。
+        // 空 curType（空白页加载/未传 rtype）时：候选扩展名唯一归属可识别 → 视为同源
+        // （走 switchTo 复用外壳，避免误判跨源触发 switchExternal → cleanupPreview 整段销毁）。
+        // 候选类型无法可靠识别（歧义扩展名如 .vrm/.zip 经 resolveTypeSafe 返回 null）时
+        // 保守判「不同源」——走 switchExternal，避免用当前适配器 build 认不得的类型。
         const sameType = viaType
-          ? activeTab === curType
-          : !!candType && candType === curType;
-        // 【临时诊断】替换路由判定日志：真机定位「点击按钮界面被关」——若 sameType=false
-        // 误判跨源会走 switchExternal → cleanupPreview 整段销毁预览（疑似根因）
-        logWarn("preview-switch", `路由判定 p=${p} viaType=${viaType} candType=${String(candType)} curType=${curType} activeTab=${activeTab} sameType=${sameType}`);
+          ? activeTab === curType || (curType === "" && activeTab === candType)
+          : !!candType && (candType === curType || curType === "");
         const row = document.createElement("div");
         row.className = "ysm-preview-menu-row";
         row.dataset.testid = "preview-switch-item";
@@ -1126,8 +1130,6 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         }
         row.onclick = (): void => {
           // 替换：不关菜单、不清场景——切换完成后局部刷新列表（renderRows 重读新当前路径）
-          // 【临时诊断】分路日志：确认走 switchTo（复用外壳）还是 switchExternal（cleanupPreview 销毁）
-          logWarn("preview-switch", `替换点击 p=${p} sameType=${sameType} 走 ${!sameType && ctx.switchExternal ? "switchExternal(可能 cleanupPreview)" : "switchTo(复用外壳)"}`);
           const r = !sameType && ctx.switchExternal
             ? ctx.switchExternal(p, ctx.getSiblings())
             : ctx.switchTo(p);
