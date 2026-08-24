@@ -31,7 +31,8 @@ func (d *DeepHash) ComputeHash(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	// 只读哈希路径：Close 错误无观测影响（与并行管道读失败日志无关），显式忽略防 lint 未处理
+	defer func() { _ = f.Close() }()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
@@ -52,7 +53,8 @@ func (q *QuickHash) ComputeHash(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	// 只读哈希路径：Close 错误无观测影响，显式忽略防 lint 未处理
+	defer func() { _ = f.Close() }()
 
 	h := md5.New()
 	if _, err := io.Copy(h, f); err != nil {

@@ -421,11 +421,11 @@ func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string,
 			// 容器扩展名（.zip/.7z）的类型归属不可靠扩展名判定（ADR-067）：
 			// 任何类型都可能被打包进容器，扩展名只表示「可能是」，必须打开容器
 			// 按内部 ZipEntries 内容指纹核验真实类型，不匹配 rtype 则丢弃。
-			// 禁用态容器（.disabled 后缀）跳过指纹核验——它是合法 rtype 文件被
-			// ToggleEnable 禁用而来，且 DetectResourceType 对 .disabled 路径判不出
-			// 容器类型（内部 filepath.Ext 变 .disabled）。
+			// 禁用态容器（.disabled 后缀）同样核验：DetectResourceType/container.Open
+			// 已支持剥离禁用后缀判定真实类型（c08c62bc P3 回归——原跳过指纹导致
+			// 禁用容器泄漏进所有含 .zip 的 tab 标 Type=rtype）。
 			// 非容器扩展名维持扩展名白名单直接收的旧行为。
-			if types.IsContainerExt(ext) && !types.IsDisableSuffix(e.Path) {
+			if types.IsContainerExt(ext) {
 				if detected := cachedContainerType(e.Path, registry); detected != rtype {
 					continue
 				}

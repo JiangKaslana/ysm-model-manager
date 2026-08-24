@@ -982,3 +982,30 @@ func TestScanModelEntriesFiltered_DisabledRetained(t *testing.T) {
 		t.Errorf("应收 active.zip 与 disabled.zip.disabled, 实际 %v", names)
 	}
 }
+
+func TestScanModelEntriesFiltered_DisabledContainerNoCrossTabLeak(t *testing.T) {
+	// 回归（c08c62bc P3）：禁用容器（xxx.zip.disabled）此前跳过指纹核验，
+	// 内部 pack.mcmeta（resourcepack 指纹）的容器被泄漏进 EntityPlayer 等
+	// 所有含 .zip 的 tab 标 Type=rtype。修复后 DetectResourceType/container.Open
+	// 剥离禁用后缀核验真实类型：resourcepack tab 应收，EntityPlayer tab 应丢弃。
+	base := t.TempDir()
+	dir := filepath.Join(base, "scan_filter_dir4")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeZip(t, filepath.Join(dir, "disabled.zip.disabled"), "pack.mcmeta")
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+
+	// 自身类型 tab：应保留（指纹 resourcepack == rtype）
+	own := a.ScanModelEntriesFiltered(dir, "resourcepack", "", "资源包")
+	if len(own) != 1 || filepath.Base(own[0].Path) != "disabled.zip.disabled" {
+		t.Fatalf("resourcepack tab 应收禁用容器 disabled.zip.disabled，实际 %+v", own)
+	}
+
+	// 无关类型 tab：应丢弃（指纹 resourcepack != EntityPlayer）
+	other := a.ScanModelEntriesFiltered(dir, "EntityPlayer", "", "角色模型")
+	if len(other) != 0 {
+		t.Fatalf("EntityPlayer tab 不应泄漏禁用容器，实际 %+v", other)
+	}
+}

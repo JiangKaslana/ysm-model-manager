@@ -101,11 +101,11 @@ func TestFindDuplicateFiles_ReadFailureSkipped(t *testing.T) {
 
 	old := computeHash
 	t.Cleanup(func() { computeHash = old })
-	computeHash = func(path string) (string, error) {
+	computeHash = func(path string, algo HashAlgorithm) (string, error) {
 		if strings.HasSuffix(path, "c.txt") {
 			return "", errors.New("injected read failure")
 		}
-		return realComputeHash(path)
+		return algo.ComputeHash(path)
 	}
 
 	groups, err := FindDuplicateFiles(dir, true)
@@ -146,11 +146,11 @@ func TestHashFilesParallel_UniqueSizeSkipsHash(t *testing.T) {
 	var calledMu sync.Mutex // 测试桩计数被多个 worker 并发写，需加锁
 	old := computeHash
 	t.Cleanup(func() { computeHash = old })
-	computeHash = func(path string) (string, error) {
+	computeHash = func(path string, algo HashAlgorithm) (string, error) {
 		calledMu.Lock()
 		called[path]++
 		calledMu.Unlock()
-		return realComputeHash(path)
+		return algo.ComputeHash(path)
 	}
 
 	groups, err := FindDuplicateFiles(dir, true)
@@ -187,7 +187,7 @@ func TestFindDuplicateFiles_SizeGrouping_Mixed(t *testing.T) {
 	testutil.CreateTestFile(t, dir, "dup2.txt", dup)
 	testutil.CreateTestFile(t, dir, "dup3.txt", dup)
 	testutil.CreateTestFile(t, dir, "uniq1.txt", "unique-content-number-one")
-	testutil.CreateTestFile(t, dir, "uniq2.txt", "unique-content-number-two")
+	testutil.CreateTestFile(t, dir, "uniq2.txt", "unique-content-number-x")
 
 	groups, err := FindDuplicateFiles(dir, true)
 	if err != nil {
@@ -201,5 +201,83 @@ func TestFindDuplicateFiles_SizeGrouping_Mixed(t *testing.T) {
 	}
 	if !sort.StringsAreSorted(pathsOf(groups[0].Files)) {
 		t.Fatalf("组内路径未排序: %v", pathsOf(groups[0].Files))
+	}
+}
+
+// serialReference 测试内串行参照实现：与并行管道共享 collectFiles（串行收集），
+// 哈希逐个顺序执行、分组按首次出现序、组内按 Path 排序——逐字节对应串行旧实现语义。
+// 用于锁死 ADR-119「并行输出与串行逐字节一致」：若并行管道破坏 results[idx]↔files[i]
+// 对齐、或组序随哈希完成序漂移，黄金对照测试会确定性变红（code_review P3-2 回归点）。
+func serialReference(t *testing.T, dir string) []Group {
+	t.Helper()
+	files, err := collectFiles(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	algo := &DeepHash{}
+	byHash := map[string]*Group{}
+	var order []string
+	for _, f := range files {
+		h, err := algo.ComputeHash(f.path)
+		if err != nil {
+			continue // log-and-skip，与并行语义一致
+		}
+		entry := FileEntry{Name: filepath.Base(f.path), Path: f.path, Size: f.size, ModTime: f.mod}
+		if g, ok := byHash[h]; ok {
+			g.Files = append(g.Files, entry)
+		} else {
+			byHash[h] = &Group{Hash: h, Size: f.size, Files: []FileEntry{entry}}
+			order = append(order, h)
+		}
+	}
+	var out []Group
+	for _, h := range order {
+		g := byHash[h]
+		if len(g.Files) > 1 {
+			sort.Slice(g.Files, func(i, j int) bool { return g.Files[i].Path < g.Files[j].Path })
+			out = append(out, *g)
+		}
+	}
+	return out
+}
+
+// 黄金对照：并行管道输出与串行参照实现全字段逐字节一致（组序 + 组内路径 + Size/ModTime）。
+// fixture 含大文件集（200 唯一 + 3 重复组）+ 一个唯一尺寸文件（串并行都跳过哈希、不成组）。
+func TestParallelEqualsSerial_Golden(t *testing.T) {
+	dir := buildParallelFixture(t)
+	testutil.CreateTestFile(t, dir, "solo.txt", "a-very-unique-size-content")
+
+	parallel, err := FindDuplicateFiles(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serial := serialReference(t, dir)
+
+	if len(parallel) != len(serial) {
+		t.Fatalf("组数不一致：并行=%d 串行=%d", len(parallel), len(serial))
+	}
+	for i := range parallel {
+		p, s := parallel[i], serial[i]
+		if p.Hash != s.Hash || p.Size != s.Size {
+			t.Fatalf("组 %d 头元不一致：并行{hash=%s size=%d} 串行{hash=%s size=%d}", i, p.Hash, p.Size, s.Hash, s.Size)
+		}
+		if len(p.Files) != len(s.Files) {
+			t.Fatalf("组 %d 副本数不一致：并行=%d 串行=%d", i, len(p.Files), len(s.Files))
+		}
+		for j := range p.Files {
+			pf, sf := p.Files[j], s.Files[j]
+			if pf.Path != sf.Path || pf.Size != sf.Size || pf.ModTime != sf.ModTime {
+				t.Fatalf("组 %d 文件 %d 不一致：并行{path=%s size=%d mod=%d} 串行{path=%s size=%d mod=%d}",
+					i, j, pf.Path, pf.Size, pf.ModTime, sf.Path, sf.Size, sf.ModTime)
+			}
+		}
+	}
+	// 唯一尺寸文件不应出现在任何组（串并行都跳过哈希）
+	for _, g := range parallel {
+		for _, f := range g.Files {
+			if filepath.Base(f.Path) == "solo.txt" {
+				t.Fatal("唯一尺寸文件 solo.txt 不应出现在任何组")
+			}
+		}
 	}
 }

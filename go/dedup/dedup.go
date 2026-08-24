@@ -54,6 +54,14 @@ type hashResult struct {
 	ok   bool // 读失败为 false（log-and-skip，与串行一致）
 }
 
+// computeHash 可注入变量：默认委托 algo.ComputeHash（策略化哈希）；测试可替换以
+// 模拟读失败/计数（P3 并行读失败回归，与 texture_cache removeFile 同款手法）。
+// 注：49afd979 曾删除本注入点（哈希统一走 algo 接口）但未同步 dedup_parallel_test.go，
+// 导致测试包 undefined: computeHash 编译失败——恢复注入点并适配策略签名。
+var computeHash = func(path string, algo HashAlgorithm) (string, error) {
+	return algo.ComputeHash(path)
+}
+
 // collectFiles 串行 WalkDir 收集有效文件，保留遍历顺序。
 // 收敛 FindDuplicateFiles 与 CountDuplicates 的共用遍历（原 walkHashedFiles，索引 6.8a）：
 //   - 跳过符号链接（根本身是符号链接时返回 ErrSymlinkRoot——静默返回「无重复」= 假绿，
@@ -104,11 +112,13 @@ func collectFiles(dir string, skipRecycle bool) ([]fileInfo, error) {
 
 // hashFilesParallel 并行计算哈希，结果按收集顺序（idx 槽位）落位。
 // workers = min(files, GOMAXPROCS)——小文件集自然 workers=1，与串行开销等价
-// （ADR-119 P4：不设阈值双路径，统一走本管道）。读失败留 ok=false（log-and-skip）。
+// （ADR-119 P4：不设阈值双路径，统一走本管道）。
 //
 // size 预分组（零语义损失）：不同 size 的文件不可能同 hash（SHA256 同 ⟹ 内容同 ⟹ size 同），
 // 唯一 size 的文件必不成组，跳过其哈希——消解大文件长尾（占死 worker 的大文件通常尺寸唯一），
 // 输出逐字节不变（唯一尺寸文件本就永不进 len>1 组）。
+// 注意：唯一 size 文件**不被打开**（不进 job），其读失败自然不可见、不记日志——
+// 这是有意的（该文件本就不参与成组），与「读失败 log-and-skip」仅针对已入 job 文件。
 func hashFilesParallel(files []fileInfo, algo HashAlgorithm) []hashResult {
 	n := len(files)
 	results := make([]hashResult, n)
@@ -130,7 +140,7 @@ func hashFilesParallel(files []fileInfo, algo HashAlgorithm) []hashResult {
 		go func() {
 			defer wg.Done()
 			for f := range jobs {
-				hash, err := algo.ComputeHash(f.path)
+				hash, err := computeHash(f.path, algo)
 				if err != nil {
 					log.Printf("[dedup] 哈希计算失败 %s: %v", f.path, err)
 					continue // log-and-skip

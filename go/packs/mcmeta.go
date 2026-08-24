@@ -139,11 +139,14 @@ func ReadPackMeta(path string) (*types.PackMeta, string, error) {
 // Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir，
 // 解决 MMD 子类型共享扩展名（EntityPlayer/SceneModel 都 .pmx）的歧义。
 // Phase 2（扩展名兜底）：按现有逻辑遍历，路径消歧未命中时使用。
+// 禁用后缀文件（.disabled/.ban）：扩展名推导前剥离后缀（c08c62bc P3 回归——
+// 否则 ToggleEnable 改名后的 xxx.zip.disabled 判不出容器类型，跨 tab 泄漏；
+// 打开文件仍用真实路径，剥离只影响扩展名判定）。
 func DetectResourceType(path string, registry *types.ResourceTypeRegistry) string {
 	if registry == nil || len(registry.ResourceTypes) == 0 {
 		return ""
 	}
-	ext := strings.ToLower(filepath.Ext(path))
+	ext := strings.ToLower(filepath.Ext(types.StripDisableSuffix(path)))
 	isContainer := types.IsContainerExt(ext)
 
 	// Phase 1：路径消歧——当类型共享扩展名时，用 InstanceDir 区分

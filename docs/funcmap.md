@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 149 | 595 |
-| frontend/views | 115 | 328 |
+| frontend/views | 115 | 330 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **459** | **1971** |
+| **合计** | **459** | **1973** |
 
 ## Go·头像
 
@@ -121,14 +121,14 @@
 | `dirEntry.UncompressedSize64()` | `go/container/container:118` | — |
 | `dirEntry.Open()` | `go/container/container:125` | — |
 | `Open()` | `go/container/container:47` | — |
-| `OpenZipPath()` | `go/container/container:151` | OpenZipPath 按路径打开 zip 容器。 |
-| `OpenZipBytes()` | `go/container/container:160` | OpenZipBytes 从内存打开 zip 容器。 |
-| `Open7zPath()` | `go/container/container:169` | Open7zPath 按路径打开 7z 容器。 |
-| `Open7zBytes()` | `go/container/container:178` | Open7zBytes 从内存打开 7z 容器。 |
-| `dirContainer.Entries()` | `go/container/container:223` | — |
-| `dirContainer.Close()` | `go/container/container:224` | — |
-| `OpenDir()` | `go/container/container:227` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
-| `ZipMatchesEntries()` | `go/container/container:236` | ZipMatchesEntries 打开 zip 容器并枚举条目名，任一命中 match 即返回 true。 |
+| `OpenZipPath()` | `go/container/container:166` | OpenZipPath 按路径打开 zip 容器。 |
+| `OpenZipBytes()` | `go/container/container:175` | OpenZipBytes 从内存打开 zip 容器。 |
+| `Open7zPath()` | `go/container/container:184` | Open7zPath 按路径打开 7z 容器。 |
+| `Open7zBytes()` | `go/container/container:193` | Open7zBytes 从内存打开 7z 容器。 |
+| `dirContainer.Entries()` | `go/container/container:238` | — |
+| `dirContainer.Close()` | `go/container/container:239` | — |
+| `OpenDir()` | `go/container/container:242` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
+| `ZipMatchesEntries()` | `go/container/container:251` | ZipMatchesEntries 打开 zip 容器并枚举条目名，任一命中 match 即返回 true。 |
 | `Entry()` | `go/container/container:26` | Entry 统一容器条目（zip.File / sevenzip.File / 目录文件）。 |
 | `Reader()` | `go/container/container:34` | Reader 容器读取器。 |
 
@@ -136,22 +136,22 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `FindDuplicateFiles()` | `go/dedup/dedup:157` | FindDuplicateFiles 扫描目录，按配置的哈希算法分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 config 为去 |
-| `CountDuplicates()` | `go/dedup/dedup:231` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） 同样消费共享并行哈希管道（ADR-119 P1：与 FindDuplic |
-| `CleanEmptyDirs()` | `go/dedup/dedup:276` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
+| `FindDuplicateFiles()` | `go/dedup/dedup:167` | FindDuplicateFiles 扫描目录，按配置的哈希算法分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 config 为去 |
+| `CountDuplicates()` | `go/dedup/dedup:241` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） 同样消费共享并行哈希管道（ADR-119 P1：与 FindDuplic |
+| `CleanEmptyDirs()` | `go/dedup/dedup:286` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
 | `FileEntry()` | `go/dedup/dedup:25` | FileEntry 文件条目 |
 | `Group()` | `go/dedup/dedup:33` | Group 重复文件分组 |
 | `DeepHash.Name()` | `go/dedup/strategy:25` | — |
 | `DeepHash.ComputeHash()` | `go/dedup/strategy:29` | — |
-| `QuickHash.Name()` | `go/dedup/strategy:46` | — |
-| `QuickHash.ComputeHash()` | `go/dedup/strategy:50` | — |
-| `NameSizeHash.Name()` | `go/dedup/strategy:67` | — |
-| `NameSizeHash.ComputeHash()` | `go/dedup/strategy:71` | — |
-| `NewHashAlgorithm()` | `go/dedup/strategy:81` | NewHashAlgorithm 根据配置创建哈希算法实例 |
+| `QuickHash.Name()` | `go/dedup/strategy:47` | — |
+| `QuickHash.ComputeHash()` | `go/dedup/strategy:51` | — |
+| `NameSizeHash.Name()` | `go/dedup/strategy:69` | — |
+| `NameSizeHash.ComputeHash()` | `go/dedup/strategy:73` | — |
+| `NewHashAlgorithm()` | `go/dedup/strategy:83` | NewHashAlgorithm 根据配置创建哈希算法实例 |
 | `HashAlgorithm()` | `go/dedup/strategy:15` | HashAlgorithm 去重算法策略接口 |
 | `DeepHash()` | `go/dedup/strategy:23` | DeepHash 深度哈希算法 (基于 SHA256) - 精确但较慢 |
-| `QuickHash()` | `go/dedup/strategy:44` | QuickHash 快速哈希算法 (基于 MD5) - 速度较快，适合大文件 |
-| `NameSizeHash()` | `go/dedup/strategy:65` | NameSizeHash 基于文件名和大小的"伪哈希" - 速度最快但不精确 |
+| `QuickHash()` | `go/dedup/strategy:45` | QuickHash 快速哈希算法 (基于 MD5) - 速度较快，适合大文件 |
+| `NameSizeHash()` | `go/dedup/strategy:67` | NameSizeHash 基于文件名和大小的"伪哈希" - 速度最快但不精确 |
 
 ## Go·下载
 
@@ -327,8 +327,8 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `ReadPackMeta()` | `go/packs/mcmeta:35` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
-| `DetectResourceType()` | `go/packs/mcmeta:142` | DetectResourceType 检测文件属于哪种资源类型 Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir， 解决 MMD 子类型共享扩展名 |
-| `ReadShaderpackLang()` | `go/packs/mcmeta:372` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
+| `DetectResourceType()` | `go/packs/mcmeta:145` | DetectResourceType 检测文件属于哪种资源类型 Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir， 解决 MMD 子类型共享扩展名 |
+| `ReadShaderpackLang()` | `go/packs/mcmeta:375` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
 
 ## Go·路径
 
@@ -1876,7 +1876,9 @@
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:16` | — |
 | `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:134` | — |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:29` | 初始化去重配置面板（标签页打开时调用，配置实时保存） |
+| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:80` | 获取当前去重配置（供外部调用） |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:93` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
 | `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:125` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
@@ -1902,10 +1904,10 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:265` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:272` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:280` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:284` | — |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:268` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:275` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:283` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:287` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:37` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:143` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
@@ -2155,7 +2157,7 @@
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:19` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:126` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:132` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:61` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |

@@ -17,6 +17,74 @@ let _dedupBusy = false;
 // await，重复点击会并行循环对同一批路径二次删除（误统计）；busy 命中直接返回
 let diagExecBusy = false;
 
+// ===== 全局配置状态（供 initDedupConfig 和 startDedup 共享） =====
+let _dedupStrategy = "deep_hash";
+let _keepPolicy = "oldest";
+let _priorityPath = "";
+
+/**
+ * 初始化去重配置面板（标签页打开时调用，配置实时保存）
+ * @param list 结果列表容器（dedup-result-list）
+ */
+export function initDedupConfig(list: HTMLElement): void {
+  const renderConfigPanel = () => {
+    list.innerHTML = `
+      <div class="diag-dedup-config">
+        <div class="diag-config-item">
+          <label for="dedup-strategy">🔍 ${t("diagnostics.dedupStrategy")}:</label>
+          <select id="dedup-strategy" class="diag-config-select">
+            <option value="deep_hash"${_dedupStrategy === "deep_hash" ? " selected" : ""}>${t("diagnostics.strategyDeepHash")} (SHA256)</option>
+            <option value="quick_hash"${_dedupStrategy === "quick_hash" ? " selected" : ""}>${t("diagnostics.strategyQuickHash")} (MD5)</option>
+            <option value="name_size"${_dedupStrategy === "name_size" ? " selected" : ""}>${t("diagnostics.strategyNameSize")} (${t("diagnostics.fastest")})</option>
+          </select>
+        </div>
+        <div class="diag-config-item">
+          <label for="keep-policy">💾 ${t("diagnostics.keepPolicy")}:</label>
+          <select id="keep-policy" class="diag-config-select">
+            <option value="oldest"${_keepPolicy === "oldest" ? " selected" : ""}>${t("diagnostics.keepOldest")}</option>
+            <option value="newest"${_keepPolicy === "newest" ? " selected" : ""}>${t("diagnostics.keepNewest")}</option>
+            <option value="path"${_keepPolicy === "path" ? " selected" : ""}>${t("diagnostics.keepByPath")}</option>
+          </select>
+        </div>
+        <div class="diag-config-item" id="priority-path-item" style="${_keepPolicy === "path" ? "" : "display:none"}">
+          <label for="priority-path">📁 ${t("diagnostics.priorityPath")}:</label>
+          <input type="text" id="priority-path" class="diag-config-input" placeholder="/path/to/priority" value="">
+        </div>
+      </div>
+    `;
+
+    // 绑定事件（配置实时保存到全局变量）
+    list.querySelector("#dedup-strategy")?.addEventListener("change", (e) => {
+      _dedupStrategy = (e.target as HTMLSelectElement).value;
+    });
+
+    list.querySelector("#keep-policy")?.addEventListener("change", (e) => {
+      _keepPolicy = (e.target as HTMLSelectElement).value;
+      const pathItem = list.querySelector("#priority-path-item") as HTMLElement;
+      if (pathItem) {
+        pathItem.style.display = _keepPolicy === "path" ? "" : "none";
+      }
+    });
+
+    list.querySelector("#priority-path")?.addEventListener("input", (e) => {
+      _priorityPath = (e.target as HTMLInputElement).value;
+    });
+  };
+
+  renderConfigPanel();
+}
+
+/**
+ * 获取当前去重配置（供外部调用）
+ */
+export function getDedupConfig(): { strategy: string; keepPolicy: string; priorityPath: string } {
+  return {
+    strategy: _dedupStrategy,
+    keepPolicy: _keepPolicy,
+    priorityPath: _priorityPath,
+  };
+}
+
 /**
  * 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。
  * 之前调用方传 { getElementById: () => list } 包装对象，startDedup 内部查
@@ -64,64 +132,7 @@ export async function startDedup(
     const { FindDuplicateFiles, GetRepoRoot, MoveToRecycle } =
       await getApp();
 
-    // ===== 策略配置 UI =====
-    // 默认配置
-    let dedupStrategy = "deep_hash";
-    let keepPolicy = "oldest";
-    let priorityPath = "";
-
-    // 渲染配置面板
-    const renderConfigPanel = () => {
-      list.innerHTML = `
-        <div class="diag-dedup-config">
-          <div class="diag-config-item">
-            <label for="dedup-strategy">🔍 ${t("diagnostics.dedupStrategy")}:</label>
-            <select id="dedup-strategy" class="diag-config-select">
-              <option value="deep_hash"${dedupStrategy === "deep_hash" ? " selected" : ""}>${t("diagnostics.strategyDeepHash")} (SHA256)</option>
-              <option value="quick_hash"${dedupStrategy === "quick_hash" ? " selected" : ""}>${t("diagnostics.strategyQuickHash")} (MD5)</option>
-              <option value="name_size"${dedupStrategy === "name_size" ? " selected" : ""}>${t("diagnostics.strategyNameSize")} (${t("diagnostics.fastest")})</option>
-            </select>
-          </div>
-          <div class="diag-config-item">
-            <label for="keep-policy">💾 ${t("diagnostics.keepPolicy")}:</label>
-            <select id="keep-policy" class="diag-config-select">
-              <option value="oldest"${keepPolicy === "oldest" ? " selected" : ""}>${t("diagnostics.keepOldest")}</option>
-              <option value="newest"${keepPolicy === "newest" ? " selected" : ""}>${t("diagnostics.keepNewest")}</option>
-              <option value="path"${keepPolicy === "path" ? " selected" : ""}>${t("diagnostics.keepByPath")}</option>
-            </select>
-          </div>
-          <div class="diag-config-item" id="priority-path-item" style="${keepPolicy === "path" ? "" : "display:none"}">
-            <label for="priority-path">📁 ${t("diagnostics.priorityPath")}:</label>
-            <input type="text" id="priority-path" class="diag-config-input" placeholder="/path/to/priority" value="${esc(priorityPath)}">
-          </div>
-          <button id="diag-dedup-start" class="diag-dedup-exec">🚀 ${t("diagnostics.startScan")}</button>
-        </div>
-      `;
-
-      // 绑定事件
-      list.querySelector("#dedup-strategy")?.addEventListener("change", (e) => {
-        dedupStrategy = (e.target as HTMLSelectElement).value;
-      });
-
-      list.querySelector("#keep-policy")?.addEventListener("change", (e) => {
-        keepPolicy = (e.target as HTMLSelectElement).value;
-        const pathItem = list.querySelector("#priority-path-item") as HTMLElement;
-        if (pathItem) {
-          pathItem.style.display = keepPolicy === "path" ? "" : "none";
-        }
-      });
-
-      list.querySelector("#priority-path")?.addEventListener("input", (e) => {
-        priorityPath = (e.target as HTMLInputElement).value;
-      });
-
-      list.querySelector("#diag-dedup-start")?.addEventListener("click", async () => {
-        // 执行去重扫描
-        await executeDedupScan();
-      });
-    };
-
-    // 执行去重扫描的内部函数
+    // ===== 执行去重扫描（使用全局配置） =====
     const executeDedupScan = async () => {
       try {
         // ===== 原有扫描逻辑 =====
@@ -366,8 +377,8 @@ ${isDefault ? '<span class="diag-dedup-recommend">' + t("diagnostics.recommended
       }
     };
 
-    // 显示配置面板
-    renderConfigPanel();
+    // 直接执行去重扫描（配置已在 initDedupConfig 中初始化）
+    await executeDedupScan();
 
   } catch (e) {
     list.innerHTML =

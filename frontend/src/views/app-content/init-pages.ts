@@ -4,7 +4,7 @@ import { initDiagnostics } from "./diagnostics/init.ts";
 import { initSettings } from "./settings/init.ts";
 import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
-import { startDedup } from "./diagnostics/init.ts";
+import { startDedup, initDedupConfig } from "./diagnostics/dedup.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { safeGet } from "../../utils/dom/storage.ts";
 import { esc } from "../../utils/dom/html.ts";
@@ -169,11 +169,14 @@ function bindTabs(
               "</div>" +
               '<div id="dedup-result-list" style="flex:1;overflow-y:auto;padding:8px 0"></div>' +
               "</div>";
+            const list = container.querySelector("#dedup-result-list") as HTMLElement | null;
+            // 初始化配置面板（显示策略选择，无需点击按钮）
+            if (list) initDedupConfig(list);
             const doDedup = (): void => {
-              const list = container.querySelector("#dedup-result-list");
-              if (list)
+              const listEl = container.querySelector("#dedup-result-list");
+              if (listEl)
                 startDedup(
-                  list as HTMLElement,
+                  listEl as HTMLElement,
                   (s: unknown) => esc(String(s || "")),
                   dedupType,
                 );
