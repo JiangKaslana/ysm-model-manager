@@ -1912,7 +1912,7 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:154` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:22` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:29` | — |
-| `initSettings()` | `frontend/src/views/app-content/settings/init:30` | 初始化设置页所有事件绑定 |
+| `initSettings()` | `frontend/src/views/app-content/settings/init:31` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:130` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |
 | `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:52` | — |
@@ -1947,7 +1947,7 @@
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
 | `aboutHTML()` | `frontend/src/views/app-content/tpl-settings-about:6` | About 标签页（版本/特性/技术栈/链接/快速上手） |
 | `creditsHTML()` | `frontend/src/views/app-content/tpl-settings-about:95` | Credits 标签页（灵感来源/特别感谢） |
-| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:7` | — |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:8` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |

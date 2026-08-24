@@ -4,6 +4,7 @@
 // 本文件保留为编排壳：加载 cfg/registry → 调用各模块初始化 → 组装其余事件绑定骨架。
 import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
+import { resolveWebMode } from "../../../backend/platform.ts";
 import { loadResourceRegistry } from "../../../utils/resource/registry.ts";
 import { safeGet } from "../../../utils/dom/storage.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
@@ -332,7 +333,7 @@ export async function initSettings(root: ShadowRoot): Promise<void> {
   // ── 网页版 FSA 授权本地仓库（ADR-049 能力门控缺口补齐；R2 数据互通：句柄持久化 + 启动自愈）──
   const webRepoBtn = root.getElementById("web-repo-auth-btn") as HTMLButtonElement | null;
   const webRepoStatus = root.getElementById("web-repo-auth-status");
-  if (webRepoBtn && isViewerMode()) {
+  if (webRepoBtn && resolveWebMode()) {
     // R2 启动自愈：恢复持久化 FSA 句柄并重扫（仅 queryPermission，无手势），
     // 免用户每次重新选目录；已撤销则提示用户重新授权
     const applyFsaState = async (): Promise<void> => {

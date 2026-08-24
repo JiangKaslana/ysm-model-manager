@@ -56,6 +56,7 @@ Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 
 
 - **桌面端零影响**：无 `wails` 桥时 `getAndroidBridge()` 恒 `null`，所有门控/兜底路径不触发
 - **不碰 SAF**：禁止引入 `DocumentFile` / `content://` URI 读写（历史踩坑，MikuMikuAR ADR-194 废弃）
+- **isViewerMode ≠ 网页版**：`isViewerMode()`（有 Java 桥或 `resolveWebMode()`）与 `resolveWebMode()`（仅网页版）语义不同，**不可互换**。设置页 FSA 授权卡(`stg-web-repo-card`/`web-repo-auth-btn`)只该由 `resolveWebMode()` 渲染——它依赖 `showDirectoryPicker`(仅浏览器)。Android 虽为 viewer(mcRoot 缺位等),但走 Java 桥 `requestStoragePermission` + `resolveAndroidRepoDir`(本地路径卡),渲染 FSA 卡会报「浏览器不支持 FSA」(Android WebView 无 `showDirectoryPicker`)。tpl-settings 的 `isViewer`(游戏根/链接卡)与 `isWebViewer`(FSA 卡)两层判断即此约定(2026-08 修)
 - **类型安全**：桥访问不得用 `as any`（用 `unknown` 收窄）
 - **目录解析唯一入口**：Android「需要目录路径」场景统一走 `resolveAndroidRepoDir`，禁止各调用方自行实现授权引导
 - **返回键注册表（ADR-057）**：handler 按栈顶优先（后注册先询问）；返回 `true` 即视为已消费并短路后续；桌面端无 `android:back` 事件，返回键逻辑恒不触发（零影响）；Android 端由 `MainActivity → android:back → emitAndroidBack()` 接通，注册表不再依赖原生桥直接调用

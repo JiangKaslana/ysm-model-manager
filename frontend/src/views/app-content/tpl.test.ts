@@ -12,18 +12,23 @@ import {
   workshopHTML,
 } from "./tpl.ts";
 
-const { getAndroidBridgeMock, isViewerModeMock } = vi.hoisted(() => ({
+const { getAndroidBridgeMock, isViewerModeMock, resolveWebModeMock } = vi.hoisted(() => ({
   getAndroidBridgeMock: vi.fn().mockReturnValue(null), // 默认桌面（无 Android 桥）
   isViewerModeMock: vi.fn().mockReturnValue(false), // 默认桌面（非查看器模式）
+  resolveWebModeMock: vi.fn().mockReturnValue(false), // 默认桌面（非网页版）
 }));
 vi.mock("../../utils/dom/android-bridge.ts", () => ({
   getAndroidBridge: getAndroidBridgeMock,
   isViewerMode: isViewerModeMock,
 }));
+vi.mock("../../backend/platform.ts", () => ({
+  resolveWebMode: resolveWebModeMock,
+}));
 
 beforeEach(() => {
   getAndroidBridgeMock.mockReturnValue(null);
   isViewerModeMock.mockReturnValue(false);
+  resolveWebModeMock.mockReturnValue(false);
 });
 
 describe("app-content 模板", () => {
@@ -62,34 +67,49 @@ describe("app-content 模板", () => {
     expect(html).toContain("set-files-root");
   });
 
-  it("settingsHTML 查看器模式隐藏游戏根目录/链接模式/文件存储路径/下载镜像源卡片", () => {
-    isViewerModeMock.mockReturnValue(true); // 查看器模式（Android/网页版）
+  it("settingsHTML Android 查看器模式隐藏游戏根目录/链接模式/下载镜像源卡片，保留本地文件存储卡", () => {
+    isViewerModeMock.mockReturnValue(true); // Android：查看器模式、有 Java 桥、非网页版
     getAndroidBridgeMock.mockReturnValue({ requestStoragePermission: vi.fn() } as never);
     const html = settingsHTML();
     expect(html).not.toContain("set-mc-path");
     expect(html).not.toContain("set-mc-detect");
     expect(html).not.toContain("set-link-mode");
     expect(html).not.toContain("set-relink");
-    // 文件存储路径卡片（含高级设置面板）查看器模式隐藏——本地文件系统配置对网页版/Android 无意义
-    expect(html).not.toContain("stg-files-card");
-    expect(html).not.toContain("set-files-root");
-    expect(html).not.toContain("set-advanced-toggle");
-    expect(html).not.toContain("set-advanced-grid");
-    // 下载镜像源卡片查看器模式隐藏——浏览器下载走 fetchWithFallback 三路回退，不依赖该配置
+    // 本地文件存储路径卡片保留——Android 走 Java 桥授权与仓库定位，非网页版 FSA
+    expect(html).toContain("stg-files-card");
+    expect(html).toContain("set-files-root");
+    expect(html).toContain("set-advanced-grid");
+    // 下载镜像源卡片 Android 模式隐藏——浏览器下载走 fetchWithFallback 三路回退，不依赖该配置
     expect(html).not.toContain("set-mirror");
     expect(html).not.toContain("mirror-hint-");
     // 语言/主题等纯前端偏好卡片保留
     expect(html).toContain("set-lang");
   });
 
-  it("settingsHTML 查看器模式显示网页版文件来源 FSA 授权卡片（ADR-049 能力门控补齐）", () => {
+  it("settingsHTML 网页版（resolveWebMode=true）显示网页版文件来源 FSA 授权卡片", () => {
     isViewerModeMock.mockReturnValue(true);
+    resolveWebModeMock.mockReturnValue(true);
     const html = settingsHTML();
-    // 查看器模式隐藏本地文件路径配置后，改显 FSA 授权卡片
+    // 网页版隐藏本地文件路径配置后，改显 FSA 授权卡片
     expect(html).toContain("stg-web-repo-card");
     expect(html).toContain("web-repo-auth-btn");
     expect(html).toContain("web-repo-auth-status");
-    isViewerModeMock.mockReturnValue(false);
+  });
+
+  it("settingsHTML Android（桥存在但非网页版）渲染本地路径卡而非 FSA 授权卡", () => {
+    // 回归：仅网页版才渲染需 showDirectoryPicker 的 FSA 卡；
+    // Android 有 Java 桥但 resolveWebMode=false，应渲染 files 卡，避免报"浏览器不支持 FSA"
+    isViewerModeMock.mockReturnValue(true);
+    resolveWebModeMock.mockReturnValue(false);
+    getAndroidBridgeMock.mockReturnValue({ requestStoragePermission: vi.fn() } as never);
+    const html = settingsHTML();
+    expect(html).not.toContain("web-repo-auth-btn");
+    expect(html).not.toContain("stg-web-repo-card");
+    // Android 作为 viewer 隐藏游戏根/链接卡，但保留本地文件路径卡（走 Java 桥授权 + 仓库定位）
+    expect(html).not.toContain("set-mc-path");
+    expect(html).not.toContain("set-link-mode");
+    expect(html).toContain("stg-files-card");
+    expect(html).toContain("set-files-root");
   });
 
   it("settingsHTML 桌面模式包含主题选择/默认页/高级设置网格", () => {

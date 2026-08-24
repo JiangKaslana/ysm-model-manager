@@ -1,6 +1,7 @@
 // ===== tpl-settings.ts — settingsHTML 页面模板（从 tpl.ts 拆出，ADR-040 P1 第2轮拆分）=====
 // basic + ui 标签页在此；about + credits 已拆至 tpl-settings-about.ts
 import { t } from "../../core/i18n/t.ts";
+import { resolveWebMode } from "../../backend/platform.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { aboutHTML, creditsHTML } from "./tpl-settings-about.ts";
 
@@ -9,6 +10,10 @@ export function settingsHTML(): string {
   // 无整合包概念、无本地文件系统配置（网页版虚拟根 /web 固定），隐藏
   // 「游戏根目录」「链接模式」「文件存储路径」卡片（绑定均有 null 守卫，安全）
   const isViewer = isViewerMode();
+  // 仅网页版才渲染 FSA web-repo 授权卡（showDirectoryPicker 只在浏览器可用）。
+  // Android 虽同为 viewer（有 Java 桥），走 requestStoragePermission + 本地仓库定位，
+  // 不应渲染需 showDirectoryPicker 的网页版授权入口（违规会报"浏览器不支持 FSA"）。
+  const isWebViewer = resolveWebMode();
   const gameRootCard = isViewer
     ? ""
     : `<div class="stg-card" style="animation-delay:0ms">
@@ -74,8 +79,9 @@ export function settingsHTML(): string {
     ${isViewer ? "" : ""}
   </div>
 
-  <!-- Row 2: 文件存储路径（桌面）/ 网页版文件来源（viewer）——查看器模式隐藏本地路径配置，改为 FSA 授权（ADR-049 能力门控缺口补齐） -->
-  ${isViewer ? `
+  <!-- Row 2: 文件存储路径（桌面）/ 网页版文件来源（仅 web 的 FSA 授权）——
+       Android 虽为 viewer 但走 Java 桥授权，渲染本地路径卡而非 FSA 卡（2026-08 修） -->
+  ${isWebViewer ? `
   <div class="stg-card" id="stg-web-repo-card" style="margin-top:8px;animation-delay:180ms">
     <div class="stg-card-hdr">📁 ${t("settings.webRepo.title")}</div>
     <div class="stg-card-body">
