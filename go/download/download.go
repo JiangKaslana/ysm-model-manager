@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	neturl "net/url"
 	"os"
@@ -110,6 +111,92 @@ type ProgressFn func(downloaded, total int64)
 type Downloader struct {
 	client  *http.Client
 	timeout time.Duration
+	retry   *RetryPolicy // nil = 不重试（行为零漂移）；WithRetry 显式开启
+}
+
+// ===== 下载重试（显式开启，默认不重试）=====
+// 只对同一 URL 的网络类失败 / 服务端 5xx 退避重试；ctx 取消、4xx、安全 sentinel
+// （ErrPartialResponse 等）一律不重试。与三源回退正交：URL 内重试耗尽才轮到换源。
+// 默认不重试（retry=nil）——downloadFileWithQueue 的三级回退不叠加重试，
+// 避免获取 GitHub 仓库 index 时总时长爆炸；调用方按需 WithRetry 显式开启。
+
+const (
+	// defaultRetryMaxAttempts 显式开启重试且 MaxAttempts 为 0 时的总尝试次数（含首次）
+	defaultRetryMaxAttempts = 3
+	// defaultRetryBackoff 显式开启重试且 Backoff 为 0 时的退避基数（指数增长）
+	defaultRetryBackoff = 500 * time.Millisecond
+)
+
+// RetryPolicy 下载重试策略（字段 0 回退包级默认常量，见 WithRetry 注释）。
+type RetryPolicy struct {
+	MaxAttempts int           // 总尝试次数（含首次）；0 = 用 defaultRetryMaxAttempts
+	Backoff     time.Duration // 退避基数（第 n 次重试等待 backoff<<(n-1)）；0 = 用 defaultRetryBackoff
+}
+
+// WithRetry 返回开启重试的下载器副本（不改原实例）。
+// 仅对同一 URL 的网络类失败/5xx 退避重试；maxAttempts<=1 等价不重试。
+func (d *Downloader) WithRetry(maxAttempts int, backoff time.Duration) *Downloader {
+	cp := *d
+	cp.retry = &RetryPolicy{MaxAttempts: maxAttempts, Backoff: backoff}
+	return &cp
+}
+
+// isRetryableError 判断错误是否值得同一 URL 重试。
+// 不重试：ctx 取消/超时、4xx、安全 sentinel（partial 伪装/非二进制/scheme/重定向/校验和不符）。
+// 重试：服务端 5xx、底层网络错误（timeout/连接重置）、io 断流。
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	if errors.Is(err, ErrPartialResponse) || errors.Is(err, ErrNonBinaryContentType) ||
+		errors.Is(err, ErrUnsupportedScheme) || errors.Is(err, ErrRedirectChainTooLong) ||
+		errors.Is(err, ErrRedirectToUnsafeScheme) || errors.Is(err, ErrChecksumMismatch) {
+		return false
+	}
+	var httpErr *HTTPStatusError
+	if errors.As(err, &httpErr) {
+		return httpErr.Code >= 500
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	return errors.Is(err, io.ErrUnexpectedEOF)
+}
+
+// retryDownload downloadTo 的退避重试外壳：默认（retry=nil）直接透传不重试；
+// WithRetry 开启时同一 URL 网络类/5xx 失败按指数退避重试，重试耗尽返回末次错误（分类不变）。
+func (d *Downloader) retryDownload(ctx context.Context, url, savePath, accept string, onProgress ProgressFn, expectedSHA256 []byte) error {
+	if d.retry == nil {
+		return d.downloadTo(ctx, url, savePath, accept, onProgress, expectedSHA256)
+	}
+	attempts := d.retry.MaxAttempts
+	if attempts <= 0 {
+		attempts = defaultRetryMaxAttempts
+	}
+	backoff := d.retry.Backoff
+	if backoff <= 0 {
+		backoff = defaultRetryBackoff
+	}
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		lastErr = d.downloadTo(ctx, url, savePath, accept, onProgress, expectedSHA256)
+		if lastErr == nil {
+			return nil
+		}
+		if !isRetryableError(lastErr) || attempt == attempts {
+			return lastErr
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff << (attempt - 1)):
+		}
+	}
+	return lastErr
 }
 
 // New 创建 Downloader，默认 5 分钟超时（可被 AppConfig.DownloadTimeoutSec 覆盖，ADR-062）。
@@ -303,23 +390,23 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 
 // File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。
 func (d *Downloader) File(ctx context.Context, url, savePath string, onProgress ProgressFn) error {
-	return d.downloadTo(ctx, url, savePath, "", onProgress, nil)
+	return d.retryDownload(ctx, url, savePath, "", onProgress, nil)
 }
 
 // FileWithChecksum 与 File 相同，额外校验下载内容 SHA256 与期望值一致。
 // expectedSHA256 为空（nil/零长）时跳过校验，行为与 File 完全一致（P2 预留）。
 func (d *Downloader) FileWithChecksum(ctx context.Context, url, savePath string, onProgress ProgressFn, expectedSHA256 []byte) error {
-	return d.downloadTo(ctx, url, savePath, "", onProgress, expectedSHA256)
+	return d.retryDownload(ctx, url, savePath, "", onProgress, expectedSHA256)
 }
 
 // FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。
 func (d *Downloader) FromGitHubAPI(ctx context.Context, apiURL, savePath string, onProgress ProgressFn) error {
-	return d.downloadTo(ctx, apiURL, savePath, "application/vnd.github.v3.raw", onProgress, nil)
+	return d.retryDownload(ctx, apiURL, savePath, "application/vnd.github.v3.raw", onProgress, nil)
 }
 
 // FromGitHubAPIWithChecksum 与 FromGitHubAPI 相同，额外校验 SHA256（P2 预留，语义同 FileWithChecksum）。
 func (d *Downloader) FromGitHubAPIWithChecksum(ctx context.Context, apiURL, savePath string, onProgress ProgressFn, expectedSHA256 []byte) error {
-	return d.downloadTo(ctx, apiURL, savePath, "application/vnd.github.v3.raw", onProgress, expectedSHA256)
+	return d.retryDownload(ctx, apiURL, savePath, "application/vnd.github.v3.raw", onProgress, expectedSHA256)
 }
 
 // isBinaryContentType 判断 Content-Type 是否非"错误页"。
