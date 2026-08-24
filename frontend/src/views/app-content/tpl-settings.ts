@@ -20,7 +20,7 @@ export function settingsHTML(): string {
     : `<div class="stg-card" style="animation-delay:0ms">
       <div class="stg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">🎮 ${t("settings.paths.gameRoot")}<button class="btn-base sm" id="set-mc-detect">🔍 ${t("settings.paths.autoSearch")}</button></div>
       <div class="stg-card-body">
-        <div class="stg-card-val" id="set-mc-path">${t("common.loading")}</div>
+        <div class="stg-path-val" id="set-mc-path">${t("common.loading")}</div>
         <div class="stg-card-desc">${t("settings.paths.gameRootDesc")}</div>
       </div>
     </div>`;
@@ -95,7 +95,7 @@ export function settingsHTML(): string {
   <div class="stg-card" id="stg-files-card" style="margin-top:8px;animation-delay:180ms">
     <div class="stg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">📁 ${t("settings.storage.title")}<button class="btn" id="set-advanced-toggle" style="font-size:9px;padding:2px 8px">📂 ${t("settings.storage.expand")} ▸</button></div>
     <div class="stg-card-body">
-      <div class="stg-card-val" id="set-files-root">${t("common.loading")}</div>
+      <div class="stg-path-val" id="set-files-root">${t("common.loading")}</div>
       <div class="stg-card-desc">${t("settings.storage.desc")}</div>
       <div id="set-advanced-panel" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)">
         <div style="font-size:10px;color:var(--muted);margin-bottom:6px">${t("settings.path.customHint")}</div>

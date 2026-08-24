@@ -110,17 +110,18 @@ export const contentDiagCSS: string = `
 .stg-card { background:var(--surf); border:1px solid var(--bd); border-radius:var(--radius-lg); overflow:hidden; animation:fadeSlideUp var(--tr-enter) both; }
 .stg-card-hdr { display:flex;align-items:center;gap:6px; padding:8px 12px; font-size:var(--fs-sm); font-weight:600; color:var(--txt); border-bottom:1px solid var(--bd); background:var(--bg2,transparent); }
 .stg-card-body { padding:8px 12px; }
-.stg-card-val { display:flex; align-items:center; gap:4px; padding:var(--pad-btn-secondary) 10px; border:1px solid var(--bd); border-radius:var(--radius-md); cursor:pointer; font-size:var(--fs-sm); color:var(--txt); background:var(--bg); transition:border-color var(--tr-fast), background var(--tr-fast); width:100%; box-sizing:border-box; min-height:0; }
-.stg-card-val:hover { border-color:var(--accent); background:var(--hover); }
-.stg-card-val.derived:hover { border-color:var(--accent); background:var(--hover); }
-.stg-card-val.derived::before { content:"📁 "; }
+.stg-path-val { display:flex; align-items:center; gap:4px; padding:var(--pad-btn-secondary) 10px; border:1px solid var(--bd); border-radius:var(--radius-md); cursor:pointer; font-size:var(--fs-sm); color:var(--txt); background:var(--bg); transition:border-color var(--tr-fast), background var(--tr-fast); width:100%; box-sizing:border-box; min-height:0; }
+.stg-path-val:hover { border-color:var(--accent); background:var(--hover); }
+.stg-path-val.derived:hover { border-color:var(--accent); background:var(--hover); }
+.stg-path-val.derived::before { content:"📁 "; }
 .stg-card-hint { font-size:var(--fs-xs); color:var(--muted); margin-bottom:6px; }
 .stg-card-acts { display:flex; gap:4px; }
 .stg-card-desc { font-size:var(--fs-xs); color:var(--muted); margin-top:6px; line-height:1.4; }
 .stg-adv-reset { margin-left:auto; }
 .stg-card-overridden { border-color:var(--accent); }
 .stg-custom-badge { font-size:9px;color:var(--accent); }
-.stg-path-text { font-size:10px;cursor:pointer; }
+.stg-path-picker { display:flex; align-items:center; gap:4px; padding:var(--pad-btn-secondary) 10px; border:1px solid var(--bd); border-radius:var(--radius-md); cursor:pointer; font-size:10px; color:var(--txt); background:var(--bg); transition:border-color var(--tr-fast), background var(--tr-fast); width:100%; box-sizing:border-box; min-height:0; }
+.stg-path-picker:hover { border-color:var(--accent); background:var(--hover); }
 @keyframes advPanelIn { from { opacity:0; max-height:0; } to { opacity:1; max-height:600px; } }
 @keyframes advPanelOut { from { opacity:1; max-height:600px; } to { opacity:0; max-height:0; } }
 #set-advanced-panel { overflow:hidden; }
@@ -306,6 +307,7 @@ export const contentDiagCSS: string = `
 .diag-dedup-file-default { background:var(--hover); }
 .diag-dedup-file-name { flex:1;overflow:hidden;min-width:0; }
 .diag-dedup-file-name-text { color:var(--txt);font-size:10px;cursor:pointer; }
+.diag-dedup-file-ic { margin-right:3px; }
 .diag-dedup-file-dir { display:block;font-size:8px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .diag-dedup-file-size { font-size:9px;color:var(--muted);flex-shrink:0;margin-right:4px; }
 .diag-dedup-file-date { font-size:8px;color:var(--muted);flex-shrink:0; }

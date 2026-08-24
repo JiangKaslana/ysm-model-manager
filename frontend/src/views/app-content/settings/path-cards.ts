@@ -247,7 +247,7 @@ export function initAdvancedGrid(
           : "") +
         "</div>" +
         '<div class="stg-card-body">' +
-        '<div class="stg-card-val stg-adv-set stg-path-text" data-rtype="' +
+        '<div class="stg-path-picker" data-rtype="' +
         at.rtype +
         '" title="' + t("settings.path.clickToChange") + '">' +
         escHtml(currentPath) +
@@ -257,7 +257,7 @@ export function initAdvancedGrid(
     grid.innerHTML = html;
 
     // 点击路径文字更改路径
-    grid.querySelectorAll(".stg-adv-set").forEach((el) => {
+    grid.querySelectorAll(".stg-path-picker").forEach((el) => {
       el.addEventListener("click", async () => {
         const rtype = (el as HTMLElement).dataset.rtype || "";
         try {

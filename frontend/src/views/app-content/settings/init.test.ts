@@ -665,7 +665,7 @@ describe("initSettings — 高级面板路径设置/重置", () => {
     const { root } = makeRoot();
     await initSettings(root);
     const grid = root.getElementById("set-advanced-grid") as HTMLElement;
-    (grid.querySelector(".stg-adv-set") as HTMLElement).click();
+    (grid.querySelector(".stg-path-picker") as HTMLElement).click();
     await waitFor(() => setRootFn.mock.calls.length > 0);
     expect(setRootFn).toHaveBeenCalledWith("ysm", "/pick");
     await waitFor(() => root.querySelector(".stg-adv-reset"));
@@ -681,7 +681,7 @@ describe("initSettings — 高级面板路径设置/重置", () => {
     const { root } = makeRoot();
     await initSettings(root);
     const grid = root.getElementById("set-advanced-grid") as HTMLElement;
-    (grid.querySelector(".stg-adv-set") as HTMLElement).click();
+    (grid.querySelector(".stg-path-picker") as HTMLElement).click();
     await waitFor(() => root.querySelector(".stg-adv-reset"));
     (root.querySelector(".stg-adv-reset") as HTMLElement).click();
     await waitFor(() => resetFn.mock.calls.length > 0);
