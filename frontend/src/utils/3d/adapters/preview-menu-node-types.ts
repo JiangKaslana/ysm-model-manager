@@ -81,6 +81,8 @@ export interface PreviewMenuNode {
   dockGroup?: "model" | "motion" | "env" | "scene" | "settings";
   /** 仅 shared 模式显示（self 模式相机由适配器底部导航提供）——对应 PreviewMenuItemDef.sharedOnly */
   sharedOnly?: boolean;
+  /** self 模式隐藏（相机由适配器自驱时 camBridge 控件语义错位）——对应 PreviewMenuItemDef.hideInSelfMode */
+  hideInSelfMode?: boolean;
   /** 仅环境能力可用（skyCap/groundCap 任一非空）时显示——对应 PreviewMenuItemDef.requiresEnvironment */
   requiresEnvironment?: boolean;
 }

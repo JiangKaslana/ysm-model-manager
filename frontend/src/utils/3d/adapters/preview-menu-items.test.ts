@@ -211,6 +211,7 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
       expect(n.icon, `${d.id}.icon`).toBe(d.icon);
       expect(n.dockGroup, `${d.id}.dockGroup`).toBe(d.dockGroup);
       expect(n.sharedOnly, `${d.id}.sharedOnly`).toBe(d.sharedOnly);
+      expect(n.hideInSelfMode, `${d.id}.hideInSelfMode`).toBe(d.hideInSelfMode);
       expect(n.requiresEnvironment, `${d.id}.requiresEnvironment`).toBe(d.requiresEnvironment);
       // panel → renderCustom 逃生舱（结构数据化，内容保留逃生舱）
       if (d.kind === "panel") {

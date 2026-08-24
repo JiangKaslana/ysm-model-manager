@@ -606,6 +606,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       allItems
         .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
         .filter((d) => !(d.sharedOnly && ctx.selfMode))
+        .filter((d) => !(d.hideInSelfMode && ctx.selfMode))
         .filter((d) => !(d.requiresEnvironment && !sceneCapabilityRegistry.getById("sky") && !sceneCapabilityRegistry.getById("ground") && !ctx.getSkyCap() && !ctx.getGroundCap()));
     PREVIEW_MENU_GROUPS.forEach((g) => {
       const groupItems = groupItemsFor(g, allItems);
@@ -1175,6 +1176,7 @@ export function previewItemToNode(d: PreviewMenuItemDef): PreviewMenuNode {
     icon: d.icon,
     dockGroup: d.dockGroup,
     sharedOnly: d.sharedOnly,
+    hideInSelfMode: d.hideInSelfMode,
     requiresEnvironment: d.requiresEnvironment,
     renderCustom: d.render
       ? (list, closePopup): void => {

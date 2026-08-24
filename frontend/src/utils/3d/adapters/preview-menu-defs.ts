@@ -37,6 +37,8 @@ export interface PreviewMenuItemDef {
   danger?: boolean;
   /** 仅 shared 模式显示（self 模式相机由适配器底部导航提供，避免双份） */
   sharedOnly?: boolean;
+  /** self 模式隐藏（相机由适配器自驱时 camBridge 控件语义错位，如 camera 视图项） */
+  hideInSelfMode?: boolean;
   /** 仅环境能力可用（skyCap/groundCap 任一非空）时显示 */
   requiresEnvironment?: boolean;
   /** 归属底栏分组（🧍 模型 / 💃 动作 / 🌍 场景）；无 dockGroup 的项只出现在设置聚合视图 */
@@ -104,6 +106,9 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     fallback: "视图",
     kind: "panel",
     dockGroup: "scene",
+    // self 模式隐藏：相机由适配器自驱，camBridge 控件（旋转/速度/重置）操作核心
+    // controls 会被适配器每帧覆盖（如 MMD 相机动画），呈现「无效空面板」——隐藏最诚实。
+    hideInSelfMode: true,
   },
   {
     id: "lighting",

@@ -83,6 +83,26 @@ describe("mountPreviewRootMenu", () => {
     expect(overlay.querySelector(`[data-testid="dock-scene"]`)).not.toBeNull();
   });
 
+  it("hideInSelfMode 守卫：self 模式 camera 项不进 scene 组根视图（相机自驱，camBridge 控件语义错位）；shared 模式保留", () => {
+    const camDef = CORE_MENU_ITEMS.find((d) => d.id === "camera")!;
+    expect(camDef.hideInSelfMode).toBe(true);
+    // shared 模式：scene 组根视图含 camera 行
+    const sharedHandle = mountPreviewRootMenu(overlay, makeCtx());
+    (overlay.querySelector(`[data-testid="dock-scene"]`) as HTMLElement).click();
+    const camRowShared = overlay.querySelector('[data-testid="preview-camera"]');
+    expect(camRowShared).not.toBeNull();
+    sharedHandle.dispose();
+    // self 模式：scene 组根视图不含 camera 行（lighting/shadow/postproc 仍在）
+    document.body.innerHTML = "";
+    overlay = document.createElement("div");
+    document.body.appendChild(overlay);
+    const selfHandle = mountPreviewRootMenu(overlay, makeCtx({ selfMode: true }));
+    (overlay.querySelector(`[data-testid="dock-scene"]`) as HTMLElement).click();
+    expect(overlay.querySelector('[data-testid="preview-camera"]')).toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-lighting"]')).not.toBeNull();
+    selfHandle.dispose();
+  });
+
   it("点击 scene 组（多 panel：camera + lighting + shadow + postproc）→ 组根视图列项", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const sceneBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-scene"]`);
