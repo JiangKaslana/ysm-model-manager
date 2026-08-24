@@ -5,6 +5,7 @@ package app
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"ysm-model-manager/go/types"
@@ -117,5 +118,52 @@ func TestFindDuplicateErrorJSON_Behavior(t *testing.T) {
 	}
 	if out["error"] != `open "C:\foo": access denied` {
 		t.Errorf("quote 未转义: got %q", out["error"])
+	}
+}
+
+// TestDetectConflicts_NoFilesRoot_ReturnsError 验证全局资源目录缺失时必须返回 error
+func TestDetectConflicts_NoFilesRoot_ReturnsError(t *testing.T) {
+	// McRoot 必须有效才能走到 filesRootForSync 检查
+	base := t.TempDir()
+	// FilesRoot 空 → GetRepoRoot 返回空 → filesRootForSync 失败
+	a := repoApp(t, types.AppConfig{FilesRoot: "", McRoot: base})
+	got := a.DetectConflicts("ysm", "test-instance")
+
+	if !json.Valid([]byte(got)) {
+		t.Fatalf("返回非法 JSON: %s", got)
+	}
+	var parsed struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(got), &parsed); err != nil {
+		t.Fatalf("解析失败: %v", err)
+	}
+	if parsed.Error == "" {
+		t.Error("错误响应必须含非空 error 字段")
+	}
+}
+
+// TestDetectConflicts_NoInstance_ReturnsError 验证整合包实例缺失时必须返回 error
+func TestDetectConflicts_NoInstance_ReturnsError(t *testing.T) {
+	base := t.TempDir()
+	// McRoot 有效，FilesRoot 也有效（为了通过前置检查），但 instanceName 不存在
+	a := repoApp(t, types.AppConfig{FilesRoot: base, McRoot: base})
+	got := a.DetectConflicts("ysm", "non-existent-instance")
+
+	if !json.Valid([]byte(got)) {
+		t.Fatalf("返回非法 JSON: %s", got)
+	}
+	var parsed struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(got), &parsed); err != nil {
+		t.Fatalf("解析失败: %v", err)
+	}
+	if parsed.Error == "" {
+		t.Error("错误响应必须含非空 error 字段")
+	}
+	// 进一步断言错误信息内容
+	if !strings.Contains(parsed.Error, "未找到整合包") {
+		t.Errorf("错误信息应包含 '未找到整合包', got %q", parsed.Error)
 	}
 }
