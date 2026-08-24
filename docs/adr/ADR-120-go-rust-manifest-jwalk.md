@@ -1,6 +1,6 @@
 # ADR-120：Go/Rust 共享已扫描状态：manifest 注入跳过 jwalk
 
-- **状态**：已采纳（Accepted）
+- **状态**：已采纳（Accepted）— 能力已落地，但**生产触发路径不存在**（见 §3 修正说明）
 - **日期**：2026-08-24
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`go/rustbridge/bridge_windows.go|go/scanner/scanner.go|rust-core/src/scan.rs|rust-wails-bridge/src/abi.rs|docs/knowledge/rustbridge.md`
@@ -39,9 +39,10 @@ ysm-model-manager 的 Windows 生产构建（`rust_backend` tag）下，Rust 扫
 ## 3. 后果（Consequences）
 
 **正面**：
-- Rust 从「全树 jwalk + 并行 metadata」降级为「对已知清单取 metadata」，IO 从 O(全树文件数) 降为 O(清单项数)
-- Go 缓存命中时 Rust 完全不走路——与 `ADR` 同步层缓存复用（`81e013f1`/`2424e0e5`）形成端到端零重复扫描
+- Rust 从「全树 jwalk + 并行 metadata」降级为「对已知清单取 metadata」，IO 从 O(全树文件数) 降为 O(清单项数)——**作为能力成立**
 - ABI 向后兼容，旧符号保留回退
+
+> **⚠️ 修正说明（2026-08-24 审核）**：`ysm_scan_manifest` / `scan_impl_manifest` / `Go ScanManifest` 作为能力完整且正确，但**生产触发路径不存在**。唯一生产入口 `ScanEntriesWithHit(dir)` 只有在「缓存未命中」时才成为 owner 调 `scanEntriesWithRust(dir)`（`go/scanner/scanner.go:218-266`）；而未命中分支进入前已 `scanCache.Delete(dir)`（L232），故 `scanEntriesWithRust` 内部再 `scanCache.Load` 永远拿到过期/缺失条目 → manifest 分支（`rust_backend_windows.go:22-40`）**无条件不可达**。原「Go 缓存命中时 Rust 完全不走路」的收益声明落空——实际是「Go 缓存命中时 Rust 根本不被调用」（L224-227 直接 return），二者机制不同。测试 `TestScanEntriesWithRust_ManifestPathMatchesJwalk` 绕开生产入口直接调私有函数，锁的是函数能力非生产触发。该 manifest 路径保留为预留接口，待真出现「有 Go 缓存但仍需 Rust 结果」的场景再接。
 
 **负面 / 风险**：
 - **跨栈改动面宽**：Rust（abi.rs + scan.rs + response.rs + lib.rs 重导出）+ Go 桥（bridge_windows.go + rust_backend_windows.go）+ 双端测试，需重新编译 Rust DLL 并验证 Windows 构建
@@ -56,7 +57,7 @@ ysm-model-manager 的 Windows 生产构建（`rust_backend` tag）下，Rust 扫
 ## 4. 数据溯源
 
 - 来源：`rust-wails-bridge/src/abi.rs:49`（ysm_scan_json 现状）、`rust-core/src/scan.rs:23-99`（scan_impl jwalk）、`rust-core/src/hash.rs:45`（scan_eager 调 scan_fast+hydrate_hashes）、`go/rustbridge/bridge_windows.go:75`（NewProc 加载点）、`go/scanner/scanner.go`（ScanEntriesWithHit 缓存）
-- 结果：ADR-120 采纳方案 1，落地后 Rust 扫描 IO 从 O(全树) 降为 O(清单)，Go/Rust 共享已扫描状态，端到端零重复扫描
+- 结果：ADR-120 采纳方案 1，作为**能力**落地（Rust 扫描 IO 从 O(全树) 降为 O(清单)），但生产路径下 manifest 分支为死代码（见 §3 修正说明）；Go/Rust 零重复扫描实际由 `ScanEntriesWithHit` 缓存命中直接 return 实现，不经 Rust。
 - 关联：`docs/knowledge/rustbridge.md`（ABI 符号命名约束）、`go-sync.md`（根因 D 记录）
 
 <!-- 文件名: go-rust-manifest-jwalk.md → 实际文件 ADR-120-go-rust-manifest-jwalk.md -->

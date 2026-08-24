@@ -43,6 +43,11 @@ struct CompatModelEntry {
     has_tags: bool,
     #[serde(rename = "subdir", skip_serializing_if = "String::is_empty")]
     subdir: String,
+    // 对齐 Go `types.ModelEntry.Type`（`json:"type,omitempty"`）。当前 rust-core 不填
+    // rtype（见 `scan_impl_manifest` 注释），故桥输出恒为空；字段保留以覆盖完整契约，
+    // 避免未来 Rust 侧填 rtype 时被 ABI 静默丢弃（code review P3）。
+    #[serde(rename = "type", skip_serializing_if = "String::is_empty")]
+    r#type: String,
 }
 
 impl From<ModelEntry> for CompatModelEntry {
@@ -58,6 +63,7 @@ impl From<ModelEntry> for CompatModelEntry {
             // Upstream v1.13 flattened the Wails repository view. Keep richer grouping metadata
             // inside rust-core/rust-index, but do not reintroduce it through the legacy binding.
             subdir: String::new(),
+            r#type: entry.rtype,
         }
     }
 }
@@ -126,6 +132,9 @@ struct ManifestEntry {
     name: String,
     #[serde(rename = "subdir", default)]
     subdir: String,
+    // 对齐 Go `types.ModelEntry.Type`（`json:"type,omitempty"`）。注意：当前 rust-core
+    // `scan_impl_manifest` 不填 rtype（见 scan.rs 注释），故 manifest 路径产出的 ModelEntry.rtype
+    // 恒为空——桥序列化 `type` 也为空。字段保留以覆盖完整契约（code review P3）。
     #[serde(rename = "type", default)]
     rtype: String,
 }

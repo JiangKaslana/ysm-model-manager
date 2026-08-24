@@ -43,7 +43,8 @@ invariant_anchors:
 
 ## ABI 符号命名约束（ADR-120 已落地）
 
-> 背景：跨栈共享已扫描状态（ADR-120）已新增 Rust 导出符号 `ysm_scan_manifest`。
+> 背景：跨栈共享已扫描状态（ADR-120）**能力**已落地——新增 Rust 导出符号 `ysm_scan_manifest`。
+> 该符号在生产调用图中当前为**死代码**（见 ADR-120 §3 修正说明）：`ScanEntriesWithHit` 缓存未命中才回源 Rust，进入前已 `scanCache.Delete(dir)`，故 `scanEntriesWithRust` 的 manifest 分支不可达；实际「Go 缓存命中 Rust 不走路」由 `ScanEntriesWithHit` 直接 return 实现，不经 Rust。符号作为预留接口保留。
 > 原 `ysm_scan_json` 命名歧义已确认，基础符号重命名（`ysm_scan`）留待下个 release 周期。
 
 - **现状歧义（已记录，待重命名）**：`ysm_scan_json`（`bridge_windows.go` `dll.NewProc("ysm_scan_json")` ↔ `rust-wails-bridge/src/abi.rs` `#[no_mangle] pub unsafe extern "C" fn ysm_scan_json`）——它是**应用级通用扫描入口**（扫整棵树、所有 rtype：PMX/PMD/VMD/YSMParser 全套），**与 `.ysm` 扩展名无专属绑定**。

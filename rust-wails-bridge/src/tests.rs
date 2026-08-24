@@ -177,11 +177,12 @@ fn manifest_scan_matches_jwalk_scan() {
     let jwalk_entries = jwalk["entries"].as_array().unwrap();
     assert_eq!(jwalk_entries.len(), 2, "jwalk 应产出 2 条（hero.ysm / ysm.json 目录）");
 
-    // manifest：仅列 jwalk 真会产出的 2 条（路径绝对、ext/name/subdir/rtype 对齐）
+    // manifest：仅列 jwalk 真会产出的 2 条（路径绝对、ext/name/subdir/type 对齐 Go ModelEntry）
+    // 注意字段名用 "type"（对齐 Go `json:"type,omitempty"`），不再用旧 "rtype"（已被 serde 丢弃）
     let manifest = format!(
         r#"[
-            {{"Path":"{}","Ext":".ysm","Name":"hero.ysm","subdir":"","rtype":"ysm"}},
-            {{"Path":"{}","Ext":".json","Name":"official-winefox","subdir":"","rtype":"ysm"}}
+            {{"Path":"{}","Ext":".ysm","Name":"hero.ysm","subdir":"","type":"ysm"}},
+            {{"Path":"{}","Ext":".json","Name":"official-winefox","subdir":"","type":"ysm"}}
         ]"#,
         hero_path, ysmjson_path,
     );
@@ -221,7 +222,7 @@ fn manifest_drops_unsupported_ext() {
     fs::write(root.0.join("note.txt"), b"x").unwrap();
     let note_path = root.0.join("note.txt").to_string_lossy().replace('\\', "/");
     let manifest = format!(
-        r#"[{{"Path":"{}","Ext":".txt","Name":"note.txt","subdir":"","rtype":"ysm"}}]"#,
+        r#"[{{"Path":"{}","Ext":".txt","Name":"note.txt","subdir":"","type":"ysm"}}]"#,
         note_path,
     );
     let value = serde_json::to_value(scan_json_manifest(

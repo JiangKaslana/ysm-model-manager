@@ -115,8 +115,37 @@ pub struct Candidate {
 ///
 /// Candidates whose ext is not supported by `policy` are dropped (caller must filter, but we
 /// guard here too so a stale manifest cannot inject unsupported entries).
+///
+/// NOTE: `Candidate.rtype` is **not** derived here (unlike `scan_impl`, which calls
+/// `policy.rtype_for_ext`). The manifest path trusts the caller-supplied `type` field and only
+/// falls back to an empty string when absent. This is intentional — the legacy bridge
+/// (`response.rs`) flattens `subdir`/`type` out of the serialized output, so the rtype drift
+/// between the two paths is currently invisible across the ABI. If a future caller needs
+/// `ModelEntry.rtype` populated from the manifest path, derive it here via `policy.rtype_for_ext`
+/// (code review P3).
+///
+/// The `.json` allowlist is also enforced here (mirroring `scan_impl` L57) so a stale manifest
+/// cannot inject e.g. `animation.json` as an independent entry — `supports_ext` alone permits
+/// any `.json`, but only `ysm.json` is a valid model entry (ADR-038 D2).
+///
+/// The allowlist is checked against the **on-disk file name** (path base), not `c.name` —
+/// `c.name` is the display name and is rewritten to the parent directory name for `ysm.json`
+/// entries (see `scan_impl` L63-70), which would wrongly fail the allowlist.
 pub fn scan_impl_manifest(mut candidates: Vec<Candidate>, policy: &ScanPolicy) -> ScanReport {
-    candidates.retain(|c| !c.ext.is_empty() && policy.supports_ext(&c.ext));
+    candidates.retain(|c| {
+        if c.ext.is_empty() || !policy.supports_ext(&c.ext) {
+            return false;
+        }
+        if c.ext.eq_ignore_ascii_case(".json") {
+            let base = c
+                .path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("");
+            return is_model_json_name(base);
+        }
+        true
+    });
     let resolved: Vec<Result<ModelEntry, ScanError>> =
         candidates.into_par_iter().map(resolve_metadata).collect();
     let mut entries = Vec::new();

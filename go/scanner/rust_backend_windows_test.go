@@ -13,10 +13,14 @@ import (
 	"ysm-model-manager/go/types"
 )
 
-// TestScanEntriesWithRust_ManifestPathMatchesJwalk 锁定 ADR-120 核心契约：
-// 缓存命中时 scanEntriesWithRust 走 manifest 路径（Go 预枚举 → Rust 跳过 jwalk），
+// TestScanManifest_ABI_MatchesJwalk 锁定 ADR-120 的**函数能力契约**（非生产触发）：
+// scanEntriesWithRust 在「缓存命中且未过期」时走 manifest 路径（Go 预枚举 → Rust 跳过 jwalk），
 // 产出必须与 jwalk 基准（rustbridge.Scan）逐字段一致。
-func TestScanEntriesWithRust_ManifestPathMatchesJwalk(t *testing.T) {
+//
+// 注意：此路径是**预留接口**，生产调用图（ScanEntriesWithHit → 缓存未命中 owner → scanEntriesWithRust）
+// 中该分支不可达——未命中分支进入前 scanCache.Delete(dir) 已清掉未过期条目。本测试直接调私有函数
+// scanEntriesWithRust 模拟「缓存已暖」以验证 ABI 正确性，不证明生产会触发。详见 ADR-120 §3 修正说明。
+func TestScanManifest_ABI_MatchesJwalk(t *testing.T) {
 	base := t.TempDir()
 	// registry 仅放行 .ysm + ysm.json（对齐 Rust is_model_json_name 白名单）
 	registryJSON, err := json.Marshal(types.LoadRegistry())
