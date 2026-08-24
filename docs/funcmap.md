@@ -1704,9 +1704,9 @@
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
 | `CachePolicy()` | `frontend/src/utils/cache/with-cached:15` | 缓存策略 |
 | `withCached()` | `frontend/src/utils/cache/with-cached:48` | 带过期时间的异步缓存包装器 策略行为（优先级从高到低）： FORCE  — 忽略缓存，强制重新计算（不写入缓存） STALE  — 命中缓存直接返回；过期则立即返回旧值 + 后台刷 |
-| `invalidateCache()` | `frontend/src/utils/cache/with-cached:125` | 清除指定缓存条目 |
-| `clearAllCache()` | `frontend/src/utils/cache/with-cached:133` | 清除所有缓存 |
-| `getCacheTtlMs()` | `frontend/src/utils/cache/with-cached:151` | 获取缓存条目的剩余 TTL（毫秒），未命中返回 -1 |
+| `invalidateCache()` | `frontend/src/utils/cache/with-cached:128` | 清除指定缓存条目 |
+| `clearAllCache()` | `frontend/src/utils/cache/with-cached:136` | 清除所有缓存 |
+| `getCacheTtlMs()` | `frontend/src/utils/cache/with-cached:154` | 获取缓存条目的剩余 TTL（毫秒），未命中返回 -1 |
 | `swallowError()` | `frontend/src/utils/core/async:11` | 吞掉 promise 的异常并记录日志（比空 `.catch(() =&gt; {})` 可调试）。 |
 | `fireAndForget()` | `frontend/src/utils/core/async:16` | 启动一个异步操作但不等待，异常由 swallowError 兜底。 |
 | `delay()` | `frontend/src/utils/core/async:21` | Promise 包装的延迟。 |

@@ -25,7 +25,7 @@ describe("withCached", () => {
 
   it("ttl 过期后重新调用 fn", async () => {
     const fn = vi.fn(async (x: number) => x * 2);
-    await withCached("ttl-key", 10, fn, "NORMAL");
+    await withCached("ttl-key", 10, () => fn(1), "NORMAL");
     // 等待过期
     await new Promise((r) => setTimeout(r, 20));
     await withCached("ttl-key", 10, () => fn(100), "NORMAL");

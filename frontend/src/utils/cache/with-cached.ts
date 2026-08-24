@@ -101,8 +101,11 @@ export async function withCached<T>(
     }
   })();
   _pending.set(fullKey, p);
-  p.finally(() => _pending.delete(fullKey));
-  return p;
+  // 双路清理：无论 resolve/reject 都从 _pending 移除，消除 unhandled rejection
+  return p.then(
+    v => { _pending.delete(fullKey); return v; },
+    e => { _pending.delete(fullKey); throw e; },
+  );
 }
 
 /** 后台刷新缓存（不阻塞调用方） */

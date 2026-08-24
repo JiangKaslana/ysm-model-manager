@@ -93,8 +93,8 @@ export async function loadCommunityData(): Promise<CommunityData> {
       App.ListModelAuthors().catch(() => []),
       // 本地作者扫描：磁盘 IO 密集，加 withCached 5min TTL 缓存
       withCached(SCAN_AUTHORS_KEY, SCAN_AUTHORS_TTL_MS, () =>
-        App.ScanLocalAuthors().catch(() => []),
-      ),
+        App.ScanLocalAuthors(),
+      ).catch(() => []),
     ]);
     sites = results[0] || [];
     creators = results[1] || [];
