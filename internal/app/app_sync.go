@@ -88,11 +88,8 @@ func (a *App) ResolveConflicts(conflictsJSON, defaultStrategy, rtype, instanceNa
 	}
 
 	if len(conflicts) == 0 {
-		data, err := json.Marshal(map[string]int{"resolved": 0, "failed": 0, "manual": 0})
-		if err != nil {
-			return `{"resolved":0,"failed":0,"manual":0}`
-		}
-		return string(data)
+		return marshalJSON("ResolveConflicts", map[string]int{"resolved": 0, "failed": 0, "manual": 0},
+			`{"resolved":0,"failed":0,"manual":0}`)
 	}
 
 	// 执行解决

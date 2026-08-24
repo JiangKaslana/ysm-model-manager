@@ -46,11 +46,7 @@ func ResolveErrorJSON(errMsg string) string {
 
 // DedupErrorJSON 构建去重扫描的错误响应（仅含 error 字段，前端契约：DedupGroup[] | {error}）。
 // findDuplicateErrorJSON 是其别名，保留向后兼容。
+// 委托 ErrorJSON(nil, ...) 复用统一 marshal + 兜底，杜绝双实现漂移。
 func DedupErrorJSON(errMsg string) string {
-	data, err := json.Marshal(map[string]string{"error": errMsg})
-	if err != nil {
-		log.Printf("[DedupErrorJSON] 序列化失败: %v", err)
-		return `{"error":"json marshal failed"}`
-	}
-	return string(data)
+	return ErrorJSON(nil, errMsg)
 }

@@ -32,7 +32,7 @@
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 7 | 94 |
+| Go·类型 | 7 | 93 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -48,7 +48,7 @@
 | frontend/views | 115 | 330 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **460** | **1979** |
+| **合计** | **460** | **1978** |
 
 ## Go·头像
 
@@ -57,9 +57,9 @@
 | `SetNodeJS()` | `go/avatar/avatar_decode:39` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
 | `limitedBuffer.Write()` | `go/avatar/avatar_decode:54` | — |
 | `DecodeYSMFiles()` | `go/avatar/avatar_decode:63` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
-| `ExtractAvatarURI()` | `go/avatar/avatar_extract:24` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
-| `CacheAvatarsFromJSON()` | `go/avatar/avatar_extract:196` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
-| `CacheAvatarsFromModel()` | `go/avatar/avatar_extract:266` | CacheAvatarsFromModel 从 .ysm/.zip/.json 模型缓存所有作者头像。 |
+| `ExtractAvatarURI()` | `go/avatar/avatar_extract:25` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
+| `CacheAvatarsFromJSON()` | `go/avatar/avatar_extract:294` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
+| `CacheAvatarsFromModel()` | `go/avatar/avatar_extract:364` | CacheAvatarsFromModel 从 .ysm/.zip/.json 模型缓存所有作者头像。 |
 | `ReadFileFromZip()` | `go/avatar/avatar_zip:20` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
 | `ReadFileFromContainer()` | `go/avatar/avatar_zip:55` | ReadFileFromContainer 从统一容器读取指定路径的文件（ADR-068： 容器打开统一走 container，替代 zip.NewReader + ReadFil |
 | `SafeName()` | `go/avatar/avatar:45` | SafeName 将非法文件名字符替换为下划线。 |
@@ -495,7 +495,6 @@
 | `YsmLicense()` | `go/types/bedrock:88` | YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}） |
 | `YsmAuthor()` | `go/types/bedrock:94` | YsmAuthor 作者条目 |
 | `ParseDedupConfig()` | `go/types/config:105` | ParseDedupConfig 解析去重配置 JSON 字符串（绑定层 configStr 的统一入口）。 |
-| `ParseSyncConfig()` | `go/types/config:118` | ParseSyncConfig 解析同步配置 JSON 字符串（绑定层 configStr 的统一入口）。 |
 | `AppConfig()` | `go/types/config:10` | AppConfig 应用持久化配置 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"）， 取 |
 | `PackInfo()` | `go/types/config:50` | PackInfo 模型整合包信息（ysm-pack.json） |
 | `WorkshopPresetSearch()` | `go/types/config:57` | WorkshopPresetSearch 预设搜索词 |
@@ -805,7 +804,7 @@
 | `ErrorJSON()` | `internal/app/error_json:16` | ErrorJSON 构建带 error 字段的响应 JSON。 |
 | `SyncErrorJSON()` | `internal/app/error_json:31` | SyncErrorJSON 构建同步操作的错误响应（含 conflicts / totalConflicts 基础字段）。 |
 | `ResolveErrorJSON()` | `internal/app/error_json:39` | ResolveErrorJSON 构建冲突解决的操作错误响应（含 resolved / failed / manual 基础字段）。 |
-| `DedupErrorJSON()` | `internal/app/error_json:49` | DedupErrorJSON 构建去重扫描的错误响应（仅含 error 字段，前端契约：DedupGroup[] | {error}）。 |
+| `DedupErrorJSON()` | `internal/app/error_json:50` | DedupErrorJSON 构建去重扫描的错误响应（仅含 error 字段，前端契约：DedupGroup[] | {error}）。 |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:45` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:74` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
 | `desktopPathManager.AppDataRoot()` | `internal/app/pathmgr_desktop:10` | — |

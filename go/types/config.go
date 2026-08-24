@@ -112,16 +112,3 @@ func ParseDedupConfig(raw string) (*DedupConfig, error) {
 	}
 	return &cfg, nil
 }
-
-// ParseSyncConfig 解析同步配置 JSON 字符串（绑定层 configStr 的统一入口）。
-// 语义同 ParseDedupConfig：空串 → nil,nil；非法 JSON → 错误。
-func ParseSyncConfig(raw string) (*SyncConfig, error) {
-	if raw == "" {
-		return nil, nil
-	}
-	var cfg SyncConfig
-	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
-}
