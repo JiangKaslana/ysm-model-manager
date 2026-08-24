@@ -47,7 +47,7 @@ invariant_anchors:
 - `loader.ts` — `loadInstances(rtype)`：调 Go 拉取实例与同步状态并转换为渲染格式（含 MMD `.pmx` 变体按父文件夹聚合 `groupMmdVariants`），前后派发 `loading:start` / `loading:end`；**同 rtype 在途请求合并**（2026-08-21：`_inflight` 表按归一后 rtype 键去重并发调用，空 rtype 回退 ysm 同键——配合 go/scanner 在途合并，治点击整合包时多组件并发触发的重复扫描刷屏）
 - `render.ts` — `renderVersionCards`：卡片逐个 `createElement` 入场（40ms 阶梯延迟）
 - `events.ts` — `bindCardEvents`（事件委托在 `#sidebar-instance-list`，点击派发 `package:selected`、右键派发 `ctx:show` type=instance；localStorage `sb_selectedName_<rtype>` 恢复选中）+ `bindFooter`（MC 路径按钮、完全同步计数动画）
-- `sidebar-css.ts` — Shadow DOM 样式表（adoptedStyleSheets）。其中 `fadeSlideLeft` 本地化 keyframe 受「app-content 本地化 keyframe 契约」约束：须与 `content-layout.ts` / `components.css` 副本逐字节一致（`translateX(-8px)`），改任一处须同步（2026-08-24 复盘第 1 条）
+- `sidebar-css.ts` — Shadow DOM 样式表（adoptedStyleSheets）。其中 `fadeSlideLeft` 本地化 keyframe 受「app-content 本地化 keyframe 契约」约束：须与 `content-layout.ts` / `components.css` 副本**参数值一致**（`translateX(-8px)` 的 translate 数值，不要求字节级格式一致），由机检 1c 硬校验，改任一处须同步（2026-08-24 复盘第 1/2 条）
 
 ## 对外 API / 入口
 
