@@ -411,6 +411,52 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     unmountElement(el);
   });
 
+  it("status 筛选 + 用户显式折叠 → 折叠优先于 forceOpen（code_review P2 回归）", async () => {
+    // 契约：dirOpen 手动折叠优先（点过即尊重）；forceOpen 只对「未点过」目录生效。
+    // 原 `dirOpen[path] || forceOpen` 让显式折叠（false）被 forceOpen（true）覆盖——
+    // 折叠无效、下次渲染被强开。改为 `??` 后必须保持折叠。
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+
+    const self = el as unknown as {
+      _selectedType: string;
+      _allItems: SyncItem[];
+      _filteredItems: SyncItem[];
+      _typeConfig: Array<{ id: string; dirLevelSync: boolean }>;
+      _dirOpen: Record<string, boolean>;
+      _statusFilter: string;
+      _filesRoots: Record<string, string>;
+      _forceOpenPaths: Set<string>;
+      _doRender: () => void;
+    };
+    self._selectedType = "EntityPlayer";
+    self._typeConfig = [{ id: "EntityPlayer", dirLevelSync: true }];
+    self._allItems = [
+      { path: "模型A", name: "模型A", status: "diverged", type: "EntityPlayer", icon: "🗂️", size: 10, isDir: true, children: [
+        { path: "模型A/a.pmx", name: "a.pmx", status: "missing", type: "EntityPlayer", icon: "🎭", size: 10, isDir: false },
+      ] },
+    ];
+    self._filteredItems = self._allItems;
+    self._statusFilter = "missing";
+    self._filesRoots = { "EntityPlayer": "/repo" };
+    // 用户显式折叠该目录（点过）——即使它命中 forceOpenPaths 也必须保持折叠
+    self._dirOpen = { "模型A": false };
+    self._forceOpenPaths = new Set(["模型A"]);
+
+    self._doRender();
+    await sleep(100);
+    // 显式折叠优先：目录行可见但子文件不渲染
+    expect(el.querySelectorAll(".sm-dir").length).toBe(1);
+    expect(el.querySelectorAll(".sm-file").length).toBe(0);
+    // 再点一次展开仍可用（点击语义不被 forceOpen 吞掉）
+    (el.querySelector(".sm-dir") as HTMLElement).click();
+    await sleep(200);
+    expect(el.querySelectorAll(".sm-file").length).toBe(1);
+    unmountElement(el);
+  });
+
   it("多层嵌套目录 → 递归渲染可展开 sm-dir（镜像磁盘层级）", async () => {
     const el = document.createElement("app-sync-manager");
     el.setAttribute("instance", "test");

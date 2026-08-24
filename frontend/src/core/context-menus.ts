@@ -21,8 +21,9 @@ const VIEWER_OK_ACTIONS = new Set([
 
 // ADR-071 判断修正：查看器模式（web）下已实现 binding 的右键动作——web 端
 // RenameFile/RenameDir/GetModelTags/MoveModelFile/CopyModelFile 已实现
-// （web-fs/web-store），can() 探测放行；Android viewer 无这些 binding，
-// can() 返回 false 维持隐藏。
+// （web-fs/web-store），can() 探测放行；Android viewer 同样可达（Go binding
+// 全量，授权 MANAGE_EXTERNAL_STORAGE 后 os.* 直读公共仓库，见 capabilities.ts
+// ANDROID_UNAVAILABLE 黑名单），can() 按黑名单判定（code_review P3 注释同步）。
 const VIEWER_WEB_ACTION_BINDINGS: Record<string, string> = {
   "file.rename": "RenameFile",
   "dir.rename": "RenameDir",

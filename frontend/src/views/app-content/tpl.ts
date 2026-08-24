@@ -95,6 +95,10 @@ export function diagnosticsHTML(): string {
 <span class="diag-btn-icon">🩺</span>
 <span>${t("diagnostics.healthTitle")}</span>
 </button>
+<button class="diag-btn" data-diag="sync-conflict">
+<span class="diag-btn-icon">🔄</span>
+<span>${t("diagnostics.syncConflict")}</span>
+</button>
 <div class="diag-left-spacer"></div>
 <button class="diag-btn diag-btn-action" id="diag-copy" title="${t("diagnostics.copyLog")}">
 <span>${t("diagnostics.copyLog")}</span>
@@ -151,6 +155,10 @@ export function diagnosticsHTML(): string {
 <div class="diag-panel" id="diag-health" style="display:none">
 <div id="diag-health-list"><div class="stat-row" style="padding:24px 12px;color:var(--muted);font-size:var(--fs-sm);text-align:center;flex-direction:column;gap:12px">${t("diagnostics.healthHint")}
 <button class="btn-base accent" id="diag-scan-health" style="margin-top:4px">🩺 ${t("diagnostics.healthRun")}</button>
+</div></div></div>
+<div class="diag-panel" id="diag-sync-conflict" style="display:none">
+<div id="diag-sync-conflict-list"><div class="stat-row" style="padding:24px 12px;color:var(--muted);font-size:var(--fs-sm);text-align:center;flex-direction:column;gap:12px">${t("diagnostics.scanHint")}
+<button class="btn-base accent" id="diag-scan-sync-conflict" style="margin-top:4px">🔍 ${t("diagnostics.scanSyncConflict")}</button>
 </div></div></div>
 </div>
 </div>

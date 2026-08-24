@@ -1,7 +1,8 @@
 // @vitest-environment node
 // ===== can() 能力门控真实实现三态测试（审核 B 缺口 #3）=====
 // 桌面（__YSM_BACKEND__='go'）→ true；web（resolveWebMode）→ 'X' in browserAdapter；
-// Android viewer（getAndroidBridge 非 null）→ false。
+// Android viewer（getAndroidBridge 非 null）→ 除 ANDROID_UNAVAILABLE 黑名单外均 true
+// （Go binding 全量可达，code_review P3 同步头注释与实现）。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { can } from "./capabilities.ts";
 

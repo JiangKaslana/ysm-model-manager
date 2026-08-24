@@ -161,7 +161,10 @@ function renderNode(
   // 筛选激活且「有命中后代」时由 _forceOpenPaths 强制展开（点1——折叠目录下
   // 的命中子项无需手动展开即可见）。
   const forceOpen = !!self._forceOpenPaths?.has(item.path);
-  const isOpen = isDir && hasChildren && (dirOpen[item.path] || forceOpen);
+  // ?? 而非 ||：显式折叠（false）必须优先于 forceOpen——用户点过折叠即尊重，
+  // 只有「未点过」（undefined）才允许 status 筛选强制展开；原 `||` 会让
+  // 折叠过的命中目录在下次渲染被强开，折叠无效（code_review P2）。
+  const isOpen = isDir && hasChildren && (dirOpen[item.path] ?? forceOpen);
 
   const wrapped = (contentHTML: string): string =>
     indentPadding ? '<div style="padding-left:26px">' + contentHTML + "</div>" : contentHTML;

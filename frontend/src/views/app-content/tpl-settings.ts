@@ -7,8 +7,9 @@ import { aboutHTML, creditsHTML } from "./tpl-settings-about.ts";
 
 export function settingsHTML(): string {
   // 查看器模式守卫（ADR-046/049）：Android 与网页版均无 Minecraft Java 版/
-  // 无整合包概念、无本地文件系统配置（网页版虚拟根 /web 固定），隐藏
-  // 「游戏根目录」「链接模式」「文件存储路径」卡片（绑定均有 null 守卫，安全）
+  // 无整合包概念，隐藏「游戏根目录」「链接模式」卡片（绑定均有 null 守卫，安全）。
+  // 文件存储路径卡不隐藏：Android 走 Java 桥授权本地仓库定位渲染本地路径卡，
+  // 网页版渲染 FSA web-repo 授权卡（2026-08 修，code_review P3 注释同步）。
   const isViewer = isViewerMode();
   // 仅网页版才渲染 FSA web-repo 授权卡（showDirectoryPicker 只在浏览器可用）。
   // Android 虽同为 viewer（有 Java 桥），走 requestStoragePermission + 本地仓库定位，

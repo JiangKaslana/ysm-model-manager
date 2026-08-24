@@ -126,11 +126,6 @@ export async function scanConflicts(root: ShadowRoot, esc: EscFn): Promise<void>
 // 同步冲突扫描并发标志
 let diagSyncBusy = false;
 
-// 存储当前检测到的冲突
-let _syncConflicts: any[] = [];
-let _syncRtype = "";
-let _syncInstanceName = "";
-
 export async function scanSyncConflicts(
   list: HTMLElement,
   esc: EscFn,
@@ -186,9 +181,6 @@ export async function scanSyncConflicts(
     }
 
     const conflicts = result.conflicts || [];
-    _syncConflicts = conflicts;
-    _syncRtype = rtype;
-    _syncInstanceName = instanceName;
 
     if (conflicts.length === 0) {
       list.innerHTML =
@@ -272,11 +264,13 @@ function renderSyncConflictsResult(
       ? t("diagnostics.conflictTypeContent")
       : t("diagnostics.conflictTypeBoth");
 
-    const suggestedLabel = c.suggestedStrategy === "force_remote"
-      ? t("diagnostics.resolveForceRemote")
-      : c.suggestedStrategy === "force_local"
-      ? t("diagnostics.resolveForceLocal")
-      : t("diagnostics.resolveManual");
+    // 嵌套三元改查表（项目 TS 规则禁嵌套三元，code_review P3）
+    const strategyLabels: Record<string, string> = {
+      force_remote: t("diagnostics.resolveForceRemote"),
+      force_local: t("diagnostics.resolveForceLocal"),
+      manual: t("diagnostics.resolveManual"),
+    };
+    const suggestedLabel = strategyLabels[c.suggestedStrategy] ?? t("diagnostics.resolveManual");
 
     const delay = stagger(i, 30, 600);
     html += `<div class="conflict-row" style="animation-delay:${delay}ms">
