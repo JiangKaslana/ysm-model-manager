@@ -1717,7 +1717,7 @@
 | `isViewerMode()` | `frontend/src/utils/dom/android-bridge:24` | 查看器模式判定（ADR-049 Phase 3 能力门控统一入口）： Android（双端桥存在）或网页版（browser adapter）——均无本地文件系统写能力、 无桌面专属 |
 | `registerAndroidBackHandler()` | `frontend/src/utils/dom/android-bridge:40` | 注册安卓返回键处理器，返回取消函数（供调用方在自身销毁/关闭时注销）。 |
 | `emitAndroidBack()` | `frontend/src/utils/dom/android-bridge:53` | 系统返回键的前端触发入口：依次从栈顶触发已注册处理器。 |
-| `can()` | `frontend/src/utils/dom/capabilities:17` | 当前平台是否可用指定 binding（web 查 adapter 实现；桌面恒 true；Android viewer 假） |
+| `can()` | `frontend/src/utils/dom/capabilities:30` | 当前平台是否可用指定 binding（web 查 adapter 实现；桌面恒 true；Android 查黑名单） |
 | `refreshAdoptedStyleSheets()` | `frontend/src/utils/dom/css-hmr:13` | 热刷指定自定义元素的 Shadow DOM 样式表。 |
 | `btnBaseCSS()` | `frontend/src/utils/dom/css:1` | — |
 | `focusVisibleCSS()` | `frontend/src/utils/dom/css:32` | Shadow DOM 通用 focus-visible 规则（所有 button/input/select/textarea） |

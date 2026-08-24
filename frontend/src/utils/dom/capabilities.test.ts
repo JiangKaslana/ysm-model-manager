@@ -48,14 +48,24 @@ describe("can() — 三级能力门控", () => {
     expect(can("OpenFolder")).toBe(false);
   });
 
-  it("Android viewer（getAndroidBridge 非 null）→ false（无本地 FS 写能力）", () => {
+  it("Android viewer（getAndroidBridge 非 null）→ Go binding 可达，仅桌面专属/无意义项 false", () => {
     // Android Java 桥：window.wails 带 requestStoragePermission（android-bridge.ts:13-16 检测）
+    // 实证（@wailsio/runtime runtime.js:184-231 + pathmgr_android.go）：Android 经 window.wails
+    // → Go binding 全量可达，授权 MANAGE_EXTERNAL_STORAGE 后 os.* 直读公共仓库——
+    // 文件读写类 binding 不再一刀切 false（2026-08 修），仅黑名单桌面专属项不可用
     vi.stubGlobal(KEY, undefined);
     vi.stubGlobal("window", { wails: { requestStoragePermission: () => {} } });
-    expect(can("DeleteResourcePack")).toBe(false);
-    expect(can("ToggleModelEnable")).toBe(false);
-    expect(can("ToggleEnable")).toBe(false);
-    expect(can("ScanModelEntries")).toBe(false);
+    // 授权公共目录下可读写 → true
+    expect(can("ToggleEnable")).toBe(true);
+    expect(can("ToggleModelEnable")).toBe(true);
+    expect(can("ScanModelEntries")).toBe(true);
+    expect(can("DeleteResourcePack")).toBe(true);
+    expect(can("RenameFile")).toBe(true);
+    // 桌面专属/无 MC 整合包概念 → false（对齐 go-android-platform-guard.md）
+    expect(can("OpenFolder")).toBe(false);
+    expect(can("RevealInExplorer")).toBe(false);
+    expect(can("RestartApplication")).toBe(false);
+    expect(can("ListVersionInstances")).toBe(false);
   });
 
   it("默认环境（无声明/无 web/无 android）→ true（视作桌面/测试环境）", () => {
