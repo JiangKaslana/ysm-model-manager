@@ -43,6 +43,8 @@ ysm-model-manager 的 Windows 生产构建（`rust_backend` tag）下，Rust 扫
 - ABI 向后兼容，旧符号保留回退
 
 > **⚠️ 修正说明（2026-08-24 审核）**：`ysm_scan_manifest` / `scan_impl_manifest` / `Go ScanManifest` 作为能力完整且正确，但**生产触发路径不存在**。唯一生产入口 `ScanEntriesWithHit(dir)` 只有在「缓存未命中」时才成为 owner 调 `scanEntriesWithRust(dir)`（`go/scanner/scanner.go:218-266`）；而未命中分支进入前已 `scanCache.Delete(dir)`（L232），故 `scanEntriesWithRust` 内部再 `scanCache.Load` 永远拿到过期/缺失条目 → manifest 分支（`rust_backend_windows.go:22-40`）**无条件不可达**。原「Go 缓存命中时 Rust 完全不走路」的收益声明落空——实际是「Go 缓存命中时 Rust 根本不被调用」（L224-227 直接 return），二者机制不同。测试 `TestScanEntriesWithRust_ManifestPathMatchesJwalk` 绕开生产入口直接调私有函数，锁的是函数能力非生产触发。该 manifest 路径保留为预留接口，待真出现「有 Go 缓存但仍需 Rust 结果」的场景再接。
+>
+> **P1 复核（同次审核）**：原疑「ToggleModelEnable 仅失效模型夹层级、不覆盖仓库根缓存、存在 30s 陈旧窗口」——**经核实为误判，P1 不成立**。`scanner.InvalidatePath`（`scanner.go:165-191`）的失效逻辑含祖先链：`strings.HasPrefix(key, kstr+sep)` 条件在「失效 dir 是 kstr 后代」时递增 kstr 的 keyVersion 并删 kstr 条目。即禁用 `globalDir/ModelA`（文件级 `filepath.Dir` 直接命中 `globalDir`；目录级 `ModelA` 文件夹 `filepath.Dir` = `base`，仍经祖先链命中 `globalDir`）→ 仓库根 `scanCache[globalDir]` 立即失效。实测目录级禁用后 `BuildSyncItems` 已从 `.ban` 路径重扫，不残留旧条目。**不在 `BuildSyncItems` 入口加冗余 `InvalidatePath(globalDir)`**——`InvalidatePath` 的 keyVersion 祖先链已是长治久安机制（详见 `go-scanner.md` 失效契约节）。
 
 **负面 / 风险**：
 - **跨栈改动面宽**：Rust（abi.rs + scan.rs + response.rs + lib.rs 重导出）+ Go 桥（bridge_windows.go + rust_backend_windows.go）+ 双端测试，需重新编译 Rust DLL 并验证 Windows 构建
