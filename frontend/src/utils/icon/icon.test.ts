@@ -47,6 +47,17 @@ describe("fileIcon", () => {
   it("未知扩展名返回 🧊", () => expect(fileIcon("file.xyz")).toBe("🧊"));
   it("无扩展名返回 🧊", () => expect(fileIcon("README")).toBe("🧊"));
   it("大小写不敏感", () => expect(fileIcon("MODEL.YSM")).toBe("💎"));
+
+  // 禁用后缀（.disabled/.ban）不改变图标判定——禁用文件仍是原名命名的真类型文件
+  it("禁用后缀剥除后按原扩展名判定图标", () => {
+    expect(fileIcon("pack.zip.disabled")).toBe("📦"); // 资源包禁用态
+    expect(fileIcon("model.ysm.disabled")).toBe("💎"); // ysm 禁用态
+    expect(fileIcon("pack.zip.ban")).toBe("📦"); // 历史 .ban 兼容
+    expect(fileIcon("model.ysm.ban")).toBe("💎");
+  });
+  it("禁用后缀结合大小写不敏感", () => {
+    expect(fileIcon("PACK.ZIP.DISABLED")).toBe("📦");
+  });
 });
 
 describe("isYsmName", () => {

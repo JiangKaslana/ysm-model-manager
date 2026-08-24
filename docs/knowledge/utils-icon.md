@@ -26,7 +26,7 @@ use_when:
 
 ## 对外 API / 入口
 
-- `fileIcon(name: string): string` — 按扩展名（小写）返回 emoji：ysm→💎，zip/rar/7z/tar/gz→📦，pmx/pmd→🎭，vrca/vrcw→🥽，litematic→📐，nbt/schematic/schem→⚙️，png/jpg/jpeg/gif/webp/bmp→🖼️，txt/md/json/xml/yml/yaml/cfg/conf/ini→📄，其余→🧊
+- `fileIcon(name: string): string` — 按扩展名（小写）返回 emoji：ysm→💎，zip/rar/7z/tar/gz→📦，pmx/pmd→🎭，vrca/vrcw→🥽，litematic→📐，nbt/schematic/schem→⚙️，png/jpg/jpeg/gif/webp/bmp→🖼️，txt/md/json/xml/yml/yaml/cfg/conf/ini→📄，其余→🧊。**2026-08-24：取扩展名前先剥禁用后缀（`.disabled`/`.ban`）**——禁用态文件仍是原名命名的真类型文件，`xxx.zip.disabled` 直接取末段会得 `.disabled` 落 🧊 兜底；剥后缀后按原扩展名判定（对齐 Go scanner 禁用后缀恢复 + display.ts 口径）。`isYsmName` 同基 `getExt` 自动受益
 - `isYsmName(name: string): boolean` — 扩展名是否等于 `RESOURCE_TYPES.YSM`
 
 ## 与其他子系统关系

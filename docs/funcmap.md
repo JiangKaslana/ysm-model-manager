@@ -1783,8 +1783,8 @@
 | `GH_REPO()` | `frontend/src/utils/gh-links:5` | — |
 | `GH_RELEASES()` | `frontend/src/utils/gh-links:6` | — |
 | `GH_DOCS()` | `frontend/src/utils/gh-links:7` | — |
-| `fileIcon()` | `frontend/src/utils/icon/icon:32` | 按扩展名返回图标 emoji |
-| `isYsmName()` | `frontend/src/utils/icon/icon:48` | 是否为 YSM 文件 |
+| `fileIcon()` | `frontend/src/utils/icon/icon:35` | 按扩展名返回图标 emoji |
+| `isYsmName()` | `frontend/src/utils/icon/icon:51` | 是否为 YSM 文件 |
 | `ICONS()` | `frontend/src/utils/icon/workshop-icons:3` | — |
 | `getSiteIcon()` | `frontend/src/utils/icon/workshop-icons:46` | — |
 | `getTagIconFromRole()` | `frontend/src/utils/icon/workshop-icons:54` | — |
