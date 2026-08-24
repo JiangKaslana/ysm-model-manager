@@ -334,23 +334,21 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 //
 // L0 生效时：geoFiles / pngs / modelOrder / texOrder 全部从清单派生，多余的文件
 // （如 junk_geo.json、外来命名空间内容）一律丢弃，避免顺序/纹理绑定被污染。
-func parseModelFromEntries(entries []container.Entry, logTag string) (*types.BedrockModel, [][]byte, []string, []geoEntry) {
-	logPrefix := "[geometry]"
-	if logTag != "zip" {
-		logPrefix = logPrefix + " " + logTag
-	}
+// maidManifestItem 对应 L0 maid_model.json model[] / model_list[] 的单条
+// 支持两种描述形式，两个字段组合使用：
+//   - 形式 A（完整路径，老/自定义包）：Model + Texture 直接给出相对路径
+//   - 形式 B（model_id，TLM 原生）：ModelID = "namespace:name" → 通过路径字典推断
+type maidManifestItem struct {
+	Name    string `json:"name"`
+	Model   string `json:"model"`    // 相对命名空间根的路径（形式 A）
+	Texture string `json:"texture"`  // 相对路径（形式 A）
+	ModelID string `json:"model_id"` // TLM 标准："namespace:name"（形式 B）
+}
 
-	// maidManifestItem 对应 L0 maid_model.json model[] / model_list[] 的单条
-	// 支持两种描述形式，两个字段组合使用：
-	//   形式 A（完整路径，老/自定义包）：Model + Texture 直接给出相对路径
-	//   形式 B（model_id，TLM 原生）：ModelID = "namespace:name" → 通过路径字典推断
-	type maidManifestItem struct {
-		Name    string `json:"name"`
-		Model   string `json:"model"`    // 相对命名空间根的路径（形式 A）
-		Texture string `json:"texture"`  // 相对路径（形式 A）
-		ModelID string `json:"model_id"` // TLM 标准："namespace:name"（形式 B）
-	}
-
+// collectMaidManifest 遍历所有 maid_model.json，选"清单最长者"为真正的命名空间。
+// 从 parseModelFromEntries 的 L0 清单收集子域收编（只搬逻辑、不改行为），
+// 返回命名空间前缀（含尾部 /）与清单；无 maid_model.json 时 maidNs 为空、manifest 为 nil。
+func collectMaidManifest(entries []container.Entry, logPrefix string) (string, []maidManifestItem) {
 	// ===== 1. 遍历所有 maid_model.json，选"清单最长者"为真正的命名空间 =====
 	type maidNsCandidate struct {
 		ns       string
@@ -418,10 +416,6 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 	var maidNs string
 	var maidManifest []maidManifestItem // 非 nil 且 len>0 表示 L0 生效
-	// manifest 下标 → 实际解析到的 zip 路径 / 纹理名（L0 过滤循环填充、SubModels 构建消费，
-	// 两处不在同一 if 作用域，声明提到函数级）
-	resolvedPathByItem := make(map[int]string)
-	texNameByItem := make(map[int]string)
 	if len(candidates) > 0 {
 		// 启发式：条目数最长者 = 主包清单
 		best := candidates[0]
@@ -435,6 +429,21 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 		log.Printf("%s maid-model 命名空间: %s（L0 清单 %d 条 / 候选共 %d 个）",
 			logPrefix, maidNs, len(maidManifest), len(candidates))
 	}
+	return maidNs, maidManifest
+}
+
+func parseModelFromEntries(entries []container.Entry, logTag string) (*types.BedrockModel, [][]byte, []string, []geoEntry) {
+	logPrefix := "[geometry]"
+	if logTag != "zip" {
+		logPrefix = logPrefix + " " + logTag
+	}
+
+	// maidNs / maidManifest：L0 清单收集（命名空间选择 + 清单提取）已收编 collectMaidManifest
+	maidNs, maidManifest := collectMaidManifest(entries, logPrefix)
+	// manifest 下标 → 实际解析到的 zip 路径 / 纹理名（L0 过滤循环填充、SubModels 构建消费，
+	// 两处不在同一 if 作用域，声明提到函数级）
+	resolvedPathByItem := make(map[int]string)
+	texNameByItem := make(map[int]string)
 	var geo *types.BedrockModel
 	var pngs [][]byte
 	var pngNames []string
