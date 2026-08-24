@@ -432,6 +432,268 @@ func collectMaidManifest(entries []container.Entry, logPrefix string) (string, [
 	return maidNs, maidManifest
 }
 
+// l0Resolved 是 L0 清单驱动解析的产物。覆盖判定不对称是现状红线：
+// geoFiles 等覆盖看 hit（等价旧 len(l0GeoFiles)>0），而 parseModelFromEntries 的
+// SubModels 分支只看清单非空——重构时不得"顺手统一"成一致，否则改行为。
+type l0Resolved struct {
+	geoFiles           []geoEntry
+	pngs               [][]byte
+	pngNames           []string
+	modelOrder         []string
+	texOrder           []string
+	texCategories      []string
+	resolvedPathByItem map[int]string
+	texNameByItem      map[int]string
+	hit                bool
+}
+
+// resolveL0 从 L0 清单派生 geoFiles/pngs/modelOrder/texOrder（权威顺序），只收清单引用的条目。
+// 从 parseModelFromEntries 的 L0 解析+覆盖子域收编（只搬逻辑、不改行为）；manifest 为空返回零值。
+func resolveL0(entries []container.Entry, maidNs string, manifest []maidManifestItem, logPrefix string) l0Resolved {
+	if len(manifest) == 0 {
+		return l0Resolved{resolvedPathByItem: map[int]string{}, texNameByItem: map[int]string{}}
+	}
+	// ===== L0 清单过滤：L0 生效时 geoFiles/pngs/modelOrder/texOrder 全部派生自清单 =====
+	// 支持两种条目形式：
+	//   形式 A（显式路径）：item.Model / item.Texture 直接填相对路径（老/自定义包）
+	//   形式 B（model_id 推断）：item.ModelID = "namespace:name"
+	//       → 从 model_id 取后缀 name，再用候选路径字典逐个试；试不中时退到 basename 模糊匹配
+	//
+	// 拆分为 resolveL0Model / resolveL0Texture（2026-08-23）；各返回 zip 内绝对路径（空=未命中），
+	// 主循环只负责读取 entry 数据并写入 l0* 列表。
+	// --- 快速索引 1：全量条目按绝对 zip 路径索引 ---
+	entryByPath := make(map[string]container.Entry, len(entries))
+	for _, e := range entries {
+		entryByPath[strings.ToLower(e.Name())] = e
+	}
+	// --- 快速索引 2：目标命名空间内的 JSON/PNG basename→[]entry 模糊匹配池 ---
+	type namedEntry struct {
+		path string
+		e    container.Entry
+	}
+	var nsGeoBasenames map[string][]namedEntry
+	var nsPngBasenames map[string][]namedEntry
+	lazyBuildBasenameIdx := func() {
+		if nsGeoBasenames != nil {
+			return
+		}
+		nsGeoBasenames = map[string][]namedEntry{}
+		nsPngBasenames = map[string][]namedEntry{}
+		for _, e := range entries {
+			low := strings.ToLower(e.Name())
+			if !strings.HasPrefix(low, maidNs) {
+				continue
+			}
+			rel := low[len(maidNs):]
+			if strings.HasSuffix(low, ".json") {
+				if strings.Contains(rel, "ysm.json") ||
+					strings.HasSuffix(rel, "maid_model.json") ||
+					strings.HasSuffix(rel, "maid_chair.json") ||
+					strings.HasSuffix(rel, "maid_sound.json") ||
+					strings.Contains(rel, "animation") ||
+					strings.Contains(rel, "controller") {
+					continue
+				}
+				base := filepath.Base(rel)
+				base = strings.TrimSuffix(base, ".geo.json")
+				base = strings.TrimSuffix(base, ".json")
+				nsGeoBasenames[base] = append(nsGeoBasenames[base], namedEntry{path: low, e: e})
+			} else if strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg") {
+				base := strings.TrimSuffix(filepath.Base(rel), filepath.Ext(filepath.Base(rel)))
+				nsPngBasenames[base] = append(nsPngBasenames[base], namedEntry{path: low, e: e})
+			}
+		}
+	}
+
+	// model_id 路径候选字典：按"常见度"排序，找到第一个存在的即停
+	modelCandidates := []string{
+		"models/entity/<N>.json",
+		"models/main/<N>.json",
+		"models/<N>.json",
+		"models/entity/<N>.geo.json",
+		"geckolib/models/entity/<N>.json",
+		"models/block/<N>.json",
+		"<N>.json",
+	}
+	textureCandidates := []string{
+		"textures/entity/<N>.png",
+		"textures/main/<N>.png",
+		"textures/<N>.png",
+		"geckolib/textures/entity/<N>.png",
+		"textures/entity/<N>.jpg",
+	}
+
+	// tryCandidates：从候选模板里找第一个存在的 zip entry
+	tryCandidates := func(baseName string, templates []string) (container.Entry, string, bool) {
+		for _, t := range templates {
+			rel := strings.ReplaceAll(t, "<N>", baseName)
+			abs := strings.ToLower(maidNs + strings.TrimPrefix(rel, "/"))
+			if e, ok := entryByPath[abs]; ok {
+				return e, abs, true
+			}
+		}
+		return nil, "", false
+	}
+	// extractName：从 model_id "ns:name" 取 name 部分；空则返回 fallback
+	extractName := func(modelID, fallback string) string {
+		if modelID == "" {
+			return fallback
+		}
+		if idx := strings.Index(modelID, ":"); idx >= 0 {
+			return modelID[idx+1:]
+		}
+		return modelID
+	}
+	// stripNsPrefix：若 value 形如 "nsBase:path"，去掉 nsBase: 前缀后返回 path
+	// （droneeee 一类的混合写法："model": "droneeee:models/entity/x.json"）
+	stripNsPrefix := func(value, nsBase string) string {
+		if nsBase == "" || value == "" {
+			return value
+		}
+		if idx := strings.Index(value, ":"); idx >= 0 {
+			if value[:idx] == nsBase && !filepath.IsAbs(value[idx+1:]) {
+				return value[idx+1:]
+			}
+		}
+		return value
+	}
+
+	// resolveL0Model：解析 L0 条目的模型路径，返回 zip 内绝对路径（空=未命中）
+	// 优先级：形式 A 显式路径 → model_id 候选字典 → basename 模糊回扫
+	resolveL0Model := func(item maidManifestItem, nsBase string) (absPath string) {
+		modelRel := stripNsPrefix(item.Model, nsBase)
+		if modelRel != "" {
+			modelAbs := strings.ToLower(maidNs + strings.TrimPrefix(filepath.ToSlash(modelRel), "/"))
+			if _, ok := entryByPath[modelAbs]; ok {
+				log.Printf("%s L0 形式A 模型: %s → %s", logPrefix, item.Model, modelAbs)
+				return modelAbs
+			}
+		}
+		// model_id 推断（含 ":" 但前缀非 nsBase 的情况）
+		mid := item.ModelID
+		if mid == "" && strings.Contains(item.Model, ":") && !filepath.IsAbs(item.Model) {
+			mid = item.Model
+		}
+		if mid != "" {
+			namePart := extractName(mid, "")
+			if namePart != "" {
+				if _, abs, hit := tryCandidates(namePart, modelCandidates); hit {
+					log.Printf("%s L0 形式B 模型(候选): %s → %s", logPrefix, mid, abs)
+					return abs
+				}
+				lazyBuildBasenameIdx()
+				if match, ok := nsGeoBasenames[namePart]; ok && len(match) > 0 {
+					log.Printf("%s L0 形式B 模型(basename回扫): %s → %s", logPrefix, mid, match[0].path)
+					return match[0].path
+				}
+				log.Printf("%s L0 模型未命中: %s", logPrefix, mid)
+			}
+		}
+		return ""
+	}
+
+	// resolveL0Texture：解析 L0 条目的纹理路径，返回 zip 内绝对路径（空=未命中）
+	// 优先级：形式 A 显式路径 → model_id 候选字典 → basename 模糊回扫
+	resolveL0Texture := func(item maidManifestItem, nsBase string, _modelAbs string) (absPath string) {
+		textureRel := stripNsPrefix(item.Texture, nsBase)
+		if textureRel != "" {
+			texAbs := strings.ToLower(maidNs + strings.TrimPrefix(filepath.ToSlash(textureRel), "/"))
+			if _, ok := entryByPath[texAbs]; ok {
+				log.Printf("%s L0 形式A 纹理: %s → %s", logPrefix, item.Texture, texAbs)
+				return texAbs
+			}
+		}
+		mid := item.ModelID
+		if mid != "" {
+			namePart := extractName(mid, "")
+			if namePart != "" {
+				if _, abs, hit := tryCandidates(namePart, textureCandidates); hit {
+					// 返回 tryCandidates 的小写 abs（与 resolveL0Model 候选分支一致）：
+					// entryByPath 的 key 全小写，返回 e.Name() 原始大小写会让主循环
+					// entryByPath[texAbs] 重查 miss → 大写条目纹理静默丢弃
+					// （code review P2，Windows 工具产出混合大小写 zip 的常见形态）。
+					log.Printf("%s L0 形式B 纹理(候选): %s → %s", logPrefix, mid, abs)
+					return abs
+				}
+				lazyBuildBasenameIdx()
+				if match, ok := nsPngBasenames[namePart]; ok && len(match) > 0 {
+					log.Printf("%s L0 形式B 纹理(basename回扫): %s → %s", logPrefix, mid, match[0].path)
+					return match[0].path
+				}
+				log.Printf("%s L0 纹理未命中: %s", logPrefix, mid)
+			}
+		}
+		return ""
+	}
+
+	var nsBase string
+	if strings.HasPrefix(maidNs, "assets/") {
+		nsBase = strings.TrimPrefix(maidNs, "assets/")
+		nsBase = strings.TrimSuffix(nsBase, "/")
+	}
+
+	res := l0Resolved{
+		geoFiles:           make([]geoEntry, 0, len(manifest)),
+		pngs:               make([][]byte, 0, len(manifest)),
+		pngNames:           make([]string, 0, len(manifest)),
+		modelOrder:         make([]string, 0, len(manifest)),
+		texOrder:           make([]string, 0, len(manifest)),
+		resolvedPathByItem: make(map[int]string),
+		texNameByItem:      make(map[int]string),
+	}
+
+	for i, item := range manifest {
+		// 模型解析
+		modelAbs := resolveL0Model(item, nsBase)
+		if modelAbs != "" {
+			if e, ok := entryByPath[modelAbs]; ok {
+				if rc, err := e.Open(); err == nil {
+					buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
+					if len(buf) > 0 && !isArmModelName(e.Name()) {
+						res.geoFiles = append(res.geoFiles, geoEntry{name: e.Name(), data: buf})
+						res.modelOrder = append(res.modelOrder, modelAbs[len(maidNs):])
+						res.resolvedPathByItem[i] = modelAbs
+					}
+				}
+			}
+		}
+
+		// 纹理解析
+		texAbs := resolveL0Texture(item, nsBase, modelAbs)
+		if texAbs != "" {
+			if e, ok := entryByPath[texAbs]; ok {
+				if rc, err := e.Open(); err == nil {
+					pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
+					if len(pngData) > 0 {
+						tn := e.Name()
+						if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+							tn = tn[idx+1:]
+						}
+						tn = strings.TrimSuffix(tn, filepath.Ext(tn))
+						res.pngs = append(res.pngs, pngData)
+						res.pngNames = append(res.pngNames, tn)
+						res.texOrder = append(res.texOrder, strings.ToLower(filepath.Base(texAbs)))
+						res.texNameByItem[i] = strings.ToLower(tn)
+					}
+				}
+			}
+		}
+	}
+
+	// 只有清单至少命中了 1 个模型才用 L0 覆盖（空命中视为清单与 zip 内容脱节，回退 L1）
+	if len(res.geoFiles) > 0 {
+		res.hit = true
+		// texCategories 与 texOrder 同序，L0 覆盖后必须同步重建（code review P3）：
+		// 不重建则仍对应 ysm 派生的旧 texOrder，后续重排块会错位/丢分类。
+		// L0 清单（maid_model.json）纹理全部是主模型皮肤声明，统一归 "player"。
+		res.texCategories = make([]string, len(res.texOrder))
+		for i := range res.texCategories {
+			res.texCategories[i] = "player"
+		}
+	}
+	return res
+}
+
 func parseModelFromEntries(entries []container.Entry, logTag string) (*types.BedrockModel, [][]byte, []string, []geoEntry) {
 	logPrefix := "[geometry]"
 	if logTag != "zip" {
@@ -585,249 +847,19 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 		}
 	}
 
-	// ===== 1.5 L0 清单过滤：L0 生效时 geoFiles/pngs/modelOrder/texOrder 全部派生自清单 =====
-	// 支持两种条目形式：
-	//   形式 A（显式路径）：item.Model / item.Texture 直接填相对路径（老/自定义包）
-	//   形式 B（model_id 推断）：item.ModelID = "namespace:name"
-	//       → 从 model_id 取后缀 name，再用候选路径字典（models/entity/*.json、models/item/*、
-	//         textures/entity/*.png 等）逐个试；试不中时退到 basename 模糊匹配
-	//
-	// 拆分为 resolveL0Model / resolveL0Texture 两个纯函数（2026-08-23）：
-	// 原实现用 goto 把模型解析与纹理解析绞在同一个 for 循环里，改一处牵全身。
-	// 现各自返回 zip 内绝对路径（空=未命中），主循环只负责读取 entry 数据并写入 l0* 列表。
-	if len(maidManifest) > 0 {
-		// --- 快速索引 1：全量条目按绝对 zip 路径索引 ---
-		entryByPath := make(map[string]container.Entry, len(entries))
-		for _, e := range entries {
-			entryByPath[strings.ToLower(e.Name())] = e
-		}
-		// --- 快速索引 2：目标命名空间内的 JSON/PNG basename→[]entry 模糊匹配池 ---
-		type namedEntry struct {
-			path string
-			e    container.Entry
-		}
-		var nsGeoBasenames map[string][]namedEntry
-		var nsPngBasenames map[string][]namedEntry
-		lazyBuildBasenameIdx := func() {
-			if nsGeoBasenames != nil {
-				return
-			}
-			nsGeoBasenames = map[string][]namedEntry{}
-			nsPngBasenames = map[string][]namedEntry{}
-			for _, e := range entries {
-				low := strings.ToLower(e.Name())
-				if !strings.HasPrefix(low, maidNs) {
-					continue
-				}
-				rel := low[len(maidNs):]
-				if strings.HasSuffix(low, ".json") {
-					if strings.Contains(rel, "ysm.json") ||
-						strings.HasSuffix(rel, "maid_model.json") ||
-						strings.HasSuffix(rel, "maid_chair.json") ||
-						strings.HasSuffix(rel, "maid_sound.json") ||
-						strings.Contains(rel, "animation") ||
-						strings.Contains(rel, "controller") {
-						continue
-					}
-					base := filepath.Base(rel)
-					base = strings.TrimSuffix(base, ".geo.json")
-					base = strings.TrimSuffix(base, ".json")
-					nsGeoBasenames[base] = append(nsGeoBasenames[base], namedEntry{path: low, e: e})
-				} else if strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg") {
-					base := strings.TrimSuffix(filepath.Base(rel), filepath.Ext(filepath.Base(rel)))
-					nsPngBasenames[base] = append(nsPngBasenames[base], namedEntry{path: low, e: e})
-				}
-			}
-		}
-
-		// model_id 路径候选字典：按"常见度"排序，找到第一个存在的即停
-		modelCandidates := []string{
-			"models/entity/<N>.json",
-			"models/main/<N>.json",
-			"models/<N>.json",
-			"models/entity/<N>.geo.json",
-			"geckolib/models/entity/<N>.json",
-			"models/block/<N>.json",
-			"<N>.json",
-		}
-		textureCandidates := []string{
-			"textures/entity/<N>.png",
-			"textures/main/<N>.png",
-			"textures/<N>.png",
-			"geckolib/textures/entity/<N>.png",
-			"textures/entity/<N>.jpg",
-		}
-
-		// tryCandidates：从候选模板里找第一个存在的 zip entry
-		tryCandidates := func(baseName string, templates []string) (container.Entry, string, bool) {
-			for _, t := range templates {
-				rel := strings.ReplaceAll(t, "<N>", baseName)
-				abs := strings.ToLower(maidNs + strings.TrimPrefix(rel, "/"))
-				if e, ok := entryByPath[abs]; ok {
-					return e, abs, true
-				}
-			}
-			return nil, "", false
-		}
-		// extractName：从 model_id "ns:name" 取 name 部分；空则返回 fallback
-		extractName := func(modelID, fallback string) string {
-			if modelID == "" {
-				return fallback
-			}
-			if idx := strings.Index(modelID, ":"); idx >= 0 {
-				return modelID[idx+1:]
-			}
-			return modelID
-		}
-		// stripNsPrefix：若 value 形如 "nsBase:path"，去掉 nsBase: 前缀后返回 path
-		// （droneeee 一类的混合写法："model": "droneeee:models/entity/x.json"）
-		stripNsPrefix := func(value, nsBase string) string {
-			if nsBase == "" || value == "" {
-				return value
-			}
-			if idx := strings.Index(value, ":"); idx >= 0 {
-				if value[:idx] == nsBase && !filepath.IsAbs(value[idx+1:]) {
-					return value[idx+1:]
-				}
-			}
-			return value
-		}
-
-		// resolveL0Model：解析 L0 条目的模型路径，返回 zip 内绝对路径（空=未命中）
-		// 优先级：形式 A 显式路径 → model_id 候选字典 → basename 模糊回扫
-		resolveL0Model := func(item maidManifestItem, nsBase string) (absPath string) {
-			modelRel := stripNsPrefix(item.Model, nsBase)
-			if modelRel != "" {
-				modelAbs := strings.ToLower(maidNs + strings.TrimPrefix(filepath.ToSlash(modelRel), "/"))
-				if _, ok := entryByPath[modelAbs]; ok {
-					log.Printf("%s L0 形式A 模型: %s → %s", logPrefix, item.Model, modelAbs)
-					return modelAbs
-				}
-			}
-			// model_id 推断（含 ":" 但前缀非 nsBase 的情况）
-			mid := item.ModelID
-			if mid == "" && strings.Contains(item.Model, ":") && !filepath.IsAbs(item.Model) {
-				mid = item.Model
-			}
-			if mid != "" {
-				namePart := extractName(mid, "")
-				if namePart != "" {
-					if _, abs, hit := tryCandidates(namePart, modelCandidates); hit {
-						log.Printf("%s L0 形式B 模型(候选): %s → %s", logPrefix, mid, abs)
-						return abs
-					}
-					lazyBuildBasenameIdx()
-					if match, ok := nsGeoBasenames[namePart]; ok && len(match) > 0 {
-						log.Printf("%s L0 形式B 模型(basename回扫): %s → %s", logPrefix, mid, match[0].path)
-						return match[0].path
-					}
-					log.Printf("%s L0 模型未命中: %s", logPrefix, mid)
-				}
-			}
-			return ""
-		}
-
-		// resolveL0Texture：解析 L0 条目的纹理路径，返回 zip 内绝对路径（空=未命中）
-		// 优先级：形式 A 显式路径 → model_id 候选字典 → basename 模糊回扫
-		resolveL0Texture := func(item maidManifestItem, nsBase string, _modelAbs string) (absPath string) {
-			textureRel := stripNsPrefix(item.Texture, nsBase)
-			if textureRel != "" {
-				texAbs := strings.ToLower(maidNs + strings.TrimPrefix(filepath.ToSlash(textureRel), "/"))
-				if _, ok := entryByPath[texAbs]; ok {
-					log.Printf("%s L0 形式A 纹理: %s → %s", logPrefix, item.Texture, texAbs)
-					return texAbs
-				}
-			}
-			mid := item.ModelID
-			if mid != "" {
-				namePart := extractName(mid, "")
-				if namePart != "" {
-					if _, abs, hit := tryCandidates(namePart, textureCandidates); hit {
-						// 返回 tryCandidates 的小写 abs（与 resolveL0Model 候选分支一致）：
-						// entryByPath 的 key 全小写（593 行），返回 e.Name() 原始大小写会让
-						// 主循环 entryByPath[texAbs] 重查 miss → 大写条目纹理静默丢弃
-						// （code review P2，Windows 工具产出混合大小写 zip 的常见形态）。
-						log.Printf("%s L0 形式B 纹理(候选): %s → %s", logPrefix, mid, abs)
-						return abs
-					}
-					lazyBuildBasenameIdx()
-					if match, ok := nsPngBasenames[namePart]; ok && len(match) > 0 {
-						log.Printf("%s L0 形式B 纹理(basename回扫): %s → %s", logPrefix, mid, match[0].path)
-						return match[0].path
-					}
-					log.Printf("%s L0 纹理未命中: %s", logPrefix, mid)
-				}
-			}
-			return ""
-		}
-
-		var nsBase string
-		if strings.HasPrefix(maidNs, "assets/") {
-			nsBase = strings.TrimPrefix(maidNs, "assets/")
-			nsBase = strings.TrimSuffix(nsBase, "/")
-		}
-
-		// modelOrder / texOrder 从清单派生（权威顺序），geoFiles / pngs 只收清单引用的条目
-		l0GeoFiles := make([]geoEntry, 0, len(maidManifest))
-		l0Pngs := make([][]byte, 0, len(maidManifest))
-		l0PngNames := make([]string, 0, len(maidManifest))
-		l0ModelOrder := make([]string, 0, len(maidManifest))
-		l0TexOrder := make([]string, 0, len(maidManifest))
-
-		for i, item := range maidManifest {
-			// 模型解析
-			modelAbs := resolveL0Model(item, nsBase)
-			if modelAbs != "" {
-				if e, ok := entryByPath[modelAbs]; ok {
-					if rc, err := e.Open(); err == nil {
-						buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-						if len(buf) > 0 && !isArmModelName(e.Name()) {
-							l0GeoFiles = append(l0GeoFiles, geoEntry{name: e.Name(), data: buf})
-							l0ModelOrder = append(l0ModelOrder, modelAbs[len(maidNs):])
-							resolvedPathByItem[i] = modelAbs
-						}
-					}
-				}
-			}
-
-			// 纹理解析
-			texAbs := resolveL0Texture(item, nsBase, modelAbs)
-			if texAbs != "" {
-				if e, ok := entryByPath[texAbs]; ok {
-					if rc, err := e.Open(); err == nil {
-						pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-						if len(pngData) > 0 {
-							tn := e.Name()
-							if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-								tn = tn[idx+1:]
-							}
-							tn = strings.TrimSuffix(tn, filepath.Ext(tn))
-							l0Pngs = append(l0Pngs, pngData)
-							l0PngNames = append(l0PngNames, tn)
-							l0TexOrder = append(l0TexOrder, strings.ToLower(filepath.Base(texAbs)))
-							texNameByItem[i] = strings.ToLower(tn)
-						}
-					}
-				}
-			}
-		}
-
-		// 只有清单至少命中了 1 个模型才用 L0 覆盖（空命中视为清单与 zip 内容脱节，回退 L1）
-		if len(l0GeoFiles) > 0 {
-			geoFiles = l0GeoFiles
-			pngs = l0Pngs
-			pngNames = l0PngNames
-			modelOrder = l0ModelOrder
-			texOrder = l0TexOrder
-			// texCategories 与 texOrder 同序，L0 覆盖后必须同步重建（code review P3）：
-			// 不重建则仍对应 ysm 派生的旧 texOrder，后续重排块会错位/丢分类。
-			// L0 清单（maid_model.json）纹理全部是主模型皮肤声明，统一归 "player"。
-			texCategories = make([]string, len(l0TexOrder))
-			for i := range texCategories {
-				texCategories[i] = "player"
-			}
-		}
+	// ===== 1.5 L0 清单过滤：收编 resolveL0（L0 生效时 geoFiles/pngs/modelOrder/texOrder 派生自清单）=====
+	// 覆盖判定保持现状不对称：geoFiles 等看 l0.hit，SubModels 分支仍按 len(maidManifest)>0 走。
+	l0 := resolveL0(entries, maidNs, maidManifest, logPrefix)
+	if l0.hit {
+		geoFiles = l0.geoFiles
+		pngs = l0.pngs
+		pngNames = l0.pngNames
+		modelOrder = l0.modelOrder
+		texOrder = l0.texOrder
+		texCategories = l0.texCategories
 	}
+	resolvedPathByItem = l0.resolvedPathByItem
+	texNameByItem = l0.texNameByItem
 
 	// 移除第一人称手臂模型占位：避免 arm.json 占据 texIdx 槽位导致 main 纹理错位
 	modelOrder = filterArmModels(modelOrder)
