@@ -86,6 +86,7 @@ function buildTemplate(num, title, slug, related) {
   return `# ADR-${n}：${title}
 
 - **状态**：已采纳（Accepted）
+- **实施状态**：查知识卡（ADR 只记决策方向，不记实施进度）
 - **日期**：${today()}
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - ${rel}
