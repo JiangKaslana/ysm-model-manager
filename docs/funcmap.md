@@ -280,7 +280,7 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `InvalidateSyncItemsCache()` | `go/instance/instance:47` | InvalidateSyncItemsCache 清空全部整合包同步结果缓存。 |
-| `BuildSyncItems()` | `go/instance/instance:101` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
+| `BuildSyncItems()` | `go/instance/instance:105` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
 | `ResourceTypeInfo()` | `go/instance/instance:21` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
 
 ## go/internal
@@ -698,10 +698,10 @@
 | `App.DetectZipType()` | `internal/app/app_install_import:60` | DetectZipType 通过 ZIP 内容检测资源类型（供前端导入路由使用） |
 | `App.ImportModelFileSkipCheck()` | `internal/app/app_install_import:68` | — |
 | `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:76` | — |
-| `App.ImportModelFileTo()` | `internal/app/app_install_import:96` | — |
-| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:100` | — |
-| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:107` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
-| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:112` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
+| `App.ImportModelFileTo()` | `internal/app/app_install_import:102` | — |
+| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:106` | — |
+| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:113` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
+| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:118` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
 | `App.CountInstanceResources()` | `internal/app/app_install_instance:26` | CountInstanceResources 统计指定整合包中可清空的资源文件数 只统计仓库中已有的文件（同 clearInstanceDir 逻辑） rtype 为空时统计全部类 |
 | `App.ClearInstanceResources()` | `internal/app/app_install_instance:66` | ClearInstanceResources 清空指定整合包中已同步的文件 insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型） 返回清除的文件数量 |
 | `App.DeduplicateCustomDir()` | `internal/app/app_install_instance:152` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |

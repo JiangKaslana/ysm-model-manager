@@ -51,6 +51,10 @@ func InvalidateSyncItemsCache() {
 	})
 }
 
+// buildSyncItemsKey 仅供当前 BuildSyncItems 函数体实际依赖的输入做缓存键：
+// 目前只读 ins.Name / ins.VersionDir / subtype / filesRoots / rtypes。
+// 若未来函数体开始消费 ins.CustomDir、ins.Exists 等字段，必须同步加进 key，
+// 否则会静默命中旧同步结果缓存。
 func buildSyncItemsKey(ins *types.VersionInstance, rtypes []ResourceTypeInfo, filesRoots map[string]string, subtype string) string {
 	var b strings.Builder
 	b.WriteString(ins.Name)

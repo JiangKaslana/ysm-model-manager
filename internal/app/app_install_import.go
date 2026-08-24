@@ -84,13 +84,19 @@ type importOptions struct {
 
 // importModelFileWithOptions 导入模型文件（校验+写文件核心下沉 go/importer）
 func (a *App) importModelFileWithOptions(fileName, base64Data string, opts importOptions) error {
-	return importer.ImportFromBase64(fileName, base64Data, importer.ImportOptions{
+	err := importer.ImportFromBase64(fileName, base64Data, importer.ImportOptions{
 		SkipCheck: opts.skipCheck,
 		Overwrite: opts.overwrite,
 	}, func(rtype string) string {
 		dir, _ := a.GetRepoRoot(rtype)
 		return dir
 	}, a.logger.Add)
+	if err == nil {
+		// Go 侧统一失效，不赌前端每条导入入口都记得 ClearScanCache：
+		// 否则新增的 30s 同步结果缓存会让导入后整合包页静默陈旧 ≤30s。
+		a.ClearScanCache()
+	}
+	return err
 }
 
 func (a *App) ImportModelFileTo(fileName, subpath, base64Data string) error {
@@ -198,5 +204,11 @@ func (a *App) importModelFileWithSubpath(fileName, subpath, base64Data string, o
 	// subpath 导入路径复用 importer.WriteFileAtomic——原 `os.WriteFile`
 	// 直写目标，磁盘满/IO 中断留半截文件且非覆盖模式再次导入命中 FILE_EXISTS 死锁；
 	// 与 ImportFromBase64 的原子写入语义保持一致
-	return importer.WriteFileAtomic(destPath, data)
+	if err := importer.WriteFileAtomic(destPath, data); err != nil {
+		return err
+	}
+	// Go 侧统一失效：导入后立即清扫描缓存/容器指纹缓存/同步结果缓存，
+	// 不依赖前端事后 ClearScanCache（否则漏一条路径就吃 30s 陈旧窗）。
+	a.ClearScanCache()
+	return nil
 }
