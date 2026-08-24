@@ -478,11 +478,15 @@ describe("控件交互", () => {
   it("旋转模式切换 + 速度滑块更新显示（camera 面板 buildCameraControls）", async () => {
     await createLitematic3D("/a.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    // 旋转模式 / 速度滑块由 buildCameraControls 挂在 camera 面板（SlideMenu 弹层内，
-    // 懒渲染），需先 dock-motion 下钻才生成。motion 组仅 camera 一个 panel，
-    // dock-motion 走「快捷直达」直接渲染相机面板（无 preview-camera 中间行）。
-    const dock = overlay.querySelector('[data-testid="dock-motion"]') as HTMLElement;
+    // camera 控件（buildCameraControls）挂在 scene 组的 camera 面板（SlideMenu 弹层内，
+    // 懒渲染）。scene 组含 camera/lighting/shadow/postproc/settings 多项，
+    // dock-scene 走「组根视图」列出条目，点 preview-camera 下钻渲染相机面板。
+    const dock = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
+    expect(dock).toBeTruthy();
     dock.click();
+    const camRow = overlay.querySelector('[data-testid="preview-camera"]') as HTMLElement;
+    expect(camRow).toBeTruthy();
+    camRow.click();
     const sel = overlay.querySelector('[data-testid="mmd-rot-mode"]') as HTMLSelectElement;
     expect(sel).toBeTruthy();
     // 相机面板 list 是 buildCameraControls 的挂载点，速度滑块/值标签均在其内，
@@ -752,10 +756,14 @@ describe("审核补充：边界与异步路径", () => {
   it("自身旋转模式拖拽：pointerdown + pointermove → quaternion 更新", async () => {
     await createLitematic3D("/drag.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    // 下钻 camera 面板，切「自身」模式（非 orbit）。dock-motion 快捷直达相机面板
-    // （motion 组仅 camera 一个 panel，无 preview-camera 中间行）。
-    const dock = overlay.querySelector('[data-testid="dock-motion"]') as HTMLElement;
+    // 下钻 camera 面板，切「自身」模式（非 orbit）。camera 控件在 scene 组（dock-scene），
+    // scene 组多项走组根视图，点 preview-camera 下钻渲染相机面板。
+    const dock = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
+    expect(dock).toBeTruthy();
     dock.click();
+    const camRow = overlay.querySelector('[data-testid="preview-camera"]') as HTMLElement;
+    expect(camRow).toBeTruthy();
+    camRow.click();
     const sel = overlay.querySelector('[data-testid="mmd-rot-mode"]') as HTMLSelectElement;
     expect(sel).toBeTruthy();
     sel.value = "false";
@@ -811,12 +819,17 @@ function unmountOverlay(overlay: HTMLElement): void {
 }
 
 /** Phase 3 收编辅助：打开 litematic 分层切片面板
- * 控件已从 topBar 迁移到声明式根菜单模型组（dock-model → slice 面板）。
- * 模型组仅 slice 一项，dock-model 快捷直达打开面板，无需再点 slice 行。 */
+ * 声明式根菜单范式（ADR-076 v3）：分层控件（slice 项，dockGroup:"model"）经
+ * adapter.menuItems 注入场景注册表活跃条目。dock-model 点击因 active.menuItems 存在，
+ * 走 roleDetailView 捷径（按 dockGroup 渲染 model/motion section），需在 model section
+ * 内再点 slice row（legacyTestId = litematic-slice-entry）下钻打开 slice 面板。 */
 function openSlicePanel(overlay: HTMLElement): void {
   const modelBtn = overlay.querySelector('[data-testid="dock-model"]') as HTMLElement;
   if (!modelBtn) throw new Error("dock-model button not found");
   modelBtn.click();
-  // 快捷直达：dock-model 点击后直接打开 slice 面板（model 组仅 1 个 panel 项）
-  // 不需要再查 preview-slice 行——面板已渲染在 popup 中
+  // roleDetailView → model section → slice row（legacyTestId 精确命中）
+  const sliceRow = overlay.querySelector("#litematic-slice-entry") as HTMLElement;
+  if (!sliceRow) throw new Error("litematic-slice-entry row not found (roleDetailView model section)");
+  sliceRow.click();
+  // slice 面板已 navigate 渲染，控件（selects）挂在 popup 内
 }
