@@ -28,7 +28,7 @@
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 2 | 4 |
 | go/scanner | 1 | 11 |
-| Go·同步 | 8 | 36 |
+| Go·同步 | 9 | 37 |
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
@@ -48,7 +48,7 @@
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **462** | **1993** |
+| **合计** | **463** | **1994** |
 
 ## Go·头像
 
@@ -416,14 +416,15 @@
 | `ResolutionStrategy()` | `go/sync/conflict:23` | ResolutionStrategy 冲突解决策略 |
 | `FileConflict()` | `go/sync/conflict:35` | FileConflict 文件冲突详情 |
 | `ConflictReport()` | `go/sync/conflict:57` | ConflictReport 冲突报告 |
+| `InvalidateSyncScanCaches()` | `go/sync/sync_cache:49` | InvalidateSyncScanCaches 清空全部同步目录扫描结果缓存。 |
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
-| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:232` | SyncResourcesDirLevel 文件夹级同步（默认 filepath.Walk，行为不变，供测试/旧调用方使用）。 |
-| `SyncResourcesDirLevelScan()` | `go/sync/sync_dirlevel:241` | SyncResourcesDirLevelScan 同 SyncResourcesDirLevel，但注入 scanFn 复用扫描缓存， 消除 8 个 MMD 子类型 ×(1+N |
-| `DiffFolderContents()` | `go/sync/sync_dirlevel:447` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
-| `DiffFolderContentsScan()` | `go/sync/sync_dirlevel:503` | DiffFolderContentsScan 同 DiffFolderContents，但全局侧文件收集复用 scanner 已缓存的 组根扫描结果（scanFn(globalRo |
-| `ScanEntriesFn()` | `go/sync/sync_dirlevel:229` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
-| `FileDiffEntry()` | `go/sync/sync_dirlevel:421` | FileDiffEntry 文件级差异条目（用于文件夹内容级 diff） |
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:233` | SyncResourcesDirLevel 文件夹级同步（默认 filepath.Walk，行为不变，供测试/旧调用方使用）。 |
+| `SyncResourcesDirLevelScan()` | `go/sync/sync_dirlevel:242` | SyncResourcesDirLevelScan 同 SyncResourcesDirLevel，但注入 scanFn 复用扫描缓存， 消除 8 个 MMD 子类型 ×(1+N |
+| `DiffFolderContents()` | `go/sync/sync_dirlevel:464` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
+| `DiffFolderContentsScan()` | `go/sync/sync_dirlevel:520` | DiffFolderContentsScan 同 DiffFolderContents，但全局侧文件收集复用 scanner 已缓存的 组根扫描结果（scanFn(globalRo |
+| `ScanEntriesFn()` | `go/sync/sync_dirlevel:230` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `FileDiffEntry()` | `go/sync/sync_dirlevel:438` | FileDiffEntry 文件级差异条目（用于文件夹内容级 diff） |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
 | `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
@@ -431,19 +432,19 @@
 | `CompareGlobalInstanceHashes()` | `go/sync/sync_hash:29` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录，返回每个实例的 Missing / Extra / Synced 状态。 |
 | `HasModInDirFn()` | `go/sync/sync_hash:19` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
 | `PushResources()` | `go/sync/sync_push:28` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） 多层物理路径支持： 对于 dirLevelSync 类型，会 |
-| `PullResources()` | `go/sync/sync_push:92` | PullResources 拉取整合包多余资源回仓库 持 InstallLock：从实例目录复制文件回仓库，与 SyncToggleStatus/RelinkDir 等并发操作同一 |
-| `PullSingleResource()` | `go/sync/sync_push:192` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 持 InstallLock：从实例目录复制文件回仓库，与并发同步操作互斥（ADR-056） |
-| `PushSingleResource()` | `go/sync/sync_push:230` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。 |
-| `SyncCustomToRepo()` | `go/sync/sync_push:250` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
+| `PullResources()` | `go/sync/sync_push:93` | PullResources 拉取整合包多余资源回仓库 持 InstallLock：从实例目录复制文件回仓库，与 SyncToggleStatus/RelinkDir 等并发操作同一 |
+| `PullSingleResource()` | `go/sync/sync_push:194` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 持 InstallLock：从实例目录复制文件回仓库，与并发同步操作互斥（ADR-056） |
+| `PushSingleResource()` | `go/sync/sync_push:233` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。 |
+| `SyncCustomToRepo()` | `go/sync/sync_push:254` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
 | `Logger()` | `go/sync/sync_push:19` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
 | `GetInstanceStatus()` | `go/sync/sync:27` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.C |
 | `GetInstanceStatusWith()` | `go/sync/sync:33` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomD |
 | `SyncToggleStatus()` | `go/sync/sync:190` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:349` | — |
-| `SyncResourcesWithConfig()` | `go/sync/sync:354` | SyncResourcesWithConfig 同步资源，支持配置化（含冲突检测） |
-| `SortEntries()` | `go/sync/sync:428` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:435` | GetLinkType 判断文件的链接类型 |
+| `SyncResources()` | `go/sync/sync:350` | — |
+| `SyncResourcesWithConfig()` | `go/sync/sync:355` | SyncResourcesWithConfig 同步资源，支持配置化（含冲突检测） |
+| `SortEntries()` | `go/sync/sync:441` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:448` | GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
@@ -694,29 +695,29 @@
 | `App.InstallModelTo()` | `internal/app/app_install_import:25` | — |
 | `App.InstallModelWithOverlay()` | `internal/app/app_install_import:43` | — |
 | `App.SyncCustomToRepo()` | `internal/app/app_install_import:48` | SyncCustomToRepo 同步整合包自定义目录到仓库（执行逻辑下沉 go/sync） |
-| `App.ImportModelFile()` | `internal/app/app_install_import:55` | — |
-| `App.DetectZipType()` | `internal/app/app_install_import:60` | DetectZipType 通过 ZIP 内容检测资源类型（供前端导入路由使用） |
-| `App.ImportModelFileSkipCheck()` | `internal/app/app_install_import:68` | — |
-| `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:76` | — |
-| `App.ImportModelFileTo()` | `internal/app/app_install_import:102` | — |
-| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:106` | — |
-| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:113` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
-| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:118` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
+| `App.ImportModelFile()` | `internal/app/app_install_import:56` | — |
+| `App.DetectZipType()` | `internal/app/app_install_import:61` | DetectZipType 通过 ZIP 内容检测资源类型（供前端导入路由使用） |
+| `App.ImportModelFileSkipCheck()` | `internal/app/app_install_import:69` | — |
+| `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:77` | — |
+| `App.ImportModelFileTo()` | `internal/app/app_install_import:103` | — |
+| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:107` | — |
+| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:114` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
+| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:119` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
 | `App.CountInstanceResources()` | `internal/app/app_install_instance:26` | CountInstanceResources 统计指定整合包中可清空的资源文件数 只统计仓库中已有的文件（同 clearInstanceDir 逻辑） rtype 为空时统计全部类 |
 | `App.ClearInstanceResources()` | `internal/app/app_install_instance:66` | ClearInstanceResources 清空指定整合包中已同步的文件 insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型） 返回清除的文件数量 |
 | `App.DeduplicateCustomDir()` | `internal/app/app_install_instance:152` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |
 | `App.GetInstanceStatus()` | `internal/app/app_install_instance:197` | ========== 状态同步 ========== GetInstanceStatus 获取整合包状态（按资源类型限定路径） rtype: 资源类型 ID，用于解析特定子目录；为 |
 | `App.GetResourceInstanceStatus()` | `internal/app/app_install_instance:209` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 统一走 GetInstanceStatus 路径，通过 rtype 限定实例侧扫描子目录 + 仓库 |
 | `App.SyncModelToggleStatus()` | `internal/app/app_install_instance:271` | — |
-| `App.RelinkCustomDir()` | `internal/app/app_install_instance:280` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
-| `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:304` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
-| `App.SyncResources()` | `internal/app/app_install_instance:348` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
-| `App.PushResourceToInstance()` | `internal/app/app_install_instance:386` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
-| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:407` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
-| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:448` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
-| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:468` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:492` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
-| `App.HasYSMMod()` | `internal/app/app_install_instance:542` | ========== YSM 检测 ========== |
+| `App.RelinkCustomDir()` | `internal/app/app_install_instance:281` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
+| `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:306` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
+| `App.SyncResources()` | `internal/app/app_install_instance:350` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
+| `App.PushResourceToInstance()` | `internal/app/app_install_instance:388` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
+| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:410` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
+| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:452` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
+| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:473` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:498` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
+| `App.HasYSMMod()` | `internal/app/app_install_instance:548` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install_link:11` | ========== 链接模式 ========== |
 | `App.GetLinkMode()` | `internal/app/app_install_link:38` | — |
 | `App.AddImportLog()` | `internal/app/app_install_log:8` | ========== 日志 ========== |

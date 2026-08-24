@@ -742,6 +742,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-121：Shadow DOM 样式隔离铁律",
+        "link": "/adr/ADR-121-shadow-dom"
+      },
+      {
         "text": "ADR-120：Go/Rust 共享已扫描状态：manifest 注入跳过 jwalk",
         "link": "/adr/ADR-120-go-rust-manifest-jwalk"
       },
