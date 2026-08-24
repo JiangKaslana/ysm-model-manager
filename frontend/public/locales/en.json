@@ -516,7 +516,7 @@
   "sidebar.configGameDir": "Configure Game Directory",
   "sidebar.notSet": "Not Set",
   "sidebar.noMatchInstances": "No matching modpacks found",
-  "sidebar.noMods": "No {type}",
+  "sidebar.noMods": "🚫 No {type}",
   "resource.initFailed": "Initialization failed",
   "resource.loadFailed": "Resource load failed",
   "rtype.pack": "Resource Pack",

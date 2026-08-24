@@ -36,6 +36,9 @@ export const sidebarCSS: string = `
 .vc-header .tag.red { background: color-mix(in srgb, var(--status-error) 13%, transparent); color: var(--status-error); }
 .vc-header .tag.orange { background: color-mix(in srgb, var(--sm-optional) 13%, transparent); color: var(--sm-optional); }
 .vc-hdr-row1 .chk { flex-shrink:0; margin:0; cursor:pointer; }
+/* 资源包计数锚点：📦 收口为可定位/可样式化的语义节点（aria-hidden 不参与朗读，数值由内部 chip 承载） */
+.pkg-icon { flex-shrink: 0; line-height: 1; }
+.vc-pkg-count { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
 .footer { padding: 8px 12px; border-top: 1px solid var(--bd); }
 .footer-stats { display: flex; flex-direction: column; gap: 2px; font-size: calc(var(--fs-base) - 2px); color: var(--muted); margin-bottom: 6px; }
 /* ===== 统一按钮系统 .btn-base ===== */

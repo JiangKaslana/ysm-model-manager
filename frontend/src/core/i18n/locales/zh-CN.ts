@@ -558,7 +558,7 @@ export const zhCN: Record<string, string> = {
   "sidebar.configGameDir": "配置游戏目录",
   "sidebar.notSet": "未设置",
   "sidebar.noMatchInstances": "未找到匹配的整合包",
-  "sidebar.noMods": "无{type}",
+  "sidebar.noMods": "🚫 无{type}",
 
   // ── 资源管理器 ──
   "resource.initFailed": "初始化失败",

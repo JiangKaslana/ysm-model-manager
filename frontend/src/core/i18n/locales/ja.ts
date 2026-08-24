@@ -556,7 +556,7 @@ export const ja: Record<string, string> = {
   "sidebar.configGameDir": "ゲームディレクトリを設定",
   "sidebar.notSet": "未設定",
   "sidebar.noMatchInstances": "一致する統合パックが見つかりません",
-  "sidebar.noMods": "{type}なし",
+  "sidebar.noMods": "🚫 {type}なし",
 
   // ── Resource Manager ──
   "resource.initFailed": "初期化に失敗しました",

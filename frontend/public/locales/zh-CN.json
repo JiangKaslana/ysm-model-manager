@@ -516,7 +516,7 @@
   "sidebar.configGameDir": "配置游戏目录",
   "sidebar.notSet": "未设置",
   "sidebar.noMatchInstances": "未找到匹配的整合包",
-  "sidebar.noMods": "无{type}",
+  "sidebar.noMods": "🚫 无{type}",
   "resource.initFailed": "初始化失败",
   "resource.loadFailed": "资源加载失败",
   "rtype.pack": "资源包",

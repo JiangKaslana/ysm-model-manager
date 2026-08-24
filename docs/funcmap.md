@@ -475,12 +475,12 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Build()` | `go/threejs/spec:67` | Build 接收已解析的 BedrockModel，生成 Three.js 可直接消费的 JSON spec |
-| `BuildMulti()` | `go/threejs/spec:86` | BuildMulti 多组件 spec：每个组件独立构建为 spec.models 元素（YSMViewer 式多组件同屏）。 |
+| `Build()` | `go/threejs/spec:68` | Build 接收已解析的 BedrockModel，生成 Three.js 可直接消费的 JSON spec |
+| `BuildMulti()` | `go/threejs/spec:87` | BuildMulti 多组件 spec：每个组件独立构建为 spec.models 元素（YSMViewer 式多组件同屏）。 |
 | `Model3DSpec()` | `go/threejs/spec:20` | — |
 | `ModelGroup()` | `go/threejs/spec:24` | — |
 | `BoneData()` | `go/threejs/spec:35` | — |
-| `MeshData()` | `go/threejs/spec:44` | — |
+| `MeshData()` | `go/threejs/spec:45` | — |
 
 ## Go·类型
 

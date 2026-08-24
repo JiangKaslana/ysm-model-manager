@@ -555,7 +555,7 @@ export const en: Record<string, string> = {
   "sidebar.configGameDir": "Configure Game Directory",
   "sidebar.notSet": "Not Set",
   "sidebar.noMatchInstances": "No matching modpacks found",
-  "sidebar.noMods": "No {type}",
+  "sidebar.noMods": "🚫 No {type}",
 
   // ── Resource Manager ──
   "resource.initFailed": "Initialization failed",

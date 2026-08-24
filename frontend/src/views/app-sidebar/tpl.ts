@@ -109,16 +109,16 @@ export function vcHeaderHTML(
 ): string {
   const allZero = synced === 0 && missing === 0 && extra === 0;
   const chips =
-    (synced > 0 ? `<span class="tag green">${synced}</span> ` : "") +
-    (missing > 0 && hasMod ? `<span class="tag red">${missing}</span> ` : "") +
-    (extra > 0 ? `<span class="tag orange">${extra}</span>` : "") +
+    (synced > 0 ? `<span class="tag green" data-role="synced-count">${synced}</span> ` : "") +
+    (missing > 0 && hasMod ? `<span class="tag red" data-role="missing-count">${missing}</span> ` : "") +
+    (extra > 0 ? `<span class="tag orange" data-role="extra-count">${extra}</span>` : "") +
     (!hasMod
-      ? `<span class="tag gray">🚫 ${t("sidebar.noMods", { type: noModLabelOf(rtype) })}</span>`
+      ? `<span class="tag gray" data-role="no-mods">${t("sidebar.noMods", { type: noModLabelOf(rtype) })}</span>`
       : allZero
-        ? `<span class="tag">0</span>`
+        ? `<span class="tag" data-role="all-synced">0</span>`
         : "");
   return `<div class="vc-header">
 <div class="vc-hdr-row1"><span class="name">${esc(name)}</span></div>
-<div class="vc-hdr-row2"><input type="checkbox" class="chk" data-testid="sidebar-check" data-idx="${idx}">📦${chips}</div>
+<div class="vc-hdr-row2"><input type="checkbox" class="chk" data-testid="sidebar-check" data-idx="${idx}"><span class="pkg-icon" aria-hidden="true">📦</span><span class="vc-pkg-count">${chips}</span></div>
 </div>`;
 }
