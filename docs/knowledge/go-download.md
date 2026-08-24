@@ -42,6 +42,7 @@ invariant_anchors:
 - `FileWithChecksum(ctx, url, savePath, onProgress, expectedSHA256)` — P2 预留：File + 可选 SHA256 校验（nil/空则跳过，行为零漂移；不匹配返回 `ErrChecksumMismatch`，不装盘、无 .part 残留）
 - `FromGitHubAPI(ctx, apiURL, savePath, onProgress)` — 从 GitHub API 拉取下载
 - `FromGitHubAPIWithChecksum(ctx, apiURL, savePath, onProgress, expectedSHA256)` — P2 预留：GitHub API 版的可选 SHA256 校验（语义同 FileWithChecksum）
+- `WithRetry(maxAttempts, backoff)` — **显式开启**自动重试（默认不重试，行为零漂移）：仅对**同一 URL** 的网络类失败/服务端 5xx 指数退避重试（字段 0 回退默认 3 次/500ms）；ctx 取消、4xx、`ErrPartialResponse` 等安全 sentinel 一律不重试。**与三源回退正交**——`downloadFileWithQueue` 用默认（不重试）Downloader，三级回退不叠加重试，避免获取仓库 index 时总时长爆炸
 - `ResolveSavePath(rawURL, saveDir)` — 从 raw URL 解析保存路径 + jsd/api 镜像 URL
 
 ## 与其他子系统关系
