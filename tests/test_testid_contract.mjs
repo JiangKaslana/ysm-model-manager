@@ -21,11 +21,6 @@ const TESTID_REGISTRY = {
   'content-tab':    'src/views/app-content/tpl.ts',
   // app-nav 导航项
   'nav-item':       'src/views/app-nav/index.ts',
-  // app-resource-manager 资源管理器
-  'rm-import':      'src/views/app-resource-manager/tpl.ts',
-  'rm-open':        'src/views/app-resource-manager/tpl.ts',
-  'rm-item':        'src/views/app-resource-manager/tpl.ts',
-  'rm-search':      'src/views/app-resource-manager/tpl.ts',
   // app-sidebar 侧栏操作
   'sidebar-push':   'src/views/app-sidebar/tpl.ts',
   'sidebar-pull':   'src/views/app-sidebar/tpl.ts',
