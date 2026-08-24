@@ -2113,7 +2113,7 @@
 | `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:19` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
 | `loadData()` | `frontend/src/views/app-sync-manager/store:42` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
 | `tabStatus()` | `frontend/src/views/app-sync-manager/store:63` | tabStatus：diverged 折叠进 missing tab（继承可操作属性——与 renderer 计数同规， 逐节点复用以防口径漂移）。返回该条目在 status ta |
-| `applyFilter()` | `frontend/src/views/app-sync-manager/store:109` | 应用类型 + 状态筛选，写入 self._filteredItems（递归 + keep-ancestors）。 |
+| `applyFilter()` | `frontend/src/views/app-sync-manager/store:111` | 应用类型 + 状态筛选，写入 self._filteredItems（递归 + keep-ancestors）。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `SyncFile()` | `frontend/src/views/app-sync-manager/tpl:25` | 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） |
 | `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:35` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |

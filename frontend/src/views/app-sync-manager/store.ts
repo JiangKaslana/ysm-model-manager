@@ -96,7 +96,9 @@ function filterNode(self: SyncStoreSelf, item: SyncItem, force: Set<string>): Sy
     }
   }
   if (!selfHit && !keptChildren?.length) return null;
-  return keptChildren ? { ...item, children: keptChildren } : item;
+  // 关键：children 存在时一律重建（含保底空数组）——自身命中但子项全不命中的目录
+  // 展开后不得露出未命中的原始 children（破坏「列表全为筛选态」不变量，边角不对称修复）。
+  return item.children?.length ? { ...item, children: keptChildren || [] } : item;
 }
 
 /**

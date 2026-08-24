@@ -590,4 +590,44 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     // 非命中 synced 中间目录不强制展开其内部（此处仅验证命中路径即可见）
     unmountElement(el);
   });
+
+  it("自身命中的目录、子项全不命中 → 展开后不露未命中子行（不变量，边角对称）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+
+    const self = el as unknown as {
+      _selectedType: string;
+      _allItems: SyncItem[];
+      _filteredItems: SyncItem[];
+      _typeConfig: Array<{ id: string; dirLevelSync: boolean }>;
+      _dirOpen: Record<string, boolean>;
+      _statusFilter: string;
+      _filesRoots: Record<string, string>;
+      _doRender: () => void;
+    };
+    self._selectedType = "ysm";
+    self._typeConfig = [{ id: "ysm", dirLevelSync: true }];
+    // 容器自身 missing（命中 missing tab），但子文件全是 synced——旧逻辑返回原 item
+    // 会带出全部 synced 子行；修后 children 清空，展开无未命中行
+    self._allItems = [{
+      path: "folder", name: "folder", status: "missing", type: "ysm", icon: "🗂️", size: 0, isDir: true,
+      children: [
+        { path: "folder/a.ysm", name: "a.ysm", status: "synced", type: "ysm", icon: "💎", size: 10, isDir: false },
+      ],
+    }];
+    self._filteredItems = self._allItems;
+    self._statusFilter = "missing";
+    self._filesRoots = { ysm: "/repo" };
+    self._dirOpen = {};
+
+    self._doRender();
+    await sleep(100);
+    // 目录自身命中 → 保留行
+    expect(el.querySelectorAll(".sm-dir").length).toBe(1);
+    // 展开后不得出现 synced 子行（不变量：列表全为筛选态）
+    expect(el.querySelector('[data-path="folder/a.ysm"]')).toBeNull();
+    unmountElement(el);
+  });
 });
