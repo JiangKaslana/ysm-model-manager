@@ -617,12 +617,21 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       btn.innerHTML = `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
         e.stopPropagation();
-        // 模型组 + 动作组：存在活跃角色且有其技能（menuItems）→ 直达其详情，分别聚焦「模型/动作」section（1 跳）；
-        // 否则回退 roles 列表（模型）/ 通用组根（动作）。per-model 工具（信息/截图/骨骼）+ play/perception
-        // 统一收进角色详情（roleDetailView 按 dockGroup 过滤 entry.menuItems 并分 section）。多角色同框走详情内「切换角色」。
+        // 🧍 模型组：恒进 roles 角色列表（加载/切换模型入口，新手流第一跳）。
+        // 点角色名 → 详情（模型信息面板本体 + 工具/动作 section）。
+        // 不做「直达活跃角色详情」——用户实测反馈：🧍 直接跳模型介绍反直觉，
+        // 切换模型被迫绕二级；列表点角色名同样 1 跳进详情，且切换不绕路。
         const isModelShortcut = g.id === "model";
-        if (isModelShortcut || g.id === "motion") {
-          const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
+        const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
+        if (isModelShortcut) {
+          if (rolesDef) {
+            showMenu(makePanelView(rolesDef));
+            return;
+          }
+        }
+        // 💃 动作组：存在活跃角色且有其技能（menuItems）→ 直达其详情聚焦动作 section（1 跳播放）；
+        // 否则回退组根。per-model 工具 + play/perception 统一收进角色详情。
+        if (g.id === "motion") {
           const active = sceneRegistry.getActiveId()
             ? sceneRegistry.getAll().find((x) => x.id === sceneRegistry.getActiveId())
             : undefined;
@@ -631,15 +640,11 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
               makeRow,
               makePanelView,
               menu,
-              initialSection: g.id === "motion" ? "motion" : "model",
+              initialSection: "motion",
               onSwitchRole: () => {
                 if (rolesDef) showMenu(makePanelView(rolesDef));
               },
             }));
-            return;
-          }
-          if (isModelShortcut && rolesDef) {
-            showMenu(makePanelView(rolesDef));
             return;
           }
         }

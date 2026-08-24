@@ -116,7 +116,7 @@ describe("角色面板（roles）", () => {
     handle.dispose();
   });
 
-  it("dock-model 直达活跃角色详情（1 跳模型信息本体直渲）；详情「切换角色 ›」回列表后点角色名仍进详情", () => {
+  it("dock 🧍 → 角色列表（切换模型入口）；点角色名 → 详情模型信息本体直渲；详情「切换角色 ›」回列表", () => {
     const matPanel: PreviewMenuItemDef = {
       id: "material",
       icon: "🎨",
@@ -130,16 +130,20 @@ describe("角色面板（roles）", () => {
     };
     regRole("/m/a.ysm", [matPanel]);
     const handle = mountPreviewRootMenu(overlay, makeCtx());
-    // 1) dock 🧍 捷径：活跃角色有其 menuItems → 直达其详情，模型信息面板本体直接渲染（1 跳模型信息）
+    // 1) dock 🧍 → 恒进角色列表（切换模型入口，不直达详情）
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
+    const aRow0 = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="m1"]`);
+    expect(aRow0).not.toBeNull();
+    expect(overlay.textContent).not.toContain("MAT-PANEL");
+    // 2) 点角色名 → 进详情，模型信息面板本体直接渲染
+    (aRow0!.querySelector('[data-testid="preview-role-name"]') as HTMLElement).click();
     expect(overlay.textContent).toContain("MAT-PANEL");
-    // 2) 详情「切换角色 ›」（底部工具行，非首屏）→ 回角色列表（多角色同框仍可达）
-    (overlay.querySelector('[data-testid="preview-role-switch"]') as HTMLElement).click();
+    // 3) 详情返回（slide-menu ← back，fillRoles 进入时经 back 回列表，不重复加「切换角色」行）
+    const backBtn = overlay.querySelector(".slide-back");
+    expect(backBtn).not.toBeNull();
+    (backBtn as HTMLElement).click();
     const aRow = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="m1"]`);
     expect(aRow).not.toBeNull();
-    // 3) 点角色名 → 仍进详情，模型信息本体直渲
-    (aRow!.querySelector('[data-testid="preview-role-name"]') as HTMLElement).click();
-    expect(overlay.textContent).toContain("MAT-PANEL");
     handle.dispose();
   });
 
@@ -164,15 +168,19 @@ describe("角色面板（roles）", () => {
     handle.dispose();
   });
 
-  it("dock 🧍 → 详情直接渲染模型信息面板本体（无模型 section 列表）；动作 section 折叠、点 header 可展开", () => {
+  it("dock 🧍 → 列表 → 点角色名 → 详情模型信息本体直渲（无模型 section 列表）；动作 section 折叠、点 header 可展开", () => {
     const defs = (): PreviewMenuItemDef[] => [
       { id: "material", icon: "🎨", labelKey: "", fallback: "材质", kind: "panel", dockGroup: "model", render: (l) => { l.append("MAT-BODY"); } },
       { id: "play", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", render: () => {} },
     ];
     regRole("/m/a.jsm", defs());
     const handle = mountPreviewRootMenu(overlay, makeCtx());
-    // 🧍 初始聚焦模型：模型信息面板本体直渲（无 preview-role-model section 列表）、动作 section 折叠
+    // 🧍 → 角色列表（不直达详情）
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
+    expect(overlay.textContent).not.toContain("MAT-BODY");
+    // 点角色名 → 详情：模型信息面板本体直渲（无 preview-role-model section 列表）、动作 section 折叠
+    const aRow = overlay.querySelector('[data-testid="preview-role-row"]');
+    (aRow!.querySelector('[data-testid="preview-role-name"]') as HTMLElement).click();
     expect(overlay.textContent).toContain("MAT-BODY");
     expect(overlay.querySelector('[data-testid="preview-role-model"]')).toBeNull();
     expect((overlay.querySelector('[data-testid="preview-role-motion-body"]') as HTMLElement).style.display).toBe("none");
