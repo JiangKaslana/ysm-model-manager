@@ -101,145 +101,30 @@ func ExtractAvatarURI(modelPath, safeName string) string {
 			}
 		}
 
-	case ".zip":
+	case ".zip", ".7z":
 		data, err := readLimitedModel(modelPath)
 		if err != nil {
-			// 真 IO 错误补日志（IsNotExist 静默）
 			if !os.IsNotExist(err) {
-				log.Printf("[avatar] 读取 .zip 模型失败 %s: %v", modelPath, err)
+				log.Printf("[avatar] 读取 %s 模型失败 %s: %v", ext, modelPath, err)
 			}
 			return ""
-		}
-		zr, err := container.OpenZipBytes(data, int64(len(data)))
-		if err != nil {
-			log.Printf("[avatar] zip 解析失败 %s: %v", modelPath, err)
-			return ""
-		}
-		defer zr.Close()
-		ysmData := ReadFileFromContainer(zr, "ysm.json")
-		if ysmData != nil {
-			var root struct {
-				Meta struct {
-					Authors []authorEntry `json:"authors"`
-				} `json:"metadata"`
-			}
-			if json.Unmarshal(ysmData, &root) == nil {
-				authors = root.Meta.Authors
-			}
-		}
-		for _, au := range authors {
-			if SafeName(au.Name) == safeName && au.Avatar != "" {
-				ap := strings.ToLower(au.Avatar)
-				if !isSafeAvatarPath(ap) {
-					continue
-				}
-				for _, c := range avatarCandidates(ap) {
-					if avatarData := ReadFileFromContainer(zr, c); avatarData != nil {
-						mime := "image/png"
-						if strings.HasSuffix(strings.ToLower(c), ".jpg") || strings.HasSuffix(strings.ToLower(c), ".jpeg") {
-							mime = "image/jpeg"
-						}
-						return SaveAvatarData(safeName, avatarData, mime)
-					}
-				}
-			}
-		}
-		// 降级：avatar/ 目录第一张 .png/.jpg/.jpeg
-		for _, e := range zr.Entries() {
-			if e.IsDir() {
-				continue
-			}
-			low := strings.ToLower(e.Name())
-			if !strings.HasSuffix(low, ".png") && !strings.HasSuffix(low, ".jpg") && !strings.HasSuffix(low, ".jpeg") {
-				continue
-			}
-			if !strings.HasPrefix(low, "avatar/") && !strings.Contains(low, "/avatar/") {
-				continue
-			}
-			rc, oerr := e.Open()
-			if oerr != nil {
-				continue
-			}
-			avatarData, rerr := io.ReadAll(io.LimitReader(rc, types.MaxReadLimit+1))
-			rc.Close()
-			if rerr != nil || int64(len(avatarData)) > types.MaxReadLimit {
-				continue
-			}
-			mime := "image/png"
-			if strings.HasSuffix(low, ".jpg") || strings.HasSuffix(low, ".jpeg") {
-				mime = "image/jpeg"
-			}
-			return SaveAvatarData(safeName, avatarData, mime)
 		}
 
-	case ".7z":
-		data, err := readLimitedModel(modelPath)
+		var r container.Reader
+		switch ext {
+		case ".zip":
+			r, err = container.OpenZipBytes(data, int64(len(data)))
+		case ".7z":
+			r, err = container.Open7zBytes(data, int64(len(data)))
+		}
 		if err != nil {
-			if !os.IsNotExist(err) {
-				log.Printf("[avatar] 读取 .7z 模型失败 %s: %v", modelPath, err)
-			}
+			log.Printf("[avatar] %s 解析失败 %s: %v", ext, modelPath, err)
 			return ""
 		}
-		sz, err := container.Open7zBytes(data, int64(len(data)))
-		if err != nil {
-			log.Printf("[avatar] 7z 解析失败 %s: %v", modelPath, err)
-			return ""
-		}
-		defer sz.Close()
-		ysmData := ReadFileFromContainer(sz, "ysm.json")
-		if ysmData != nil {
-			var root struct {
-				Meta struct {
-					Authors []authorEntry `json:"authors"`
-				} `json:"metadata"`
-			}
-			if json.Unmarshal(ysmData, &root) == nil {
-				authors = root.Meta.Authors
-			}
-		}
-		for _, au := range authors {
-			if SafeName(au.Name) == safeName && au.Avatar != "" {
-				ap := strings.ToLower(au.Avatar)
-				if !isSafeAvatarPath(ap) {
-					continue
-				}
-				for _, c := range avatarCandidates(ap) {
-					if avatarData := ReadFileFromContainer(sz, c); avatarData != nil {
-						mime := "image/png"
-						if strings.HasSuffix(strings.ToLower(c), ".jpg") || strings.HasSuffix(strings.ToLower(c), ".jpeg") {
-							mime = "image/jpeg"
-						}
-						return SaveAvatarData(safeName, avatarData, mime)
-					}
-				}
-			}
-		}
-		// 降级：avatar/ 目录第一张 .png/.jpg/.jpeg
-		for _, e := range sz.Entries() {
-			if e.IsDir() {
-				continue
-			}
-			low := strings.ToLower(e.Name())
-			if !strings.HasSuffix(low, ".png") && !strings.HasSuffix(low, ".jpg") && !strings.HasSuffix(low, ".jpeg") {
-				continue
-			}
-			if !strings.HasPrefix(low, "avatar/") && !strings.Contains(low, "/avatar/") {
-				continue
-			}
-			rc, oerr := e.Open()
-			if oerr != nil {
-				continue
-			}
-			avatarData, rerr := io.ReadAll(io.LimitReader(rc, types.MaxReadLimit+1))
-			rc.Close()
-			if rerr != nil || int64(len(avatarData)) > types.MaxReadLimit {
-				continue
-			}
-			mime := "image/png"
-			if strings.HasSuffix(low, ".jpg") || strings.HasSuffix(low, ".jpeg") {
-				mime = "image/jpeg"
-			}
-			return SaveAvatarData(safeName, avatarData, mime)
+		defer r.Close()
+
+		if avatar := extractAvatarFromContainer(r, modelPath, safeName); avatar != "" {
+			return avatar
 		}
 
 	case ".json":
@@ -473,4 +358,71 @@ func readLimitedModel(path string) ([]byte, error) {
 		return nil, fmt.Errorf("模型文件读取失败或超过上限: %s", path)
 	}
 	return data, nil
+}
+
+// extractAvatarFromContainer 处理压缩包（zip/7z）头像提取的通用逻辑
+// 包括：解析作者列表、按作者名匹配、以及 avatar/ 目录降级逻辑
+func extractAvatarFromContainer(r container.Reader, modelPath, safeName string) string {
+	// 1. 解析作者列表
+	var authors []authorEntry
+	ysmData := ReadFileFromContainer(r, "ysm.json")
+	if ysmData != nil {
+		var root struct {
+			Meta struct {
+				Authors []authorEntry `json:"authors"`
+			} `json:"metadata"`
+		}
+		if json.Unmarshal(ysmData, &root) == nil {
+			authors = root.Meta.Authors
+		}
+	}
+
+	// 2. 按作者名匹配头像
+	for _, au := range authors {
+		if SafeName(au.Name) == safeName && au.Avatar != "" {
+			ap := strings.ToLower(au.Avatar)
+			if !isSafeAvatarPath(ap) {
+				continue
+			}
+			for _, c := range avatarCandidates(ap) {
+				if avatarData := ReadFileFromContainer(r, c); avatarData != nil {
+					mime := "image/png"
+					if strings.HasSuffix(strings.ToLower(c), ".jpg") || strings.HasSuffix(strings.ToLower(c), ".jpeg") {
+						mime = "image/jpeg"
+					}
+					return SaveAvatarData(safeName, avatarData, mime)
+				}
+			}
+		}
+	}
+
+	// 3. 降级：avatar/ 目录第一张 .png/.jpg/.jpeg
+	for _, e := range r.Entries() {
+		if e.IsDir() {
+			continue
+		}
+		low := strings.ToLower(e.Name())
+		if !strings.HasSuffix(low, ".png") && !strings.HasSuffix(low, ".jpg") && !strings.HasSuffix(low, ".jpeg") {
+			continue
+		}
+		if !strings.HasPrefix(low, "avatar/") && !strings.Contains(low, "/avatar/") {
+			continue
+		}
+		rc, oerr := e.Open()
+		if oerr != nil {
+			continue
+		}
+		avatarData, rerr := io.ReadAll(io.LimitReader(rc, types.MaxReadLimit+1))
+		rc.Close()
+		if rerr != nil || int64(len(avatarData)) > types.MaxReadLimit {
+			continue
+		}
+		mime := "image/png"
+		if strings.HasSuffix(low, ".jpg") || strings.HasSuffix(low, ".jpeg") {
+			mime = "image/jpeg"
+		}
+		return SaveAvatarData(safeName, avatarData, mime)
+	}
+
+	return ""
 }

@@ -783,6 +783,8 @@
   "preview.noTypeModel": "（该类型暂无模型）",
   "preview.roleNoDetail": "（该角色无可查看项）",
   "preview.switchRole": "切换角色 ›",
+  "preview.roleModelSection": "模型",
+  "preview.roleMotionSection": "动作",
   "preview.appendModel": "追加到场景",
   "preview.library": "资源库",
   "preview.libraryLoading": "加载资源库…",
