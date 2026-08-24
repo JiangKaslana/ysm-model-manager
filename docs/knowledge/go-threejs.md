@@ -58,6 +58,23 @@ invariant_anchors:
 - **全组件默认可见（2026-08-23）**：`ModelGroup.DefaultVisible` 恒 `true`（前端 `model-group-builder.ts` 同步）——旧「仅 main 默认可见」已废除：主体不叫 main 的拆分模型（部分车万女仆等）会被整组隐藏，打开一片空，且 UI「全部组件」初始选中态与渲染矛盾。视锥剔除 bbox 只计可见子树（frustum-cull 修复②），全亮无「载具撑大 box→闪烁」顾虑；组件单选互斥切换（`showModelGroup(i)` / -1 全显）不受影响
 - 坐标变换是高危区：前端 model3d.ts 历史 fix 次数全项目第一（致命陷阱 #11），改本包坐标/UV 前先 grep `bug-chronicle`，改完用自由相机近距验证
 
+## ADR-042 实施进度（2026-08-24 核对）
+
+ADR-042 §2.1 四项 + §2.2 bone 层直读的实施状态（ADR 只记决策方向，实施进度查知识卡）：
+
+| 项 | 状态 | 证据 |
+|----|------|------|
+| §2.1 旋转序 ZYX | ✅ 已落地 | `eulerToQuaternion` ZYX intrinsic，commit b8fc3211 |
+| §2.1 cube 变换链 | ✅ 已落地 | 3 层 X 镜像/翻号，`verify:port` 全绿 |
+| §2.1 scale | ✅ 已落地 | `BoneChannels.scale` → `evaluateClip` 累积 → `ysm-animation-player` 应用到 `THREE.Bone.scale`；`scale=0 → visible=false` |
+| §2.1 隐藏联动 | ✅ 已落地 | `bone-visibility.ts` `setBoneVisible` 用 `g.traverse` 递归子骨骼 |
+| §2.1 glow | ✅ 已落地 | Go `isGlowBone` 前缀检测 + `BoneData.Glow` → 前端 `MeshStandardMaterial + emissive`，commit a93b61ba |
+| §2.1 世界坐标回填 | ⏭️ 无需实现 | Three.js CPU 渲染，`getWorldPosition()` 可替代 |
+| §2.2 bone 层二进制直读 | ✅ 已落地 | C++ `YSMParserV3.cpp:862-876` 直读 pivot/rotation 并导出到 geometry JSON |
+| §2.2 cube 层反推猜错 | ⏳ 待解决 | `restore_blockbench_cube` 从烘焙 quad 反推 `origin/size`，复杂嵌套旋转会猜错 |
+
+验证脚本：`tests/verify-adr-042.mjs`（scale/隐藏联动/glow/世界坐标回填四项一键回归）
+
 ## 相关
 
 - [go_geometry](./go-geometry.md) — BedrockModel 来源（ZIP/7z/JSON 解析）
