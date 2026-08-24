@@ -13,6 +13,7 @@ import { getSiteIcon, getTagIconFromRole } from "../../../utils/icon/workshop-ic
 import { createCrCard, type CrCardCtx } from "./render.ts";
 import { getApp } from "../../../backend/app.ts";
 import { t } from "../../../core/i18n/t.ts";
+import { cycleBrowseMode, saveBrowseMode } from "../workshop-browse-mode.ts";
 import type { SiteViewState, CleanupFn } from "./types.ts";
 
 // storage 监听器模块私有变量（防泄漏，bindBrowseEvents 返回的 cleanup 会清）
@@ -27,7 +28,7 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
   const {
     esc, searchResults, allCreators, wsEditModeRef, avatarCache,
     site, creators, authorCountMap,
-    fillSearch, openUrl, bus: busRef,
+    fillSearch, openUrl, bus: busRef, ctx,
   } = state;
 
   // P3 修复（子代理审计，问题 B）：代际守卫——fetch 在途时用户切站点/切 tab
@@ -75,6 +76,17 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       }
     });
   });
+
+  // 🔄 浏览模式切换（外链 / 内嵌 / 窗口）
+  const modeToggle = searchResults.querySelector("#cr-mode-toggle");
+  if (modeToggle) {
+    modeToggle.addEventListener("click", () => {
+      const newMode = cycleBrowseMode(ctx.browseMode);
+      saveBrowseMode(newMode);
+      ctx.browseMode = newMode;
+      refreshView();
+    });
+  }
 
   // ⭐ 收藏点击（阻止冒泡，不触发详情浮层）
   searchResults.querySelectorAll(".cr-star-btn").forEach((btn) => {

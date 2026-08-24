@@ -33,7 +33,7 @@ export const contentCreatorCSS: string = `
 .cr-edit-btn:hover { background:var(--hover);color:var(--txt); }
 .cr-toggle { font-size:var(--fs-xs);padding:2px 8px;border-radius:var(--radius-md);border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:inherit;white-space:nowrap;transition:var(--tr-fast); }
 .cr-toggle:hover { background:var(--accent);color:var(--bg); }
-.cr-mode-switch { display:inline-flex;border:1px solid var(--bd);border-radius:6px 6px 0 0;border-bottom:none;overflow:hidden;cursor:pointer;margin-right:2px;flex-shrink:0;align-self:stretch; }
+.cr-mode-switch { display:inline-flex;border:1px solid var(--bd);border-radius:6px 6px 0 0;border-bottom:none;overflow:hidden;cursor:pointer;margin-right:2px;flex-shrink:0;align-self:stretch;background:transparent;padding:0;appearance:none;-webkit-appearance:none;font:inherit;color:inherit; }
 .cr-mode-opt { padding:2px 6px;font-size:10px;font-family:inherit;transition:var(--tr-fast);color:var(--muted);background:var(--bg);cursor:pointer;display:flex;align-items:center; }
 .cr-mode-opt:hover { color:var(--txt);background:var(--hover); }
 .cr-mode-opt.active { color:var(--accent);background:var(--surf);margin-bottom:-1px; }
