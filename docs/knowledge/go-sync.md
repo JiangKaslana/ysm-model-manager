@@ -105,7 +105,7 @@ invariant_anchors:
 - **patternFind 重复子树扫描**（性能）：`isDirTypeModelFolder` → `findNestedModelDir` 对 Walk 访问的每个目录做整棵子树递归搜索，祖先层与子孙层重复 IO。头注释已声明（sync_dirlevel.go L26-28）；剪枝需谨慎验证「EntryDir 嵌套在非 EntryDir 目录名下」场景
 - **DiffFolderContents 只比存在性不比内容**（正确性）：两侧同名同相对路径的文件一律标 synced，**不做哈希对比**（sync_dirlevel.go 注释明示）→ 实例侧文件被修改/损坏后仍显示 ✅ 已同步。若治理：对 size 不同即可判 diverged（与 `ResourceDiff` 同名不同大小口径对齐），不必全量 SHA256
 - **key 小写归一 vs 路径敏感操作**：`relKey` / `relKeyDirLevel` 把整个相对路径转小写做身份 key，push/pull 却用原路径——大小写敏感 FS（Linux 服务器仓库）上 `Pack/` 与 `pack/` 视为同一模型但操作各走各路，可能错配
-- **状态对比 IO 放大**：`BuildSyncItems` 对 dirLevel 类型现已注入 `scanner.ScanEntriesWithHit`（`SyncResourcesDirLevelScan`），全局仓库树不再每类型重复全树 Walk——scanner 缓存 30s TTL + single-flight，8 个 MMD 子类型 ×(1+N 整合包) 对同一目录实际只走盘一次（无嵌套模式类型从缓存 ModelEntry 反推；maid-model 回退 Walk）。**仍待治理**：每个 synced/diverged 夹调 `DiffFolderContents`（内部双侧全树 Walk）+ `containsModelSubfolder`/`isDirTypeModelFolder` 逐层 ReadDir，大仓库 IO 仍成倍叠加。治理方向：diff 结果缓存或一次遍历同时收集夹内文件
+- **状态对比 IO 放大**：`BuildSyncItems` 对 dirLevel 类型现已注入 `scanner.ScanEntriesWithHit`（`SyncResourcesDirLevelScan`），全局仓库树不再每类型重复全树 Walk——scanner 缓存 30s TTL + single-flight，8 个 MMD 子类型 ×(1+N 整合包) 对同一目录实际只走盘一次（无嵌套模式类型从缓存 ModelEntry 反推；maid-model 回退 Walk）。**全局侧夹级 diff 也已复用缓存**：`DiffFolderContentsScan` 的全局侧从组根全量条目按 folder 前缀过滤（零 Walk），仅实例侧保持 Walk（量级小、实例根不在扫描缓存体系内）。**残余 IO**：实例侧 `collectFolderFiles` Walk + `containsModelSubfolder`/`isDirTypeModelFolder` 逐层 ReadDir（实例侧文件量远小于全局，非大头）；refresh 全量 `InvalidateScanCache` 会使 30s 缓存冷掉触发一次组根重扫（单次，非 8×(N+1) 遍）。
 - **SyncToggleStatus 三级匹配的兜底误伤面**（观察项）：哈希 → 相对路径 → 纯文件名三级匹配的最后一级是 basename——同名不同路径的不同模型会被互相匹配启禁状态（sync.go fallback 注释自认「旧仓库特例」）；新仓库数据齐全时该兜底应可收紧
 
 ## 相关
