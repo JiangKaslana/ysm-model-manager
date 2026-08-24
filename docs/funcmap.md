@@ -416,7 +416,7 @@
 | `ResolutionStrategy()` | `go/sync/conflict:23` | ResolutionStrategy 冲突解决策略 |
 | `FileConflict()` | `go/sync/conflict:35` | FileConflict 文件冲突详情 |
 | `ConflictReport()` | `go/sync/conflict:57` | ConflictReport 冲突报告 |
-| `InvalidateSyncScanCaches()` | `go/sync/sync_cache:49` | InvalidateSyncScanCaches 清空全部同步目录扫描结果缓存。 |
+| `InvalidateSyncScanCaches()` | `go/sync/sync_cache:54` | InvalidateSyncScanCaches 清空全部同步目录扫描结果缓存。 |
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
 | `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:233` | SyncResourcesDirLevel 文件夹级同步（默认 filepath.Walk，行为不变，供测试/旧调用方使用）。 |
@@ -1705,9 +1705,9 @@
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
 | `CachePolicy()` | `frontend/src/utils/cache/with-cached:15` | 缓存策略 |
 | `withCached()` | `frontend/src/utils/cache/with-cached:48` | 带过期时间的异步缓存包装器 策略行为（优先级从高到低）： FORCE  — 忽略缓存，强制重新计算（不写入缓存） STALE  — 命中缓存直接返回；过期则立即返回旧值 + 后台刷 |
-| `invalidateCache()` | `frontend/src/utils/cache/with-cached:128` | 清除指定缓存条目 |
-| `clearAllCache()` | `frontend/src/utils/cache/with-cached:136` | 清除所有缓存 |
-| `getCacheTtlMs()` | `frontend/src/utils/cache/with-cached:154` | 获取缓存条目的剩余 TTL（毫秒），未命中返回 -1 |
+| `invalidateCache()` | `frontend/src/utils/cache/with-cached:131` | 清除指定缓存条目 |
+| `clearAllCache()` | `frontend/src/utils/cache/with-cached:139` | 清除所有缓存 |
+| `getCacheTtlMs()` | `frontend/src/utils/cache/with-cached:157` | 获取缓存条目的剩余 TTL（毫秒），未命中或已过期返回 -1 |
 | `swallowError()` | `frontend/src/utils/core/async:11` | 吞掉 promise 的异常并记录日志（比空 `.catch(() =&gt; {})` 可调试）。 |
 | `fireAndForget()` | `frontend/src/utils/core/async:16` | 启动一个异步操作但不等待，异常由 swallowError 兜底。 |
 | `delay()` | `frontend/src/utils/core/async:21` | Promise 包装的延迟。 |

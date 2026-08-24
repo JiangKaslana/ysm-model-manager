@@ -6,6 +6,11 @@
 //
 // 这里给这些“同步专用扫盘结果”再加一层短 TTL 缓存，使一次失效后的重算在 30s 内
 // 对同一目录/rtype 只真正 Walk 一次（与 scanner.ScanEntries 的去重效果对齐）。
+//
+// 铁律（引用返回契约）：
+// loadSyncScanCache 返回的 map 是缓存共享对象，消费方必须只读。
+// 禁止在 diff/对比后向返回的 map 写入“虚拟条目/临时条目”，否则会跨调用串数据。
+// 若未来确需修改，先 clone 再改，或在本包统一改为浅拷贝返回。
 package sync
 
 import (
@@ -61,6 +66,7 @@ func InvalidateSyncScanCaches() {
 	})
 }
 
+// loadSyncScanCache 命中时直接返回缓存内 map/MAP 引用；调用方按包级契约只读使用。
 func loadSyncScanCache[T any](cache *sync.Map, key any) (T, bool) {
 	v, ok := cache.Load(key)
 	if !ok {

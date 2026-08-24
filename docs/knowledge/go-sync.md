@@ -107,7 +107,7 @@ invariant_anchors:
 - **key 小写归一 vs 路径敏感操作**：`relKey` / `relKeyDirLevel` 把整个相对路径转小写做身份 key，push/pull 却用原路径——大小写敏感 FS（Linux 服务器仓库）上 `Pack/` 与 `pack/` 视为同一模型但操作各走各路，可能错配
 - **状态对比 IO 放大**：`BuildSyncItems` 对 dirLevel 类型现已注入 `scanner.ScanEntriesWithHit`（`SyncResourcesDirLevelScan`），全局仓库树不再每类型重复全树 Walk——scanner 缓存 30s TTL + single-flight，8 个 MMD 子类型 ×(1+N 整合包) 对同一目录实际只走盘一次（无嵌套模式类型从缓存 ModelEntry 反推；maid-model 回退 Walk）。**全局侧夹级 diff 也已复用缓存**：`DiffFolderContentsScan` 的全局侧从组根全量条目按 folder 前缀过滤（零 Walk）。**2026-08-24 新增两层缓存**：
   - **同步结果缓存**：`BuildSyncItems` 最终结果再叠 30s TTL 缓存（key=实例+subtype+roots+rtypes），scanner 失效自动清、Push/Pull/Toggle/SyncCustomToRepo 等显式清——整合包页在 30s 内反复 `stats:refresh` 不再重算。
-  - **同步目录扫描缓存**（`go/sync` 内）：`SyncResources` 的 collect、`collectEntriesWalkCached`（maid-model 等嵌套回退）、`collectFolderFiles`（实例侧夹级 diff）叠 30s TTL，同一 root+rtype 在 TTL 内只真正 Walk 一次；失效由 `scanner.OnCacheInvalidated` 自动联动，sync 内部 Push/Pull/Toggle/Relink/SyncCustomToRepo 也会显式清。
+  - **同步目录扫描缓存**（`go/sync` 内）：`SyncResources` 的 collect、`collectEntriesWalkCached`（maid-model 等嵌套回退）、`collectFolderFiles`（实例侧夹级 diff）叠 30s TTL，同一 root+rtype 在 TTL 内只真正 Walk 一次；失效由 `scanner.OnCacheInvalidated` 自动联动，sync 内部 Push/Pull/Toggle/Relink/SyncCustomToRepo 也会显式清。**缓存返回值为共享只读，消费方禁止写**（`sync_cache.go` 包级铁律）。
   - **残余 IO（失效后首次重算）**：`containsModelSubfolder`/`isDirTypeModelFolder` 逐层 ReadDir 仍会发生（实例侧文件量远小于全局，非大头）；refresh 全量 `InvalidateScanCache` 会使 30s 缓存冷掉触发一次组根重扫（单次，非 8×(N+1) 遍）。
 - **SyncToggleStatus 三级匹配的兜底误伤面**（观察项）：哈希 → 相对路径 → 纯文件名三级匹配的最后一级是 basename——同名不同路径的不同模型会被互相匹配启禁状态（sync.go fallback 注释自认「旧仓库特例」）；新仓库数据齐全时该兜底应可收紧
 
