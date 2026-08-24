@@ -52,7 +52,7 @@ invariant_anchors:
 - `ListVersions(mcRoot string) []types.VersionInstance` — 枚举实例，三种布局：目录本身是 instances（子目录含 `.minecraft`/`minecraft`）、PrismLauncher `{mcRoot}/instances/{name}/.minecraft/`、标准 `{mcRoot}/versions/{name}/`
 - `HasDotMinecraftSubdirs(path string) bool` / `FindMinecraftDir(parentDir string) string` — 实例布局探测辅助
 - `SyncResources(globalDir, instanceDir string, rtype ...string) types.ResourceSyncResult` — **ADR-064 阶段二：全树递归 + 相对路径（relKey）对比**全局 ↔ 整合包资源；嵌套文件天然区分、无同名冲突，原「只扫顶层」深度守卫已取消。含 `pack.mcmeta` 的文件夹作为整体单元（仅资源包类型收集）；过滤/归一化统一走 `types.IsResourceAllowed` / `types.NormalizeResourceName`，归并走 `ResourceDiff`（sync_diff.go）
-- `SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceSyncResult` — 按文件夹名对比（YSM 的 ysm.json 文件夹 / MMD 的 .pmx/.pmd 文件夹 / 蓝图 .nbt 文件夹），同名时文件夹优先于平铺文件；目录级语义 scanner 无法表达，保留自 Walk
+- `SyncResourcesDirLevel(globalDir, instanceDir, rtype string)` / 优化版 `SyncResourcesDirLevelScan(globalDir, instanceDir, rtype string, scanFn ScanEntriesFn)` — 按文件夹名对比（YSM 的 ysm.json 文件夹 / MMD 的 .pmx/.pmd 文件夹 / 蓝图 .nbt 文件夹），同名时文件夹优先于平铺文件。`SyncResourcesDirLevel` 走 filepath.Walk（测试/旧调用方，行为不变）；`SyncResourcesDirLevelScan` 注入 scanner 已缓存扫描结果，命中时从 ModelEntry 列表反推同步条目（无嵌套模式类型 MMD/YSM 与原 Walk 精确等价；含嵌套模式 maid-model 回退 Walk），消除 8 个 MMD 子类型 ×(1+N 整合包) 对同一仓库树的重复 Walk
 - `CompareGlobalInstanceHashes(mcRoot, globalDir, subDir, rtype string, scanFn ScanFunc, listFn ListVersionsFunc, hasModFn HasModInDirFn) []types.InstanceStatus` — 非 YSM 资源类型的通用实例状态对比，**ADR-064 与 `SyncResources` 同口径**（`relKey` 相对路径 + 大小 + `ResourceDiff` 单点归并，消除手工对齐漂移）；实例目录经 `types.FindInstDir` 解析（标准目录不存在时兜底扫描）。修复 MMD（`.pmx/.pmd` 不计算 SHA256，旧哈希比对恒 0）与蓝图（实例目录非标准路径）在侧栏不显示的问题
 - `ResourceDiff(global, instance map[string]DiffEntry) types.ResourceSyncResult` — **单点对比归并**（sync_diff.go，ADR-064 阶段一）：同名同大小 Synced / 同名不同大小 Missing / 仅单侧 Extra，结果排序确定性；`SyncResources` 与 `CompareGlobalInstanceHashes` 共享，key 由调用方决定（统一为 `relKey` 相对路径）
 - `GetLinkType(path string) types.LinkType` — 判定 `symlink` / `hardlink` / `copy` / `unknown`
@@ -105,7 +105,7 @@ invariant_anchors:
 - **patternFind 重复子树扫描**（性能）：`isDirTypeModelFolder` → `findNestedModelDir` 对 Walk 访问的每个目录做整棵子树递归搜索，祖先层与子孙层重复 IO。头注释已声明（sync_dirlevel.go L26-28）；剪枝需谨慎验证「EntryDir 嵌套在非 EntryDir 目录名下」场景
 - **DiffFolderContents 只比存在性不比内容**（正确性）：两侧同名同相对路径的文件一律标 synced，**不做哈希对比**（sync_dirlevel.go 注释明示）→ 实例侧文件被修改/损坏后仍显示 ✅ 已同步。若治理：对 size 不同即可判 diverged（与 `ResourceDiff` 同名不同大小口径对齐），不必全量 SHA256
 - **key 小写归一 vs 路径敏感操作**：`relKey` / `relKeyDirLevel` 把整个相对路径转小写做身份 key，push/pull 却用原路径——大小写敏感 FS（Linux 服务器仓库）上 `Pack/` 与 `pack/` 视为同一模型但操作各走各路，可能错配
-- **状态对比 IO 放大**：`BuildSyncItems` 每类型先 `collectEntries` 双侧全树 Walk，再对每个 synced/diverged 夹调 `DiffFolderContents`（内部又是双侧全树 Walk）+ `containsModelSubfolder`/`isDirTypeModelFolder` 逐层 ReadDir——大仓库 IO 成倍叠加。治理方向：diff 结果缓存或一次遍历同时收集夹内文件
+- **状态对比 IO 放大**：`BuildSyncItems` 对 dirLevel 类型现已注入 `scanner.ScanEntriesWithHit`（`SyncResourcesDirLevelScan`），全局仓库树不再每类型重复全树 Walk——scanner 缓存 30s TTL + single-flight，8 个 MMD 子类型 ×(1+N 整合包) 对同一目录实际只走盘一次（无嵌套模式类型从缓存 ModelEntry 反推；maid-model 回退 Walk）。**仍待治理**：每个 synced/diverged 夹调 `DiffFolderContents`（内部双侧全树 Walk）+ `containsModelSubfolder`/`isDirTypeModelFolder` 逐层 ReadDir，大仓库 IO 仍成倍叠加。治理方向：diff 结果缓存或一次遍历同时收集夹内文件
 - **SyncToggleStatus 三级匹配的兜底误伤面**（观察项）：哈希 → 相对路径 → 纯文件名三级匹配的最后一级是 basename——同名不同路径的不同模型会被互相匹配启禁状态（sync.go fallback 注释自认「旧仓库特例」）；新仓库数据齐全时该兜底应可收紧
 
 ## 相关
