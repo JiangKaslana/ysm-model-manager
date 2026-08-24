@@ -1,6 +1,6 @@
 // ===== 诊断页 + 设置页 + 工坊 GitHub（gh-* 全族）+ 二级菜单 + 模型列表行 + 队列状态 =====
 export const contentDiagCSS: string = `
-/* 设置页样式已移至 components.css（全局非 Shadow DOM 区域） */
+/* 设置页卡片/路径样式已迁 components.css；此处仅保留 :host-context 作用域规则 */
 .settings-group { padding:0 16px; }
 .setting-row { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--surf); border-radius:var(--radius-md); margin-bottom:4px; font-size:var(--fs-md); animation:fadeSlideUp var(--tr-enter) both; }
 .setting-row .label { color:var(--txt); }
@@ -105,28 +105,6 @@ export const contentDiagCSS: string = `
 .perf-no-hint { color:var(--muted);font-size:var(--fs-xs);padding:2px 2px 8px;text-align:center;opacity:.7; }
 .perf-trace-hint { color:var(--muted);font-size:var(--fs-xs);padding:4px 2px 8px;text-align:center;opacity:.6;border-top:1px solid var(--bd);margin-top:6px; }
 
-/* ===== 设置页卡片三栏网格 ===== */
-.stg-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-.stg-card { background:var(--surf); border:1px solid var(--bd); border-radius:var(--radius-lg); overflow:hidden; animation:fadeSlideUp var(--tr-enter) both; }
-.stg-card-hdr { display:flex;align-items:center;gap:6px; padding:8px 12px; font-size:var(--fs-sm); font-weight:600; color:var(--txt); border-bottom:1px solid var(--bd); background:var(--bg2,transparent); }
-.stg-card-body { padding:8px 12px; }
-.stg-path-val { display:flex; align-items:center; gap:4px; padding:var(--pad-btn-secondary) 10px; border:1px solid var(--bd); border-radius:var(--radius-md); cursor:pointer; font-size:var(--fs-sm); color:var(--txt); background:var(--bg); transition:border-color var(--tr-fast), background var(--tr-fast); width:100%; box-sizing:border-box; min-height:0; }
-.stg-path-val:hover { border-color:var(--accent); background:var(--hover); }
-.stg-path-val.derived:hover { border-color:var(--accent); background:var(--hover); }
-.stg-path-val.derived::before { content:"📁 "; }
-.stg-card-hint { font-size:var(--fs-xs); color:var(--muted); margin-bottom:6px; }
-.stg-card-acts { display:flex; gap:4px; }
-.stg-card-desc { font-size:var(--fs-xs); color:var(--muted); margin-top:6px; line-height:1.4; }
-.stg-adv-reset { margin-left:auto; }
-.stg-card-overridden { border-color:var(--accent); }
-.stg-custom-badge { font-size:9px;color:var(--accent); }
-.stg-path-picker { display:flex; align-items:center; gap:4px; padding:var(--pad-btn-secondary) 10px; border:1px solid var(--bd); border-radius:var(--radius-md); cursor:pointer; font-size:10px; color:var(--txt); background:var(--bg); transition:border-color var(--tr-fast), background var(--tr-fast); width:100%; box-sizing:border-box; min-height:0; }
-.stg-path-picker:hover { border-color:var(--accent); background:var(--hover); }
-@keyframes advPanelIn { from { opacity:0; max-height:0; } to { opacity:1; max-height:600px; } }
-@keyframes advPanelOut { from { opacity:1; max-height:600px; } to { opacity:0; max-height:0; } }
-#set-advanced-panel { overflow:hidden; }
-#set-advanced-panel.adv-open { animation: advPanelIn .25s ease forwards; }
-#set-advanced-panel.adv-closing { animation: advPanelOut .2s ease forwards; }
 :host-context(.no-animations) #set-advanced-panel { animation: none !important; }
 
 /* ===== 创意工坊 GitHub (gh-) ===== */

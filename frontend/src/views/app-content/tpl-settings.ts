@@ -51,7 +51,7 @@ export function settingsHTML(): string {
 <button class="stg-tab" data-tab="credits">🙏 ${t("settings.credits")}</button>
 </div>
 <!-- stg-tab-basic -->
-<div class="repo-tab-body" id="stg-tab-basic" style="overflow-y:auto">
+<div class="tab-body" id="stg-tab-basic" style="overflow-y:auto">
 <div class="stg-page" style="padding:16px 20px">
 
 <div class="section-title stg-title">⚙️ ${t("settings.paths.title")}</div>
@@ -123,7 +123,7 @@ export function settingsHTML(): string {
 <!-- /stg-tab-basic -->
 
 <!-- stg-tab-ui -->
-<div class="repo-tab-body" id="stg-tab-ui" style="display:none;overflow-y:auto">
+<div class="tab-body" id="stg-tab-ui" style="display:none;overflow-y:auto">
 <div class="stg-page" style="padding:16px 20px">
 
 <div class="section-title stg-title">🌙 ${t("settings.theme.title")}</div>
@@ -300,7 +300,7 @@ export function settingsHTML(): string {
 <!-- /stg-tab-ui -->
 
 <!-- stg-tab-parser -->
-<div class="repo-tab-body" id="stg-tab-parser" style="display:none;overflow-y:auto">
+<div class="tab-body" id="stg-tab-parser" style="display:none;overflow-y:auto">
 <div class="stg-page" style="padding:16px 20px">
 
 <div class="section-title stg-title">🧩 ${t("settings.parser")}</div>

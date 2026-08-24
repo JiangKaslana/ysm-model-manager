@@ -29,13 +29,13 @@ export function repositoryHTML(): string {
     "</div>" +
     '<div class="repo-layout" style="flex:1;display:flex;overflow:hidden">' +
     '<div class="repo-left" style="flex:1;display:flex;flex-direction:column;min-width:0">' +
-    '<div class="repo-tab-body" id="repo-tab-tree" style="flex:1;display:flex;flex-direction:column;overflow:hidden">' +
+    '<div class="tab-body" id="repo-tab-tree" style="flex:1;display:flex;flex-direction:column;overflow:hidden">' +
     // 默认 YSM 文件树（预览在外层共享）
     '<app-tree root="' + RESOURCE_TYPES.YSM + '" style="flex:1;min-width:0"></app-tree>' +
     "</div>" +
-    '<div class="repo-tab-body" id="repo-tab-recycle" style="display:none;flex:1;overflow-y:auto"></div>' +
-    '<div class="repo-tab-body" id="repo-tab-dedup" style="display:none;flex:1;overflow-y:auto;padding:12px"></div>' +
-    '<div class="repo-tab-body" id="repo-tab-oldest" style="display:none;flex:1;overflow-y:auto;overflow-x:hidden"></div>' +
+    '<div class="tab-body" id="repo-tab-recycle" style="display:none;flex:1;overflow-y:auto"></div>' +
+    '<div class="tab-body" id="repo-tab-dedup" style="display:none;flex:1;overflow-y:auto;padding:12px"></div>' +
+    '<div class="tab-body" id="repo-tab-oldest" style="display:none;flex:1;overflow-y:auto;overflow-x:hidden"></div>' +
     "</div>" +
     '<div class="preview-resize-handle" id="preview-resize-handle" style="width:4px;cursor:col-resize;background:transparent;transition:background var(--tr-fast);flex-shrink:0"></div>' +
     '<app-preview id="app-preview" style="width:var(--preview-width,220px);flex-shrink:0;border-left:1px solid var(--bd)"></app-preview>' +
@@ -50,7 +50,7 @@ export function instancesHTML(): string {
     '<div class="repo-tabs">' +
     '<button class="repo-tab active" data-tab="versions">🎮 ' + t("instances.tab.versions") + '</button>' +
     "</div>" +
-    '<div class="repo-tab-body" id="ins-tab-versions">' +
+    '<div class="tab-body" id="ins-tab-versions">' +
     '<div class="repo-layout">' +
     '<app-sidebar class="ins-sidebar"></app-sidebar>' +
     '<div class="ins-content" id="ins-content" style="display:flex;flex-direction:column;overflow:hidden">' +
@@ -72,7 +72,7 @@ export function diagnosticsHTML(): string {
 <div class="repo-tabs">
 <button class="repo-tab active" data-tab="diagnostics">🛠️ ${t("diagnostics.title")}</button>
 </div>
-<div class="repo-tab-body">
+<div class="tab-body">
 <div class="diag-wrapper">
 <div class="diag-left">
 <button class="diag-btn active" data-diag="log">
@@ -174,7 +174,7 @@ export function githubHTML(): string {
     '<div class="repo-tabs">' +
     '<button class="repo-tab active" data-tab="github">🐙 ' + t("workshop.title") + '</button>' +
     "</div>" +
-    '<div class="repo-tab-body" id="gh-tab-repos">' +
+    '<div class="tab-body" id="gh-tab-repos">' +
     '<div class="gh-page" id="gh-page">' +
     '<div class="gh-left" id="gh-left">' +
     '<div class="gh-left-head">' +
@@ -211,7 +211,7 @@ export function workshopHTML(): string {
     '<button class="btn-base sm" id="ws-export-btn" title="' + t("workshop.exportSiteTitle") + '">📤 ' + t("workshop.exportSite") + '</button>' +
     '<button class="btn-base sm" id="ws-import-btn" title="' + t("workshop.importSiteTitle") + '">📥 ' + t("workshop.importSite") + '</button>' +
     "</div>" +
-    '<div class="repo-tab-body" id="cr-tab-creators">' +
+    '<div class="tab-body" id="cr-tab-creators">' +
     '<div class="cr-page" id="ws-page">' +
     '<div class="cr-right" style="width:100%;flex:1;display:flex;flex-direction:column;overflow:hidden" id="ws-right">' +
     '<div class="cr-right-inner" id="ws-right-inner">' +

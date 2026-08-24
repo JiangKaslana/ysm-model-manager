@@ -5,7 +5,7 @@ import { GH_DOCS, GH_RELEASES, GH_REPO } from "../../utils/gh-links.ts";
 /** About 标签页（版本/特性/技术栈/链接/快速上手） */
 export function aboutHTML(): string {
   return `<!-- stg-tab-about -->
-<div class="repo-tab-body" id="stg-tab-about" style="display:none;overflow-y:auto">
+<div class="tab-body" id="stg-tab-about" style="display:none;overflow-y:auto">
 <div class="stg-page" style="padding:16px 20px">
 
 <div class="section-title stg-title">ℹ️ ${t("about.title")}</div>
@@ -100,7 +100,7 @@ const CONTRIBUTORS = [
 /** Credits 标签页（灵感来源/特别感谢） */
 export function creditsHTML(): string {
   return `<!-- stg-tab-credits -->
-<div class="repo-tab-body" id="stg-tab-credits" style="display:none;overflow-y:auto">
+<div class="tab-body" id="stg-tab-credits" style="display:none;overflow-y:auto">
 <div class="stg-page" style="padding:16px 20px">
 
 <div class="section-title stg-title">🎯 ${t("credits.inspiration")}</div>

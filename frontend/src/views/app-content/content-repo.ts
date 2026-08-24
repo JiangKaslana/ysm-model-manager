@@ -5,7 +5,7 @@ export const contentRepoCSS: string = `
 .repo-tab, .stg-tab { padding:var(--pad-nav) 14px;border-radius:var(--radius-md) var(--radius-md) 0 0;border:1px solid transparent;border-bottom:2px solid transparent;background:transparent;color:var(--muted);cursor:pointer;font-size:var(--fs-nav);font-family:inherit;transition:var(--tr-normal);white-space:nowrap;min-height:var(--touch-min);animation:fadeSlideDown var(--tr-enter) both; }
 .repo-tab:hover, .stg-tab:hover { color:var(--txt);background:var(--hover); }
 .repo-tab.active, .stg-tab.active { color:var(--accent);background:var(--surf);border-color:var(--bd) var(--bd) var(--accent) var(--bd);border-bottom-color:var(--accent);margin-bottom:-1px;font-weight:600; }
-.repo-tab-body { flex:1;display:flex;flex-direction:column;overflow:hidden; }
+.tab-body { flex:1;display:flex;flex-direction:column;overflow:hidden; }
 .ins-sidebar { width:var(--sidebar-w);flex:none; }
 .ins-content { flex:1;display:flex;flex-direction:column;overflow:hidden; }
 .ins-model-list .sec-title { font-size:var(--fs-sm);color:var(--muted);padding:4px 2px 2px;text-transform:uppercase;letter-spacing:.5px;margin-top:4px; }
