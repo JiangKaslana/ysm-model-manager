@@ -410,15 +410,22 @@ func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string,
 		registry := types.LoadRegistry()
 		filtered := make([]types.ModelEntry, 0, len(entries))
 		for _, e := range entries {
-			ext := strings.ToLower(filepath.Ext(e.Path))
+			// 与 scanner 同口径：文件级 .disabled/.ban 已由 scanner 恢复为原扩展名
+			// （e.Ext）。此处不能用 filepath.Ext(e.Path)——对 ToggleEnable 改名的
+			// xxx.zip.disabled 返回 ".disabled" 不在白名单，禁用文件被丢弃 → 仓库树
+			// 看不到禁用文件、无法再启用（2026-08-24 修复）。
+			ext := strings.ToLower(e.Ext)
 			if !extSet[ext] {
 				continue
 			}
 			// 容器扩展名（.zip/.7z）的类型归属不可靠扩展名判定（ADR-067）：
 			// 任何类型都可能被打包进容器，扩展名只表示「可能是」，必须打开容器
 			// 按内部 ZipEntries 内容指纹核验真实类型，不匹配 rtype 则丢弃。
+			// 禁用态容器（.disabled 后缀）跳过指纹核验——它是合法 rtype 文件被
+			// ToggleEnable 禁用而来，且 DetectResourceType 对 .disabled 路径判不出
+			// 容器类型（内部 filepath.Ext 变 .disabled）。
 			// 非容器扩展名维持扩展名白名单直接收的旧行为。
-			if types.IsContainerExt(ext) {
+			if types.IsContainerExt(ext) && !types.IsDisableSuffix(e.Path) {
 				if detected := cachedContainerType(e.Path, registry); detected != rtype {
 					continue
 				}

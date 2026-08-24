@@ -507,19 +507,21 @@ func TestResolveInstDirTarget_MaidModelStandard(t *testing.T) {
 // TestResolveInstDirTarget_MmdSubtype_3dSkinPrefix 防回归：ADR-094 位置路由要求
 // MMD 子类型实例目录必须带 3d-skin/ 前缀（游戏实际生成 6 个子目录）。
 // 游戏真实生成的目录（D:\PCL2\...\[实例]\3d-skin\ 下）：
-//   SceneModel / EntityPlayer / CustomMorph / CustomAnim / DefaultMorph / DefaultAnim
+//
+//	SceneModel / EntityPlayer / CustomMorph / CustomAnim / DefaultMorph / DefaultAnim
+//
 // 这几个类型的 instanceDir 必须是 "3d-skin/<子名>"，漏写一级（只写 "3d-skin"）
 // 会导致右键打开文件夹差一级、打开到错误父目录。
 // 注：StageAnim / mmd-shader 游戏未实际生成独立子目录，保持 "3d-skin" 父目录兜底（打开到父级仍可定位）。
 func TestResolveInstDirTarget_MmdSubtype_3dSkinPrefix(t *testing.T) {
 	// 游戏实际生成的 6 个子目录类型：instanceDir 必须精确为 "3d-skin/<子名>"
 	mustHaveSubdir := map[string]string{
-		"SceneModel":    "3d-skin/SceneModel",
-		"EntityPlayer":  "3d-skin/EntityPlayer",
-		"CustomMorph":   "3d-skin/CustomMorph",
-		"CustomAnim":    "3d-skin/CustomAnim",
-		"DefaultMorph":  "3d-skin/DefaultMorph",
-		"DefaultAnim":   "3d-skin/DefaultAnim",
+		"SceneModel":   "3d-skin/SceneModel",
+		"EntityPlayer": "3d-skin/EntityPlayer",
+		"CustomMorph":  "3d-skin/CustomMorph",
+		"CustomAnim":   "3d-skin/CustomAnim",
+		"DefaultMorph": "3d-skin/DefaultMorph",
+		"DefaultAnim":  "3d-skin/DefaultAnim",
 	}
 	for id, wantDir := range mustHaveSubdir {
 		rt := types.RegistryType(id)
@@ -948,3 +950,35 @@ func TestScanModelEntriesFiltered_ContainerMatchesOwnType(t *testing.T) {
 	}
 }
 
+func TestScanModelEntriesFiltered_DisabledRetained(t *testing.T) {
+	// 回归（2026-08-24）：文件级 .disabled 被 ToggleEnable 改名 xxx.zip.disabled 后，
+	// ScanModelEntriesFiltered 的扩展名白名单过滤不得把它丢弃——否则仓库树看不到
+	// 禁用文件、无法再启用。病灶：过滤用 filepath.Ext(e.Path) 对 .disabled 返回
+	// ".disabled" 不在白名单；修复用 scanner 已恢复禁用后缀的 e.Ext + 禁用态容器
+	// 跳过指纹核验（DetectResourceType 对 .disabled 路径判不出容器类型）。
+	base := t.TempDir()
+	dir := filepath.Join(base, "scan_filter_dir3")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeZip(t, filepath.Join(dir, "active.zip"), "pack.mcmeta")
+	// 禁用态容器：内部仍 pack.mcmeta（resourcepack 指纹），但文件名带 .disabled
+	writeZip(t, filepath.Join(dir, "disabled.zip.disabled"), "pack.mcmeta")
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	got := a.ScanModelEntriesFiltered(dir, "resourcepack", "", "资源包")
+
+	if len(got) != 2 {
+		t.Fatalf("resourcepack tab 应收 2 条（active.zip + disabled.zip.disabled），实际 %d 条: %+v", len(got), got)
+	}
+	names := make(map[string]bool)
+	for _, e := range got {
+		names[filepath.Base(e.Path)] = true
+		if e.Ext != ".zip" {
+			t.Errorf("条目 %s 的 Ext 应为 .zip（禁用后缀已恢复），实际 %q", e.Path, e.Ext)
+		}
+	}
+	if !names["active.zip"] || !names["disabled.zip.disabled"] {
+		t.Errorf("应收 active.zip 与 disabled.zip.disabled, 实际 %v", names)
+	}
+}

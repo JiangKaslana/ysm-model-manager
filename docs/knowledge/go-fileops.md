@@ -73,6 +73,7 @@ invariant_anchors:
 
 - `internal/app/app_files.go` / `resource_bindings.go`：薄壳转发（`DeleteResourcePack` 传 `a.ysmRoot()`、`ImportModelFolder` 传 `GetRepoRoot("ysm")`）
 - **统一启禁入口 `App.ToggleEnable(path)`**（app_files.go，2026-08-24 修复）：**无 rtype，纯路径包含判定**——root 归属由「哪个已知根包含此路径」决定（`toggleAllowedRoots` = FilesRoot + McRoot + ysmRoot(`GetRepoRoot("ysm")`) + CustomRoots 值），取最具体（最深）匹配根后复用 `fileops.ToggleModelEnable(root, path)`；成功 rename 后内部 `scanner.InvalidatePath`，缓存失效收进绑定。修复「资源包/整合包内路径被旧 `ToggleModelEnable` 的 `a.ysmRoot()` 单根守卫拒绝」（ysmRoot 是单类型时代化石，多类型扩展后各类型根统一走 `GetRepoRoot(rtype)`，写死它的旧守卫是本 bug 病灶）。`ToggleResourcePack` 的根集合同步复用 `toggleAllowedRoots`
+- **禁用态显示连带修复**（`ScanModelEntriesFiltered`，app_scan.go，2026-08-24）：类型扩展名白名单过滤改用 scanner 已恢复禁用后缀的 `e.Ext`（不能用 `filepath.Ext(e.Path)`——对 `xxx.zip.disabled` 返回 `.disabled` 不在白名单 → 禁用文件被丢弃 → 仓库树看不到、无法再启用）；禁用态容器跳过指纹核验（`DetectResourceType` 对 `.disabled` 路径判不出容器类型）
 - `go/scanner/`：扫描缓存失效（`InvalidatePath` / 整组导入后 `InvalidateCache`）
 - `go/types/`：`IsYsmEntryJSON` 辅助（`ysm.json` 识别）、`IsSupportedExt`、`ImportFileItem`、`ModelEntry`
 - 前端拖拽整组入口见 [import_queue](./import-queue.md)（`import-executor.importFolder` → `ImportModelFolder`）
