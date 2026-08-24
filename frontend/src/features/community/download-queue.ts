@@ -120,6 +120,8 @@ export function createDownloadQueue({
       getApp()
         .then((App) => {
           if (App.ClearScanCache) App.ClearScanCache();
+          // 同步清除 JS 侧 withCached 缓存，避免旧数据残留
+          import("../../views/app-content/community-data.ts").then(m => m.clearAllCommunityCache()).catch(() => {});
         })
         .catch(() => {});
     } catch (_) {

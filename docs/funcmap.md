@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 150 | 599 |
-| frontend/views | 117 | 338 |
+| frontend/views | 116 | 337 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **463** | **1996** |
+| **合计** | **462** | **1995** |
 
 ## Go·头像
 
@@ -1876,15 +1876,19 @@
 |------|--------|------|
 | `LocalCreator()` | `frontend/src/views/app-content/community-data:9` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
 | `CommunityData()` | `frontend/src/views/app-content/community-data:25` | 站点 + 创作者 + 作者 数据包 |
-| `forceRefreshCommunityMerge()` | `frontend/src/views/app-content/community-data:43` | 供测试强制刷新缓存 |
-| `forceRefreshScanAuthors()` | `frontend/src/views/app-content/community-data:48` | 供测试清除扫描缓存 |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:56` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:177` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:231` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:260` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:297` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:321` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:342` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `forceRefreshCommunityMerge()` | `frontend/src/views/app-content/community-data:47` | 供测试强制刷新缓存 |
+| `forceRefreshScanAuthors()` | `frontend/src/views/app-content/community-data:52` | 供测试清除扫描缓存 |
+| `forceRefreshCommunitySites()` | `frontend/src/views/app-content/community-data:57` | 清除站点索引缓存 |
+| `CommunityCacheStrategy()` | `frontend/src/views/app-content/community-data:75` | 动态缓存策略选择器（预留扩展点） 策略矩阵： 在线 + 非手动 → STALE（旧值立即可用，后台静默刷新） 在线 + 手动   → FORCE（用户明确要最新数据） 离线 + 有 |
+| `chooseCommunityCacheStrategy()` | `frontend/src/views/app-content/community-data:77` | — |
+| `clearAllCommunityCache()` | `frontend/src/views/app-content/community-data:90` | 统一失效入口：数据变更时一次性清除所有社区相关缓存 供导入/同步/下载完成后调用，替代分散的 invalidateCache 调用 |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:101` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:222` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:276` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:305` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:342` | 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:389` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:410` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:14` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:4` | — |
@@ -1975,11 +1979,6 @@
 | `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:70` | — |
 | `githubHTML()` | `frontend/src/views/app-content/tpl:171` | ===== GitHub 仓库页面 ===== |
 | `workshopHTML()` | `frontend/src/views/app-content/tpl:202` | — |
-| `CachePolicy()` | `frontend/src/views/app-content/with-cached:15` | 缓存策略 |
-| `withCached()` | `frontend/src/views/app-content/with-cached:34` | 带过期时间的异步缓存包装器 策略行为： NORMAL  — 命中缓存直接返回；过期则重新计算并更新缓存 STALE   — 命中缓存直接返回；过期则立即返回旧值 + 后台刷新缓存（ |
-| `invalidateCache()` | `frontend/src/views/app-content/with-cached:88` | 清除指定缓存条目 |
-| `clearAllCache()` | `frontend/src/views/app-content/with-cached:94` | 清除所有缓存 |
-| `getCacheTtlMs()` | `frontend/src/views/app-content/with-cached:100` | 获取缓存条目的剩余 TTL（毫秒），未命中返回 -1 |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:13` | 提取创作者头像（后台批量） 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache； 先前按「当前站点/作者限 |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |

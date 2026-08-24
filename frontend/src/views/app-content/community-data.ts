@@ -39,6 +39,10 @@ const COMMUNITY_MERGE_KEY = "community-merge";
 const SCAN_AUTHORS_TTL_MS = 5 * 60 * 1000; // 5 分钟
 const SCAN_AUTHORS_KEY = "scan-authors";
 
+// 站点索引 TTL：站点配置变更很少，30 分钟足够
+const SITES_FETCH_TTL_MS = 30 * 60 * 1000; // 30 分钟
+const SITES_FETCH_KEY = "community-sites";
+
 /** 供测试强制刷新缓存 */
 export function forceRefreshCommunityMerge(): void {
   invalidateCache(COMMUNITY_MERGE_KEY);
@@ -47,6 +51,47 @@ export function forceRefreshCommunityMerge(): void {
 /** 供测试清除扫描缓存 */
 export function forceRefreshScanAuthors(): void {
   invalidateCache(SCAN_AUTHORS_KEY);
+}
+
+/** 清除站点索引缓存 */
+export function forceRefreshCommunitySites(): void {
+  invalidateCache(SITES_FETCH_KEY);
+}
+
+/**
+ * 动态缓存策略选择器（预留扩展点）
+ *
+ * @param isOnline    是否在线（默认 true，未来接入 navigator.onLine）
+ * @param isFreshLoad 是否首次加载（默认 false，未来接入版本检测）
+ * @param isManual    是否用户主动触发（默认 false，由设置页按钮传入）
+ * @returns 推荐策略
+ *
+ * 策略矩阵：
+ *   在线 + 非手动 → STALE（旧值立即可用，后台静默刷新）
+ *   在线 + 手动   → FORCE（用户明确要最新数据）
+ *   离线 + 有缓存 → STALE（无法刷新，返回旧值）
+ *   离线 + 无缓存 → FORCE_SKIP（根本不尝试网络，直接返回空/降级）
+ */
+export type CommunityCacheStrategy = 'STALE' | 'FORCE' | 'FORCE_SKIP';
+
+export function chooseCommunityCacheStrategy(
+  opts: { isOnline?: boolean; isFreshLoad?: boolean; isManual?: boolean } = {},
+): CommunityCacheStrategy {
+  const { isOnline = true, isManual = false, isFreshLoad = false } = opts;
+  if (!isOnline) return 'FORCE_SKIP';
+  if (isManual || isFreshLoad) return 'FORCE';
+  return 'STALE';
+}
+
+/**
+ * 统一失效入口：数据变更时一次性清除所有社区相关缓存
+ * 供导入/同步/下载完成后调用，替代分散的 invalidateCache 调用
+ */
+export function clearAllCommunityCache(): void {
+  invalidateCache(COMMUNITY_MERGE_KEY);
+  invalidateCache(SCAN_AUTHORS_KEY);
+  invalidateCache(SITES_FETCH_KEY);
+  dbg("cache", "all community cache cleared");
 }
 
 /**
@@ -292,9 +337,32 @@ export function mergeCommunityCreators(
 }
 
 /**
- * 从 GitHub 拉取 workshop_sites.json（三路回退）
+ * 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL）
  */
 export async function fetchCommunitySites(mirror?: string): Promise<WorkshopSite[]> {
+  return withCached(SITES_FETCH_KEY, SITES_FETCH_TTL_MS, () => _fetchCommunitySitesRaw(mirror));
+  const attempts: Array<{ name: string; url: string; label: string }> = [
+    {
+      name: "raw",
+      url: "https://raw.githubusercontent.com/eghrhegpe/ysm-model-manager/main/workshop_sites.json",
+      label: "⏳ 站点索引: raw…",
+    },
+    {
+      name: "jsd",
+      url: "https://cdn.jsdelivr.net/gh/eghrhegpe/ysm-model-manager@main/workshop_sites.json",
+      label: "⏳ 站点索引: jsdelivr…",
+    },
+    {
+      name: "api",
+      url: "https://api.github.com/repos/eghrhegpe/ysm-model-manager/contents/workshop_sites.json",
+      label: "⏳ 站点索引: api…",
+    },
+  ];
+  return fetchWithFallback<WorkshopSite>(attempts, mirror);
+}
+
+/** 原始拉取实现（供 withCached 包裹） */
+async function _fetchCommunitySitesRaw(mirror?: string): Promise<WorkshopSite[]> {
   const attempts: Array<{ name: string; url: string; label: string }> = [
     {
       name: "raw",
