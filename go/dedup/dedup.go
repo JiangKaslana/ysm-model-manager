@@ -9,8 +9,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	"ysm-model-manager/go/fsutil"
 )
@@ -35,16 +37,32 @@ type Group struct {
 	Files []FileEntry `json:"files"` // 文件列表
 }
 
-// walkHashedFiles 遍历目录树，对每个非空普通文件计算 SHA256 后回调
-// (hash, path, size, modTime)。共用遍历（收敛 FindDuplicateFiles 与 CountDuplicates
-// 两份逐字重复的 WalkDir 逻辑，索引 6.8a）：
+// ===== 共享并行哈希管道（ADR-119）=====
+// 两个公开函数 FindDuplicateFiles / CountDuplicates 必须消费同一份管道——
+// 串行收集 → 并行哈希 → 序号还原 → 分组，输出与串行实现逐字节一致。
+
+// fileInfo 收集到的待哈希文件（保留遍历顺序，idx 即组序确定性的输入流序号）
+type fileInfo struct {
+	idx  int
+	path string
+	size int64
+	mod  int64 // ModTime UnixMilli（对齐 FileEntry.ModTime）
+}
+
+// hashResult 并行哈希结果，按 fileInfo.idx 槽位落位（零共享写竞争）
+type hashResult struct {
+	hash string
+	ok   bool // 读失败为 false（log-and-skip，与串行一致）
+}
+
+// collectFiles 串行 WalkDir 收集有效文件，保留遍历顺序。
+// 收敛 FindDuplicateFiles 与 CountDuplicates 的共用遍历（原 walkHashedFiles，索引 6.8a）：
 //   - 跳过符号链接（根本身是符号链接时返回 ErrSymlinkRoot——静默返回「无重复」= 假绿，
 //     陷阱 #11：sentinel + errors.Is 判定，禁文本匹配）；
 //   - 跳过目录（skipRecycle 时回收站目录 SkipDir，统一走 fsutil.IsRecycleDir）；
 //   - 跳过空文件（不同用途的空文件不是重复文件）。
-//
-// 回调返回 nil 继续遍历，非 nil 中止并透传该错误。
-func walkHashedFiles(dir string, skipRecycle bool, fn func(hash, path string, size int64, modTime int64) error) error {
+func collectFiles(dir string, skipRecycle bool) ([]fileInfo, error) {
+	var files []fileInfo
 	err := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			log.Printf("[dedup] 访问 %s 失败: %v", p, err)
@@ -74,28 +92,77 @@ func walkHashedFiles(dir string, skipRecycle bool, fn func(hash, path string, si
 			// 跳过空文件——不同用途的空文件（占位符、空 .animation 等）不是重复文件
 			return nil
 		}
-
-		// 计算 SHA256
-		f, err := os.Open(p)
-		if err != nil {
-			log.Printf("[dedup] 打开文件失败 %s: %v", p, err)
-			return nil
-		}
-		// WalkDir 回调是独立函数作用域，defer 在每次回调返回时执行，不跨文件堆积
-		defer f.Close()
-		h := sha256.New()
-		if _, err := io.Copy(h, f); err != nil {
-			log.Printf("[dedup] 读取文件失败 %s: %v", p, err)
-			return nil
-		}
-		hash := fmt.Sprintf("%x", h.Sum(nil))
-		return fn(hash, p, info.Size(), info.ModTime().UnixMilli())
+		files = append(files, fileInfo{
+			idx:  len(files),
+			path: p,
+			size: info.Size(),
+			mod:  info.ModTime().UnixMilli(),
+		})
+		return nil
 	})
-	return err
+	return files, err
+}
+
+// realComputeHash 计算单文件 SHA256（真实实现，见 computeHash 可注入说明）
+func realComputeHash(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		log.Printf("[dedup] 打开文件失败 %s: %v", path, err)
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		log.Printf("[dedup] 读取文件失败 %s: %v", path, err)
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+// computeHash 可注入变量：默认走 realComputeHash；测试可替换以模拟读失败
+// （P3 并行读失败回归，与 texture_cache removeFile 同款手法）。
+var computeHash = realComputeHash
+
+// hashFilesParallel 并行计算 SHA256，结果按收集顺序（idx 槽位）落位。
+// workers = min(files, GOMAXPROCS)——小文件集自然 workers=1，与串行开销等价
+// （ADR-119 P4：不设阈值双路径，统一走本管道）。读失败留 ok=false（log-and-skip）。
+func hashFilesParallel(files []fileInfo) []hashResult {
+	n := len(files)
+	results := make([]hashResult, n)
+	if n == 0 {
+		return results
+	}
+	workers := runtime.GOMAXPROCS(0)
+	if workers > n {
+		workers = n
+	}
+	jobs := make(chan fileInfo)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for f := range jobs {
+				hash, err := computeHash(f.path)
+				if err != nil {
+					continue // log-and-skip（realComputeHash 已记日志）
+				}
+				results[f.idx] = hashResult{hash: hash, ok: true}
+			}
+		}()
+	}
+	for _, f := range files {
+		jobs <- f
+	}
+	close(jobs)
+	wg.Wait()
+	return results
 }
 
 // FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组
 // skipRecycle 为 true 时跳过 .recycle 子目录
+// 消费共享并行哈希管道（ADR-119）：collectFiles + hashFilesParallel + 串行分组，
+// 组顺序 = hash 首次出现于遍历的顺序，组内 Files 按 Path 排序（确定性，逐字节与串行一致）。
 func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
 	dir = strings.TrimSpace(dir)
 	if dir == "" {
@@ -112,35 +179,40 @@ func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
 	}
 	dir = abs
 
+	files, err := collectFiles(dir, skipRecycle)
+	if err != nil {
+		return nil, err
+	}
+	results := hashFilesParallel(files)
+
 	hashGroups := make(map[string]*Group)
 	// 使用 map 保持插入顺序
 	var orderedKeys []string
-
-	err = walkHashedFiles(dir, skipRecycle, func(hash, path string, size int64, modTime int64) error {
-		if g, ok := hashGroups[hash]; ok {
+	for i, f := range files {
+		r := results[i]
+		if !r.ok {
+			continue // 读失败 log-and-skip，与串行一致
+		}
+		if g, ok := hashGroups[r.hash]; ok {
 			g.Files = append(g.Files, FileEntry{
-				Name:    filepath.Base(path),
-				Path:    path,
-				Size:    size,
-				ModTime: modTime,
+				Name:    filepath.Base(f.path),
+				Path:    f.path,
+				Size:    f.size,
+				ModTime: f.mod,
 			})
 		} else {
-			hashGroups[hash] = &Group{
-				Hash: hash,
-				Size: size,
+			hashGroups[r.hash] = &Group{
+				Hash: r.hash,
+				Size: f.size,
 				Files: []FileEntry{{
-					Name:    filepath.Base(path),
-					Path:    path,
-					Size:    size,
-					ModTime: modTime,
+					Name:    filepath.Base(f.path),
+					Path:    f.path,
+					Size:    f.size,
+					ModTime: f.mod,
 				}},
 			}
-			orderedKeys = append(orderedKeys, hash)
+			orderedKeys = append(orderedKeys, r.hash)
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	// 只保留有重复的分组，按首次出现顺序
@@ -158,17 +230,23 @@ func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
 }
 
 // CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数）
+// 同样消费共享并行哈希管道（ADR-119 P1：与 FindDuplicateFiles 同源，禁止双实现漂移）。
 func CountDuplicates(dir string, skipRecycle bool) (groups int, extraFiles int, err error) {
 	groups = 0
 	extraFiles = 0
-	hashCount := make(map[string]int)
 
-	err = walkHashedFiles(dir, skipRecycle, func(hash string, _ string, _ int64, _ int64) error {
-		hashCount[hash]++
-		return nil
-	})
+	files, err := collectFiles(dir, skipRecycle)
 	if err != nil {
 		return 0, 0, err
+	}
+	results := hashFilesParallel(files)
+
+	hashCount := make(map[string]int)
+	for i := range files {
+		if !results[i].ok {
+			continue // 读失败 log-and-skip
+		}
+		hashCount[results[i].hash]++
 	}
 
 	for _, count := range hashCount {
