@@ -372,3 +372,113 @@ func TestMatchGeoEntryBySubPath_EdgeCases(t *testing.T) {
 		t.Error("不相关 subPath 应返回 ok=false")
 	}
 }
+
+// ===== 分支级锁测试：resolveL0Model / resolveL0Texture 三条此前零覆盖的路径 =====
+// 定位：「L0 子域收进 struct」重构前的行为锚点补缺——以下分支若在搬迁中语义漂移，
+// 现有黑盒/白盒测试均不会报警，故单独成组锁定。
+
+// TestMaidL0_BasenameFallback_NonTemplatePath 锁定 basename 模糊回扫分支：
+// model_id 的目标文件刻意放在 7 个模型候选模板 / 5 个纹理候选模板全部脱靶的
+// 自定义目录下，必须走 lazyBuildBasenameIdx → nsGeoBasenames/nsPngBasenames 兜底。
+// 注意：models/main/、textures/ 根目录都在候选模板覆盖内（ModelIdPathInfer 走的是
+// 模板 #2/#3，并非回扫），不能拿来测本分支。
+func TestMaidL0_BasenameFallback_NonTemplatePath(t *testing.T) {
+	manifest := `{
+		"model_list": [
+			{"model_id": "mypack:hero", "name": "勇者"}
+		]
+	}`
+	entries := []rawZipEntry{
+		{name: "assets/mypack/maid_model.json", method: 0, data: manifest},
+		// custom_models/ custom_textures/ 不在任何候选模板内 → 强制触发 basename 回扫
+		{name: "assets/mypack/custom_models/hero.geo.json", method: 0, data: maidMiniGeo("hero", 0)},
+		{name: "assets/mypack/custom_textures/hero.png", method: 0, data: "HERO"},
+	}
+	data := makeZipRaw(t, entries)
+	model, pngs, _ := ParseFromZip(data, int64(len(data)))
+	if model == nil {
+		t.Fatal("basename 回扫应命中，模型不应为 nil")
+	}
+	if model.BoneCount != 1 {
+		t.Errorf("BoneCount = %d, 期望 1", model.BoneCount)
+	}
+	if len(pngs) != 1 {
+		t.Errorf("pngs = %d, 期望 1（纹理也应走 basename 回扫命中）", len(pngs))
+	}
+	if len(model.SubModels) != 1 || model.SubModels[0].Name != "勇者" {
+		t.Fatalf("SubModels = %+v, 期望 [{Name:勇者}]", model.SubModels)
+	}
+	// 回扫返回的是全量小写绝对路径（lazyBuildBasenameIdx 内 low 变量）
+	if model.SubModels[0].SourcePath != "assets/mypack/custom_models/hero.geo.json" {
+		t.Errorf("SourcePath = %q, 期望回扫命中的小写绝对路径", model.SubModels[0].SourcePath)
+	}
+}
+
+// TestMaidL0_ModelNsPrefixedExplicitPath 锁定 stripNsPrefix 混合写法分支：
+// 显式路径自带本命名空间前缀（"nsBase:path"，droneeee 一类混合写法的实战形态），
+// 应剥掉 "nsBase:" 后按形式 A 直接命中；纹理同理。
+func TestMaidL0_ModelNsPrefixedExplicitPath(t *testing.T) {
+	manifest := `{
+		"model": [
+			{"name": "drone",
+			 "model":   "mypack:models/entity/drone.json",
+			 "texture": "mypack:textures/entity/drone.png"}
+		]
+	}`
+	entries := []rawZipEntry{
+		{name: "assets/mypack/maid_model.json", method: 0, data: manifest},
+		{name: "assets/mypack/models/entity/drone.json", method: 0, data: maidMiniGeo("drone", 0)},
+		{name: "assets/mypack/textures/entity/drone.png", method: 0, data: "DRONE"},
+	}
+	data := makeZipRaw(t, entries)
+	model, pngs, _ := ParseFromZip(data, int64(len(data)))
+	if model == nil {
+		t.Fatal("带 nsBase 前缀的显式路径应命中，模型不应为 nil")
+	}
+	if model.BoneCount != 1 {
+		t.Errorf("BoneCount = %d, 期望 1", model.BoneCount)
+	}
+	if len(pngs) != 1 {
+		t.Errorf("pngs = %d, 期望 1", len(pngs))
+	}
+	if len(model.SubModels) != 1 || model.SubModels[0].Name != "drone" {
+		t.Fatalf("SubModels = %+v, 期望 [{Name:drone}]", model.SubModels)
+	}
+	if model.SubModels[0].SourcePath != "assets/mypack/models/entity/drone.json" {
+		t.Errorf("SourcePath = %q, 期望剥前缀后的形式 A 路径", model.SubModels[0].SourcePath)
+	}
+}
+
+// TestMaidL0_ModelForeignNs_TreatedAsModelId 锁定「冒号前缀 ≠ 本命名空间」分支：
+// item.Model 形如 "otherpack:hero" 时 stripNsPrefix 不剥（前缀不符）、形式 A 未命中，
+// 应回退为 model_id 推断（resolveL0Model 的 mid 兜底），取冒号后名字部分
+// 走候选字典命中本命名空间同名文件。
+func TestMaidL0_ModelForeignNs_TreatedAsModelId(t *testing.T) {
+	manifest := `{
+		"model": [
+			{"name": "foreign", "model": "otherpack:hero", "texture": "textures/entity/hero.png"}
+		]
+	}`
+	entries := []rawZipEntry{
+		{name: "assets/mypack/maid_model.json", method: 0, data: manifest},
+		{name: "assets/mypack/models/entity/hero.json", method: 0, data: maidMiniGeo("hero", 0)},
+		{name: "assets/mypack/textures/entity/hero.png", method: 0, data: "HERO"},
+	}
+	data := makeZipRaw(t, entries)
+	model, pngs, _ := ParseFromZip(data, int64(len(data)))
+	if model == nil {
+		t.Fatal("外来命名空间冒号写法应经 model_id 推断命中，模型不应为 nil")
+	}
+	if model.BoneCount != 1 {
+		t.Errorf("BoneCount = %d, 期望 1", model.BoneCount)
+	}
+	if len(pngs) != 1 {
+		t.Errorf("pngs = %d, 期望 1", len(pngs))
+	}
+	if len(model.SubModels) != 1 || model.SubModels[0].Name != "foreign" {
+		t.Fatalf("SubModels = %+v, 期望 [{Name:foreign}]", model.SubModels)
+	}
+	if model.SubModels[0].SourcePath != "assets/mypack/models/entity/hero.json" {
+		t.Errorf("SourcePath = %q, 期望候选字典命中的 hero.json", model.SubModels[0].SourcePath)
+	}
+}
