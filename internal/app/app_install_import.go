@@ -12,6 +12,7 @@ import (
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/importer"
 	"ysm-model-manager/go/installer"
+	"ysm-model-manager/go/instance"
 	ysmsync "ysm-model-manager/go/sync"
 	"ysm-model-manager/go/types"
 )
@@ -45,7 +46,10 @@ func (a *App) InstallModelWithOverlay(src, customDir string) (string, error) {
 
 // SyncCustomToRepo 同步整合包自定义目录到仓库（执行逻辑下沉 go/sync）
 func (a *App) SyncCustomToRepo(customDir, repoDir string) (int, error) {
-	return ysmsync.SyncCustomToRepo(customDir, repoDir, a.ScanModelEntries, a.logger.Add)
+	n, err := ysmsync.SyncCustomToRepo(customDir, repoDir, a.ScanModelEntries, a.logger.Add)
+	// 收编会改全局仓库目录；显式清同步结果缓存（该入口当前不走 scanner.InvalidateCache）。
+	instance.InvalidateSyncItemsCache()
+	return n, err
 }
 
 func (a *App) ImportModelFile(fileName, base64Data string) error {

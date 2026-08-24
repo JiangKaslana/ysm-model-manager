@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"ysm-model-manager/go/scanner"
 	"ysm-model-manager/go/types"
@@ -790,5 +791,60 @@ func TestBuildSyncItems_NestedContainer_DeepHierarchy(t *testing.T) {
 	}
 	if char.Status != types.SyncStatusMissing {
 		t.Errorf("character 应为 missing（实例空），got %q", char.Status)
+	}
+}
+
+// TestBuildSyncItems_ResultCacheHitReturnsCloneAndInvalidateClears 锁定整合包同步结果缓存：
+// 命中缓存返回克隆（调用方修改不污染缓存）；InvalidateSyncItemsCache 清空后不再命中。
+func TestBuildSyncItems_ResultCacheHitReturnsCloneAndInvalidateClears(t *testing.T) {
+	ins := &types.VersionInstance{Name: "cache", VersionDir: t.TempDir()}
+	rtypes := []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}
+	roots := map[string]string{"ysm": t.TempDir()}
+	key := buildSyncItemsKey(ins, rtypes, roots, "")
+	syncItemsCache.Store(key, &syncItemsCacheEntry{
+		items: []types.ResourceSyncItem{{
+			Path: "/sentinel", Name: "sentinel",
+			Status: types.SyncStatusSynced, Type: "ysm",
+		}},
+		expiresAt: time.Now().Add(time.Hour),
+	})
+
+	got := BuildSyncItems(ins, rtypes, roots, "")
+	if len(got) != 1 || got[0].Name != "sentinel" {
+		t.Fatalf("应命中同步结果缓存返回 sentinel，实际 %+v", got)
+	}
+	got[0].Name = "mutated"
+	if again := BuildSyncItems(ins, rtypes, roots, ""); again[0].Name != "sentinel" {
+		t.Fatalf("缓存返回必须克隆，不能因调用方修改而污染：%+v", again)
+	}
+
+	InvalidateSyncItemsCache()
+	if _, ok := syncItemsCache.Load(key); ok {
+		t.Fatal("InvalidateSyncItemsCache 后缓存应被清空")
+	}
+	after := BuildSyncItems(ins, rtypes, roots, "")
+	if len(after) > 0 && after[0].Name == "sentinel" {
+		t.Fatalf("失效后不应再返回 sentinel，实际 %+v", after)
+	}
+}
+
+// TestBuildSyncItems_ScannerInvalidateClearsResultCache 锁定 scanner 失效钩子：
+// scanner.InvalidateCache 必须连带清空 instance 的同步结果缓存。
+func TestBuildSyncItems_ScannerInvalidateClearsResultCache(t *testing.T) {
+	ins := &types.VersionInstance{Name: "cache", VersionDir: t.TempDir()}
+	rtypes := []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}
+	roots := map[string]string{"ysm": t.TempDir()}
+	key := buildSyncItemsKey(ins, rtypes, roots, "")
+	syncItemsCache.Store(key, &syncItemsCacheEntry{
+		items: []types.ResourceSyncItem{{
+			Path: "/sentinel", Name: "sentinel",
+			Status: types.SyncStatusSynced, Type: "ysm",
+		}},
+		expiresAt: time.Now().Add(time.Hour),
+	})
+
+	scanner.InvalidateCache()
+	if _, ok := syncItemsCache.Load(key); ok {
+		t.Fatal("scanner.InvalidateCache 应触发 instance 失效钩子清空同步结果缓存")
 	}
 }

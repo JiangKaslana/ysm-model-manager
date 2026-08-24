@@ -269,7 +269,11 @@ func (a *App) GetResourceInstanceStatus(rtype, mcRoot, repoDir string) []types.I
 }
 
 func (a *App) SyncModelToggleStatus(instanceCustomDir, filesRoot string) (int, int, error) {
-	return ysmsync.SyncToggleStatus(instanceCustomDir, filesRoot, a.ScanModelEntries)
+	n1, n2, err := ysmsync.SyncToggleStatus(instanceCustomDir, filesRoot, a.ScanModelEntries)
+	// 启禁同步会改实例侧文件名，但当前不走 scanner 失效；这里显式清同步结果缓存，
+	// 否则新增的 30s 同步结果缓存会让整合包页继续展示旧启禁状态。
+	instance.InvalidateSyncItemsCache()
+	return n1, n2, err
 }
 
 // RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版）
@@ -282,7 +286,11 @@ func (a *App) RelinkCustomDir(customDir, filesRoot string) (int, error) {
 			break
 		}
 	}
-	return a.relinkDir(customDir, filesRoot, rtype)
+	n, err := a.relinkDir(customDir, filesRoot, rtype)
+	// 重链接会改实例目录，显式清同步结果缓存（RelinkAll 已走 scanner.InvalidateCache，
+	// 单目录入口补这一处防 30s 同步结果缓存遮盖变更）。
+	instance.InvalidateSyncItemsCache()
+	return n, err
 }
 
 // relinkDir 重新应用链接模式到单个目录
@@ -389,7 +397,10 @@ func (a *App) PushResourceToInstance(rtype, instanceName string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return ysmsync.PushResources(rtype, globalDir, targetDir, a.getLinkMode(), a.logger.Add)
+	n, opErr := ysmsync.PushResources(rtype, globalDir, targetDir, a.getLinkMode(), a.logger.Add)
+	// 推送会改实例目录；该入口当前不走 scanner.InvalidateCache，显式清同步结果缓存。
+	instance.InvalidateSyncItemsCache()
+	return n, opErr
 }
 
 // PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync）
@@ -407,7 +418,10 @@ func (a *App) PullResourceFromInstance(rtype, instanceName string) (int, error) 
 	if err != nil {
 		return 0, err
 	}
-	return ysmsync.PullResources(rtype, globalDir, targetDir, a.logger.Add)
+	n, opErr := ysmsync.PullResources(rtype, globalDir, targetDir, a.logger.Add)
+	// 拉取会改全局仓库目录；该入口当前不走 scanner.InvalidateCache，显式清同步结果缓存。
+	instance.InvalidateSyncItemsCache()
+	return n, opErr
 }
 
 // findInstanceDir 解析整合包实例的资源类型子目录（Push/Pull 共用）
@@ -444,7 +458,10 @@ func (a *App) PullSingleResourceFromInstance(rtype, srcPath, instanceName string
 	if err != nil {
 		return err
 	}
-	return ysmsync.PullSingleResource(globalDir, targetDir, srcPath)
+	opErr := ysmsync.PullSingleResource(globalDir, targetDir, srcPath)
+	// 拉取单条会改全局仓库；显式清同步结果缓存（保持单文件操作后立即刷新）。
+	instance.InvalidateSyncItemsCache()
+	return opErr
 }
 
 // PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync）
@@ -461,7 +478,10 @@ func (a *App) PushSingleResourceToInstance(rtype, instanceName, filePath string)
 	if err != nil {
 		return err
 	}
-	return ysmsync.PushSingleResource(filePath, customDir, globalDir, a.getLinkMode(), rtype)
+	opErr := ysmsync.PushSingleResource(filePath, customDir, globalDir, a.getLinkMode(), rtype)
+	// 推送单条会改实例目录；显式清同步结果缓存（保持单文件操作后立即刷新）。
+	instance.InvalidateSyncItemsCache()
+	return opErr
 }
 
 // ========== 整合包全类型同步状态 ==========

@@ -146,6 +146,35 @@ func normalizeScanKey(dir string) string {
 	return filepath.Clean(dir)
 }
 
+// cacheInvalidators 扫描缓存失效后的派生缓存清理钩子。
+// 上层（如 go/instance 的同步结果缓存）注册后，可以在 InvalidateCache/InvalidatePath
+// 时同步失效，避免“磁盘已变、派生结果仍旧”。
+var (
+	cacheInvalidatorsMu sync.Mutex
+	cacheInvalidators   []func()
+)
+
+// OnCacheInvalidated 注册一个扫描缓存失效回调。回调会在 InvalidateCache 或
+// InvalidatePath 完成清理后同步调用，适合清理依赖 scanner 结果的派生缓存。
+// 注册通常发生在包 init/启动期，调用方自行保证幂等。
+func OnCacheInvalidated(fn func()) {
+	if fn == nil {
+		return
+	}
+	cacheInvalidatorsMu.Lock()
+	cacheInvalidators = append(cacheInvalidators, fn)
+	cacheInvalidatorsMu.Unlock()
+}
+
+func notifyCacheInvalidated() {
+	cacheInvalidatorsMu.Lock()
+	fns := append([]func(){}, cacheInvalidators...)
+	cacheInvalidatorsMu.Unlock()
+	for _, fn := range fns {
+		fn()
+	}
+}
+
 // InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用）
 func InvalidateCache() {
 	cacheGen.Add(1)
@@ -153,6 +182,7 @@ func InvalidateCache() {
 		scanCache.Delete(key)
 		return true
 	})
+	notifyCacheInvalidated()
 }
 
 // invalidateKeyVersion 原子递增指定 key 的版本戳（P1 修复：原子操作防竞态）
@@ -188,6 +218,7 @@ func InvalidatePath(dir string) {
 		}
 		return true
 	})
+	notifyCacheInvalidated()
 }
 
 // ========== 模型扫描 ==========

@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"ysm-model-manager/go/fsutil"
-	ysmsync "ysm-model-manager/go/sync"
 	"ysm-model-manager/go/scanner"
+	ysmsync "ysm-model-manager/go/sync"
 	"ysm-model-manager/go/types"
 )
 
@@ -22,6 +24,77 @@ type ResourceTypeInfo struct {
 	Icon string `json:"icon"`
 }
 
+// ===== 同步结果缓存（30s TTL）=====
+// 背景：仓库树复用 scanner 30s 缓存后已经“正常 30 秒后刷新”；但整合包 BuildSyncItems
+// 仍有 file-level SyncResources、maid-model 嵌套回退 Walk、实例侧 DiffFolderContents
+// 等多条路径每次 stats:refresh 都会重新走盘。这里在最终结果上再叠一层短 TTL 缓存，
+// 让整合包页也在 30s 内走缓存；真实数据变更由 scanner 失效钩子 + 显式失效清理。
+var syncItemsCache sync.Map // string → *syncItemsCacheEntry
+
+type syncItemsCacheEntry struct {
+	items     []types.ResourceSyncItem
+	expiresAt time.Time
+}
+
+const syncItemsCacheTTL = 30 * time.Second
+
+func init() {
+	scanner.OnCacheInvalidated(InvalidateSyncItemsCache)
+}
+
+// InvalidateSyncItemsCache 清空全部整合包同步结果缓存。
+// 由 scanner 失效钩子自动调用；单文件 push/pull 等不走 scanner 失效的入口需显式调用。
+func InvalidateSyncItemsCache() {
+	syncItemsCache.Range(func(key, _ interface{}) bool {
+		syncItemsCache.Delete(key)
+		return true
+	})
+}
+
+func buildSyncItemsKey(ins *types.VersionInstance, rtypes []ResourceTypeInfo, filesRoots map[string]string, subtype string) string {
+	var b strings.Builder
+	b.WriteString(ins.Name)
+	b.WriteByte(0)
+	b.WriteString(ins.VersionDir)
+	b.WriteByte(0)
+	b.WriteString(subtype)
+	b.WriteByte(0)
+	rootKeys := make([]string, 0, len(filesRoots))
+	for k := range filesRoots {
+		rootKeys = append(rootKeys, k)
+	}
+	sort.Strings(rootKeys)
+	for _, k := range rootKeys {
+		b.WriteString(k)
+		b.WriteByte('=')
+		b.WriteString(filesRoots[k])
+		b.WriteByte(0)
+	}
+	for _, rt := range rtypes {
+		b.WriteString(rt.ID)
+		b.WriteByte('|')
+		b.WriteString(rt.Name)
+		b.WriteByte('|')
+		b.WriteString(rt.Icon)
+		b.WriteByte(0)
+	}
+	return b.String()
+}
+
+func cloneSyncItems(items []types.ResourceSyncItem) []types.ResourceSyncItem {
+	if items == nil {
+		return nil
+	}
+	out := make([]types.ResourceSyncItem, len(items))
+	for i, it := range items {
+		out[i] = it
+		if it.Children != nil {
+			out[i].Children = cloneSyncItems(it.Children)
+		}
+	}
+	return out
+}
+
 // BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入）
 // subtype 指定子类型目录名（如 EntityPlayer/SceneModel），仅 MMD 分组类型有效；
 // 非空时路径限定到 subtype 子目录，避免扫全目录（清单式扫路径限定目录，与仓库侧同构）。
@@ -30,6 +103,14 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 	// 当前唯一调用方保证非 nil，但防御范式（ADR-044②）要求导出入口自守卫
 	if ins == nil {
 		return nil
+	}
+	key := buildSyncItemsKey(ins, rtypes, filesRoots, subtype)
+	if v, ok := syncItemsCache.Load(key); ok {
+		entry := v.(*syncItemsCacheEntry)
+		if time.Now().Before(entry.expiresAt) {
+			return cloneSyncItems(entry.items)
+		}
+		syncItemsCache.Delete(key)
 	}
 	// 各资源类型允许的扩展名过滤统一走 types.IsTypeModelFile（ADR-064 收敛：
 	// 原 extMatch 内联同义实现；差异仅空扩展集分支——BuildSyncItems 的类型均有
@@ -209,6 +290,10 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		}
 		items = append(items, typeItems...)
 	}
+	syncItemsCache.Store(key, &syncItemsCacheEntry{
+		items:     cloneSyncItems(items),
+		expiresAt: time.Now().Add(syncItemsCacheTTL),
+	})
 	return items
 }
 
