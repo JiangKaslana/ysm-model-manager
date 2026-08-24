@@ -199,8 +199,8 @@ describe("startDedup", () => {
   const groupJson = JSON.stringify([
     {
       files: [
-        { path: "/a/dup.ysm", name: "dup.ysm", size: 1024 },
-        { path: "/b/dup.ysm", name: "dup.ysm", size: 2048 },
+        { path: "/a/dup.ysm", name: "dup.ysm", size: 1024, modTime: 2000 },
+        { path: "/b/dup.ysm", name: "dup.ysm", size: 2048, modTime: 1000 },
       ],
     },
   ]);
@@ -219,7 +219,7 @@ describe("startDedup", () => {
     await startDedup(list, esc, "ysm");
     await waitFor(() => list.querySelector(".diag-dedup-group"));
     expect(list.textContent).toContain("组 1");
-    // 默认选中最大文件（size 2048）
+    // 默认保留策略 oldest → 保留最早修改的文件（b, modTime 1000 → index 1）
     const checked = list.querySelector(
       'input[name="dedup-keep-0"]:checked',
     ) as HTMLInputElement;

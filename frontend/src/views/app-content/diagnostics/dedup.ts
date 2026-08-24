@@ -23,8 +23,66 @@ let _keepPolicy = "oldest";
 let _priorityPath = "";
 
 /**
+ * 根据保留策略决定默认保留的文件索引
+ * - "oldest": 保留最早修改的文件
+ * - "newest": 保留最新修改的文件
+ * - "path": 保留指定路径前缀匹配的文件
+ * - 其他/默认: 保留最大文件（size 最大）
+ */
+function getDefaultKeepIdx(
+  files: { path: string; size: number; modTime?: string | number }[],
+  policy: string,
+  priorityPath: string,
+): number {
+  if (files.length === 0) return 0;
+
+  // 辅助函数：将 modTime 转为数字时间戳。
+  // Go 端 FileEntry.ModTime 是 UnixMilli 数字（JSON 数字），Date.parse 对数字
+  // 字符串返回 NaN——必须按 number 直用，否则 oldest/newest 策略全部落到
+  // MAX_SAFE_INTEGER 退化为「保留第一个」，keepPolicy 形同虚设（code_review P3）。
+  const toTimestamp = (modTime?: string | number): number => {
+    if (modTime === undefined || modTime === null || modTime === "") return Number.MAX_SAFE_INTEGER;
+    const ts = typeof modTime === "number" ? modTime : Date.parse(modTime);
+    return isNaN(ts) ? Number.MAX_SAFE_INTEGER : ts;
+  };
+
+  switch (policy) {
+    case "oldest":
+      return files.reduce(
+        (best, e, i, arr) =>
+          toTimestamp(e.modTime) < toTimestamp(arr[best].modTime) ? i : best,
+        0,
+      );
+    case "newest":
+      return files.reduce(
+        (best, e, i, arr) =>
+          toTimestamp(e.modTime) > toTimestamp(arr[best].modTime) ? i : best,
+        0,
+      );
+    case "path":
+      if (priorityPath) {
+        const idx = files.findIndex((f) =>
+          f.path.toLowerCase().startsWith(priorityPath.toLowerCase()),
+        );
+        if (idx >= 0) return idx;
+      }
+      // 未匹配时回退到 size 最大
+      return files.reduce(
+        (best, e, i, arr) => (e.size > arr[best].size ? i : best),
+        0,
+      );
+    default:
+      return files.reduce(
+        (best, e, i, arr) => (e.size > arr[best].size ? i : best),
+        0,
+      );
+  }
+}
+
+/**
  * 初始化去重配置面板（标签页打开时调用，配置实时保存）
- * @param list 结果列表容器（dedup-result-list）
+ * @param list 配置面板容器（dedup-config-panel，独立于 result-list——
+ *             扫描结果不覆盖面板，控件扫描后仍可改；code_review P3）
  */
 export function initDedupConfig(list: HTMLElement): void {
   const renderConfigPanel = () => {
@@ -194,9 +252,10 @@ export async function startDedup(
         }) +
         "</div>";
       await new Promise((r) => setTimeout(r, 10));
-      // 暂时使用旧的调用方式（待 Wails 绑定重新生成后可启用配置传递）
-      // const configStr = JSON.stringify(dedupConfig);
-      const jsonStr = await FindDuplicateFiles(target.dir);
+      // 传递配置到 Go 后端
+      const dedupConfig = getDedupConfig();
+      const configStr = JSON.stringify(dedupConfig);
+      const jsonStr = await FindDuplicateFiles(target.dir, configStr);
       // P2 修复（子代理审计）：绑定层出错时返回 {"error":...}——原把扫描失败当
       // 「✅ 无重复」假绿（根符号链接/权限错误时用户以为全扫到了而实际没扫）；
       // 此处区分失败与无重复，失败立即中断并提示
@@ -248,10 +307,7 @@ ${rtResult.icon} ${rtResult.label}
 
       for (const group of rtResult.groups) {
         const files = group.files || [];
-        const defaultIdx = files.reduce(
-          (best, e, i, arr) => (e.size > arr[best].size ? i : best),
-          0,
-        );
+        const defaultIdx = getDefaultKeepIdx(files, _keepPolicy, _priorityPath);
         const totalSize = files.reduce((s, e) => s + e.size, 0);
         const gi = groupIndex++;
 

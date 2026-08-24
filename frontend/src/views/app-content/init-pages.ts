@@ -167,11 +167,15 @@ function bindTabs(
               '<span style="flex:1;font-size:var(--fs-sm);color:var(--muted)">📌 ' + t("dedup.sha256Hint") + '</span>' +
               '<button class="btn-base accent" id="dedup-start-btn">🔗 ' + t("dedup.startDedup") + '</button>' +
               "</div>" +
+              // P3 修复（code_review）：配置面板独立容器——扫描结果只写 result-list，
+              // 面板不被 innerHTML 覆盖销毁（原 initDedupConfig 渲染进 result-list，
+              // 首次扫描后策略/保留策略控件永久消失，无法再配置）
+              '<div id="dedup-config-panel" style="padding:4px 12px;border-bottom:1px solid var(--bd)"></div>' +
               '<div id="dedup-result-list" style="flex:1;overflow-y:auto;padding:8px 0"></div>' +
               "</div>";
-            const list = container.querySelector("#dedup-result-list") as HTMLElement | null;
+            const panel = container.querySelector("#dedup-config-panel") as HTMLElement | null;
             // 初始化配置面板（显示策略选择，无需点击按钮）
-            if (list) initDedupConfig(list);
+            if (panel) initDedupConfig(panel);
             const doDedup = (): void => {
               const listEl = container.querySelector("#dedup-result-list");
               if (listEl)

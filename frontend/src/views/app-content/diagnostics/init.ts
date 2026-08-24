@@ -7,7 +7,7 @@ import { getApp } from "../../../backend/app.ts";
 import { can } from "../../../utils/dom/capabilities.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { loadDiagnosticsLogs, loadRuntimeLogs, type EscFn } from "./logs.ts";
-import { scanConflicts } from "./conflicts.ts";
+import { scanConflicts, scanSyncConflicts } from "./conflicts.ts";
 import { initPerfPanel, renderLoadTraceSection } from "./perf.ts";
 import { runHealthAudit } from "./health.ts";
 
@@ -144,6 +144,13 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
   root
     .getElementById("diag-scan-conflict")
     ?.addEventListener("click", () => scanConflicts(root, esc));
+  // 同步冲突检测按钮
+  root
+    .getElementById("diag-scan-sync-conflict")
+    ?.addEventListener("click", () => {
+      const list = root.getElementById("diag-sync-conflict-list") as HTMLElement | null;
+      if (list) scanSyncConflicts(list, esc);
+    });
   // 性能面板：single-bench / gui-flow / perf-log（CLI 消费层，perf-cli.ts）+ 加载剖析（trace store 消费层，perf-trace.ts）
   // ADR-040 拆到 perf.ts 入口；业务逻辑已下沉至 perf-cli.ts / perf-trace.ts
   initPerfPanel(root, esc);
@@ -165,14 +172,16 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
       const conflictPanel = root.getElementById("diag-conflict") as HTMLElement | null;
       const perfPanel = root.getElementById("diag-perf") as HTMLElement | null;
       const healthPanel = root.getElementById("diag-health") as HTMLElement | null;
+      const syncConflictPanel = root.getElementById("diag-sync-conflict") as HTMLElement | null;
       if (logPanel) logPanel.style.display = name === "log" ? "" : "none";
       if (runtimePanel) runtimePanel.style.display = name === "runtime" ? "" : "none";
       if (conflictPanel) conflictPanel.style.display = name === "conflict" ? "" : "none";
       if (perfPanel) perfPanel.style.display = name === "perf" ? "" : "none";
       if (healthPanel) healthPanel.style.display = name === "health" ? "" : "none";
+      if (syncConflictPanel) syncConflictPanel.style.display = name === "sync-conflict" ? "" : "none";
       // 重启入场动画
       const activePanel =
-        name === "log" ? logPanel : name === "runtime" ? runtimePanel : name === "conflict" ? conflictPanel : name === "perf" ? perfPanel : healthPanel;
+        name === "log" ? logPanel : name === "runtime" ? runtimePanel : name === "conflict" ? conflictPanel : name === "perf" ? perfPanel : name === "health" ? healthPanel : syncConflictPanel;
       if (activePanel) {
         activePanel.style.animation = "none";
         void activePanel.offsetHeight;
