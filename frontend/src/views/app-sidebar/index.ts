@@ -356,7 +356,7 @@ class AppSidebar extends WebComponentBase {
   }
 
   private _renderCards(): void {
-    const container = this._root.getElementById("vg");
+    const container = this._root.getElementById("sidebar-instance-list");
     if (!container) return;
     renderVersionCards(container, this._instances);
     // 先清理旧的事件监听，再绑定新的（防止重复累积）

@@ -68,7 +68,7 @@ function typeMenuItemsHTML(): string {
 }
 
 export function listContainerHTML(): string {
-  return `<div class="list" id="vg">${skeletonHTML()}</div>`;
+  return `<div class="list" id="sidebar-instance-list">${skeletonHTML()}</div>`;
 }
 
 /** 加载骨架屏 */
@@ -117,8 +117,8 @@ export function vcHeaderHTML(
       : allZero
         ? `<span class="tag" data-role="all-synced">0</span>`
         : "");
-  return `<div class="vc-header">
-<div class="vc-hdr-row1"><span class="name">${esc(name)}</span></div>
-<div class="vc-hdr-row2"><input type="checkbox" class="chk" data-testid="sidebar-check" data-idx="${idx}"><span class="pkg-icon" aria-hidden="true">📦</span><span class="vc-pkg-count">${chips}</span></div>
+  return `<div class="instance-card-header">
+<div class="card-name-row"><span class="name">${esc(name)}</span></div>
+<div class="card-status-row"><input type="checkbox" class="chk" data-testid="sidebar-check" data-idx="${idx}"><span class="pkg-icon" aria-hidden="true">📦</span><span class="instance-card-pkg-count">${chips}</span></div>
 </div>`;
 }

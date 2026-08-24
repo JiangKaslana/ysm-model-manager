@@ -9,13 +9,13 @@ import { getApp } from "../../backend/app.ts";
 
 // 绑定每个卡片展开/折叠
 // 返回清理函数，组件销毁时移除事件监听
-// 注意：事件委托在 #vg 上，outerHTML 替换子元素不破坏监听
+// 注意：事件委托在 #sidebar-instance-list 上，outerHTML 替换子元素不破坏监听
 //
 // P2 修复（审核）：绑定状态从「模块级共享变量」收敛为「每 ShadowRoot 独立状态
 // （WeakMap）」。原 _lastList/_clickHandler/_contextHandler/currentInstances 在多实例
 // 并存时串扰：A 重绑会顺手移除 B 在用的监听、点击数据被 B 覆盖（幽灵状态）。WeakMap
 // 生命周期随 root 走，组件卸载即随 GC 回收。
-// 数据新鲜度保留：renderVersionCards 只清 innerHTML 不替换 #vg 元素，每次 _reload 后
+// 数据新鲜度保留：renderVersionCards 只清 innerHTML 不替换 #sidebar-instance-list 元素，每次 _reload 后
 // bindCardEvents 走 list 复用早退复用旧闭包；若闭包直接捕获 instances 参数会拿到首次
 // 调用的旧数组（点击/右键数据陈旧）。统一改读 state.instances（同一状态对象，每次调用
 // 先刷新），早退分支的旧 handler 也能读到最新数据。
@@ -32,9 +32,9 @@ export function bindCardEvents(
   instances: SidebarInstance[],
 ): () => void {
   // 先清掉旧的右键容器（防止重复）
-  root.querySelectorAll(".vc-context-menu").forEach((el) => el.remove());
+  root.querySelectorAll(".instance-card-context-menu").forEach((el) => el.remove());
 
-  const list = root.getElementById("vg");
+  const list = root.getElementById("sidebar-instance-list");
   if (!list) return () => {};
 
   let state = bindStates.get(root);
@@ -67,13 +67,13 @@ export function bindCardEvents(
     const target = e.target as HTMLElement | null;
     if (!target) return;
     if (target.closest("button") || target.closest(".chk")) return;
-    const vc = target.closest(".vc") as HTMLElement | null;
-    if (!vc) return;
-    const hdr = vc.querySelector(".vc-header") as HTMLElement | null;
+    const card = target.closest(".instance-card") as HTMLElement | null;
+    if (!card) return;
+    const hdr = card.querySelector(".instance-card-header") as HTMLElement | null;
     if (!hdr) return;
     // 高亮当前选中的版本
     root
-      .querySelectorAll(".vc-header")
+      .querySelectorAll(".instance-card-header")
       .forEach((h) => h.classList.remove("active", "ripple"));
     // 涟漪效果：记录点击坐标，触发涟漪动画
     const rect = hdr.getBoundingClientRect();
@@ -82,7 +82,7 @@ export function bindCardEvents(
     hdr.classList.add("active", "ripple");
     setTimeout(() => hdr.classList.remove("ripple"), 500);
     // 发送选中事件
-    const idx = parseInt(vc.dataset.idx || "", 10);
+    const idx = parseInt(card.dataset.idx || "", 10);
     const pkg = st.instances[idx];
     if (pkg) {
       bus.emit("package:selected", pkg);
@@ -101,14 +101,14 @@ export function bindCardEvents(
   const contextHandler = (e: MouseEvent): void => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
-    const vc = target.closest(".vc") as HTMLElement | null;
-    if (!vc) return;
+    const card = target.closest(".instance-card") as HTMLElement | null;
+    if (!card) return;
     e.preventDefault();
     e.stopPropagation();
-    const idx = parseInt(vc.dataset.idx || "", 10);
+    const idx = parseInt(card.dataset.idx || "", 10);
     const pkg = st.instances[idx];
     if (!pkg) return;
-    const nameEl = vc.querySelector(".name");
+    const nameEl = card.querySelector(".name");
     const name = nameEl ? nameEl.textContent.replace(/^📦\s*/, "") : "";
     // P0 修复：rtype 必须明确指定，不能 fallback 到 YSM——
     // 否则 MMD/VRC 等右键操作会按 YSM 逻辑处理，打开错误目录。
@@ -173,11 +173,11 @@ function restoreSelectedCard(
     if (!savedName) return;
     const idx = instances.findIndex((i) => i.name === savedName);
     if (idx < 0) return;
-    const vc = root.querySelector(`.vc[data-idx="${idx}"]`);
-    if (!vc) return;
+    const card = root.querySelector(`.instance-card[data-idx="${idx}"]`);
+    if (!card) return;
     // 用 requestAnimationFrame 确保 DOM 渲染完成后再标记高亮
     requestAnimationFrame(() => {
-      const hdr = vc.querySelector(".vc-header");
+      const hdr = card.querySelector(".instance-card-header");
       if (!hdr) return;
       hdr.classList.add("active");
       // P2 修复：仅选中项实际变化时才 emit——原每次重载都重发，

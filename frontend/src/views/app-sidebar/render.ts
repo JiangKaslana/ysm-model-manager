@@ -16,11 +16,11 @@ export function renderVersionCards(
     return;
   }
   instances.forEach((ins, idx) => {
-    const vc = document.createElement("div");
-    vc.className = "vc";
-    vc.dataset.idx = String(idx);
-    vc.style.animationDelay = `${idx * 40}ms`;
-    vc.innerHTML = vcHeaderHTML(
+    const card = document.createElement("div");
+    card.className = "instance-card";
+    card.dataset.idx = String(idx);
+    card.style.animationDelay = `${idx * 40}ms`;
+    card.innerHTML = vcHeaderHTML(
       ins.name,
       ins.synced,
       ins.missing,
@@ -30,6 +30,6 @@ export function renderVersionCards(
       ins.hasMod,
       ins.rtype || currentRepoType(),
     );
-    container.appendChild(vc);
+    container.appendChild(card);
   });
 }

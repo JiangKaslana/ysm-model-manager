@@ -50,14 +50,14 @@ describe("renderVersionCards", () => {
     expect(vcHeaderHTML).not.toHaveBeenCalled();
   });
 
-  it("非空实例 → 生成 vc 卡片，传递全部字段与 idx", () => {
+  it("非空实例 → 生成 instance-card 卡片，传递全部字段与 idx", () => {
     const container = document.createElement("div");
     renderVersionCards(container, [
       instance({ name: "P1", synced: 3, missing: 2, extra: 1, status: "missing", hasMod: false, rtype: "pack" }),
       instance({ name: "P2" }),
     ]);
 
-    const cards = Array.from(container.querySelectorAll<HTMLElement>(".vc"));
+    const cards = Array.from(container.querySelectorAll<HTMLElement>(".instance-card"));
     expect(cards).toHaveLength(2);
     expect(cards[0].dataset.idx).toBe("0");
     expect(cards[1].dataset.idx).toBe("1");
@@ -107,13 +107,13 @@ describe("vcHeaderHTML 徽章 chips（真实实现）", () => {
     expect(html).toContain('<span class="tag" data-role="all-synced">0</span>');
   });
 
-  it("状态计数以 data-role 落 DOM，且 📦 收口为可定位的 .pkg-icon / .vc-pkg-count", () => {
+  it("状态计数以 data-role 落 DOM，且 📦 收口为可定位的 .pkg-icon / .instance-card-pkg-count", () => {
     const html = vcHeaderHTML("P", 2, 5, 1, "missing", 0, true);
     expect(html).toContain('data-role="synced-count"');
     expect(html).toContain('data-role="missing-count"');
     expect(html).toContain('data-role="extra-count"');
     expect(html).toContain('<span class="pkg-icon" aria-hidden="true">📦</span>');
-    expect(html).toContain('<span class="vc-pkg-count">');
+    expect(html).toContain('<span class="instance-card-pkg-count">');
   });
 
   it("hasMod && 非全零 → 不显 '0' 标签", () => {

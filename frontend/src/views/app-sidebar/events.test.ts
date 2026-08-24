@@ -1,5 +1,5 @@
 // ===== sidebar 卡片事件绑定测试 =====
-// 覆盖：list 复用（renderVersionCards 只清 innerHTML 不替换 #vg）时，
+// 覆盖：list 复用（renderVersionCards 只清 innerHTML 不替换 #sidebar-instance-list）时，
 // 旧 handler 闭包仍读到最新 instances（P2 数据陈旧回归）
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -9,7 +9,7 @@ const { emitMock } = vi.hoisted(() => ({
 
 vi.mock("../../bus.ts", () => ({ bus: { emit: emitMock, on: vi.fn() } }));
 vi.mock("./tpl.ts", () => ({
-  vcHeaderHTML: () => '<div class="vc-header"><div class="name"></div></div>',
+  vcHeaderHTML: () => '<div class="instance-card-header"><div class="name"></div></div>',
 }));
 // bindFooter 的 btn-mc 检测走 getApp → 动态 import bindings：mock 阻断
 // Wails runtime（getApp 在 node/jsdom 下 window.go 不存在 → 走动态 import 路径）
@@ -46,8 +46,8 @@ function instance(name: string): SidebarInstance {
 function mount(instances: SidebarInstance[]) {
   const host = document.createElement("div");
   const root = host.attachShadow({ mode: "open" });
-  root.innerHTML = '<div class="list" id="vg"></div>';
-  const container = root.getElementById("vg")!;
+  root.innerHTML = '<div class="list" id="sidebar-instance-list"></div>';
+  const container = root.getElementById("sidebar-instance-list")!;
   renderVersionCards(container, instances);
   const cleanup = bindCardEvents(root, instances);
   return { root, container, cleanup };
@@ -60,22 +60,22 @@ beforeEach(() => {
 });
 
 describe("bindCardEvents — list 复用数据陈旧回归（P2）", () => {
-  it("reload 后 #vg 未替换时点击仍用最新 instances", () => {
+  it("reload 后 #sidebar-instance-list 未替换时点击仍用最新 instances", () => {
     const A = [instance("A1"), instance("A2")];
     const { container } = mount(A);
 
     // 首次点击 → 用 A 数据
-    (container.querySelector(".vc-header") as HTMLElement).click();
+    (container.querySelector(".instance-card-header") as HTMLElement).click();
     expect(emitMock).toHaveBeenLastCalledWith("package:selected", A[0]);
 
-    // 模拟 _reload：同一容器重渲染（#vg 元素不变）+ 重新绑定（走 list 复用早退分支）
+    // 模拟 _reload：同一容器重渲染（#sidebar-instance-list 元素不变）+ 重新绑定（走 list 复用早退分支）
     const B = [instance("B1"), instance("B2")];
     renderVersionCards(container, B);
     bindCardEvents(container.getRootNode() as ShadowRoot, B);
 
     // 修复前：旧闭包捕获首次的 A 数组 → 点击 emit A[0]（陈旧）；
     // 修复后：currentInstances 已更新为 B → emit B[0]
-    (container.querySelector(".vc-header") as HTMLElement).click();
+    (container.querySelector(".instance-card-header") as HTMLElement).click();
     expect(emitMock).toHaveBeenLastCalledWith("package:selected", B[0]);
   });
 });
@@ -123,7 +123,7 @@ describe("restoreSelectedCard 去重状态机（P2 复核修复回归护栏）",
   it("点击卡片后 reload 不重复 emit（P2-1 点击路径同步去重状态）", async () => {
     const { container } = mount([instance("B1"), instance("B2")]);
     // 点击卡片 → emit 一次 + localStorage 记录
-    (container.querySelectorAll(".vc-header")[0] as HTMLElement).click();
+    (container.querySelectorAll(".instance-card-header")[0] as HTMLElement).click();
     expect(emitMock).toHaveBeenCalledTimes(1);
     expect(emitMock).toHaveBeenLastCalledWith("package:selected", instance("B1"));
 
@@ -146,8 +146,8 @@ describe("restoreSelectedCard 去重状态机（P2 复核修复回归护栏）",
     rp.rtype = "resourcepack";
     const host = document.createElement("div");
     const root = host.attachShadow({ mode: "open" });
-    root.innerHTML = '<div class="list" id="vg"></div>';
-    const container = root.getElementById("vg")!;
+    root.innerHTML = '<div class="list" id="sidebar-instance-list"></div>';
+    const container = root.getElementById("sidebar-instance-list")!;
     renderVersionCards(container, [rp]);
     bindCardEvents(root, [rp]);
     await flushRaf();
@@ -167,7 +167,7 @@ describe("bindCardEvents — 多实例并存互不干扰（模块级状态收敛
     renderVersionCards(A.container, [instance("A2")]);
     bindCardEvents(A.container.getRootNode() as ShadowRoot, [instance("A2")]);
     // B 的监听必须仍然有效，且点击读到的是 B 的实例数据
-    (B.container.querySelector(".vc-header") as HTMLElement).click();
+    (B.container.querySelector(".instance-card-header") as HTMLElement).click();
     expect(emitMock).toHaveBeenLastCalledWith("package:selected", instance("B1"));
   });
 });
