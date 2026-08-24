@@ -11,6 +11,7 @@ source_files:
   - go/sync/sync_discovery.go
   - go/sync/sync_push.go
   - go/sync/sync_relink.go
+  - go/sync/conflict.go
   - go/fsutil/hardlink_windows.go
   - go/fsutil/hardlink_other.go
 use_when:
@@ -39,6 +40,7 @@ invariant_anchors:
 - `sync.go` — 实例枚举、哈希差异对比、启禁状态同步、资源差异对比、链接类型判定
 - `sync_push.go` — 推送/拉取执行循环（`PushResources` / `PullResources` 及单条变体、`SyncCustomToRepo`），失败逐条经注入的 `Logger` 记账、聚合成一条错误返回
 - `sync_relink.go` — 重链接执行（`RelinkDir`）：按哈希把实例文件重新指向仓库版本，文件夹级类型用「备份→重建→失败回滚」保证不丢目录
+- `conflict.go` — 冲突检测与解决（`DetectConflicts` 比较本地/远端同名文件 SHA256，哈希不同→内容冲突；`ResolveConflict` 单文件 + `ResolveConflicts` 批量，三种策略 force_remote/force_local/manual；`suggestStrategy` 按修改时间推荐策略）
 - `go/fsutil/hardlink_windows.go` — Windows 硬链接检测（`syscall.GetFileInformationByHandle` → `NumberOfLinks`，收敛自原 link_windows.go）
 - `go/fsutil/hardlink_other.go` — Unix/macOS 硬链接检测（`syscall.Stat_t.Nlink`，含目录排除 ADR-038，收敛自原 link_unix.go）
 
@@ -60,6 +62,10 @@ invariant_anchors:
 - `PushSingleResource(filePath, customDir, globalDir, linkMode, rtype string) error` / `PullSingleResource(globalDir, targetDir, srcPath string) error` — 单条推送/拉取；`.json`/`.pmx`/`.pmd` 与目录按整文件夹处理
 - `SyncCustomToRepo(customDir, repoDir string, scanFn, logger) (int, error)` — 把实例 custom 目录的模型收编回仓库，同哈希/同名跳过
 - `RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn, logger) (int, error)` — 按哈希重链接实例目录到仓库版本
+- `DetectConflicts(localDir, remoteDir, rtype string) (*ConflictReport, error)` — 冲突检测（conflict.go）：收集两端文件 SHA256，哈希不同→`ConflictContentModified`，大小不同→`ConflictSizeMismatch`（防御分支）
+- `ResolveConflict(conflict FileConflict, strategy ResolutionStrategy, localDir, remoteDir string) error` — 单文件冲突解决：`force_remote` 先备份本地再用远端覆盖（失败回滚备份），`force_local` 不操作，`manual` 返回错误
+- `ResolveConflicts(conflicts []FileConflict, defaultStrategy ResolutionStrategy, localDir, remoteDir string) (resolved, failed, manual int)` — 批量解决，`SuggestedStrategy==manual` 时回退到 `defaultStrategy`
+- `suggestStrategy(localTime, remoteTime time.Time) ResolutionStrategy` — 按修改时间推荐：远端新→`force_remote`，本地新→`force_local`，相同→`manual`
 - 函数类型：`ScanFunc`（扫描注入，由 internal/app 提供）、`ListVersionsFunc`、`HasModInDirFn`、`Logger`（导入日志回调，薄壳注入 `App.logger.Add`）
 
 ## 与其他子系统关系

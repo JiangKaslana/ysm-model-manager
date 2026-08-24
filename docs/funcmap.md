@@ -36,7 +36,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 27 | 208 |
+| Go(internal)·应用入口 | 28 | 212 |
 | 前端·根 (app-modules/bus) | 4 | 18 |
 | frontend/backend | 18 | 97 |
 | 前端·核心 | 18 | 36 |
@@ -48,7 +48,7 @@
 | frontend/views | 115 | 330 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **459** | **1973** |
+| **合计** | **460** | **1977** |
 
 ## Go·头像
 
@@ -757,8 +757,8 @@
 | `App.OpenFolder()` | `internal/app/app_scan:609` | — |
 | `App.OpenInstanceFolder()` | `internal/app/app_scan:645` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
 | `progressReader.Read()` | `internal/app/app_scan:679` | — |
-| `App.DetectConflicts()` | `internal/app/app_sync:43` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
-| `App.ResolveConflicts()` | `internal/app/app_sync:87` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
+| `App.DetectConflicts()` | `internal/app/app_sync:15` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
+| `App.ResolveConflicts()` | `internal/app/app_sync:59` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:29` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:38` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -800,6 +800,10 @@
 | `App.ExecuteCLI()` | `internal/app/cli_bridge:31` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
 | `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:140` | GetAllowedCLICommands 返回可用 CLI 命令列表 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
+| `ErrorJSON()` | `internal/app/error_json:16` | ErrorJSON 构建带 error 字段的响应 JSON。 |
+| `SyncErrorJSON()` | `internal/app/error_json:31` | SyncErrorJSON 构建同步操作的错误响应（含 conflicts / totalConflicts 基础字段）。 |
+| `ResolveErrorJSON()` | `internal/app/error_json:39` | ResolveErrorJSON 构建冲突解决的操作错误响应（含 resolved / failed / manual 基础字段）。 |
+| `DedupErrorJSON()` | `internal/app/error_json:49` | DedupErrorJSON 构建去重扫描的错误响应（仅含 error 字段，前端契约：DedupGroup[] | {error}）。 |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:45` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:74` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
 | `desktopPathManager.AppDataRoot()` | `internal/app/pathmgr_desktop:10` | — |
