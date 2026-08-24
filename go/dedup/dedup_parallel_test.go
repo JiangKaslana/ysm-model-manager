@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"ysm-model-manager/go/internal/testutil"
@@ -129,5 +130,76 @@ func TestFindDuplicateFiles_ReadFailureSkipped(t *testing.T) {
 	}
 	if gCount != 1 || extra != 1 {
 		t.Fatalf("CountDuplicates 应 1 组 1 多余（c 跳过），got groups=%d extra=%d", gCount, extra)
+	}
+}
+
+// size 预分组（零语义损失）：不同 size 的文件不可能同 hash，唯一 size 的文件必不成组，
+// 应跳过其哈希（消解大文件长尾）。注入 computeHash 计数验证不触发。
+func TestHashFilesParallel_UniqueSizeSkipsHash(t *testing.T) {
+	dir := t.TempDir()
+	// a/c 同尺寸(4B)但内容不同（需哈希、不重复）；b 唯一尺寸(7B)（应跳过哈希）
+	testutil.CreateTestFile(t, dir, "a.txt", "aaaa")
+	testutil.CreateTestFile(t, dir, "b.txt", "bbbbbbb")
+	testutil.CreateTestFile(t, dir, "c.txt", "cccc")
+
+	called := map[string]int{}
+	var calledMu sync.Mutex // 测试桩计数被多个 worker 并发写，需加锁
+	old := computeHash
+	t.Cleanup(func() { computeHash = old })
+	computeHash = func(path string) (string, error) {
+		calledMu.Lock()
+		called[path]++
+		calledMu.Unlock()
+		return realComputeHash(path)
+	}
+
+	groups, err := FindDuplicateFiles(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := called[filepath.Join(dir, "b.txt")]; ok {
+		t.Fatal("唯一尺寸文件不应被哈希（size 预分组）")
+	}
+	if _, ok := called[filepath.Join(dir, "a.txt")]; !ok {
+		t.Fatal("同尺寸文件 a 应被哈希（可能成组）")
+	}
+	if _, ok := called[filepath.Join(dir, "c.txt")]; !ok {
+		t.Fatal("同尺寸文件 c 应被哈希（可能成组）")
+	}
+	if len(groups) != 0 {
+		t.Fatalf("a/c 内容不同不应成组，got %d 组", len(groups))
+	}
+	// CountDuplicates 同样跳过唯一尺寸（共享管道，P1 一致性）
+	_, _, err = CountDuplicates(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := called[filepath.Join(dir, "b.txt")]; ok {
+		t.Fatal("CountDuplicates 也不应哈希唯一尺寸文件")
+	}
+}
+
+// size 预分组不破坏成组：同尺寸同内容仍成组，唯一尺寸文件不影响（确定性）
+func TestFindDuplicateFiles_SizeGrouping_Mixed(t *testing.T) {
+	dir := t.TempDir()
+	dup := "same-size-same-content"
+	testutil.CreateTestFile(t, dir, "dup1.txt", dup)
+	testutil.CreateTestFile(t, dir, "dup2.txt", dup)
+	testutil.CreateTestFile(t, dir, "dup3.txt", dup)
+	testutil.CreateTestFile(t, dir, "uniq1.txt", "unique-content-number-one")
+	testutil.CreateTestFile(t, dir, "uniq2.txt", "unique-content-number-two")
+
+	groups, err := FindDuplicateFiles(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 1 {
+		t.Fatalf("应 1 组重复，got %d", len(groups))
+	}
+	if len(groups[0].Files) != 3 {
+		t.Fatalf("组内应 3 副本，got %d", len(groups[0].Files))
+	}
+	if !sort.StringsAreSorted(pathsOf(groups[0].Files)) {
+		t.Fatalf("组内路径未排序: %v", pathsOf(groups[0].Files))
 	}
 }

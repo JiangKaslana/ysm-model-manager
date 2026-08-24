@@ -28,7 +28,7 @@ invariant_anchors:
 
 ## 对外 API / 入口
 
-- `FindDuplicateFiles` — 扫描目录，按文件哈希分组，返回重复文件组（`FileEntry`/`Group`）；符号链接跳过防环、空文件跳过、超大文件流式全量哈希（`io.Copy` 错误已检查）；**共享并行哈希管道（ADR-119：串行收集 + 并行 SHA256 + 序号还原）**，组顺序 = hash 首次出现于遍历的顺序、组内 Files 按 Path 排序，输出与串行实现逐字节一致（确定性契约，CLI `dedup clean` 依赖组内排序）
+- `FindDuplicateFiles` — 扫描目录，按文件哈希分组，返回重复文件组（`FileEntry`/`Group`）；符号链接跳过防环、空文件跳过、超大文件流式全量哈希（`io.Copy` 错误已检查）；**共享并行哈希管道（ADR-119：串行收集 + 并行 SHA256 + 序号还原）**，组顺序 = hash 首次出现于遍历的顺序、组内 Files 按 Path 排序，输出与串行实现逐字节一致（确定性契约，CLI `dedup clean` 依赖组内排序）；**size 预分组（零语义损失）**——唯一 size 的文件必不成组、跳过其哈希，把大文件长尾收窄到"同尺寸大文件"
 - `CountDuplicates` — 统计重复文件总数（**消费同一并行管道，与 `FindDuplicateFiles` 同源，禁止双实现漂移**）
 - `CleanEmptyDirs` — 清理空目录（内部 `removeEmptyDirs`/`isEmptyDir` 递归实现）；**无 `skipRecycle` 参数**（与 fsutil 签名不一致，且全仓库无生产消费方——闲置 API，P3 观察）
 

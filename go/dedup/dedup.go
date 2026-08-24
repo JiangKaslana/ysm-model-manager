@@ -126,11 +126,19 @@ var computeHash = realComputeHash
 // hashFilesParallel 并行计算 SHA256，结果按收集顺序（idx 槽位）落位。
 // workers = min(files, GOMAXPROCS)——小文件集自然 workers=1，与串行开销等价
 // （ADR-119 P4：不设阈值双路径，统一走本管道）。读失败留 ok=false（log-and-skip）。
+//
+// size 预分组（零语义损失）：不同 size 的文件不可能同 hash（SHA256 同 ⟹ 内容同 ⟹ size 同），
+// 唯一 size 的文件必不成组，跳过其哈希——消解大文件长尾（占死 worker 的大文件通常尺寸唯一），
+// 输出逐字节不变（唯一尺寸文件本就永不进 len>1 组）。
 func hashFilesParallel(files []fileInfo) []hashResult {
 	n := len(files)
 	results := make([]hashResult, n)
 	if n == 0 {
 		return results
+	}
+	sizeCount := make(map[int64]int, n)
+	for _, f := range files {
+		sizeCount[f.size]++
 	}
 	workers := runtime.GOMAXPROCS(0)
 	if workers > n {
@@ -152,7 +160,9 @@ func hashFilesParallel(files []fileInfo) []hashResult {
 		}()
 	}
 	for _, f := range files {
-		jobs <- f
+		if sizeCount[f.size] > 1 { // 唯一 size 不进 job（results 槽留零值 ok=false）
+			jobs <- f
+		}
 	}
 	close(jobs)
 	wg.Wait()
