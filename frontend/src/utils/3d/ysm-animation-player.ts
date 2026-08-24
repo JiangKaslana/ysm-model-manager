@@ -176,9 +176,20 @@ export function createYsmAnimPlayer(
       currentIdx = index;
       elapsed = 0;
       playing = true;
-      // 清空混合状态：下一帧从当前姿态重新采集 rest，实现平滑切入新 clip
-      restPose.clear();
-      blendAlpha.clear();
+      // 跨 clip transition：从当前姿态重新采集 rest，alpha 归零。
+      // 下一帧从当前姿态插值到新 clip 的目标姿态，实现平滑切入。
+      // 不 clear() restPose——保留当前姿态作为过渡起点。
+      for (const [name, node] of boneByName) {
+        let rest = restPose.get(name);
+        if (!rest) {
+          rest = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: new THREE.Vector3() };
+          restPose.set(name, rest);
+        }
+        rest.pos.copy(node.position);
+        rest.quat.copy(node.quaternion);
+        rest.scale.copy(node.scale);
+        blendAlpha.set(name, 0);
+      }
     },
     isAnimActive(): boolean {
       return playing && elapsed < (getClip().length || Infinity);

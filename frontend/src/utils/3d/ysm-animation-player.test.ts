@@ -306,4 +306,45 @@ describe("createYsmAnimPlayer", () => {
     expect(free.position.y).toBeCloseTo(2, 5);
     expect(free.position.z).toBeCloseTo(3, 5);
   });
+
+  it("transition: selectClip 后姿态从当前值平滑过渡，不硬切到目标", () => {
+    const bone = makeBone("root");
+    const clipA = makeConstPosClip("a", "root", [1, 0, 0]);
+    const clipB = makeConstPosClip("b", "root", [5, 0, 0]);
+    const player = createYsmAnimPlayer(new Map([["root", bone]]), [clipA, clipB], H, ["a", "b"]);
+
+    // clipA 收敛到 x=-1
+    for (let i = 0; i < 10; i++) player.apply(0.05);
+    expect(bone.position.x).toBeCloseTo(-1.0, 5);
+
+    // selectClip 切到 clipB（目标 x=-5）
+    player.selectClip(1);
+    // 一小步：alpha≈0.05，从 -1 向 -5 插值 5% → 约 -1.2
+    player.apply(0.01);
+    expect(bone.position.x).toBeGreaterThan(-1.5); // 没硬切到 -5
+    expect(bone.position.x).toBeLessThan(-1.0);    // 已开始向 -5 过渡
+  });
+
+  it("transition: selectClip 保留当前姿态作为过渡起点（不清空）", () => {
+    const bone = makeBone("root");
+    const clipA = makeConstPosClip("a", "root", [2, 0, 0]);
+    const clipB = makeConstPosClip("b", "root", [8, 0, 0]);
+    const player = createYsmAnimPlayer(new Map([["root", bone]]), [clipA, clipB], H, ["a", "b"]);
+
+    // clipA 收敛到 x=-2
+    for (let i = 0; i < 10; i++) player.apply(0.05);
+    expect(bone.position.x).toBeCloseTo(-2.0, 5);
+
+    // selectClip 切到 clipB（目标 x=-8）
+    player.selectClip(1);
+
+    // 第一帧：alpha 很小，姿态应从 -2 开始向 -8 过渡，但还远没到 -8
+    player.apply(0.02);
+    expect(bone.position.x).toBeGreaterThan(-8.0);
+    expect(bone.position.x).toBeLessThan(-2.0);
+
+    // 收敛到 clipB 目标
+    for (let i = 0; i < 30; i++) player.apply(0.05);
+    expect(bone.position.x).toBeCloseTo(-8.0, 4);
+  });
 });
