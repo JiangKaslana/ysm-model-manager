@@ -44,7 +44,7 @@ quick_risk_lines:
 - `ScanEntries` 递归扫描目录产出 `ModelEntry[]`（支持 `.ban` 后缀还原扩展名）
 - **MMD 子目录分组（ADR-096 P1）**：扫描 MMD group 根时，`scanner.go` 通过 `filepath.Rel` + `strings.Split` 提取第一段路径，命中 `types.IsMMDSubDir` 时填充 `ModelEntry.SubDir`（如 `SceneModel`/`CustomAnim`）；非 MMD 类型 / 根下文件恒为 `""`（`omitempty` 不序列化）
 - `.json` 白名单：仅 `ysm.json` 作为模型条目（ADR-038 D2，几何/动画/语言 json 不单独扫描）
-- 30s 扫描缓存 + 路径级失效：`scanCache` 为 `sync.Map`（`string → scanCacheEntry{entries []ModelEntry, expiresAt time.Time}`），记录扫描条目与过期时刻；`keyVersions` 为另一份 `sync.Map`（`string → *atomic.Uint64`），用 `(*atomic.Uint64).Add(1)` 原子递增 per-key 版本戳，防并发 `InvalidatePath` 竞态——P1 修复；单全局 `cacheGen atomic.Uint64` 仅作全量失效的代际短路标记
+- 30s 扫描缓存（**非永久**）+ 路径级失效：`scanCache` 为 `sync.Map`（`string → scanCacheEntry{entries []ModelEntry, expiresAt time.Time}`），记录扫描条目与过期时刻；TTL 默认 30s（可由 `AppConfig.ScanCacheTTLMs` 覆盖，仍是短 TTL），且**纯进程内存——App 重启即全失，不存在「确定仓库永久缓存」**。故「缓存命中时 Rust 不进场、Rust 进场时缓存已过期」两者时间互斥，`scanEntriesWithRust` 内无法复用 Go 缓存作为 manifest（见下方 Rust 回源条）。`keyVersions` 为另一份 `sync.Map`（`string → *atomic.Uint64`），用 `(*atomic.Uint64).Add(1)` 原子递增 per-key 版本戳，防并发 `InvalidatePath` 竞态——P1 修复；单全局 `cacheGen atomic.Uint64` 仅作全量失效的代际短路标记
 - SHA256 哈希（同步系统文件匹配用）
 - 作者提取（`[作者]` 前缀统计）、本地作者扫描、`index.json` 生成
 
@@ -66,8 +66,9 @@ quick_risk_lines:
 - `InvalidateCache()` / `InvalidatePath(dir)` — 缓存失效（导入/启用禁用后调用）
   - **`InvalidatePath` 祖先链覆盖（长治久安核心）**：`scanner.go:165-191` 的 `InvalidatePath` 不只删 `dir` 自身，还遍历 `keyVersions` / `scanCache` 删所有**互前缀** key——含 `strings.HasPrefix(key, kstr+sep)`（失效 dir 是 kstr 的后代时，递增 kstr 版本并删 kstr 条目）。即「禁用 `globalDir/ModelA` → `InvalidatePath(filepath.Dir(ModelA))` = `InvalidatePath(globalDir)`（文件级）或 `InvalidatePath(base)`（目录级 ModelA 文件夹）→ 仍经祖先链命中并失效 `globalDir` 仓库根缓存」。所以 sync 层消费的 `scanCache[globalDir]` 在 Toggle 后立即失效，**无 30s 陈旧窗口**。`BuildSyncItems` 入口无需额外失效（冗余）。
   - ⚠️ **复核（2026-08-24 审核 P1）**：此前疑「ToggleModelEnable 仅失效模型夹层级、不覆盖仓库根祖先 key、存在 30s 窗口」——经核实为误判。`InvalidatePath` 的 keyVersion 祖先链（`scanner.go:174` 第二个 `HasPrefix` 条件）已覆盖仓库根；目录级禁用 `path=globalDir/ModelA` 时 `filepath.Dir` = `base`，`InvalidatePath(base)` 仍经 `HasPrefix(key, kstr+sep)` 命中 `globalDir`。实测目录级禁用后 `BuildSyncItems` 结果已从 `.ban` 路径重扫，不残留旧条目。P1 不成立，不引入额外失效代码。
-- **Rust 回源 `scanEntriesWithRust(dir)`（ADR-120）**：`ScanEntriesWithHit` 缓存未命中时回源调 Rust（Windows + `rust_backend` tag）。该函数**非回源**读 `scanCache`——命中且未过期则序列化 `[]ModelEntry` 经 `rustbridge.ScanManifest` 传 Rust 跳过 jwalk（`ysm_scan_manifest`）；未命中/过期则回退 `rustbridge.Scan`（jwalk）。**禁止在 `scanEntriesWithRust` 内调 `ScanEntriesWithHit`**——后者回源会递归回本函数，触发 single-flight `wg.Wait()` 死锁（已踩过）
-  - ⚠️ **修正（2026-08-24 审核）**：上述 manifest 分支在**生产路径下不可达**。`ScanEntriesWithHit` 仅在「缓存未命中」时成为 owner 调 `scanEntriesWithRust`（`scanner.go:218-266`），而未命中分支进入前已 `scanCache.Delete(dir)`（L232），故 `scanEntriesWithRust` 内部再 `Load` 永远拿到过期/缺失条目 → manifest 分支永不触发。实际「Go 缓存命中时 Rust 完全不被调用」由 `ScanEntriesWithHit` L224-227 直接 return 实现，不经 Rust。manifest 路径作为**预留能力**保留（ABI/测试已锁），待真出现「有 Go 缓存但仍需 Rust 结果」场景再接。详见 ADR-120 §3 修正说明。
+- **Rust 回源 `scanEntriesWithRust(dir)`（ADR-120）**：`ScanEntriesWithHit` 缓存未命中时回源调 Rust（Windows + `rust_backend` tag）。该函数**仅**转发 `rustbridge.Scan(dir, registryJSON)`（jwalk 全树发现），不再内读 `scanCache`。
+  - ⚠️ **死代码清除（2026-08-24）**：原实现在 `scanEntriesWithRust` 内先 `scanCache.Load(dir)`、命中未过期则走 `rustbridge.ScanManifest` 隐式快路径——经审核该分支**逻辑不可达**：`ScanEntriesWithHit` 仅在「缓存未命中」时成为 owner 调本函数（`scanner.go:218-266`），且未命中进入前已 `scanCache.Delete(dir)`（L232），故本函数内部再 `Load` 永远拿到过期/缺失条目；而缓存命中时 `ScanEntriesWithHit` L224-227 直接 return 不经 Rust。两者时间互斥，「有 Go 缓存但仍需 Rust 结果」在现有架构下不存在。该隐式分支已删除，`scanEntriesWithRust` 收敛为纯 `rustbridge.Scan` 转发。
+  - **`rustbridge.ScanManifest` 调用纪律（显式独立出口）**：Rust 侧 `ysm_scan_manifest` 保留，但**只作显式 API**，由业务代码在「已持有一份 Go `[]ModelEntry`、想让 Rust 在其上深加工（Go 算不了的重模型解析等）」时主动调用。**禁止**在 `scanEntriesWithRust` 内以隐式快路径形式回读 `scanCache` 调用它（既不可达，又曾因递归 `ScanEntriesWithHit` 触发 single-flight 死锁隐患）。触发前提 = 未来做 Go/Rust 扫描分工（Go 轻扫探路 + Rust 深加工流水线）之日；在那之前它是休眠的 ABI 守门出口（测试 `TestScanManifest_ABI_MatchesJwalk` 已锁 P2/P3 契约）。详见 ADR-120 §3。
 - `ComputeFileHash(path)` — SHA256
 - `ListModelAuthors` / `ScanLocalAuthors` — 作者统计
 - `GenerateRepoIndex(repoPath)` — 生成 `index.json`（GitHub Actions workflow 模板）
