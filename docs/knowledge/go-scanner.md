@@ -64,6 +64,7 @@ quick_risk_lines:
 - `ScanEntriesWithHit(dir)` — 扫描核心（缓存 30s，`.recycle` 跳过），返回 `(entries []ModelEntry, hit bool)`，调用方据此决定是否记录扫描日志，避免 30s 内重复访问同一目录时刷屏操作日志面板
 - **在途合并（single-flight，2026-08-21）**：缓存「扫完才 Store」，同目录并发请求在途重叠时会双双真扫（点击整合包时前端多组件并发要状态 → 操作日志同秒重复条目）。`inFlight`（`sync.Map: dir → *scanFlight`）让首个调用方注册航班走盘，后续调用方 `wg.Wait()` 并入航班取**克隆**结果且返回 `hit=true`（薄壳不重复记日志）；唯一 owner 返回 `hit=false`。`walkCount`/`flightJoins` 为诊断计数。测试 `scanner_singleflight_test.go`（walkStartHook 制造确定性重叠）
 - `InvalidateCache()` / `InvalidatePath(dir)` — 缓存失效（导入/启用禁用后调用）
+- **Rust 回源 `scanEntriesWithRust(dir)`（ADR-120）**：`ScanEntriesWithHit` 缓存未命中时回源调 Rust（Windows + `rust_backend` tag）。该函数**非回源**读 `scanCache`——命中且未过期则序列化 `[]ModelEntry` 经 `rustbridge.ScanManifest` 传 Rust 跳过 jwalk（`ysm_scan_manifest`）；未命中/过期则回退 `rustbridge.Scan`（jwalk）。**禁止在 `scanEntriesWithRust` 内调 `ScanEntriesWithHit`**——后者回源会递归回本函数，触发 single-flight `wg.Wait()` 死锁（已踩过）
 - `ComputeFileHash(path)` — SHA256
 - `ListModelAuthors` / `ScanLocalAuthors` — 作者统计
 - `GenerateRepoIndex(repoPath)` — 生成 `index.json`（GitHub Actions workflow 模板）

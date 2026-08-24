@@ -41,17 +41,18 @@ invariant_anchors:
 - **types_windows.go**：`ScanError{Path, Message}` / `ScanResponse{Entries: []types.ModelEntry, Errors}`——对齐 `rust-core`（`ModelEntry` 含 `rtype`，见 `rust-core/src/model.rs`）+ Go `types.ModelEntry`
 - **bridge_windows.go**：syscall/unsafe 直调 DLL（JSON 序列化），扫描结果经 `ScanResponse` 返回
 
-## ABI 符号命名约束（D 立项待办）
+## ABI 符号命名约束（ADR-120 已落地）
 
-> 背景：跨栈共享已扫描状态（ADR 待立，见 `go-sync.md` 根因 D）需新增 Rust 导出符号。
-> 当前符号命名有歧义，落地前必须先理顺。
+> 背景：跨栈共享已扫描状态（ADR-120）已新增 Rust 导出符号 `ysm_scan_manifest`。
+> 原 `ysm_scan_json` 命名歧义已确认，基础符号重命名（`ysm_scan`）留待下个 release 周期。
 
-- **现状歧义**：`ysm_scan_json`（`bridge_windows.go:75` `dll.NewProc("ysm_scan_json")` ↔ `rust-wails-bridge/src/abi.rs:49` `#[no_mangle] pub unsafe extern "C" fn ysm_scan_json`）——它是**应用级通用扫描入口**（扫整棵树、所有 rtype：PMX/PMD/VMD/YSMParser 全套），**与 `.ysm` 扩展名无专属绑定**。
+- **现状歧义（已记录，待重命名）**：`ysm_scan_json`（`bridge_windows.go` `dll.NewProc("ysm_scan_json")` ↔ `rust-wails-bridge/src/abi.rs` `#[no_mangle] pub unsafe extern "C" fn ysm_scan_json`）——它是**应用级通用扫描入口**（扫整棵树、所有 rtype：PMX/PMD/VMD/YSMParser 全套），**与 `.ysm` 扩展名无专属绑定**。
 - **误读风险**：`ysm_` 前缀与「`.ysm` 文件类型」视觉撞车 + `_json` 把「返回 JSON」实现细节焊死进名字 → 易被误解为「扫 `.ysm` 资源的专用接口」。实际语义是「YSM-Model-Manager 这个**应用**的通用扫描、输出 JSON」。
-- **重命名约定（落地 D 时执行）**：
-  - 基础符号 `ysm_scan_json` → `ysm_scan`（去掉格式后缀；JSON 是实现细节）
-  - 新增变体 `ysm_scan_manifest`（接收 Go 预枚举清单、跳过 jwalk）—— 与 `ysm_scan` 形成清晰父子关系
-  - **ABI 不破坏**：Rust 侧保留 `ysm_scan_json` 的 `#[no_mangle]` 导出 + `pub use` 别名作回退；Go 侧 `NewProc` 先切 `ysm_scan`，旧 `NewProc("ysm_scan_json")` 保留一个 release 周期再删
+- **ADR-120 落地事实**：
+  - 新增 `ysm_scan_manifest`（接收 Go 预枚举清单 JSON、跳过 jwalk）—— `abi.rs` `#[no_mangle] pub unsafe extern "C" fn ysm_scan_manifest`，`scan_impl_manifest` 复用 `resolve_metadata` + `hydrate_hashes`
+  - Go 侧 `rustbridge.ScanManifest(root, registryJSON, manifestJSON)`（`bridge_windows.go`）：旧 DLL 不含该符号时 `scanManifestProc=nil` 自动回退 `Scan`（jwalk），ABI 不破坏
+  - `ysm_scan_json` 仍保留作回退（Rust `pub use` + Go `NewProc` 均保留）
+  - 基础符号 `ysm_scan_json` → `ysm_scan` 的重命名**未执行**（留待下个 release，避免本次改动面过大）
 - **约束**：新增 Rust 导出符号一律遵循 `ysm_<动作>` / `ysm_<动作>_<输入形态>` 形态，禁止把文件类型/序列化格式焊进名字。
 
 ## 与 Go scanner 的契约对齐（红线）
