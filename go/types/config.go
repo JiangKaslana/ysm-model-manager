@@ -1,5 +1,7 @@
 package types
 
+import "encoding/json"
+
 // AppConfig 应用持久化配置
 // 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"），
 // 取代过去 YsmRoot/ResourcepackRoot/... 7 个独立字段，避免资源类型膨胀时结构体硬编码。
@@ -94,4 +96,32 @@ type SyncConfig struct {
 	AutoSync bool `json:"autoSync"`
 	// ConflictPolicy 冲突解决策略: "force_remote" (强制远端), "force_local" (强制本地), "prompt" (提示用户)
 	ConflictPolicy string `json:"conflictPolicy"`
+}
+
+// ParseDedupConfig 解析去重配置 JSON 字符串（绑定层 configStr 的统一入口）。
+// raw 为空串 → 返回 nil,nil（未配置，消费端走默认行为）；非法 JSON → 返回错误。
+// 提取为公共函数，避免 FindDuplicateFiles / CountDuplicates 等入口各自内联 json.Unmarshal
+// 造成解析语义漂移。
+func ParseDedupConfig(raw string) (*DedupConfig, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	var cfg DedupConfig
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// ParseSyncConfig 解析同步配置 JSON 字符串（绑定层 configStr 的统一入口）。
+// 语义同 ParseDedupConfig：空串 → nil,nil；非法 JSON → 错误。
+func ParseSyncConfig(raw string) (*SyncConfig, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	var cfg SyncConfig
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }

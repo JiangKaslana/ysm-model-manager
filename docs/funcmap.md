@@ -32,7 +32,7 @@
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 7 | 92 |
+| Go·类型 | 7 | 94 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -48,7 +48,7 @@
 | frontend/views | 115 | 330 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **460** | **1977** |
+| **合计** | **460** | **1979** |
 
 ## Go·头像
 
@@ -494,13 +494,15 @@
 | `YsmMetadata()` | `go/types/bedrock:79` | YsmMetadata ysm.json 的 metadata 段（模型详情：名称/许可/作者/链接）。 |
 | `YsmLicense()` | `go/types/bedrock:88` | YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}） |
 | `YsmAuthor()` | `go/types/bedrock:94` | YsmAuthor 作者条目 |
-| `AppConfig()` | `go/types/config:8` | AppConfig 应用持久化配置 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"）， 取 |
-| `PackInfo()` | `go/types/config:48` | PackInfo 模型整合包信息（ysm-pack.json） |
-| `WorkshopPresetSearch()` | `go/types/config:55` | WorkshopPresetSearch 预设搜索词 |
-| `WorkshopSite()` | `go/types/config:61` | WorkshopSite 创意工坊站点配置 |
-| `WorkshopCreator()` | `go/types/config:74` | WorkshopCreator 创作者条目 Type 是平台标签，分号分隔，如 "bilibili;afdian" |
-| `DedupConfig()` | `go/types/config:82` | DedupConfig 去重功能配置 |
-| `SyncConfig()` | `go/types/config:92` | SyncConfig 同步功能配置 |
+| `ParseDedupConfig()` | `go/types/config:105` | ParseDedupConfig 解析去重配置 JSON 字符串（绑定层 configStr 的统一入口）。 |
+| `ParseSyncConfig()` | `go/types/config:118` | ParseSyncConfig 解析同步配置 JSON 字符串（绑定层 configStr 的统一入口）。 |
+| `AppConfig()` | `go/types/config:10` | AppConfig 应用持久化配置 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"）， 取 |
+| `PackInfo()` | `go/types/config:50` | PackInfo 模型整合包信息（ysm-pack.json） |
+| `WorkshopPresetSearch()` | `go/types/config:57` | WorkshopPresetSearch 预设搜索词 |
+| `WorkshopSite()` | `go/types/config:63` | WorkshopSite 创意工坊站点配置 |
+| `WorkshopCreator()` | `go/types/config:76` | WorkshopCreator 创作者条目 Type 是平台标签，分号分隔，如 "bilibili;afdian" |
+| `DedupConfig()` | `go/types/config:84` | DedupConfig 去重功能配置 |
+| `SyncConfig()` | `go/types/config:94` | SyncConfig 同步功能配置 |
 | `IsNestedModelDir()` | `go/types/extensions:22` | IsNestedModelDir 判断 rtype 是否有嵌套模型目录结构（ADR-095）： 模型入口文件在 assets/&lt;namespace&gt;/ 下（如 maid-model |
 | `NestedPatternsFor()` | `go/types/extensions:31` | NestedPatternsFor 返回指定资源类型的嵌套模式配置列表（ADR-XXX）。 |
 | `AllExts()` | `go/types/extensions:68` | AllExts 返回所有支持的扩展名（去重后）。 |
@@ -842,12 +844,12 @@
 | `App.ImportResourcePack()` | `internal/app/resource_bindings:446` | ImportResourcePack 使用策略模式导入资源包 |
 | `App.ImportByType()` | `internal/app/resource_bindings:459` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
 | `App.DeleteResourcePack()` | `internal/app/resource_bindings:479` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:551` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:579` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:592` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.RepoHealthAudit()` | `internal/app/resource_bindings:599` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
-| `App.RepoHealthAuditAll()` | `internal/app/resource_bindings:620` | RepoHealthAuditAll 全仓库体检：遍历所有已配置资源类型根目录，合并审计结果。 |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:685` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:548` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:576` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:589` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.RepoHealthAudit()` | `internal/app/resource_bindings:596` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
+| `App.RepoHealthAuditAll()` | `internal/app/resource_bindings:617` | RepoHealthAuditAll 全仓库体检：遍历所有已配置资源类型根目录，合并审计结果。 |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:682` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:86` | — |

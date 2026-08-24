@@ -516,12 +516,9 @@ func (a *App) DeleteResourcePack(path, rtype string) error {
 // findDuplicateErrorJSON 返回结构化错误 JSON（绑定契约：DedupGroup[] | {error}）。
 // 前端社区诊断按 JSON.parse 后 {error} 字段区分扫描失败与无重复（避免假绿）；
 // 使用 json.Marshal 生成，而非 strconv.Quote 拼接（避免手工拼接 JSON 的转义遗漏）。
+// 委托 DedupErrorJSON，与 go/types 解析入口保持单一事实源（杜绝双实现漂移）。
 func findDuplicateErrorJSON(msg string) string {
-	data, err := json.Marshal(map[string]string{"error": msg})
-	if err != nil {
-		return `{"error":"json marshal failed"}`
-	}
-	return string(data)
+	return DedupErrorJSON(msg)
 }
 
 // marshalJSON 序列化为紧凑 JSON，失败时返回 fallback（非空串）+ 记录日志。
@@ -553,15 +550,15 @@ func (a *App) FindDuplicateFiles(dir string, configStr ...string) string {
 		return findDuplicateErrorJSON("路径超出仓库目录")
 	}
 
-	// 解析配置
+	// 解析配置（统一入口 go/types.ParseDedupConfig）
 	var dedupConfig *types.DedupConfig
-	if len(configStr) > 0 && configStr[0] != "" {
-		var cfg types.DedupConfig
-		if err := json.Unmarshal([]byte(configStr[0]), &cfg); err != nil {
+	if len(configStr) > 0 {
+		cfg, err := types.ParseDedupConfig(configStr[0])
+		if err != nil {
 			log.Printf("[dedup] 配置解析失败: %v", err)
 			return findDuplicateErrorJSON(fmt.Sprintf("配置解析失败: %v", err))
 		}
-		dedupConfig = &cfg
+		dedupConfig = cfg
 	}
 
 	groups, err := dedup.FindDuplicateFiles(dir, true, dedupConfig)
