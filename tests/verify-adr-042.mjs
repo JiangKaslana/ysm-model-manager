@@ -87,53 +87,51 @@ function checkHiddenPropagation() {
 
 // ===== 3. glow 是否建模 =====
 // 上游: GeoBone.glow = name.startsWith("ysmGlow"); NativeModelRenderer:152 LightTexture.pack(15,15)
-// 我们: 需核对 BoneData 是否有 Glow 字段，前端是否针对 ysmGlow 前缀设 emissive
+// 我们: Go 侧 isGlowBone 检测前缀 + BoneData.Glow；前端 SpecBone3D.glow →
+// ysm-object.ts glowByBoneId 反查表 → mesh-builder.ts MeshStandardMaterial + emissive
 function checkGlow() {
   const specGo = read("go/threejs/spec.go");
   const specBonesGo = read("go/threejs/spec-bones.go");
+  const meshBuilderTs = read("frontend/src/utils/3d/mesh-builder.ts");
+  const ysmObjectTs = read("frontend/src/utils/3d/ysm-object.ts");
+  const model3dTs = read("frontend/src/utils/3d/model3d.ts");
 
-  // Go 侧检查
-  const goChecks = [
+  const checks = [
     {
       name: "BoneData 有 Glow 字段",
       pass: specGo.includes("Glow"),
       evidence: specGo.includes("Glow") ? "spec.go BoneData.Glow" : "(缺失)",
     },
     {
-      name: "buildBoneLocalData 检测 ysmGlow 前缀",
-      pass: specBonesGo.includes("ysmGlow") || specBonesGo.includes("GLOWING_PREFIX"),
-      evidence: specBonesGo.includes("ysmGlow") ? "spec-bones.go ysmGlow 检测" : "(缺失)",
+      name: "Go 侧 isGlowBone 检测 ysmGlow 前缀",
+      pass: specBonesGo.includes("isGlowBone") && specBonesGo.includes("glowingPrefix"),
+      evidence: specBonesGo.includes("isGlowBone") ? "spec-bones.go isGlowBone" : "(缺失)",
+    },
+    {
+      name: "前端 SpecBone3D.glow 字段",
+      pass: model3dTs.includes("glow"),
+      evidence: model3dTs.includes("glow") ? "model3d.ts SpecBone3D.glow" : "(缺失)",
+    },
+    {
+      name: "ysm-object.ts 建 glowByBoneId 反查表",
+      pass: ysmObjectTs.includes("glowByBoneId"),
+      evidence: ysmObjectTs.includes("glowByBoneId") ? "ysm-object.ts glowByBoneId" : "(缺失)",
+    },
+    {
+      name: "mesh-builder.ts glow 骨骼用 MeshStandardMaterial + emissive",
+      pass: meshBuilderTs.includes("glow") && meshBuilderTs.includes("emissive") && meshBuilderTs.includes("MeshStandardMaterial"),
+      evidence: meshBuilderTs.includes("emissive") ? "mesh-builder.ts MeshStandardMaterial + emissive" : "(缺失)",
     },
   ];
 
-  // 前端侧检查：是否有针对 ysmGlow 前缀的 emissive 设置
-  // 注意：fbx-parser/mmd-adapter 已有 emissive/emissiveMap，但那是 FBX/MMD 格式的材质解析，
-  // 不是 YSM 的 ysmGlow 前缀检测。我们需确认 YSM 渲染路径是否识别 ysmGlow。
-  const frontendChecks = [];
-  try {
-    const ysmAdapterTs = read("frontend/src/utils/3d/adapters/ysm-adapter.ts");
-    frontendChecks.push({
-      name: "ysm-adapter 检测 ysmGlow 前缀并设 emissive",
-      pass: ysmAdapterTs.includes("ysmGlow") && (ysmAdapterTs.includes("emissive") || ysmAdapterTs.includes("glow")),
-      evidence: ysmAdapterTs.includes("ysmGlow") ? "ysm-adapter.ts ysmGlow 检测" : "(缺失 ysmGlow 检测)",
-    });
-  } catch (_) {
-    frontendChecks.push({
-      name: "ysm-adapter 文件存在",
-      pass: false,
-      evidence: "(ysm-adapter.ts 不存在或无法读取)",
-    });
-  }
-
-  const allChecks = [...goChecks, ...frontendChecks];
-  const allPass = allChecks.every((c) => c.pass);
+  const allPass = checks.every((c) => c.pass);
   results.push({
     item: "glow 未建模",
     status: allPass ? "ALREADY_LANDED" : "GAP_FOUND",
-    checks: allChecks,
+    checks,
     conclusion: allPass
-      ? "glow 已落地：骨骼名前缀检测 + emissive 材质"
-      : "glow 确实未建模：Go 侧无 ysmGlow 前缀检测，BoneData 无 Glow 字段，前端无针对 ysmGlow 的 emissive 设置",
+      ? "glow 已落地：Go isGlowBone 前缀检测 + BoneData.Glow → 前端 glowByBoneId 反查 → MeshStandardMaterial + emissive"
+      : "glow 部分落地，检查上述缺失项",
   });
 }
 

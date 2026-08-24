@@ -14,6 +14,10 @@ export interface SpecBone3D {
   parentId?: string;
   localPosition: number[];
   localRotation: number[];
+  /** 发光骨骼（名前缀 "ysmGlow"，对齐上游 GeoBone.glow）；
+   * 前端 mesh-builder 据此用 MeshStandardMaterial + emissive 模拟上游
+   * NativeModelRenderer:152 LightTexture.pack(15,15) 全亮渲染。 */
+  glow?: boolean;
 }
 
 export interface SpecMeshGroup3D {

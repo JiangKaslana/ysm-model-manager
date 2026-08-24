@@ -2,11 +2,25 @@ package threejs
 
 import (
 	"log"
+	"strings"
 
 	"ysm-model-manager/go/types"
 )
 
 // ===== 骨骼相关纯函数 =====
+
+// glowingPrefix 发光骨骼名前缀（对齐上游 GeoBone.GLOWING_PREFIX = "ysmGlow"）。
+// 上游 GeoBone.glow = name.startsWith("ysmGlow")；NativeModelRenderer:152 用
+// LightTexture.pack(15,15) 渲染发光骨骼。我们在此检测前缀，前端据 BoneData.Glow
+// 设 emissive/emissiveIntensity。
+const glowingPrefix = "ysmglow"
+
+// isGlowBone 判定骨骼名是否为发光骨骼（前缀 "ysmGlow"，大小写不敏感）。
+// 上游用区分大小写的 startsWith；实际模型文件均用小写 "ysmGlow" 前缀
+// （如 ysmGlowFrontHeadlights），故 ToLower 后比较更宽松、不背离上游语义。
+func isGlowBone(name string) bool {
+	return strings.HasPrefix(strings.ToLower(name), glowingPrefix)
+}
 
 // bonePivotInfo 骨骼 pivot 预收集结果（与 overwrite 决策一致）
 type bonePivotInfo struct {
@@ -93,6 +107,7 @@ func assembleBones(model types.BedrockModel, pivots map[string]vec3) (bones []Bo
 				ParentID:      parentID,
 				LocalPosition: localPos,
 				LocalRotation: localRot,
+				Glow:          isGlowBone(b.Name),
 			})
 			boneCubes[b.Name] = append([]types.Cube2D{}, b.Cubes...)
 		}
@@ -189,6 +204,7 @@ func fillMissingBones(bones []BoneData, boneIdx map[string]int, pivots map[strin
 				ParentID:      parentID,
 				LocalPosition: localPos,
 				LocalRotation: [4]float64{0, 0, 0, 1},
+				Glow:          isGlowBone(name),
 			})
 		}
 	}

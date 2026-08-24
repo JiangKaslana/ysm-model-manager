@@ -38,6 +38,7 @@ type BoneData struct {
 	ParentID      *string    `json:"parentId"`
 	LocalPosition [3]float64 `json:"localPosition"`
 	LocalRotation [4]float64 `json:"localRotation"` // quaternion [x,y,z,w]
+	Glow          bool       `json:"glow"`          // 发光骨骼（名前缀 "ysmGlow"），前端设 emissive
 	CubeCount     int        `json:"_cubeCount"`    // 该骨骼挂载的立方体数（前端统计用，underscore 字段）
 }
 

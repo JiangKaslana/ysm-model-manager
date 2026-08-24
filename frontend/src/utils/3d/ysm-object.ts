@@ -65,6 +65,16 @@ export function buildYsmObject(
   const { boneGroupMap, rootGroup, modelGroups } = buildSceneMesh(spec);
   const multiModel = (spec.models?.length ?? 1) > 1;
 
+  // 发光骨骼索引（boneId → glow）：对齐上游 GeoBone.glow = name.startsWith("ysmGlow")。
+  // Go 侧 spec-bones.go isGlowBone 已在 BoneData.Glow 标记，此处建反查表供
+  // addMeshToBoneGroup 按 md.boneId 取 glow，据此切 MeshStandardMaterial + emissive。
+  const glowByBoneId = new Map<string, boolean>();
+  for (const m of (spec.models || [])) {
+    for (const b of (m.bones ?? [])) {
+      if (b.glow) glowByBoneId.set(b.id, true);
+    }
+  }
+
   // 网格合并 + 挂载（原 renderModel3D 内联逻辑；合并结果本地化，不写回 spec）
   for (const [mi, mg] of (spec.models || []).entries()) {
     if (!mg.meshGroups?.length) continue;
@@ -110,7 +120,7 @@ export function buildYsmObject(
       // 非组件传 [] + 全局 texArr——传 texArr 会被 arr === compTexArr 误判为组件数组，
       // 导致全局槽位 md.texIdx 恒失效（修复前非组件多组件全绑 texArr[0]）。
       const bindArr = usesComponentTextures ? mappedComponentTextures! : [];
-      addMeshToBoneGroup(bg, md, bindArr, resolvedTexIdx, multiModel, texArr, mode);
+      addMeshToBoneGroup(bg, md, bindArr, resolvedTexIdx, multiModel, texArr, mode, glowByBoneId.get(md.boneId) ?? false);
     }
   }
 

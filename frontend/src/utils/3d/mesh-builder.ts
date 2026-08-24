@@ -33,6 +33,7 @@ export function addMeshToBoneGroup(
   multiModel: boolean,
   texArr: (THREE.Texture | null)[] = [],
   modeOverride?: TextureAlphaMode,
+  glow: boolean = false,
 ): void {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(md.positions, 3));
@@ -69,18 +70,33 @@ export function addMeshToBoneGroup(
   // ysmview 风格材质：FrontSide + transparent + alphaTest 0.1 + depthWrite（配置收敛于 MATERIAL_OPTS）
   // ADR-118 Phase B：modeOverride 来自面级拆分（碎片级模式），优先于整纹理判定
   const alphaMode = modeOverride ?? (mt ? getTextureAlphaMode(mt) : "opaque");
-  const mat = mt
-    ? new THREE.MeshBasicMaterial({
-        map: mt,
+  // 发光骨骼（名前缀 "ysmGlow"，对齐上游 GeoBone.glow + NativeModelRenderer:152
+  // LightTexture.pack(15,15)）：改用 MeshStandardMaterial 设 emissive，
+  // 模拟上游全亮渲染；非 glow 保持 MeshBasicMaterial 不变（无光照开销）。
+  const mat = glow
+    ? new THREE.MeshStandardMaterial({
+        map: mt ?? undefined,
+        color: mt ? 0xffffff : FALLBACK_COLOR_GRAY,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: 1.0,
+        emissiveMap: mt ?? undefined,
         ...MATERIAL_OPTS,
         transparent: alphaMode === "blend",
         alphaTest: alphaMode === "cutout" ? 0.1 : 0,
         depthWrite: alphaMode !== "blend",
       })
-    : new THREE.MeshBasicMaterial({
-        color: FALLBACK_COLOR_GRAY,
-        side: THREE.FrontSide,
-      });
+    : mt
+      ? new THREE.MeshBasicMaterial({
+          map: mt,
+          ...MATERIAL_OPTS,
+          transparent: alphaMode === "blend",
+          alphaTest: alphaMode === "cutout" ? 0.1 : 0,
+          depthWrite: alphaMode !== "blend",
+        })
+      : new THREE.MeshBasicMaterial({
+          color: FALLBACK_COLOR_GRAY,
+          side: THREE.FrontSide,
+        });
 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(
