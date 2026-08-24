@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 149 | 595 |
+| 前端·工具 | 149 | 594 |
 | frontend/views | 115 | 330 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **460** | **1978** |
+| **合计** | **460** | **1977** |
 
 ## Go·头像
 
@@ -1103,9 +1103,9 @@
 | `initRecycleBin()` | `frontend/src/features/recycle-bin:49` | 初始化回收站管理，返回清理函数 |
 | `currentRepoType()` | `frontend/src/features/repo-rtype:18` | 读取当前仓库资源类型（时刻值）。 |
 | `useCurrentResourceType()` | `frontend/src/features/repo-rtype:28` | 订阅当前仓库资源类型。 |
-| `UpdateInfo()` | `frontend/src/features/version-updater:12` | 更新信息（CheckUpdate 返回） |
-| `checkUpdateSilent()` | `frontend/src/features/version-updater:168` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
-| `initVersionUpdater()` | `frontend/src/features/version-updater:207` | 手动检查更新（设置页按钮） |
+| `UpdateInfo()` | `frontend/src/features/version-updater:13` | 更新信息（CheckUpdate 返回） |
+| `checkUpdateSilent()` | `frontend/src/features/version-updater:169` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
+| `initVersionUpdater()` | `frontend/src/features/version-updater:208` | 手动检查更新（设置页按钮） |
 
 ## 前端·服务
 
@@ -1730,36 +1730,35 @@
 | `parseFilterNumber()` | `frontend/src/utils/dom/dialogs/adv-filter-util:21` | 解析范围输入框数字：空 / 非数字 / 负数 → null（null 表示不限制）。 |
 | `validateAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter-util:32` | 校验三组 min/max 范围（仅两端都填数字时比对），返回错误文案或 null。 |
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter` | — |
-| `AdvFilterResult()` | `frontend/src/utils/dom/dialogs/adv-filter:18` | — |
-| `modalAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter:25` | 弹出高级筛选弹窗 |
+| `AdvFilterResult()` | `frontend/src/utils/dom/dialogs/adv-filter:19` | — |
+| `modalAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter:26` | 弹出高级筛选弹窗 |
 | `rebuildParsedName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:16` | 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.disabled)` - 作者/作品空值跳过；角色缺省回退到「剥禁用尾缀与扩展名后的文件名」； - 扩展 |
 | `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:31` | — |
 | `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:41` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
 | `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:20` | 应用变更载荷 |
 | `__resetBatchRenameForTest()` | `frontend/src/utils/dom/dialogs/batch-rename:43` | 测试钩子：重置模块级弹窗单例（isolate:false 共享模块图下，兄弟文件残留的 dialogEl 会让「重复打开」用例的 closeDlgMock 计数失真；modal._ |
 | `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:56` | 弹出批量重命名对话框 重复打开时先结算上一个 Promise，调用方 await 不会永远悬挂 |
-| `esc()` | `frontend/src/utils/dom/dialogs/modal` | — |
-| `trapFocus()` | `frontend/src/utils/dom/dialogs/modal:26` | 焦点陷阱：Tab 键在弹窗内可聚焦元素间循环，防止焦点逃逸到背后页面 |
-| `closeDlg()` | `frontend/src/utils/dom/dialogs/modal:54` | 带退场动画关闭对话框 |
-| `__resetModalStateForTest()` | `frontend/src/utils/dom/dialogs/modal:82` | 测试钩子：重置活动弹窗单例槽位（isolate:false 共享模块图下，兄弟文件残留的 _activeOverlay 会让「无活动弹窗」断言失真；web-store.__rese |
-| `registerDlg()` | `frontend/src/utils/dom/dialogs/modal:89` | 弹窗 append 到 body 后调用，登记为当前活动弹窗 |
-| `closeActiveDialog()` | `frontend/src/utils/dom/dialogs/modal:105` | 关闭当前活动弹窗（按取消值结算）。返回是否关闭了弹窗。 |
-| `ModalPromptOptions()` | `frontend/src/utils/dom/dialogs/modal:164` | modalPrompt 选项 |
-| `modalPrompt()` | `frontend/src/utils/dom/dialogs/modal:177` | 弹出带输入框的模态框，类似 styled prompt() |
-| `ModalSelectOptions()` | `frontend/src/utils/dom/dialogs/modal:234` | modalSelect 选项 |
-| `modalSelect()` | `frontend/src/utils/dom/dialogs/modal:247` | 弹出下拉选择框 |
-| `ModalConfirmOptions()` | `frontend/src/utils/dom/dialogs/modal:299` | modalConfirm 选项 |
-| `modalConfirm()` | `frontend/src/utils/dom/dialogs/modal:315` | 弹出确认对话框 |
-| `ModalProgressOptions()` | `frontend/src/utils/dom/dialogs/modal:361` | — |
-| `ModalProgressHandle()` | `frontend/src/utils/dom/dialogs/modal:369` | — |
-| `fmtMB()` | `frontend/src/utils/dom/dialogs/modal:376` | 格式化字节为 MB（进度弹窗/窗口标题共用） |
-| `modalProgress()` | `frontend/src/utils/dom/dialogs/modal:386` | 只读进度弹窗（无确认/取消按钮，Esc 或点遮罩关闭）。 |
+| `trapFocus()` | `frontend/src/utils/dom/dialogs/modal:25` | 焦点陷阱：Tab 键在弹窗内可聚焦元素间循环，防止焦点逃逸到背后页面 |
+| `closeDlg()` | `frontend/src/utils/dom/dialogs/modal:53` | 带退场动画关闭对话框 |
+| `__resetModalStateForTest()` | `frontend/src/utils/dom/dialogs/modal:81` | 测试钩子：重置活动弹窗单例槽位（isolate:false 共享模块图下，兄弟文件残留的 _activeOverlay 会让「无活动弹窗」断言失真；web-store.__rese |
+| `registerDlg()` | `frontend/src/utils/dom/dialogs/modal:88` | 弹窗 append 到 body 后调用，登记为当前活动弹窗 |
+| `closeActiveDialog()` | `frontend/src/utils/dom/dialogs/modal:104` | 关闭当前活动弹窗（按取消值结算）。返回是否关闭了弹窗。 |
+| `ModalPromptOptions()` | `frontend/src/utils/dom/dialogs/modal:163` | modalPrompt 选项 |
+| `modalPrompt()` | `frontend/src/utils/dom/dialogs/modal:176` | 弹出带输入框的模态框，类似 styled prompt() |
+| `ModalSelectOptions()` | `frontend/src/utils/dom/dialogs/modal:233` | modalSelect 选项 |
+| `modalSelect()` | `frontend/src/utils/dom/dialogs/modal:246` | 弹出下拉选择框 |
+| `ModalConfirmOptions()` | `frontend/src/utils/dom/dialogs/modal:298` | modalConfirm 选项 |
+| `modalConfirm()` | `frontend/src/utils/dom/dialogs/modal:314` | 弹出确认对话框 |
+| `ModalProgressOptions()` | `frontend/src/utils/dom/dialogs/modal:360` | — |
+| `ModalProgressHandle()` | `frontend/src/utils/dom/dialogs/modal:368` | — |
+| `fmtMB()` | `frontend/src/utils/dom/dialogs/modal:375` | 格式化字节为 MB（进度弹窗/窗口标题共用） |
+| `modalProgress()` | `frontend/src/utils/dom/dialogs/modal:385` | 只读进度弹窗（无确认/取消按钮，Esc 或点遮罩关闭）。 |
 | `RenameFields()` | `frontend/src/utils/dom/dialogs/rename-format:7` | 重命名字段（调用方已 trim） |
 | `BuildModelNameOptions()` | `frontend/src/utils/dom/dialogs/rename-format:21` | 命名模板引擎选项（索引 4.9 收敛 buildRenameName / rebuildParsedName 两套手工拼接）： - fillDefaults=true：空作品补「未 |
 | `ModelNameFields()` | `frontend/src/utils/dom/dialogs/rename-format:27` | 命名模板输入字段（variant 可选：单重命名有、批量重建无） |
 | `buildModelName()` | `frontend/src/utils/dom/dialogs/rename-format:40` | 按 YSM 命名规范拼接文件名：`[作者]【作品】角色[-变体] (年月).ext[.disabled]` 单一模板引擎——buildRenameName（缺省填充）与 rebui |
 | `buildRenameName()` | `frontend/src/utils/dom/dialogs/rename-format:60` | 按 YSM 命名规范拼接新文件名：`[作者]【品牌】角色-变体 (年月).ext` 品牌缺省「未知」、角色缺省「?」，与预览一致（收敛自 buildModelName，索引 4.9 |
-| `showRenameDialog()` | `frontend/src/utils/dom/dialogs/rename:16` | 弹出重命名对话框 |
+| `showRenameDialog()` | `frontend/src/utils/dom/dialogs/rename:17` | 弹出重命名对话框 |
 | `modalTagEditor()` | `frontend/src/utils/dom/dialogs/tag-editor:15` | 弹出标签编辑弹窗 |
 | `TagSetResult()` | `frontend/src/utils/dom/dialogs/tag-set:6` | — |
 | `MAX_TAG_LENGTH()` | `frontend/src/utils/dom/dialogs/tag-set:12` | 标签最大长度（与原 addTag 一致） |

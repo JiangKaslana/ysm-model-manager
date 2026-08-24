@@ -5,7 +5,6 @@
 import { esc } from "../../../utils/dom/html.ts";
 import { t } from "../../../core/i18n/t.ts";
 
-export { esc };
 
 declare global {
   interface HTMLElement {
