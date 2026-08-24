@@ -450,6 +450,9 @@
 #set-advanced-panel.adv-open { animation: advPanelIn .25s ease forwards; }
 #set-advanced-panel.adv-closing { animation: advPanelOut .2s ease forwards; }
 
+/* ===== 通用 tab-body（中性化自 repo-tab-body，跨设置/仓库/ins/gh/cr 各 tab 复用，归位全局） ===== */
+.tab-body { flex:1;display:flex;flex-direction:column;overflow:hidden; }
+
 /* 批量重命名列表 */
 .br-header {
   display: flex;
