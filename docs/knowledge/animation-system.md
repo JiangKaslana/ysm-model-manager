@@ -28,6 +28,11 @@ use_when:
   - 关闭动画
 perf:
   - cpu-bound
+invariant_anchors:
+  - frontend/src/utils/animation/animation.ts|parseBedrockAnimationJSON
+  - frontend/src/utils/animation/animation.ts|evaluateClip
+  - frontend/src/utils/animation/animate.ts|animateNumber
+  - frontend/src/utils/animation/stagger.ts|stagger
 ---
 
 # 动画系统 animation

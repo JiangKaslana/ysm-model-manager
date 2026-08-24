@@ -19,6 +19,12 @@ use_when:
   - 扩展名
   - LinkType
   - BedrockModel
+invariant_anchors:
+  - go/types/resource.go|LoadRegistry
+  - go/types/config.go|AppConfig
+  - go/types/resource.go|ResourceType
+  - go/types/extensions.go|ShouldHashExt
+  - go/types/types.go|ErrorCode
 ---
 
 # 共享类型 go/types

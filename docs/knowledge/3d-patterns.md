@@ -19,6 +19,9 @@ use_when:
   - 循环依赖破壁
   - 审核驱动开发
   - 并发防护 gen 守卫
+invariant_anchors:
+  - frontend/src/utils/3d/debug-render.ts|rebuildDebug
+  - frontend/src/utils/3d/model-group-builder.ts|buildModelGroup
 ---
 
 # 3D 区审核与修复模式提炼

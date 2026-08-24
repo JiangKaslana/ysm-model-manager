@@ -13,6 +13,8 @@ use_when:
   - 菜单
   - 页面记忆
   - 版本号
+invariant_anchors:
+  - frontend/src/views/app-nav/tpl.ts|navCSS
 ---
 
 # 顶部导航 app-nav

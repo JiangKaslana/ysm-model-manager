@@ -22,6 +22,9 @@ use_when:
   - 社区下载
   - 网页版文件系统
   - 网页版仓库
+invariant_anchors:
+  - frontend/src/backend/app.ts|getApp
+  - frontend/src/backend/browser-adapter.ts|browserAdapter
 ---
 
 # 网页版后端 backend-web

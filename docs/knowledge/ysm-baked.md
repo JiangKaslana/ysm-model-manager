@@ -22,6 +22,9 @@ use_when:
   - RawFace
   - YSM 导出
   - BlockBench
+invariant_anchors:
+  - frontend/src/views/app-preview/wasm.ts|decodeYsmViaWasm
+  - frontend/src/views/app-preview/geometry.ts|parseBedrockGeometryFromJSON
 ---
 
 # YSM 烘焙与几何反推

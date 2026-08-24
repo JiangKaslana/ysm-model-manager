@@ -13,6 +13,9 @@ use_when:
   - 报错翻译
   - 网络错误
   - 文件被占用
+invariant_anchors:
+  - frontend/src/utils/dom/errors.ts|friendlyError
+  - frontend/src/utils/dom/errors.ts|isFileExistsError
 ---
 
 # 错误处理 errors

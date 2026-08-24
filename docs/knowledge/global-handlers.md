@@ -23,6 +23,8 @@ use_when:
   - 同步缺失
   - 清空整合包
   - 导出清单
+invariant_anchors:
+  - frontend/src/core/handlers/global.ts|registerGlobalHandlers
 ---
 
 # 全局事件处理 global-handlers

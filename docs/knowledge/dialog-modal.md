@@ -16,6 +16,11 @@ use_when:
   - modal
   - prompt
   - confirm
+invariant_anchors:
+  - frontend/src/utils/dom/dialogs/modal.ts|trapFocus
+  - frontend/src/utils/dom/dialogs/modal.ts|closeDlg
+  - frontend/src/utils/dom/dialogs/modal.ts|registerDlg
+  - frontend/src/utils/dom/dialogs/modal.ts|modalConfirm
 ---
 
 # 弹窗基座 modal

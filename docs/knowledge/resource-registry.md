@@ -16,6 +16,9 @@ use_when:
   - resource_types
   - registry
   - 文件类型
+invariant_anchors:
+  - frontend/src/services/registry.ts|register
+  - frontend/src/services/registry.ts|get
 ---
 
 # 资源注册表 registry

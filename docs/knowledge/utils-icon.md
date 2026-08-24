@@ -11,6 +11,9 @@ use_when:
   - 文件图标
   - fileIcon
   - 判断 YSM 文件
+invariant_anchors:
+  - frontend/src/utils/icon/icon.ts|fileIcon
+  - frontend/src/utils/icon/icon.ts|isYsmName
 ---
 
 # 图标映射 icon

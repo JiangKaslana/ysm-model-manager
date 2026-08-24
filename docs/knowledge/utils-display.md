@@ -15,6 +15,9 @@ use_when:
   - 文件名着色
   - 搜索高亮
   - ban 文件
+invariant_anchors:
+  - frontend/src/utils/dom/display.ts|parseModelName
+  - frontend/src/utils/dom/display.ts|renderDisplayName
 ---
 
 # 文件名显示 display

@@ -15,9 +15,8 @@
 | android:back、返回键、弹窗、退出、系统事件、ScreenLocked、NetworkChanged、permissionGranted、closeActiveDialog、registerAndroidEvents | [Android 系统事件消费（back/网络/存储授权）](./android-events.md) | 前端消费 Java 层经 Wails 事件总线转发的 `android:*` 系统事件（ADR-046 P2，参照 MikuMikuAR ADR-017 A3-04）。桌面端无 Java 层，这些事件永不触发，注册无害。生命周期由 `reg… |
 | 动画、骨骼动画、关键帧、动画播放、Molang、数字滚动、stagger 入场、关闭动画 | [动画系统 animation](./animation-system.md) | 前端动画体系分两层：**模型骨骼动画**（基岩版 animation.json 解析 + 关键帧插值求值）与 **UI 动效**（数字里程表滚动、stagger 入场延迟）。UI 层的 CSS 动画可被全局 `no-animations` … |
 | 主内容区、页面切换、nav:change、仓库页、诊断页、设置页、创作者频道、创意工坊、全局 handler | [主内容页 app-content](./app-content.md) | `app-content` 是应用的主内容区组件（Shadow DOM + adoptedStyleSheets），承载 6 个页面：模型仓库（repository）、整合包管理（instances）、创作者频道（workshop）、创意工… |
-| 组件入口、模块装配、启动流程、主题初始化、服务注册、检查更新、import 组件、新组件注册 | [组件入口 app-modules](./app-modules.md) | `app-modules.ts` 是前端所有 ES module 组件的统一装配入口：注册可替换服务、按「轻量静态 + 重量级动态」策略导入全部 Web Components、注册右键菜单映射、初始化主题与 UI 偏好、静默检查更新。新增组… |
+| 组件入口、模块装配、启动流程、主题初始化、服务注册、检查更新、import 组件、新组件注册、窗口显示、startup reveal | [组件入口 app-modules](./app-modules.md) | `app-modules.ts` 是前端所有 ES module 组件的统一装配入口：注册可替换服务、按「轻量静态 + 重量级动态」策略导入全部 Web Components、注册右键菜单映射、初始化主题与 UI 偏好、静默检查更新。新增组… |
 | 预览、模型预览、2D 骨骼、3D 预览、Litematic、蓝图、缩略图、WASM 解码、放大预览 | [预览面板 app-preview](./app-preview.md) | `app-preview` 是仓库页右侧的预览面板组件（Shadow DOM），负责 YSM 模型的详情/2D 骨骼/3D 预览、Litematic 蓝图 3D 预览、资源包与光影包信息展示。它按 `model:select` 事件驱动，解… |
-| 资源管理、资源包、光影包、resourcepack、shaderpack、导入资源、启用禁用、通用资源 | [资源管理页 app-resource-manager](./app-resource-manager.md) | `app-resource-manager` 是通用资源管理组件（light DOM），以 `rtype` 属性驱动，管理资源包/光影包及未来任意注册类型的列表、详情、导入、启用/禁用与删除。类型行为（可用操作、扩展名、安装目录）全部从 `… |
 | 侧边栏、整合包列表、版本卡片、推送、拉取、一键安装、同步状态、勾选 | [侧边栏 app-sidebar](./app-sidebar.md) | `app-sidebar` 是仓库页左栏的整合包列表组件（Shadow DOM），展示当前资源类型下各整合包（Minecraft 版本实例）的同步状态卡片，支持选中联动、勾选批量推送/拉取、一键安装缺失资源。它遵循标准组件拆分规范（inde… |
 | 整合包同步、同步状态、推送资源、拉取资源、待推送、可拉取、已禁用、实例资源 | [整合包同步页 app-sync-manager](./app-sync-manager.md) | `app-sync-manager` 是整合包管理页内嵌的同步状态面板（light DOM），由 `app-content` 在收到 `package:selected` 后以 `<app-sync-manager instance="版本… |
 | 树形、资源列表、tree、节点、树、目录树 | [资源树 app-tree](./app-tree.md) | `app-tree` 是 YSM 核心的资源目录树组件，使用 Web Components 实现，支持展开/折叠、右键菜单、文件图标显示。 |
@@ -61,6 +60,7 @@
 | YSM、解析、摘要、ysm 文件、元数据 | [YSM 解析 go/ysm](./go-ysm-parser.md) | `go/ysm/` 包负责解析 YSM（Yuan's Sketch Model）格式文件，提取模型元数据并生成结构化摘要。 |
 | 翻译、多语言、i18n、t()、语言切换、lang:changed | [国际化 i18n 模块](./i18n.md) | `i18n` 模块是 YSM 前端的唯一翻译层，基于 ADR-045 设计。`t.ts` 提供纯函数式翻译（按 key 查表），`locale.ts` 管理语言状态、持久化与异步加载。支持简体中文（基准）、英语、日语三种语言，语言偏好持久化… |
 | 导入、导入队列、拖拽导入、命名表单、文件夹导入、覆盖导入、import | [导入队列 import-queue](./import-queue.md) | 导入分两层：**全局导入执行器 `import-executor.ts`（一等公民）** 负责真正的落盘（`directImport` 单文件直导 / `importFolder` 文件夹整组 / `executeCollected` 批量… |
+| 模型统计、骨骼数、立方体数、纹理尺寸、SearchModels、数值筛选、Web Worker、批量统计 | [Web Worker 模型统计层 model-stats](./model-stats.md) | `frontend/src/workers/` + `frontend/src/backend/web-stats.ts` 是 ADR-071 审计增强 #7 新增的**Web Worker 批量模型统计层**，为网页版 `SearchMo… |
 | 2D 预览、骨骼图、Canvas 渲染、前视图、骨骼热区、鼠标拾取、线框图 | [2D 预览渲染 model2d](./model2d.md) | Canvas 2D 渲染基岩版模型骨骼的线框/正交投影图（前视图 + 可选 Y 轴旋转），是预览面板的轻量视图；与 [model3d](./model3d.md) 共享同一套 Bedrock 几何口径。 |
 | 3D 预览、Three.js、相机、骨骼渲染、自由相机、3D 截图、纹理加载、spec 兜底、OrbitControls | [3D 预览渲染 model3d](./model3d.md) | 前端 Three.js 3D 渲染层（`frontend/src/utils/3d/`），**单会话架构**：场景/相机/渲染器/控制器由统一预览核心 `mount3D`（ADR-066）持有单实例，模型内容经适配器（ysm/vrm/mmd… |
 | 优化、性能、瓶颈、优化记录、optimization、perf、KTX2、纹理缓存、加载速度、内存、GPU 内存、闪退、泄漏、dispose | [优化记录 optimization-log](./optimization_log.md) | — |
@@ -74,7 +74,7 @@
 | Rust 扫描器、rust_backend、桥 DLL、Wails 后端迁移 Rust | [Rust 桥 rustbridge](./rustbridge.md) | — |
 | 场景能力 / cap / registry / SceneCapability、3D 菜单控件声明式渲染（getMenuControls）、新增 3D 能力（雾/阴影/反射/环境/灯光/后处理）、3D 会话生命周期（createAll / loadAll / setPreset / saveAll / dispose）、「光」指代消歧（light 是光源，fog/shadow/reflector 不是） | [场景能力注册表 scene-capability-registry](./scene_capability_registry.md) | ADR-073 扩展落地的**场景能力注册表**：所有场景能力（Sky / Ground / Environment / Fog / Shadow / Reflector / Light / Postprocessing）由统一注册表**创… |
 | 测试工具、testid、getByTestId、waitFor、组件测试、mock、G-1 | [测试工具 test-utils（G-1 抗脆弱测试基础设施）](./test-utils.md) | `frontend/src/test-utils/` 是组件测试统一工具层（ADR-035 G-1 / Design.md §19.1）。查询走 `data-testid` 稳定钩子（不绑定 CSS 类/文案），等待走轮询（替代固定 sle… |
-| UI 组件、UI 组件库、卡片组件、折叠面板、加载动画、滑块、行组件、预设、图标、幻灯片菜单、组件样式 | [UI 组件库 ui-components](./ui_components.md) | `frontend/src/ui/` 是前端 Web Components 的通用 UI 组件库，提供可复用的展示型组件：卡片、折叠面板、加载动画、行排列、滑块、幻灯片菜单、图标等。所有组件为无业务逻辑的纯 UI 层。 |
+| UI 组件、UI 组件库、卡片组件、折叠面板、加载动画、滑块、行组件、预设、图标、幻灯片菜单、组件样式 | [UI 组件库 ui-components](./ui_components.md) | `frontend/src/ui/` 是前端通用 UI **helper 函数库**（自 MikuMikuAR 迁移，ADR-191 去桶化）：提供卡片、折叠面板、加载遮罩、行排列、滑块、幻灯片菜单、预设 chip、图标工厂等无业务逻辑的 … |
 | 截图、导出 PNG、多角度截图、预览缓存、缩略图、blob URL 释放 | [截图与导出 export](./utils-export.md) | 预览产物的导出与缓存层：`screenshot-renderer.ts` 用离屏 Three.js 渲染器做透明背景多角度截图；`preview-cache.ts` 是模型预览数据的模块级持久缓存（组件卸载/重挂不丢失）。当前画面的单帧截图… |
 | 更新、升级、检查更新、新版本、静默检查、updater、版本 | [版本更新 version-updater](./version-updater.md) | `version-updater.ts` 是应用自更新的前端入口：启动时静默检查（受 6 小时频次限制）→ 发现新版本以可点击 toast 通知；设置页按钮手动检查 → 弹出带更新日志的 `modalConfirm` → 调 `DoUpda… |
 | API、Binding、接口、Go 方法、调用后端、有哪些方法、App 方法、getApp、方法签名、app.ts 绑定 | [Wails Binding API 总览 internal/app](./wails-bindings.md) | `internal/app/` 是 Go 端唯一的 Wails Binding 入口层：所有导出给前端的方法都定义在 `*App` 上，业务逻辑下沉到 `go/*` 包，本层只做参数转发与窗口/事件/对话框编排。前端统一经 `getApp(… |

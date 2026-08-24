@@ -11,6 +11,10 @@ use_when:
   - 摘要
   - ysm 文件
   - 元数据
+invariant_anchors:
+  - go/ysm/summary.go|ExtractYsmSummary
+  - go/ysm/parse.go|AnalyzeYSMModel
+  - go/ysm/ysm.go|HasYSMMod
 ---
 
 # YSM 解析 go/ysm

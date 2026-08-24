@@ -17,6 +17,10 @@ use_when:
   - MEMFS
   - node 解码
   - callMain
+invariant_anchors:
+  - go/avatar/avatar_decode.go|DecodeYSMFiles
+  - go/avatar/avatar_decode.go|SetNodeJS
+  - internal/app/wasm_decoder.go|decodeYSMViaNodeJS
 perf:
   - cpu-bound
   - single-thread
