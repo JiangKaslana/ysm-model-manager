@@ -1883,9 +1883,9 @@
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:16` | — |
 | `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:129` | — |
-| `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:87` | 初始化去重配置面板（标签页打开时调用，配置实时保存） 扫描结果不覆盖面板，控件扫描后仍可改；code_review P3） |
-| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:138` | 获取当前去重配置（供外部调用） |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:151` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:88` | 初始化去重配置面板（标签页打开时调用，配置实时保存） 扫描结果不覆盖面板，控件扫描后仍可改；code_review P3） |
+| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:139` | 获取当前去重配置（供外部调用） |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:152` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
 | `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:125` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
@@ -1955,7 +1955,7 @@
 | `SubscriptionBucket()` | `frontend/src/views/app-content/subscription-bucket:11` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
 | `aboutHTML()` | `frontend/src/views/app-content/tpl-settings-about:6` | About 标签页（版本/特性/技术栈/链接/快速上手） |
-| `creditsHTML()` | `frontend/src/views/app-content/tpl-settings-about:95` | Credits 标签页（灵感来源/特别感谢） |
+| `creditsHTML()` | `frontend/src/views/app-content/tpl-settings-about:101` | Credits 标签页（灵感来源/特别感谢） |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:8` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
