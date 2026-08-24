@@ -10,7 +10,7 @@
 | Go·头像 | 4 | 11 |
 | go/cli | 4 | 29 |
 | go/container | 1 | 27 |
-| Go·去重 | 1 | 5 |
+| Go·去重 | 2 | 16 |
 | Go·下载 | 1 | 17 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 14 |
@@ -28,11 +28,11 @@
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 2 | 3 |
 | go/scanner | 1 | 10 |
-| Go·同步 | 7 | 25 |
+| Go·同步 | 8 | 32 |
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 7 | 90 |
+| Go·类型 | 7 | 92 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -48,7 +48,7 @@
 | frontend/views | 115 | 327 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **456** | **1947** |
+| **合计** | **458** | **1967** |
 
 ## Go·头像
 
@@ -136,11 +136,22 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `FindDuplicateFiles()` | `go/dedup/dedup:176` | FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 消费共享并行 |
-| `CountDuplicates()` | `go/dedup/dedup:244` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） 同样消费共享并行哈希管道（ADR-119 P1：与 FindDuplic |
-| `CleanEmptyDirs()` | `go/dedup/dedup:273` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
+| `FindDuplicateFiles()` | `go/dedup/dedup:158` | FindDuplicateFiles 扫描目录，按配置的哈希算法分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 config 为去 |
+| `CountDuplicates()` | `go/dedup/dedup:232` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） 同样消费共享并行哈希管道（ADR-119 P1：与 FindDuplic |
+| `CleanEmptyDirs()` | `go/dedup/dedup:277` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
 | `FileEntry()` | `go/dedup/dedup:26` | FileEntry 文件条目 |
 | `Group()` | `go/dedup/dedup:34` | Group 重复文件分组 |
+| `DeepHash.Name()` | `go/dedup/strategy:25` | — |
+| `DeepHash.ComputeHash()` | `go/dedup/strategy:29` | — |
+| `QuickHash.Name()` | `go/dedup/strategy:46` | — |
+| `QuickHash.ComputeHash()` | `go/dedup/strategy:50` | — |
+| `NameSizeHash.Name()` | `go/dedup/strategy:67` | — |
+| `NameSizeHash.ComputeHash()` | `go/dedup/strategy:71` | — |
+| `NewHashAlgorithm()` | `go/dedup/strategy:81` | NewHashAlgorithm 根据配置创建哈希算法实例 |
+| `HashAlgorithm()` | `go/dedup/strategy:15` | HashAlgorithm 去重算法策略接口 |
+| `DeepHash()` | `go/dedup/strategy:23` | DeepHash 深度哈希算法 (基于 SHA256) - 精确但较慢 |
+| `QuickHash()` | `go/dedup/strategy:44` | QuickHash 快速哈希算法 (基于 MD5) - 速度较快，适合大文件 |
+| `NameSizeHash()` | `go/dedup/strategy:65` | NameSizeHash 基于文件名和大小的"伪哈希" - 速度最快但不精确 |
 
 ## Go·下载
 
@@ -395,6 +406,13 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `DetectConflicts()` | `go/sync/conflict:70` | DetectConflicts 检测本地和远端之间的冲突 localDir: 本地目录路径 remoteDir: 远端（全局/主仓库）目录路径 rtype: 资源类型 ID 返回冲 |
+| `ResolveConflict()` | `go/sync/conflict:160` | ResolveConflict 解决单个文件冲突 conflict: 冲突详情 strategy: 解决策略 localDir: 本地目录 remoteDir: 远端目录 返回操作 |
+| `ResolveConflicts()` | `go/sync/conflict:191` | ResolveConflicts 批量解决冲突 conflicts: 冲突列表 defaultStrategy: 默认策略（用于自动解决） localDir: 本地目录 remot |
+| `ConflictType()` | `go/sync/conflict:14` | ConflictType 冲突类型 |
+| `ResolutionStrategy()` | `go/sync/conflict:24` | ResolutionStrategy 冲突解决策略 |
+| `FileConflict()` | `go/sync/conflict:36` | FileConflict 文件冲突详情 |
+| `ConflictReport()` | `go/sync/conflict:58` | ConflictReport 冲突报告 |
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
 | `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:226` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
@@ -480,6 +498,8 @@
 | `WorkshopPresetSearch()` | `go/types/config:55` | WorkshopPresetSearch 预设搜索词 |
 | `WorkshopSite()` | `go/types/config:61` | WorkshopSite 创意工坊站点配置 |
 | `WorkshopCreator()` | `go/types/config:74` | WorkshopCreator 创作者条目 Type 是平台标签，分号分隔，如 "bilibili;afdian" |
+| `DedupConfig()` | `go/types/config:82` | DedupConfig 去重功能配置 |
+| `SyncConfig()` | `go/types/config:92` | SyncConfig 同步功能配置 |
 | `IsNestedModelDir()` | `go/types/extensions:22` | IsNestedModelDir 判断 rtype 是否有嵌套模型目录结构（ADR-095）： 模型入口文件在 assets/&lt;namespace&gt;/ 下（如 maid-model |
 | `NestedPatternsFor()` | `go/types/extensions:31` | NestedPatternsFor 返回指定资源类型的嵌套模式配置列表（ADR-XXX）。 |
 | `AllExts()` | `go/types/extensions:68` | AllExts 返回所有支持的扩展名（去重后）。 |

@@ -702,10 +702,10 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 	// maidNs / maidManifest：L0 清单收集（命名空间选择 + 清单提取）已收编 collectMaidManifest
 	maidNs, maidManifest := collectMaidManifest(entries, logPrefix)
-	// manifest 下标 → 实际解析到的 zip 路径 / 纹理名（L0 过滤循环填充、SubModels 构建消费，
-	// 两处不在同一 if 作用域，声明提到函数级）
-	resolvedPathByItem := make(map[int]string)
-	texNameByItem := make(map[int]string)
+	// manifest 下标 → 实际解析到的 zip 路径 / 纹理名（resolveL0 填充、SubModels 构建消费）；
+	// 由 resolveL0 统一返回非 nil map，无需提前 make
+	var resolvedPathByItem map[int]string
+	var texNameByItem map[int]string
 	var geo *types.BedrockModel
 	var pngs [][]byte
 	var pngNames []string
