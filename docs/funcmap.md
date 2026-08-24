@@ -28,7 +28,7 @@
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 2 | 3 |
 | go/scanner | 1 | 10 |
-| Go·同步 | 8 | 35 |
+| Go·同步 | 8 | 36 |
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
@@ -48,7 +48,7 @@
 | frontend/views | 115 | 330 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **460** | **1979** |
+| **合计** | **460** | **1980** |
 
 ## Go·头像
 
@@ -418,6 +418,7 @@
 | `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:232` | SyncResourcesDirLevel 文件夹级同步（默认 filepath.Walk，行为不变，供测试/旧调用方使用）。 |
 | `SyncResourcesDirLevelScan()` | `go/sync/sync_dirlevel:241` | SyncResourcesDirLevelScan 同 SyncResourcesDirLevel，但注入 scanFn 复用扫描缓存， 消除 8 个 MMD 子类型 ×(1+N |
 | `DiffFolderContents()` | `go/sync/sync_dirlevel:447` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
+| `DiffFolderContentsScan()` | `go/sync/sync_dirlevel:503` | DiffFolderContentsScan 同 DiffFolderContents，但全局侧文件收集复用 scanner 已缓存的 组根扫描结果（scanFn(globalRo |
 | `ScanEntriesFn()` | `go/sync/sync_dirlevel:229` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
 | `FileDiffEntry()` | `go/sync/sync_dirlevel:421` | FileDiffEntry 文件级差异条目（用于文件夹内容级 diff） |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |

@@ -89,7 +89,9 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 			}
 			// DiffFolderContents 返回全局侧文件清单（synced 条目含在结果中——前端
 			// 子文件列表需全量展示）；实例侧目录不存在时自然降级为全部 missing
-			diffs := ysmsync.DiffFolderContents(globalPath, instPath, rt.ID)
+			// 复用 scanner 已缓存的组根扫描结果（globalDir）反推全局侧文件，
+			// 消除每个模型夹的全局子树 Walk（实例侧保持 Walk，量级小）
+			diffs := ysmsync.DiffFolderContentsScan(globalPath, instPath, rt.ID, scanner.ScanEntriesWithHit, globalDir)
 			children := make([]types.ResourceSyncItem, 0, len(diffs))
 			for _, d := range diffs {
 				childStatus := d.Status

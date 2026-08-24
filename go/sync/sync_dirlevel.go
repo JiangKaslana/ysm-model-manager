@@ -493,6 +493,93 @@ func DiffFolderContents(globalFolder, instanceFolder, rtype string) []FileDiffEn
 	return diffs
 }
 
+// DiffFolderContentsScan 同 DiffFolderContents，但全局侧文件收集复用 scanner 已缓存的
+// 组根扫描结果（scanFn(globalRoot)），避免对每个模型夹重复 Walk 全局子树。
+// 实例侧（instanceFolder）通常不在 globalRoot 之下，且文件量远小于全局侧，
+// 保持 Walk（collectFolderFiles）不改语义。
+//
+// cacheHit=false（缓存未命中/含嵌套模式类型）时整体回退 DiffFolderContents，零行为漂移。
+// scanFn 签名与 SyncResourcesDirLevelScan 一致：func(dir string) ([]types.ModelEntry, bool)。
+func DiffFolderContentsScan(globalFolder, instanceFolder, rtype string, scanFn ScanEntriesFn, globalRoot string) []FileDiffEntry {
+	if scanFn == nil || len(types.NestedPatternsFor(rtype)) > 0 {
+		// 含嵌套模式类型不参与反推（语义由 Walk 保证）；未注入则回退
+		return DiffFolderContents(globalFolder, instanceFolder, rtype)
+	}
+	entries, hit := scanFn(globalRoot)
+	if !hit || len(entries) == 0 {
+		return DiffFolderContents(globalFolder, instanceFolder, rtype)
+	}
+	// 全局侧：从组根全量条目按 globalFolder 前缀过滤（零 Walk）
+	globalFiles := collectFolderFilesFromScan(globalFolder, rtype, entries)
+	// 实例侧：保持 Walk（实例根不在扫描缓存体系内）
+	instanceFiles := collectFolderFiles(instanceFolder, rtype)
+
+	var diffs []FileDiffEntry
+	seen := make(map[string]bool)
+	for relKey, gEntry := range globalFiles {
+		seen[relKey] = true
+		if _, exists := instanceFiles[relKey]; exists {
+			diffs = append(diffs, FileDiffEntry{
+				RelPath: relKey,
+				AbsPath: gEntry,
+				Size:    fileSize(gEntry),
+				Status:  types.SyncStatusSynced,
+			})
+		} else {
+			diffs = append(diffs, FileDiffEntry{
+				RelPath: relKey,
+				AbsPath: gEntry,
+				Size:    fileSize(gEntry),
+				Status:  types.SyncStatusMissing,
+			})
+		}
+	}
+	for relKey, iEntry := range instanceFiles {
+		if !seen[relKey] {
+			diffs = append(diffs, FileDiffEntry{
+				RelPath: relKey,
+				AbsPath: iEntry,
+				Size:    fileSize(iEntry),
+				Status:  types.SyncStatusOptional,
+			})
+		}
+	}
+	sort.Slice(diffs, func(i, j int) bool {
+		return diffs[i].RelPath < diffs[j].RelPath
+	})
+	return diffs
+}
+
+// collectFolderFilesFromScan 从 scanner 已缓存的组根全量条目中，过滤出 folder 下的
+// 模型文件（相对 folder 的 slash 路径为 key）。与 collectFolderFiles（Walk）语义等价：
+// 仅收集 IsTypeModelFile 命中的文件，跳过回收站目录。
+func collectFolderFilesFromScan(folder, rtype string, entries []types.ModelEntry) map[string]string {
+	result := make(map[string]string)
+	if folder == "" {
+		return result
+	}
+	prefix := folder + string(os.PathSeparator)
+	for _, e := range entries {
+		p := e.Path
+		if !strings.HasPrefix(p, prefix) {
+			continue
+		}
+		// 回收站目录内的文件跳过（与 Walk 的 IsRecycleDir SkipDir 对齐）
+		if fsutil.IsRecycleDir(filepath.Dir(p)) {
+			continue
+		}
+		if !types.IsTypeModelFile(p, rtype) {
+			continue
+		}
+		rel, err := filepath.Rel(folder, p)
+		if err != nil {
+			continue
+		}
+		result[filepath.ToSlash(rel)] = p
+	}
+	return result
+}
+
 // collectFolderFiles 扫描文件夹内的所有模型文件
 // 返回以相对路径为 key 的映射
 func collectFolderFiles(folder, rtype string) map[string]string {

@@ -64,6 +64,52 @@ func TestSyncResourcesDirLevelScanMatchesWalk(t *testing.T) {
 	}
 }
 
+// TestCollectFolderFilesFromScanEqualsWalk 锁定 collectFolderFilesFromScan 与
+// collectFolderFiles（Walk）语义等价：对同一 folder，从组根全量扫描条目反推出的
+// 相对路径→绝对路径集合必须 == Walk 直接产出。覆盖叶子夹（内部文件全收）、
+// 容器夹（内部文件全收 + 子夹文件）、根级平铺三种情形。
+func TestCollectFolderFilesFromScanEqualsWalk(t *testing.T) {
+	root := t.TempDir()
+
+	// 目标 folder：container（直接含 model.pmx + 子夹 sub/model2.pmx）
+	container := filepath.Join(root, "container")
+	mkdir(t, container)
+	mustWrite(t, filepath.Join(container, "model.pmx"), "x")
+	mkdir(t, filepath.Join(container, "sub"))
+	mustWrite(t, filepath.Join(container, "sub", "model2.pmx"), "x")
+	// 同层干扰：另一个叶子夹 leaf（不应出现在 container 的结果里）
+	mkdir(t, filepath.Join(root, "leaf"))
+	mustWrite(t, filepath.Join(root, "leaf", "solo.pmx"), "x")
+	// 根级平铺干扰
+	mustWrite(t, filepath.Join(root, "root_solo.pmx"), "x")
+
+	rtype := "EntityPlayer" // 无嵌套模式，走 scan 反推路径
+
+	walkMap := collectFolderFiles(container, rtype)
+	if len(walkMap) == 0 {
+		t.Fatalf("collectFolderFiles(container) 为空：测试树未产生模型条目，rtype=%s", rtype)
+	}
+
+	// 组根全量条目（模拟刷新暖好的缓存）：首次调用走盘 hit=false，
+	// 二次调用命中 30s 缓存 hit=true——与生产「刷新后查看同步」场景一致
+	_, _ = scanner.ScanEntriesWithHit(root) // 暖缓存
+	allEntries, hit := scanner.ScanEntriesWithHit(root)
+	if !hit || len(allEntries) == 0 {
+		t.Fatalf("scanner 未返回组根条目（hit=%v, len=%d），反推路径无法验证", hit, len(allEntries))
+	}
+	scanMap := collectFolderFilesFromScan(container, rtype, allEntries)
+	if !reflect.DeepEqual(walkMap, scanMap) {
+		t.Errorf("collectFolderFilesFromScan 与 Walk 结果不一致\nWalk: %v\nScan: %v", walkMap, scanMap)
+	}
+
+	// 反向确认：scanMap 不含 leaf / root_solo（仅 container 子树）
+	for k := range scanMap {
+		if k == "solo.pmx" || k == "root_solo.pmx" {
+			t.Errorf("反推结果泄漏了 container 外的文件：%s", k)
+		}
+	}
+}
+
 func mustWrite(t *testing.T, p, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
