@@ -26,7 +26,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { ROOT } from './_lib/scan-files.mjs';
-import { splitNewFindings } from './_lib/deadcode-attrib.mjs';
+import { splitNewFindings, canWriteBaseline } from './_lib/deadcode-attrib.mjs';
 
 const FRONTEND = path.join(ROOT, 'frontend');
 const BASELINE_FILE = path.join(ROOT, 'scripts/baseline/deadcode-baseline.json');
@@ -39,6 +39,9 @@ const errors = [];
 const infos = [];
 let knipFindings = [];
 let jscpdFindings = [];
+// 输出解析失败 flag（执行成功但输出不可消费——假零发现，禁止写盘防洗白）
+let knipParseFailed = false;
+let jscpdParseFailed = false;
 
 // ── 工具探测与执行 ────────────────────────────────────
 
@@ -102,6 +105,7 @@ function parseKnip(stdout) {
     }
     return out;
   } catch {
+    knipParseFailed = true;
     errors.push('[解析失败] knip 输出非 JSON（可能被插件/告警污染），请手工运行 npx knip 排查');
     return [];
   }
@@ -126,30 +130,38 @@ function parseJscpd() {
       return `${f1}#${f2}`;
     });
   } catch {
+    jscpdParseFailed = true;
     errors.push('[解析失败] jscpd 报告读取异常（期望 frontend/report/jscpd-report.json）');
     return [];
   }
 }
 
 // ── 责任文件集解析（归属裁剪）─────────────────────────
-// 三级回退：staged（commit 场景）→ 未推送提交 diff（push 场景）→ null（严格模式）。
+// 合并三源：staged（commit 场景）+ 未暂存改动 + 未跟踪文件（gitignore 之外），
+// 再回退未推送提交 diff（push 场景）→ null（严格模式）。
 // 返回仓库根相对 posix 路径数组；null = 无 git 上下文，调用方全阻断（fail-closed）。
+// 未暂存改动必须纳入：pre-commit/手工检查在 git add 前运行时，自己的新死代码
+// 若不在责任集会被当「他人遗留」自动收编进基线、永久洗白（code_review P2-2）。
 
 function resolveResponsibleFiles() {
   const git = (...args) => {
     const r = spawnSync('git', args, { encoding: 'utf-8' });
     return r.status === 0 ? r.stdout : null;
   };
-  const staged = git('diff', '--cached', '--name-only');
-  if (staged !== null && staged.trim()) {
-    return staged.trim().split('\n').filter(Boolean).map((p) => p.replace(/\\/g, '/'));
-  }
+  const collect = (out) => {
+    if (out === null || !out.trim()) return [];
+    return out.trim().split('\n').filter(Boolean).map((p) => p.replace(/\\/g, '/'));
+  };
+  const files = new Set([
+    ...collect(git('diff', '--cached', '--name-only')),
+    ...collect(git('diff', '--name-only')),
+    ...collect(git('ls-files', '--others', '--exclude-standard')),
+  ]);
+  if (files.size > 0) return [...files];
   const upstream = git('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}');
   if (upstream !== null && upstream.trim()) {
-    const pushed = git('diff', '--name-only', `${upstream.trim()}...HEAD`);
-    if (pushed !== null && pushed.trim()) {
-      return pushed.trim().split('\n').filter(Boolean);
-    }
+    const pushed = collect(git('diff', '--name-only', `${upstream.trim()}...HEAD`));
+    if (pushed.length > 0) return pushed;
   }
   return null;
 }
@@ -174,13 +186,11 @@ function main() {
   const current = { knip: [...new Set(knipFindings)].sort(), jscpd: [...new Set(jscpdFindings)].sort() };
 
   if (UPDATE) {
-    // 守卫：工具缺失（knip/jscpd 执行失败返回 null）禁止写盘——
-    // 否则空 findings 被写盘后旧债务全部洗白（门禁锐评 P1-3 漏洞）。
-    if (knipFindings.length === 0 && knipOut === null) {
-      errors.push('[工具缺失] knip 未执行成功，拒绝写盘（防止空基线洗白债务）');
-    }
-    if (jscpdFindings.length === 0 && jscpdOut === null) {
-      errors.push('[工具缺失] jscpd 未执行成功，拒绝写盘（防止空基线洗白债务）');
+    // 守卫：工具缺失（knip/jscpd 执行失败返回 null）或输出解析失败（假零发现）
+    // 禁止写盘——否则空 findings 被写盘后旧债务全部洗白（门禁锐评 P1-3 漏洞；
+    // 解析失败路径为 code_review P2 回归：执行成功但输出不可消费同样算失败）。
+    if (!canWriteBaseline(knipFindings, knipOut, knipParseFailed, jscpdFindings, jscpdOut, jscpdParseFailed)) {
+      errors.push('[工具结果不可信] knip/jscpd 未执行成功或输出解析失败，拒绝写盘（防止空基线洗白债务）');
     }
     if (errors.length > 0) {
       console.log(errors.join('\n'));
@@ -221,16 +231,15 @@ function main() {
     }
 
     // 自动收编：无阻断项且有他人遗留债务时刷新基线（与 --update-baseline 同守卫，
-    // 工具执行失败禁止写盘防洗白）；CI（--json）只报告不写盘。
+    // 工具执行失败/输出解析失败禁止写盘防洗白）；CI（--json）只报告不写盘。
     if (blocking.length === 0 && absorbable.length > 0 && !JSON_OUT) {
-      const canWrite = !(knipFindings.length === 0 && knipOut === null)
-        && !(jscpdFindings.length === 0 && jscpdOut === null);
+      const canWrite = canWriteBaseline(knipFindings, knipOut, knipParseFailed, jscpdFindings, jscpdOut, jscpdParseFailed);
       if (canWrite) {
         fs.mkdirSync(path.dirname(BASELINE_FILE), { recursive: true });
         fs.writeFileSync(BASELINE_FILE, JSON.stringify({ generated: new Date().toISOString(), ...current }, null, 2) + '\n');
         infos.push(`基线已自动收编并写盘：${current.knip.length} 条 knip + ${current.jscpd.length} 条 jscpd`);
       } else {
-        for (const k of absorbable) errors.push(`[收编失败·工具未执行成功，拒绝写盘] ${k}`);
+        for (const k of absorbable) errors.push(`[收编失败·工具结果不可信，拒绝写盘] ${k}`);
       }
     }
 

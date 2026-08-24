@@ -9,7 +9,7 @@
  *
  * 零依赖、纯函数、无 IO。
  */
-import { findingFiles, attributable, splitNewFindings } from '../scripts/_lib/deadcode-attrib.mjs';
+import { findingFiles, attributable, splitNewFindings, canWriteBaseline } from '../scripts/_lib/deadcode-attrib.mjs';
 
 const errors = [];
 function assert(cond, msg) {
@@ -56,6 +56,28 @@ assert(split.absorbable.length === 1 && split.absorbable[0] === news[1], '非归
 const strict = splitNewFindings(news, null);
 assert(strict.blocking.length === 2 && strict.absorbable.length === 0,
   '责任集为 null（严格模式）时全部阻断');
+
+// ── 4. canWriteBaseline（基线写盘守卫）─────────────────
+// 防洗白：任一工具「未执行成功（out===null）或输出解析失败（假零发现）」
+// 时禁止写盘——否则空 findings 被写盘后旧债务全部洗白。
+// 正常：两工具都有发现
+assert(canWriteBaseline(['a|exports|x'], 'out', false, ['b#c'], 'out', false),
+  '两工具各有发现时应放行写盘');
+// 正常：工具执行成功但零发现（合法空结果，非失败）
+assert(canWriteBaseline([], 'out', false, [], 'out', false),
+  '两工具执行成功零发现（解析成功）时应放行');
+// 失败：knip 未执行成功（out===null 且无发现）
+assert(!canWriteBaseline([], null, false, ['b#c'], 'out', false),
+  'knip 未执行成功时应禁止写盘');
+// 失败：knip 执行了但输出解析失败（假零发现）——P2 回归点
+assert(!canWriteBaseline([], 'out', true, ['b#c'], 'out', false),
+  'knip 解析失败（假零发现）时应禁止写盘');
+// 失败：jscpd 报告读取失败（假零发现）
+assert(!canWriteBaseline(['a|exports|x'], 'out', false, [], 'out', true),
+  'jscpd 解析失败时应禁止写盘');
+// 失败：单工具失败即整体拒绝（对称性）
+assert(!canWriteBaseline([], null, false, [], null, false),
+  '两工具均不可信时应禁止写盘');
 
 if (errors.length) {
   console.error(`✖ ${errors.length} 项失败:`);

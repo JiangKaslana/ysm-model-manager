@@ -45,3 +45,16 @@ export function splitNewFindings(newKeys, responsibleSet) {
   }
   return { blocking, absorbable };
 }
+
+/** 单工具结果可信度：findings 非空即可信（有发现必是执行+解析成功）；
+ * 为空时只有「执行成功（out 非 null）且输出解析成功（未置 parseFailed）」才可信——
+ * 否则空 findings 是「工具没跑/输出解析失败」的假零，写盘会洗白既有债务。 */
+function trusted(findings, out, parseFailed) {
+  return findings.length > 0 || (out !== null && !parseFailed);
+}
+
+/** 基线写盘守卫（纯决策）：knip 与 jscpd 两工具结果都可信才允许自动收编/更新基线写盘。
+ * 防洗白：任一工具「未执行成功或输出解析失败」时禁止写盘（code_review P2 回归）。 */
+export function canWriteBaseline(knipFindings, knipOut, knipParseFailed, jscpdFindings, jscpdOut, jscpdParseFailed) {
+  return trusted(knipFindings, knipOut, knipParseFailed) && trusted(jscpdFindings, jscpdOut, jscpdParseFailed);
+}
