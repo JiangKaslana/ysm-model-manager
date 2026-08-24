@@ -420,6 +420,23 @@ app --cli --files-root <路径> health-report [选项...]
 | `--bench` | bool — 追加首个模型的 single-bench 性能基线（默认关闭，耗时高） |
 
 
+### `hub`
+浏览 YSM Hub 公共 API（models/search/model）
+
+```bash
+app --cli --files-root <路径> hub [选项...]
+```
+
+**子命令**（用法：`app --cli --files-root <路径> hub <子命令> [选项...]`）：
+
+| 子命令 | 说明 |
+|--------|------|
+| `models` | 列出公开模型 |
+| `search` | 搜索公开模型 |
+| `model` | 查看模型详情 |
+
+
+
 ### `instance`
 整合包实例管理（子命令: list/sync/push/pull）
 
