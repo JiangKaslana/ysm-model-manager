@@ -23,9 +23,8 @@
 // 已知限制（非本次回归，待治理）：
 //   - 同级目录 `模型包/` 与文件 `模型包.zip` 的 key 都归一为 `<parent>/模型包` → 静默丢失一个
 //     （relKeyDirLevel 去扩展名 vs 目录 basename 冲突）
-//   - patternFind 对每个 Walk 访问的目录做子树递归搜索，祖先层搜索与子孙层重复；
-//     超大仓库可加「basename 不等于 entryDir 则不下钻」剪枝，但当前 maxDepth 设计
-//     支持 EntryDir 嵌套在非 EntryDir 目录名下，剪枝需谨慎验证
+//   - patternFind 重复子树扫描已治理（2026-08-24）：collectEntriesWalk 内建
+//     nestedDirMemo，一次 Walk 内同一目录+pattern 只递归一次，O(N²) 降为 O(N)。
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 package sync
@@ -35,6 +34,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"ysm-model-manager/go/fsutil"
@@ -186,6 +186,148 @@ func checkEntryFiles(path string, entryFiles []string) bool {
 	return false
 }
 
+// ===== nested 目录检测 memoization（去重 patternFind 重复子树扫描）=====
+
+// nestedDirMemo 用于在同一棵 Walk 树内缓存 patternFind 的结果。
+// 外层 key = patternKey（编码 EntryDir/EntryFiles/MaxDepth），
+// 内层 key = 目录路径，值 = findNestedModelDir 对该路径+pattern 的返回结果（"" 表示未找到）。
+type nestedDirMemo map[string]map[string]string
+
+func patternKey(pattern types.NestedPattern) string {
+	var b strings.Builder
+	b.WriteString(pattern.EntryDir)
+	b.WriteByte(0)
+	for _, f := range pattern.EntryFiles {
+		b.WriteString(f)
+		b.WriteByte(0)
+	}
+	b.WriteString(strconv.Itoa(pattern.MaxDepth))
+	return b.String()
+}
+
+// patternFindMemo 语义同 patternFind，但结果写入 memo 避免重复子树扫描。
+// 同一棵 Walk 树内，同一路径+pattern 只递归一次。
+func patternFindMemo(path string, pattern types.NestedPattern, depth int, memo map[string]string) string {
+	if v, ok := memo[path]; ok {
+		return v
+	}
+
+	maxDepth := pattern.MaxDepth
+	if maxDepth <= 0 {
+		maxDepth = 10
+	}
+	if depth > maxDepth {
+		memo[path] = ""
+		return ""
+	}
+
+	if pattern.EntryDir == "" {
+		if checkEntryFiles(path, pattern.EntryFiles) {
+			memo[path] = path
+			return path
+		}
+		memo[path] = ""
+		return ""
+	}
+
+	dirName := filepath.Base(path)
+	if strings.EqualFold(dirName, pattern.EntryDir) {
+		entries, err := os.ReadDir(path)
+		if err == nil {
+			for _, e := range entries {
+				if e.IsDir() {
+					subPath := filepath.Join(path, e.Name())
+					if checkEntryFiles(subPath, pattern.EntryFiles) {
+						result := filepath.Dir(path)
+						memo[path] = result
+						return result
+					}
+				}
+			}
+			if checkEntryFiles(path, pattern.EntryFiles) {
+				result := filepath.Dir(path)
+				memo[path] = result
+				return result
+			}
+		}
+		memo[path] = ""
+		return ""
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		memo[path] = ""
+		return ""
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			subPath := filepath.Join(path, e.Name())
+			if found := patternFindMemo(subPath, pattern, depth+1, memo); found != "" {
+				memo[path] = found
+				return found
+			}
+		}
+	}
+	memo[path] = ""
+	return ""
+}
+
+func findNestedModelDirMemo(path string, patterns []types.NestedPattern, memo nestedDirMemo) string {
+	for _, pattern := range patterns {
+		pKey := patternKey(pattern)
+		pMemo := memo[pKey]
+		if pMemo == nil {
+			pMemo = make(map[string]string)
+			memo[pKey] = pMemo
+		}
+		if found := patternFindMemo(path, pattern, 0, pMemo); found != "" {
+			return found
+		}
+	}
+	return ""
+}
+
+// isDirTypeModelFolderMemo 同 isDirTypeModelFolder，但使用 memo 去重 patternFind 子树扫描。
+func isDirTypeModelFolderMemo(path string, rtype string, memo nestedDirMemo) bool {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if types.IsTypeModelFile(filepath.Join(path, e.Name()), rtype) {
+			return true
+		}
+	}
+	if patterns := types.NestedPatternsFor(rtype); len(patterns) > 0 {
+		if foundDir := findNestedModelDirMemo(path, patterns, memo); foundDir != "" {
+			if filepath.Clean(foundDir) == filepath.Clean(path) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// containsModelSubfolderMemo 同 containsModelSubfolder，但使用 memo 去重 patternFind 子树扫描。
+func containsModelSubfolderMemo(path string, rtype string, memo nestedDirMemo) bool {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if isDirTypeModelFolderMemo(filepath.Join(path, e.Name()), rtype, memo) {
+			return true
+		}
+	}
+	return false
+}
+
 // relKeyDirLevel 计算目录级同步条目的规范化 key：相对路径 + 小写 + 去禁用后缀。
 // 与 relKey 的区别：relKey 保留扩展名（供 ResourceDiff 按大小对比），
 // 而目录级同步的 key 按「模型身份」去扩展名（模型 A 的 zip 无论版本为何，
@@ -292,6 +434,7 @@ func syncResourcesDirLevel(globalDir, instanceDir, rtype string, scanFn ScanEntr
 // collectEntriesFromScan 的反推结果须与之等价（见 sync_dirlevel_scan_test.go）。
 func collectEntriesWalk(rootDir string, rtype string) map[string]string {
 	entries := make(map[string]string)
+	memo := make(nestedDirMemo)
 	filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("[sync] Walk 错误 %s: %v", path, err)
@@ -314,12 +457,13 @@ func collectEntriesWalk(rootDir string, rtype string) map[string]string {
 			return filepath.SkipDir
 		}
 		// 模型文件夹：在任意深度收集（不再限定一级子目录）
-		if isDirTypeModelFolder(path, rtype) {
+		// 使用 memo 变体消除 patternFind 重复子树扫描（patternFind 已知残余 IO）
+		if isDirTypeModelFolderMemo(path, rtype, memo) {
 			// 容器目录混入直接平铺模型文件（.ysm/.zip）也会被 isDirTypeModelFolder 判真，
 			// 但若它同时含子模型文件夹，则是「容器」而非「叶子模型夹」——整体收编 SkipDir
 			// 会吞掉子夹层级（如 嵌套1/ 内含平铺 .ysm + 01_taisho_maid/ + 嵌套2/ 深层）。
 			// 此时下钻保留各子夹层级，让 nestDirLevelTree 重建容器。
-			if containsModelSubfolder(path, rtype) {
+			if containsModelSubfolderMemo(path, rtype, memo) {
 				// code review P3：容器下钻时也注册自身键（目录 marker）——与对侧同名
 				// 叶子目录（仅平铺文件——pre-fix 安装）键一致，避免键集不相交产生
 				// 幻影 Missing+Extra（内容相同却显示分歧）

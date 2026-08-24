@@ -102,7 +102,7 @@ invariant_anchors:
 > 均有单测/注释留痕，改动前先读对应源码注释；修复任一项时删除对应行并补回归测试。
 
 - **目录级 key 冲突静默丢失**：同级目录 `模型包/` 与文件 `模型包.zip` 的 `relKeyDirLevel` 都归一为 `<parent>/模型包`（目录键仅加尾随 `/` 区分叶子文件，但 zip 与目录同名剥扩展名后仍同段）→ map last-write-wins 丢一个。头注释已声明的已知限制（sync_dirlevel.go L24-25），待治理方向：key 保留扩展名或冲突时报错可见
-- **patternFind 重复子树扫描**（性能）：`isDirTypeModelFolder` → `findNestedModelDir` 对 Walk 访问的每个目录做整棵子树递归搜索，祖先层与子孙层重复 IO。头注释已声明（sync_dirlevel.go L26-28）；剪枝需谨慎验证「EntryDir 嵌套在非 EntryDir 目录名下」场景
+- **patternFind 重复子树扫描**（2026-08-24 已治理 ✅）：`collectEntriesWalk` 内建 `nestedDirMemo`，同一 Walk 树内同一路径+pattern 只递归一次，O(N²) 降为 O(N)。
 - **DiffFolderContents 只比存在性不比内容**（正确性）：两侧同名同相对路径的文件一律标 synced，**不做哈希对比**（sync_dirlevel.go 注释明示）→ 实例侧文件被修改/损坏后仍显示 ✅ 已同步。若治理：对 size 不同即可判 diverged（与 `ResourceDiff` 同名不同大小口径对齐），不必全量 SHA256
 - **key 小写归一 vs 路径敏感操作**：`relKey` / `relKeyDirLevel` 把整个相对路径转小写做身份 key，push/pull 却用原路径——大小写敏感 FS（Linux 服务器仓库）上 `Pack/` 与 `pack/` 视为同一模型但操作各走各路，可能错配
 - **状态对比 IO 放大**：`BuildSyncItems` 对 dirLevel 类型现已注入 `scanner.ScanEntriesWithHit`（`SyncResourcesDirLevelScan`），全局仓库树不再每类型重复全树 Walk——scanner 缓存 30s TTL + single-flight，8 个 MMD 子类型 ×(1+N 整合包) 对同一目录实际只走盘一次（无嵌套模式类型从缓存 ModelEntry 反推；maid-model 回退 Walk）。**全局侧夹级 diff 也已复用缓存**：`DiffFolderContentsScan` 的全局侧从组根全量条目按 folder 前缀过滤（零 Walk）。**2026-08-24 新增两层缓存**：

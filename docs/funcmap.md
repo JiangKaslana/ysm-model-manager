@@ -419,12 +419,12 @@
 | `InvalidateSyncScanCaches()` | `go/sync/sync_cache:54` | InvalidateSyncScanCaches 清空全部同步目录扫描结果缓存。 |
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
-| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:233` | SyncResourcesDirLevel 文件夹级同步（默认 filepath.Walk，行为不变，供测试/旧调用方使用）。 |
-| `SyncResourcesDirLevelScan()` | `go/sync/sync_dirlevel:242` | SyncResourcesDirLevelScan 同 SyncResourcesDirLevel，但注入 scanFn 复用扫描缓存， 消除 8 个 MMD 子类型 ×(1+N |
-| `DiffFolderContents()` | `go/sync/sync_dirlevel:464` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
-| `DiffFolderContentsScan()` | `go/sync/sync_dirlevel:520` | DiffFolderContentsScan 同 DiffFolderContents，但全局侧文件收集复用 scanner 已缓存的 组根扫描结果（scanFn(globalRo |
-| `ScanEntriesFn()` | `go/sync/sync_dirlevel:230` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
-| `FileDiffEntry()` | `go/sync/sync_dirlevel:438` | FileDiffEntry 文件级差异条目（用于文件夹内容级 diff） |
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:375` | SyncResourcesDirLevel 文件夹级同步（默认 filepath.Walk，行为不变，供测试/旧调用方使用）。 |
+| `SyncResourcesDirLevelScan()` | `go/sync/sync_dirlevel:384` | SyncResourcesDirLevelScan 同 SyncResourcesDirLevel，但注入 scanFn 复用扫描缓存， 消除 8 个 MMD 子类型 ×(1+N |
+| `DiffFolderContents()` | `go/sync/sync_dirlevel:608` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
+| `DiffFolderContentsScan()` | `go/sync/sync_dirlevel:664` | DiffFolderContentsScan 同 DiffFolderContents，但全局侧文件收集复用 scanner 已缓存的 组根扫描结果（scanFn(globalRo |
+| `ScanEntriesFn()` | `go/sync/sync_dirlevel:372` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `FileDiffEntry()` | `go/sync/sync_dirlevel:582` | FileDiffEntry 文件级差异条目（用于文件夹内容级 diff） |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
 | `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
