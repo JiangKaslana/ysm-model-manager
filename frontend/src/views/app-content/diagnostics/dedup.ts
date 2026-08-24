@@ -64,7 +64,67 @@ export async function startDedup(
     const { FindDuplicateFiles, GetRepoRoot, MoveToRecycle } =
       await getApp();
 
-    // 收集目标目录
+    // ===== 策略配置 UI =====
+    // 默认配置
+    let dedupStrategy = "deep_hash";
+    let keepPolicy = "oldest";
+    let priorityPath = "";
+
+    // 渲染配置面板
+    const renderConfigPanel = () => {
+      list.innerHTML = `
+        <div class="diag-dedup-config">
+          <div class="diag-config-item">
+            <label for="dedup-strategy">🔍 ${t("diagnostics.dedupStrategy")}:</label>
+            <select id="dedup-strategy" class="diag-config-select">
+              <option value="deep_hash"${dedupStrategy === "deep_hash" ? " selected" : ""}>${t("diagnostics.strategyDeepHash")} (SHA256)</option>
+              <option value="quick_hash"${dedupStrategy === "quick_hash" ? " selected" : ""}>${t("diagnostics.strategyQuickHash")} (MD5)</option>
+              <option value="name_size"${dedupStrategy === "name_size" ? " selected" : ""}>${t("diagnostics.strategyNameSize")} (${t("diagnostics.fastest")})</option>
+            </select>
+          </div>
+          <div class="diag-config-item">
+            <label for="keep-policy">💾 ${t("diagnostics.keepPolicy")}:</label>
+            <select id="keep-policy" class="diag-config-select">
+              <option value="oldest"${keepPolicy === "oldest" ? " selected" : ""}>${t("diagnostics.keepOldest")}</option>
+              <option value="newest"${keepPolicy === "newest" ? " selected" : ""}>${t("diagnostics.keepNewest")}</option>
+              <option value="path"${keepPolicy === "path" ? " selected" : ""}>${t("diagnostics.keepByPath")}</option>
+            </select>
+          </div>
+          <div class="diag-config-item" id="priority-path-item" style="${keepPolicy === "path" ? "" : "display:none"}">
+            <label for="priority-path">📁 ${t("diagnostics.priorityPath")}:</label>
+            <input type="text" id="priority-path" class="diag-config-input" placeholder="/path/to/priority" value="${esc(priorityPath)}">
+          </div>
+          <button id="diag-dedup-start" class="diag-dedup-exec">🚀 ${t("diagnostics.startScan")}</button>
+        </div>
+      `;
+
+      // 绑定事件
+      list.querySelector("#dedup-strategy")?.addEventListener("change", (e) => {
+        dedupStrategy = (e.target as HTMLSelectElement).value;
+      });
+
+      list.querySelector("#keep-policy")?.addEventListener("change", (e) => {
+        keepPolicy = (e.target as HTMLSelectElement).value;
+        const pathItem = list.querySelector("#priority-path-item") as HTMLElement;
+        if (pathItem) {
+          pathItem.style.display = keepPolicy === "path" ? "" : "none";
+        }
+      });
+
+      list.querySelector("#priority-path")?.addEventListener("input", (e) => {
+        priorityPath = (e.target as HTMLInputElement).value;
+      });
+
+      list.querySelector("#diag-dedup-start")?.addEventListener("click", async () => {
+        // 执行去重扫描
+        await executeDedupScan();
+      });
+    };
+
+    // 执行去重扫描的内部函数
+    const executeDedupScan = async () => {
+      try {
+        // ===== 原有扫描逻辑 =====
     interface DedupTarget {
       id: string;
       icon: string;
@@ -123,6 +183,8 @@ export async function startDedup(
         }) +
         "</div>";
       await new Promise((r) => setTimeout(r, 10));
+      // 暂时使用旧的调用方式（待 Wails 绑定重新生成后可启用配置传递）
+      // const configStr = JSON.stringify(dedupConfig);
       const jsonStr = await FindDuplicateFiles(target.dir);
       // P2 修复（子代理审计）：绑定层出错时返回 {"error":...}——原把扫描失败当
       // 「✅ 无重复」假绿（根符号链接/权限错误时用户以为全扫到了而实际没扫）；
@@ -294,13 +356,25 @@ ${isDefault ? '<span class="diag-dedup-recommend">' + t("diagnostics.recommended
           diagExecBusy = false; // P3：复位（含异常路径）
         }
       });
-  } catch (err) {
+      } catch (err) {
+        list.innerHTML =
+          '<div class="stat-row diag-msg diag-msg-error">' +
+          t("diagnostics.dedupFailed") +
+          ": " +
+          esc(String(err)) +
+          "</div>";
+      }
+    };
+
+    // 显示配置面板
+    renderConfigPanel();
+
+  } catch (e) {
     list.innerHTML =
-      '<div class="stat-row diag-msg diag-msg-error">' +
-      t("diagnostics.dedupFailed") +
-      ": " +
-      esc(String(err)) +
+      '<div class="stat-row diag-stat diag-stat-muted">❌ ' +
+      esc(friendlyError(e, "加载去重配置失败")) +
       "</div>";
+    _dedupBusy = false; // P2-4：复位（早退路径）
   }
-  _dedupBusy = false; // P2-4：复位（含 catch 异常路径）
+  _dedupBusy = false; // P2-4：复位
 }

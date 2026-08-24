@@ -77,3 +77,21 @@ type WorkshopCreator struct {
 	Type string `json:"type,omitempty"`
 	Role string `json:"role,omitempty"`
 }
+
+// DedupConfig 去重功能配置
+type DedupConfig struct {
+	// Strategy 去重策略: "hash" (深度哈希，精确但慢), "name_size" (文件名+大小，快速但不精确)
+	Strategy string `json:"strategy"`
+	// KeepPolicy 保留策略: "oldest" (最早修改), "newest" (最新修改), "path" (指定路径优先)
+	KeepPolicy string `json:"keepPolicy"`
+	// PriorityPath 当 KeepPolicy 为 "path" 时，优先保留的路径前缀
+	PriorityPath string `json:"priorityPath"`
+}
+
+// SyncConfig 同步功能配置
+type SyncConfig struct {
+	// AutoSync 是否在启动时自动同步
+	AutoSync bool `json:"autoSync"`
+	// ConflictPolicy 冲突解决策略: "force_remote" (强制远端), "force_local" (强制本地), "prompt" (提示用户)
+	ConflictPolicy string `json:"conflictPolicy"`
+}

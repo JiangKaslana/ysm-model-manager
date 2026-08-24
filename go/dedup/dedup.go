@@ -2,10 +2,8 @@
 package dedup
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,6 +13,7 @@ import (
 	"sync"
 
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/types"
 )
 
 // ErrSymlinkRoot 扫描根目录自身是符号链接——去重只处理实际文件，符号链接根
@@ -32,7 +31,7 @@ type FileEntry struct {
 
 // Group 重复文件分组
 type Group struct {
-	Hash  string      `json:"hash"`  // SHA256
+	Hash  string      `json:"hash"`  // 算法生成的唯一标识
 	Size  int64       `json:"size"`  // 单文件大小
 	Files []FileEntry `json:"files"` // 文件列表
 }
@@ -103,34 +102,14 @@ func collectFiles(dir string, skipRecycle bool) ([]fileInfo, error) {
 	return files, err
 }
 
-// realComputeHash 计算单文件 SHA256（真实实现，见 computeHash 可注入说明）
-func realComputeHash(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		log.Printf("[dedup] 打开文件失败 %s: %v", path, err)
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		log.Printf("[dedup] 读取文件失败 %s: %v", path, err)
-		return "", err
-	}
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
-}
-
-// computeHash 可注入变量：默认走 realComputeHash；测试可替换以模拟读失败
-// （P3 并行读失败回归，与 texture_cache removeFile 同款手法）。
-var computeHash = realComputeHash
-
-// hashFilesParallel 并行计算 SHA256，结果按收集顺序（idx 槽位）落位。
+// hashFilesParallel 并行计算哈希，结果按收集顺序（idx 槽位）落位。
 // workers = min(files, GOMAXPROCS)——小文件集自然 workers=1，与串行开销等价
 // （ADR-119 P4：不设阈值双路径，统一走本管道）。读失败留 ok=false（log-and-skip）。
 //
 // size 预分组（零语义损失）：不同 size 的文件不可能同 hash（SHA256 同 ⟹ 内容同 ⟹ size 同），
 // 唯一 size 的文件必不成组，跳过其哈希——消解大文件长尾（占死 worker 的大文件通常尺寸唯一），
 // 输出逐字节不变（唯一尺寸文件本就永不进 len>1 组）。
-func hashFilesParallel(files []fileInfo) []hashResult {
+func hashFilesParallel(files []fileInfo, algo HashAlgorithm) []hashResult {
 	n := len(files)
 	results := make([]hashResult, n)
 	if n == 0 {
@@ -151,9 +130,10 @@ func hashFilesParallel(files []fileInfo) []hashResult {
 		go func() {
 			defer wg.Done()
 			for f := range jobs {
-				hash, err := computeHash(f.path)
+				hash, err := algo.ComputeHash(f.path)
 				if err != nil {
-					continue // log-and-skip（realComputeHash 已记日志）
+					log.Printf("[dedup] 哈希计算失败 %s: %v", f.path, err)
+					continue // log-and-skip
 				}
 				results[f.idx] = hashResult{hash: hash, ok: true}
 			}
@@ -169,11 +149,12 @@ func hashFilesParallel(files []fileInfo) []hashResult {
 	return results
 }
 
-// FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组
+// FindDuplicateFiles 扫描目录，按配置的哈希算法分组，返回包含重复的分组
 // skipRecycle 为 true 时跳过 .recycle 子目录
+// config 为去重配置，传入 nil 则使用默认配置（DeepHash）
 // 消费共享并行哈希管道（ADR-119）：collectFiles + hashFilesParallel + 串行分组，
 // 组顺序 = hash 首次出现于遍历的顺序，组内 Files 按 Path 排序（确定性，逐字节与串行一致）。
-func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
+func FindDuplicateFiles(dir string, skipRecycle bool, config ...*types.DedupConfig) ([]Group, error) {
 	dir = strings.TrimSpace(dir)
 	if dir == "" {
 		return nil, fmt.Errorf("目录为空")
@@ -189,11 +170,17 @@ func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
 	}
 	dir = abs
 
+	var cfg *types.DedupConfig
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+	algo := NewHashAlgorithm(cfg)
+
 	files, err := collectFiles(dir, skipRecycle)
 	if err != nil {
 		return nil, err
 	}
-	results := hashFilesParallel(files)
+	results := hashFilesParallel(files, algo)
 
 	hashGroups := make(map[string]*Group)
 	// 使用 map 保持插入顺序
@@ -241,15 +228,31 @@ func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
 
 // CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数）
 // 同样消费共享并行哈希管道（ADR-119 P1：与 FindDuplicateFiles 同源，禁止双实现漂移）。
-func CountDuplicates(dir string, skipRecycle bool) (groups int, extraFiles int, err error) {
+func CountDuplicates(dir string, skipRecycle bool, config ...*types.DedupConfig) (groups int, extraFiles int, err error) {
 	groups = 0
 	extraFiles = 0
+
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return 0, 0, fmt.Errorf("目录为空")
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return 0, 0, fmt.Errorf("dedup: 无法解析扫描目录 %q: %w", dir, err)
+	}
+	dir = abs
+
+	var cfg *types.DedupConfig
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+	algo := NewHashAlgorithm(cfg)
 
 	files, err := collectFiles(dir, skipRecycle)
 	if err != nil {
 		return 0, 0, err
 	}
-	results := hashFilesParallel(files)
+	results := hashFilesParallel(files, algo)
 
 	hashCount := make(map[string]int)
 	for i := range files {

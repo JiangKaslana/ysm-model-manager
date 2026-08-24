@@ -28,7 +28,7 @@
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 2 | 3 |
 | go/scanner | 1 | 10 |
-| Go·同步 | 8 | 32 |
+| Go·同步 | 8 | 33 |
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
@@ -48,7 +48,7 @@
 | frontend/views | 115 | 327 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **458** | **1967** |
+| **合计** | **458** | **1968** |
 
 ## Go·头像
 
@@ -136,11 +136,11 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `FindDuplicateFiles()` | `go/dedup/dedup:158` | FindDuplicateFiles 扫描目录，按配置的哈希算法分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 config 为去 |
-| `CountDuplicates()` | `go/dedup/dedup:232` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） 同样消费共享并行哈希管道（ADR-119 P1：与 FindDuplic |
-| `CleanEmptyDirs()` | `go/dedup/dedup:277` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
-| `FileEntry()` | `go/dedup/dedup:26` | FileEntry 文件条目 |
-| `Group()` | `go/dedup/dedup:34` | Group 重复文件分组 |
+| `FindDuplicateFiles()` | `go/dedup/dedup:157` | FindDuplicateFiles 扫描目录，按配置的哈希算法分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 config 为去 |
+| `CountDuplicates()` | `go/dedup/dedup:231` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） 同样消费共享并行哈希管道（ADR-119 P1：与 FindDuplic |
+| `CleanEmptyDirs()` | `go/dedup/dedup:276` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
+| `FileEntry()` | `go/dedup/dedup:25` | FileEntry 文件条目 |
+| `Group()` | `go/dedup/dedup:33` | Group 重复文件分组 |
 | `DeepHash.Name()` | `go/dedup/strategy:25` | — |
 | `DeepHash.ComputeHash()` | `go/dedup/strategy:29` | — |
 | `QuickHash.Name()` | `go/dedup/strategy:46` | — |
@@ -406,13 +406,13 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `DetectConflicts()` | `go/sync/conflict:70` | DetectConflicts 检测本地和远端之间的冲突 localDir: 本地目录路径 remoteDir: 远端（全局/主仓库）目录路径 rtype: 资源类型 ID 返回冲 |
-| `ResolveConflict()` | `go/sync/conflict:160` | ResolveConflict 解决单个文件冲突 conflict: 冲突详情 strategy: 解决策略 localDir: 本地目录 remoteDir: 远端目录 返回操作 |
-| `ResolveConflicts()` | `go/sync/conflict:191` | ResolveConflicts 批量解决冲突 conflicts: 冲突列表 defaultStrategy: 默认策略（用于自动解决） localDir: 本地目录 remot |
-| `ConflictType()` | `go/sync/conflict:14` | ConflictType 冲突类型 |
-| `ResolutionStrategy()` | `go/sync/conflict:24` | ResolutionStrategy 冲突解决策略 |
-| `FileConflict()` | `go/sync/conflict:36` | FileConflict 文件冲突详情 |
-| `ConflictReport()` | `go/sync/conflict:58` | ConflictReport 冲突报告 |
+| `DetectConflicts()` | `go/sync/conflict:69` | DetectConflicts 检测本地和远端之间的冲突 localDir: 本地目录路径 remoteDir: 远端（全局/主仓库）目录路径 rtype: 资源类型 ID 返回冲 |
+| `ResolveConflict()` | `go/sync/conflict:159` | ResolveConflict 解决单个文件冲突 conflict: 冲突详情 strategy: 解决策略 localDir: 本地目录 remoteDir: 远端目录 返回操作 |
+| `ResolveConflicts()` | `go/sync/conflict:190` | ResolveConflicts 批量解决冲突 conflicts: 冲突列表 defaultStrategy: 默认策略（用于自动解决） localDir: 本地目录 remot |
+| `ConflictType()` | `go/sync/conflict:13` | ConflictType 冲突类型 |
+| `ResolutionStrategy()` | `go/sync/conflict:23` | ResolutionStrategy 冲突解决策略 |
+| `FileConflict()` | `go/sync/conflict:35` | FileConflict 文件冲突详情 |
+| `ConflictReport()` | `go/sync/conflict:57` | ConflictReport 冲突报告 |
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
 | `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:226` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
@@ -435,8 +435,9 @@
 | `GetInstanceStatusWith()` | `go/sync/sync:33` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomD |
 | `SyncToggleStatus()` | `go/sync/sync:190` | SyncToggleStatus 同步启用/禁用状态 |
 | `SyncResources()` | `go/sync/sync:349` | — |
-| `SortEntries()` | `go/sync/sync:400` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:407` | GetLinkType 判断文件的链接类型 |
+| `SyncResourcesWithConfig()` | `go/sync/sync:354` | SyncResourcesWithConfig 同步资源，支持配置化（含冲突检测） |
+| `SortEntries()` | `go/sync/sync:428` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:435` | GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
@@ -835,12 +836,12 @@
 | `App.ImportResourcePack()` | `internal/app/resource_bindings:446` | ImportResourcePack 使用策略模式导入资源包 |
 | `App.ImportByType()` | `internal/app/resource_bindings:459` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
 | `App.DeleteResourcePack()` | `internal/app/resource_bindings:479` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:550` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:566` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:579` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.RepoHealthAudit()` | `internal/app/resource_bindings:586` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
-| `App.RepoHealthAuditAll()` | `internal/app/resource_bindings:607` | RepoHealthAuditAll 全仓库体检：遍历所有已配置资源类型根目录，合并审计结果。 |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:672` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:551` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:579` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:592` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.RepoHealthAudit()` | `internal/app/resource_bindings:599` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
+| `App.RepoHealthAuditAll()` | `internal/app/resource_bindings:620` | RepoHealthAuditAll 全仓库体检：遍历所有已配置资源类型根目录，合并审计结果。 |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:685` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:86` | — |

@@ -547,11 +547,24 @@ func marshalJSONIndent(tag string, v interface{}, fallback string) string {
 
 // FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。
 // 契约（见 docs/wails-bindings.md）：成功 → DedupGroup[]；失败 → {error: string}。
-func (a *App) FindDuplicateFiles(dir string) string {
+// configStr: 可选的去重配置 JSON 字符串，格式: {"strategy":"...", "keepPolicy":"...", "priorityPath":"..."}
+func (a *App) FindDuplicateFiles(dir string, configStr ...string) string {
 	if !a.isPathInRootOrSelf(dir) {
 		return findDuplicateErrorJSON("路径超出仓库目录")
 	}
-	groups, err := dedup.FindDuplicateFiles(dir, true)
+
+	// 解析配置
+	var dedupConfig *types.DedupConfig
+	if len(configStr) > 0 && configStr[0] != "" {
+		var cfg types.DedupConfig
+		if err := json.Unmarshal([]byte(configStr[0]), &cfg); err != nil {
+			log.Printf("[dedup] 配置解析失败: %v", err)
+			return findDuplicateErrorJSON(fmt.Sprintf("配置解析失败: %v", err))
+		}
+		dedupConfig = &cfg
+	}
+
+	groups, err := dedup.FindDuplicateFiles(dir, true, dedupConfig)
 	if err != nil {
 		// 失败时返回 {error: ...}，前端据此区分失败与无重复，避免假绿
 		// （根符号链接/权限错误时用户以为全扫到了而实际没扫）

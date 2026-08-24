@@ -347,6 +347,11 @@ func relKey(root, path string) string {
 }
 
 func SyncResources(globalDir, instanceDir string, rtype ...string) types.ResourceSyncResult {
+	return SyncResourcesWithConfig(globalDir, instanceDir, nil, rtype...)
+}
+
+// SyncResourcesWithConfig 同步资源，支持配置化（含冲突检测）
+func SyncResourcesWithConfig(globalDir, instanceDir string, config *types.SyncConfig, rtype ...string) types.ResourceSyncResult {
 	rtypeID := ""
 	if len(rtype) > 0 {
 		rtypeID = rtype[0]
@@ -393,7 +398,30 @@ func SyncResources(globalDir, instanceDir string, rtype ...string) types.Resourc
 
 	globalFiles := collect(globalDir)
 	instanceFiles := collect(instanceDir)
-	return ResourceDiff(globalFiles, instanceFiles)
+	result := ResourceDiff(globalFiles, instanceFiles)
+
+	// 冲突检测（如果配置了冲突策略）
+	if config != nil && config.ConflictPolicy != "" {
+		report, err := DetectConflicts(instanceDir, globalDir, rtypeID)
+		if err != nil {
+			log.Printf("[sync] 冲突检测失败: %v", err)
+		} else if report.TotalConflicts > 0 {
+			log.Printf("[sync] 检测到 %d 个冲突，策略: %s", report.TotalConflicts, config.ConflictPolicy)
+			// 自动解决冲突
+			strategy := ResolutionStrategy(config.ConflictPolicy)
+			if strategy == ResolveForceRemote || strategy == ResolveForceLocal {
+				resolved, failed, manual := ResolveConflicts(report.Conflicts, strategy, instanceDir, globalDir)
+				log.Printf("[sync] 冲突解决完成: 解决 %d, 失败 %d, 需手动 %d", resolved, failed, manual)
+			} else {
+				// 手动解决模式，返回结果中标记冲突
+				log.Printf("[sync] 检测到冲突，请手动处理")
+			}
+			// 将冲突信息附加到结果（如果需要，可以扩展 ResourceSyncResult）
+			// 目前仅记录日志，后续可扩展前端 UI 展示
+		}
+	}
+
+	return result
 }
 
 // SortEntries 按名称排序模型条目
