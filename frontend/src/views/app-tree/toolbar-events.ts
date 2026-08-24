@@ -86,10 +86,16 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
     bus.emit("nav:changed", { page: "settings" });
   });
 
-  // 搜索框实时过滤
+  // 搜索框实时过滤（P1：150ms debounce，防万级条目每个字符全量 buildTree+渲染）
+  // _search 立即更新（后续其他渲染读取到最新值），仅 _renderTree 延迟合并。
+  let srchTimer: ReturnType<typeof setTimeout> | null = null;
   $("srch")?.addEventListener("input", () => {
     vm._search = ($("srch") as HTMLInputElement | null)?.value || "";
-    vm._renderTree();
+    if (srchTimer) clearTimeout(srchTimer);
+    srchTimer = setTimeout(() => {
+      srchTimer = null;
+      vm._renderTree();
+    }, 150);
   });
 
   // 排序下拉（name/size/date，renderTree 已支持，此前缺绑定导致控件无效）

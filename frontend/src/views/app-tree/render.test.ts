@@ -179,6 +179,81 @@ describe("flattenVisible", () => {
   });
 });
 
+describe("flattenVisible — 文件夹启禁用标记（P2b 短路判定）", () => {
+  beforeEach(() => {
+    selectState.keys.clear();
+    selectState.lastKey = null;
+  });
+
+  it("文件夹内全部启用 → 行 ck 为 on", () => {
+    const root = buildTree(
+      [entry("a.ysm", "folder/a.ysm"), entry("b.ysm", "folder/b.ysm")],
+      "name",
+      "",
+      null,
+    );
+    const rows = flattenVisible(root, "", "", "name", {}, 0, "grid");
+    const folderRow = rows.find((r) => r.type === "folder")!;
+    expect(folderRow.html).toContain('class="ck on"');
+  });
+
+  it("文件夹内全部禁用 → 行 ck 无 on/partial 标记", () => {
+    const root = buildTree(
+      [
+        { ...entry("a.ysm", "folder/a.ysm"), banned: true },
+        { ...entry("b.ysm", "folder/b.ysm"), banned: true },
+      ],
+      "name",
+      "",
+      null,
+    );
+    const rows = flattenVisible(root, "", "", "name", {}, 0, "grid");
+    const folderRow = rows.find((r) => r.type === "folder")!;
+    expect(folderRow.html).toContain('class="ck"');
+    expect(folderRow.html).not.toContain("ck on");
+  });
+
+  it("文件夹内启用/禁用混合 → 行 ck 为 on partial", () => {
+    const root = buildTree(
+      [
+        entry("a.ysm", "folder/a.ysm"),
+        { ...entry("b.ysm", "folder/b.ysm"), banned: true },
+      ],
+      "name",
+      "",
+      null,
+    );
+    const rows = flattenVisible(root, "", "", "name", {}, 0, "grid");
+    const folderRow = rows.find((r) => r.type === "folder")!;
+    expect(folderRow.html).toContain('class="ck on partial"');
+  });
+
+  it("深层嵌套：禁用条目埋在子目录 → 顶层文件夹判定正确", () => {
+    const root = buildTree(
+      [{ ...entry("deep.ysm", "top/mid/deep.ysm"), banned: true }],
+      "name",
+      "",
+      null,
+    );
+    const rows = flattenVisible(root, "", "", "name", {}, 0, "grid");
+    const top = rows.find((r) => r.type === "folder" && r.key === "top")!;
+    // top 下只有禁用条目：hasEnabled=false（无 on），hasDisabled=true
+    expect(top.html).not.toContain("ck on");
+  });
+
+  it("深层嵌套：启用条目埋在子目录 → 顶层文件夹判定正确", () => {
+    const root = buildTree(
+      [{ ...entry("ok.ysm", "top/mid/ok.ysm"), banned: false }],
+      "name",
+      "",
+      null,
+    );
+    const rows = flattenVisible(root, "", "", "name", {}, 0, "grid");
+    const top = rows.find((r) => r.type === "folder" && r.key === "top")!;
+    expect(top.html).toContain('class="ck on"');
+  });
+});
+
 // ===== R3 验收：web 多段组（P-A IDB 路径化）→ 子目录树可展开 =====
 // scanWebModels 对多段组名返回 Path=/web/<type>/<name>/<mainRel>（name 含 /），
 // loader 剪掉 /web/<type> 得到多段 relPath（分类1/狐狸/狐狸.ysm），buildTree 按段

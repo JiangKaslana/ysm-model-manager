@@ -465,17 +465,47 @@ describe("bindToolbarEvents — 导出/导航/搜索/排序/视图", () => {
     expect(navs).toContain("settings");
   });
 
-  it("srch 输入 → 更新 _search 并渲染", () => {
-    const { root, get, getByTestId } = makeRoot();
-    const vm = makeVM(root);
-    bindToolbarEvents(root, vm as never);
+  it("srch 输入 → _search 立即更新，渲染 debounce 150ms", () => {
+    vi.useFakeTimers();
+    try {
+      const { root, get, getByTestId } = makeRoot();
+      const vm = makeVM(root);
+      bindToolbarEvents(root, vm as never);
 
-    const srch = getByTestId("tree-srch") as HTMLInputElement;
-    srch.value = "neko";
-    srch.dispatchEvent(new Event("input", { bubbles: true }));
+      const srch = getByTestId("tree-srch") as HTMLInputElement;
+      srch.value = "neko";
+      srch.dispatchEvent(new Event("input", { bubbles: true }));
 
-    expect(vm._search).toBe("neko");
-    expect(vm._renderTree).toHaveBeenCalled();
+      expect(vm._search).toBe("neko"); // 状态立即更新
+      expect(vm._renderTree).not.toHaveBeenCalled(); // 渲染延迟
+      vi.advanceTimersByTime(200);
+      expect(vm._renderTree).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("连续输入多个字符 → debounce 合并为一次渲染（用最新值）", () => {
+    vi.useFakeTimers();
+    try {
+      const { root, get, getByTestId } = makeRoot();
+      const vm = makeVM(root);
+      bindToolbarEvents(root, vm as never);
+
+      const srch = getByTestId("tree-srch") as HTMLInputElement;
+      ["n", "ne", "nek", "neko"].forEach((v) => {
+        srch.value = v;
+        srch.dispatchEvent(new Event("input", { bubbles: true }));
+        vi.advanceTimersByTime(50); // 每次间隔 <150ms，定时器持续重置
+      });
+
+      expect(vm._search).toBe("neko");
+      expect(vm._renderTree).not.toHaveBeenCalled(); // 全部被合并
+      vi.advanceTimersByTime(200);
+      expect(vm._renderTree).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("sort 切换 → 更新 _sort 并渲染", () => {
@@ -554,19 +584,26 @@ describe("bindToolbarEvents — 作者菜单", () => {
     expect(get("menu-authors")!.textContent).toContain("暂无作者");
   });
 
-  it("点击作者 → 填充搜索框并触发 input 事件", () => {
-    const { root, get, getByTestId } = makeRoot();
-    const vm = makeVM(root);
-    vm._authors = [{ Name: "Alex", Count: 1 }];
-    bindToolbarEvents(root, vm as never);
+  it("点击作者 → 填充搜索框并触发 input 事件（渲染 debounce）", () => {
+    vi.useFakeTimers();
+    try {
+      const { root, get, getByTestId } = makeRoot();
+      const vm = makeVM(root);
+      vm._authors = [{ Name: "Alex", Count: 1 }];
+      bindToolbarEvents(root, vm as never);
 
-    root.getElementById("dd-authors")!.dispatchEvent(new MouseEvent("click"));
-    const menu = get("menu-authors")!;
-    (menu.querySelector('[data-author="Alex"]') as HTMLButtonElement).click();
+      root.getElementById("dd-authors")!.dispatchEvent(new MouseEvent("click"));
+      const menu = get("menu-authors")!;
+      (menu.querySelector('[data-author="Alex"]') as HTMLButtonElement).click();
 
-    expect((getByTestId("tree-srch") as HTMLInputElement).value).toBe("Alex");
-    expect(vm._search).toBe("Alex");
-    expect(vm._renderTree).toHaveBeenCalled();
+      expect((getByTestId("tree-srch") as HTMLInputElement).value).toBe("Alex");
+      expect(vm._search).toBe("Alex"); // 状态立即更新
+      expect(vm._renderTree).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(200);
+      expect(vm._renderTree).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

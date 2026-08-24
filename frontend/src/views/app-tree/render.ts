@@ -95,15 +95,19 @@ export function buildTree(
   return root;
 }
 
-/** 收集文件夹下所有条目 */
-function dirEntries(node: TreeNode): TreeEntry[] {
-  const all: TreeEntry[] = [];
+/** P2b：短路判定子树内是否存在 banned === 目标值的条目（命中即停，不收集数组）。
+ *  替代 dirEntries().some()——旧实现为算两个布尔对每个文件夹递归展开全子树建
+ *  数组，深层嵌套 O(n·depth)；短路版最坏仍是 O(n·depth) 但常数大幅下降且提前终止。 */
+function hasFlag(node: TreeNode, banned: boolean): boolean {
   for (const k of Object.keys(node)) {
     const v = node[k] as TreeNode;
-    if (v._e) all.push(v._e);
-    else all.push(...dirEntries(v));
+    if (v._e) {
+      if (!!v._e.banned === banned) return true;
+    } else if (hasFlag(v, banned)) {
+      return true;
+    }
   }
-  return all;
+  return false;
 }
 
 // ——— 扁平化：将嵌套树拍平为一维行数组 ———
@@ -179,9 +183,9 @@ export function flattenVisible(
       // — 文件夹行 —
       const isLocked = k.startsWith("_");
       const shouldOpen = hasSearch || !!dirOpen[full];
-      const sub = dirEntries(node[k] as TreeNode);
-      const hasEnabled = sub.some((e) => !e.banned);
-      const hasDisabled = sub.some((e) => e.banned);
+      const sub = node[k] as TreeNode;
+      const hasEnabled = hasFlag(sub, false);
+      const hasDisabled = hasFlag(sub, true);
       // 根据模式选择模板（aria-level 最小为 1）
       const ariaLevel = depth + 1;
       const html =
