@@ -94,7 +94,13 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
       else if (e.banned && enable) e.banned = false;
     }
     vm._renderTree();
-    bus.emit("sync:toggle:status");
+    // 仅 YSM 树触发 sync:toggle:status：SyncModelToggleStatus 锁 YSM 仓库根
+    // （sync.ts requireMcRoot + GetRepoRoot(YSM)），非 YSM 树（resourcepack/MMD 等）
+    // toggle 走 McRoot/CustomRoots，触发只会弹「请先配置目录」或对 YSM 做无谓
+    // WalkDir+Rename（feef02b3 P3 审核回归）。
+    if ((vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM) === RESOURCE_TYPES.YSM) {
+      bus.emit("sync:toggle:status");
+    }
   }
   bus.emit("toast:show", {
     msg:
@@ -195,7 +201,10 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
           await vm._load();
           if (gen !== vm._gen) return;
           vm._renderTree();
-          bus.emit("sync:toggle:status");
+          // 同 toggleFolderBatch：仅 YSM 树触发 sync（feef02b3 P3 审核回归）
+          if ((vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM) === RESOURCE_TYPES.YSM) {
+            bus.emit("sync:toggle:status");
+          }
           bus.emit("stats:refresh");
         })
         .catch((err) => {

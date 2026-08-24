@@ -355,7 +355,12 @@ async function runBatchToggle(
     }
     if (ok > 0) {
       await reload(vm);
-      bus.emit("sync:toggle:status");
+      // 仅 YSM 树触发 sync:toggle:status（SyncModelToggleStatus 锁 YSM 仓库根，
+      // 非 YSM 树 toggle 走 McRoot/CustomRoots，触发只会弹「请先配置目录」或
+      // 对 YSM 做无谓 WalkDir+Rename——feef02b3 P3 审核回归）。
+      if ((vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM) === RESOURCE_TYPES.YSM) {
+        bus.emit("sync:toggle:status");
+      }
     }
     bus.emit("toast:show", {
       msg: `${opts.label}: ${ok} ${t("tree.success")}, ${fail} ${t("tree.failed")}`,

@@ -406,9 +406,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `DetectConflicts()` | `go/sync/conflict:69` | DetectConflicts 检测本地和远端之间的冲突 localDir: 本地目录路径 remoteDir: 远端（全局/主仓库）目录路径 rtype: 资源类型 ID 返回冲 |
-| `ResolveConflict()` | `go/sync/conflict:159` | ResolveConflict 解决单个文件冲突 conflict: 冲突详情 strategy: 解决策略 localDir: 本地目录 remoteDir: 远端目录 返回操作 |
-| `ResolveConflicts()` | `go/sync/conflict:190` | ResolveConflicts 批量解决冲突 conflicts: 冲突列表 defaultStrategy: 默认策略（用于自动解决） localDir: 本地目录 remot |
+| `DetectConflicts()` | `go/sync/conflict:69` | DetectConflicts 检测本地和远端之间的冲突 基于文件哈希比较：两端都存在且哈希不同 → 内容冲突 localDir: 本地目录路径（整合包） remoteDir: 远 |
+| `ResolveConflict()` | `go/sync/conflict:131` | ResolveConflict 解决单个文件冲突 先备份再操作，确保安全 |
+| `ResolveConflicts()` | `go/sync/conflict:165` | ResolveConflicts 批量解决冲突 |
 | `ConflictType()` | `go/sync/conflict:13` | ConflictType 冲突类型 |
 | `ResolutionStrategy()` | `go/sync/conflict:23` | ResolutionStrategy 冲突解决策略 |
 | `FileConflict()` | `go/sync/conflict:35` | FileConflict 文件冲突详情 |
@@ -1955,8 +1955,8 @@
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |
 | `instancesHTML()` | `frontend/src/views/app-content/tpl:47` | — |
 | `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:70` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:163` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:194` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:171` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:202` | — |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:13` | 提取创作者头像（后台批量） 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache； 先前按「当前站点/作者限 |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |

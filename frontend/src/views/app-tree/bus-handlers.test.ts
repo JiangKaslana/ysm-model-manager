@@ -126,16 +126,19 @@ function makeVM(entries: TreeEntry[] = []): VM {
 // bus 事件收集
 const toasts: Array<{ msg: string; type: string }> = [];
 const statsRefreshed: Array<boolean> = [];
+const syncToggles: Array<boolean> = [];
 const offs: Array<() => void> = [];
 let unsubs: Array<() => void> = [];
 
 beforeEach(() => {
   toasts.length = 0;
   statsRefreshed.length = 0;
+  syncToggles.length = 0;
   offs.forEach((fn) => fn());
   offs.length = 0;
   offs.push(bus.on("toast:show", (p) => toasts.push(p as never)));
   offs.push(bus.on("stats:refresh", () => statsRefreshed.push(true)));
+  offs.push(bus.on("sync:toggle:status", () => syncToggles.push(true)));
 
   vi.clearAllMocks();
   SelectDirectoryMock.mockResolvedValue("/pick/x");
@@ -255,6 +258,33 @@ describe("bindBusEvents — 批量启用/禁用", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(ToggleEnableMock).not.toHaveBeenCalled();
+  });
+
+  it("YSM 树 batch toggle 成功 → 发 sync:toggle:status（YSM 同步链）", async () => {
+    const vm = makeVM([makeEntry({ fullPath: "/repo/a.ysm", banned: true })]);
+    vm._rootAttr = "ysm"; // YSM 树（默认）
+    await bind(vm);
+
+    bus.emit("batch:enable-all");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(ToggleEnableMock).toHaveBeenCalledTimes(1);
+    expect(syncToggles.length).toBe(1);
+  });
+
+  it("非 YSM 树（resourcepack）batch toggle 成功 → 不发 sync:toggle:status", async () => {
+    // feef02b3 P3 审核回归：SyncModelToggleStatus 锁 YSM 仓库根（requireMcRoot +
+    // GetRepoRoot(YSM)），非 YSM 树 toggle 走 McRoot/CustomRoots，触发只会弹
+    // 「请先配置目录」或对 YSM 做无谓 WalkDir+Rename——必须按当前树类型门控。
+    const vm = makeVM([makeEntry({ fullPath: "/repo/pack.zip", banned: true })]);
+    vm._rootAttr = "resourcepack";
+    await bind(vm);
+
+    bus.emit("batch:enable-all");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(ToggleEnableMock).toHaveBeenCalledTimes(1);
+    expect(syncToggles.length).toBe(0);
   });
 });
 
