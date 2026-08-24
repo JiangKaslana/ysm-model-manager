@@ -29,6 +29,21 @@ export interface CommunityData {
   failed?: boolean;
 }
 
+// ===== 社区索引拉取限流 =====
+// 进程生命周期内，最多每隔 COMMUNITY_MERGE_INTERVAL_MS 拉取一次社区索引。
+// 避免每次进创作者页都静默发起 3 路网络请求（每路 8s 超时，最坏 24s）。
+const COMMUNITY_MERGE_INTERVAL_MS = 6 * 3600 * 1000; // 6 小时
+let _lastCommunityMergeTime = 0;
+
+/** 供测试覆盖时间戳；生产环境不应调用 */
+export function _setLastCommunityMergeTime(t: number): void {
+  _lastCommunityMergeTime = t;
+}
+export function _getLastCommunityMergeTime(): number {
+  return _lastCommunityMergeTime;
+}
+
+
 /**
  * 加载站点 + 创作者数据（纯数据，不碰 DOM）
  * 自动合并本地仓库提取的作者
@@ -92,7 +107,7 @@ export async function loadCommunityData(): Promise<CommunityData> {
 
   // 自动拉取社区索引（静默，后台执行）——R3-P0 后网页版已桥接
   // 自动合并（网络拉取失败静默，保存到 localStorage）
-  tryAutoMergeCommunity(merged).catch((e) => { dbg("tryAutoMergeCommunity failed", e); });
+  tryAutoMergeCommunity([...merged]).catch((e) => { dbg("tryAutoMergeCommunity failed", e); });
 
   return {
     sites: sites || [],
@@ -102,8 +117,14 @@ export async function loadCommunityData(): Promise<CommunityData> {
   };
 }
 
-/** 后台静默拉取社区索引并合并 */
+/** 后台静默拉取社区索引并合并（6h 内不重复） */
 async function tryAutoMergeCommunity(creators: LocalCreator[]): Promise<void> {
+  const now = Date.now();
+  if (now - _lastCommunityMergeTime < COMMUNITY_MERGE_INTERVAL_MS) {
+    dbg("community", "社区索引拉取跳过: 距上次不足 6h");
+    return;
+  }
+  _lastCommunityMergeTime = now;
   const community = await fetchCommunityCreators(DEFAULT_COMMUNITY_URL);
   if (!community.length) return;
   const { added } = mergeCommunityCreators(creators, community);

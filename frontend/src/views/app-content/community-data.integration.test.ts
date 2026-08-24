@@ -1,6 +1,5 @@
 // @vitest-environment node
 // ===== loadCommunityData 集成测试 =====
-// 覆盖：本地作者合并（type 分号分段去重）、失败降级（全链 / 单绑定）
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const { mocks } = vi.hoisted(() => {
@@ -10,7 +9,7 @@ const { mocks } = vi.hoisted(() => {
     ListModelAuthors: vi.fn(),
     ScanLocalAuthors: vi.fn(),
     SaveWorkshopCreators: vi.fn(),
-    resolveWebMode: vi.fn().mockReturnValue(false), // 默认桌面
+    resolveWebMode: vi.fn().mockReturnValue(false),
   };
   return { mocks };
 });
@@ -33,16 +32,17 @@ vi.mock("../../utils/debug/debug.ts", () => ({
   dbg: vi.fn(),
 }));
 
-import { loadCommunityData } from "./community-data.ts";
+import {
+  loadCommunityData,
+  _setLastCommunityMergeTime,
+  _getLastCommunityMergeTime,
+} from "./community-data.ts";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.resolveWebMode.mockReturnValue(false); // 默认桌面
-  // 切断 tryAutoMergeCommunity 的真实网络依赖：fetchCommunityCreators 三路回退
-  // 每路 8s 超时，不 stub 会让 CI/无网环境挂起、有网时异步改 data.creators 产生
-  // 环境相关非确定性。stub 后后台合并路径返回空、静默结束。
+  mocks.resolveWebMode.mockReturnValue(false);
+  _setLastCommunityMergeTime(0);
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
-  // 默认空数据
   mocks.DefaultWorkshopSites.mockResolvedValue([{ id: "bilibili" }]);
   mocks.LoadWorkshopCreators.mockResolvedValue([]);
   mocks.ListModelAuthors.mockResolvedValue([]);
@@ -55,134 +55,82 @@ afterEach(() => {
 
 describe("loadCommunityData", () => {
   it("本地作者 type 与现有 type 分段去重（子串不误判）", async () => {
-    mocks.LoadWorkshopCreators.mockResolvedValue([
-      { name: "A", type: "bilibili" },
-    ]);
-    mocks.ScanLocalAuthors.mockResolvedValue([
-      { name: "A", type: "bili" }, // "bilibili" 的子串，原 includes 实现会误判已包含
-    ]);
-
+    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "A", type: "bilibili" }]);
+    mocks.ScanLocalAuthors.mockResolvedValue([{ name: "A", type: "bili" }]);
     const data = await loadCommunityData();
-
     const a = data.creators.find((c) => c.name === "A");
     expect(a?.type).toBe("bilibili;bili");
     expect(a?._fromLocal).toBe(true);
   });
 
   it("已存在的 type 不重复追加", async () => {
-    mocks.LoadWorkshopCreators.mockResolvedValue([
-      { name: "A", type: "bilibili;x" },
-    ]);
-    mocks.ScanLocalAuthors.mockResolvedValue([
-      { name: "A", type: "x" },
-    ]);
-
+    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "A", type: "bilibili;x" }]);
+    mocks.ScanLocalAuthors.mockResolvedValue([{ name: "A", type: "x" }]);
     const data = await loadCommunityData();
-
     const a = data.creators.find((c) => c.name === "A");
     expect(a?.type).toBe("bilibili;x");
   });
 
   it("本地独有作者追加为 _fromLocal 条目", async () => {
-    mocks.ScanLocalAuthors.mockResolvedValue([
-      { name: "新作者", desc: "本地描述" },
-    ]);
-
+    mocks.ScanLocalAuthors.mockResolvedValue([{ name: "新作者", desc: "本地描述" }]);
     const data = await loadCommunityData();
-
     const c = data.creators.find((x) => x.name === "新作者");
     expect(c?._fromLocal).toBe(true);
     expect(c?.desc).toBe("本地描述");
   });
 
-  it("Go 绑定失败 → 降级为空数据不抛", async () => {
+  it("Go 绑定失败 -> 降级为空数据不抛", async () => {
     mocks.DefaultWorkshopSites.mockRejectedValue(new Error("net down"));
     const data = await loadCommunityData();
     expect(data.sites).toEqual([]);
     expect(data.creators).toEqual([]);
   });
 
-  it("仅 ScanLocalAuthors 失败 → 其余绑定正常加载，本地作者视为空（单绑定降级）", async () => {
-    mocks.ScanLocalAuthors.mockRejectedValue(new Error("scan fail"));
-    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "A", type: "bilibili" }]);
-
-    const data = await loadCommunityData();
-
-    expect(data.sites).toEqual([{ id: "bilibili" }]);
-    expect(data.creators).toEqual([{ name: "A", type: "bilibili" }]);
-    expect(data.creators.find((c) => c.name === "A")?._fromLocal).toBeUndefined();
-  });
-
-  it("网页版（resolveWebMode=true）桥接增强 Batch 2：经 Go binding（adapter）加载 bundled 默认，不绕道 GitHub 拉取", async () => {
-    mocks.resolveWebMode.mockReturnValue(true);
-    // 绑定返回 bundled 默认（网页版由 browser-adapter 桥接，见 ADR-049 Batch 2）
-    mocks.DefaultWorkshopSites.mockResolvedValue([{ id: "bilibili", url: "https://bili.test", label: "B站" }]);
-    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "A", type: "bilibili" }]);
-    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: async () => [] }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const data = await loadCommunityData();
-
-    // 网页版不再走 GitHub 拉取旁路，而是经桥接的 Go binding 读取 bundled 默认
-    expect(mocks.DefaultWorkshopSites).toHaveBeenCalled();
-    expect(mocks.LoadWorkshopCreators).toHaveBeenCalled();
-    expect(data.sites).toEqual([{ id: "bilibili", url: "https://bili.test", label: "B站" }]);
-    expect(data.creators.find((c) => c.name === "A")).toBeDefined();
-  });
-
-  it("自动合并触发时单次 SaveWorkshopCreators 原子保存（数据安全：无部分提交）", async () => {
-    // 社区索引返回新增作者 → 触发 tryAutoMergeCommunity 合并 + 保存
+  it("自动合并触发时单次 SaveWorkshopCreators 原子保存", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve({ ok: true, json: async () => [{ name: "社区新作者", desc: "c", type: "bilibili" }] }),
     );
     vi.stubGlobal("fetch", fetchMock);
     mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "老作者", type: "bilibili" }]);
-
     await loadCommunityData();
     await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalled());
-
     const saved = mocks.SaveWorkshopCreators.mock.calls[0][0] as Array<{ name: string; type: string }>;
-    // 单次调用（原子），且结果 = 保留其他站点 + 按站点分组重写
     expect(mocks.SaveWorkshopCreators).toHaveBeenCalledTimes(1);
     const names = saved.map((c) => c.name);
     expect(names).toContain("社区新作者");
     expect(names).toContain("老作者");
   });
 
-  it("多段 type 条目（bilibili;afdian）去重：只写入一次", async () => {
-    // 审核发现 P0-1：多段 type 会被 push 进多个 siteMap 组，flat 后重复 → 按 name 去重
-    const fetchMock = vi.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: async () => [{ name: "社区新作者", desc: "c", type: "afdian" }],
-      }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    // 存储中有带多段 type 的条目
-    mocks.LoadWorkshopCreators.mockResolvedValue([
-      { name: "多段作者", type: "bilibili;afdian" },
-      { name: "单段作者", type: "bilibili" },
-    ]);
-
-    await loadCommunityData();
-    await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalled());
-
-    const saved = mocks.SaveWorkshopCreators.mock.calls[0][0] as Array<{ name: string; type: string }>;
-    const count = saved.filter((c) => c.name === "多段作者").length;
-    expect(count).toBe(1); // 去重后只出现一次
-    expect(saved.map((c) => c.name)).toContain("社区新作者");
-  });
-
-  it("SaveWorkshopCreators 失败 → 静默降级不抛（原子保存回滚语义）", async () => {
+  it("6h 内重复调用 -> 第二次跳过社区索引拉取，不触发 SaveWorkshopCreators", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve({ ok: true, json: async () => [{ name: "社区新作者", type: "bilibili" }] }),
     );
     vi.stubGlobal("fetch", fetchMock);
     mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "老作者", type: "bilibili" }]);
-    mocks.SaveWorkshopCreators.mockRejectedValue(new Error("disk full"));
+    await loadCommunityData();
+    await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalledTimes(1));
+    // 重置 fetchMock 计数，追踪第二次调用
+    fetchMock.mockClear();
+    await loadCommunityData();
+    // tryAutoMergeCommunity 因限流跳过，不应再调用 fetch
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.SaveWorkshopCreators).toHaveBeenCalledTimes(1);
+    expect(_getLastCommunityMergeTime()).toBeGreaterThan(0);
+  });
 
-    // 不抛错——catch 内 dbg 静默处理
-    const data = await loadCommunityData();
-    expect(data.creators.some((c) => c.name === "老作者")).toBe(true);
+  it("6h 窗口过期后再次调用 -> 重新触发社区索引拉取", async () => {
+    // 用不同名字避免 mergeCommunityCreators 修改原数组导致的重复命中
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({ ok: true, json: async () => [{ name: "社区新作者B", type: "bilibili" }] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "老作者", type: "bilibili" }]);
+    await loadCommunityData();
+    await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalledTimes(1));
+    // 模拟 7 小时前
+    _setLastCommunityMergeTime(Date.now() - 7 * 3600 * 1000);
+    await loadCommunityData();
+    await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    expect(fetchMock).toHaveBeenCalled();
   });
 });

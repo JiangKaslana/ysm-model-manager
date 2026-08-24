@@ -18,7 +18,7 @@
 | Go·几何 | 2 | 10 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 10 |
-| go/instance | 1 | 2 |
+| go/instance | 1 | 3 |
 | go/internal | 1 | 3 |
 | Go·Litematic | 4 | 9 |
 | Go·日志 | 2 | 13 |
@@ -27,7 +27,7 @@
 | Go·回收站 | 2 | 19 |
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 2 | 4 |
-| go/scanner | 1 | 10 |
+| go/scanner | 1 | 11 |
 | Go·同步 | 8 | 36 |
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
@@ -48,7 +48,7 @@
 | frontend/views | 116 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **461** | **1984** |
+| **合计** | **461** | **1986** |
 
 ## Go·头像
 
@@ -279,8 +279,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `BuildSyncItems()` | `go/instance/instance:28` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
-| `ResourceTypeInfo()` | `go/instance/instance:19` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
+| `InvalidateSyncItemsCache()` | `go/instance/instance:47` | InvalidateSyncItemsCache 清空全部整合包同步结果缓存。 |
+| `BuildSyncItems()` | `go/instance/instance:101` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
+| `ResourceTypeInfo()` | `go/instance/instance:21` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
 
 ## go/internal
 
@@ -394,14 +395,15 @@
 |------|--------|------|
 | `SetErrorSink()` | `go/scanner/scanner:94` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
 | `SetConfigFunc()` | `go/scanner/scanner:125` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `InvalidateCache()` | `go/scanner/scanner:150` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
-| `InvalidatePath()` | `go/scanner/scanner:165` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
-| `ScanEntries()` | `go/scanner/scanner:196` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
-| `ScanEntriesWithHit()` | `go/scanner/scanner:203` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:384` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:431` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:461` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:524` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `OnCacheInvalidated()` | `go/scanner/scanner:160` | OnCacheInvalidated 注册一个扫描缓存失效回调。回调会在 InvalidateCache 或 InvalidatePath 完成清理后同步调用，适合清理依赖 sca |
+| `InvalidateCache()` | `go/scanner/scanner:179` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
+| `InvalidatePath()` | `go/scanner/scanner:195` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
+| `ScanEntries()` | `go/scanner/scanner:227` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
+| `ScanEntriesWithHit()` | `go/scanner/scanner:234` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
+| `ComputeFileHash()` | `go/scanner/scanner:415` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:462` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:492` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:555` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -1871,13 +1873,13 @@
 | `CommunityData()` | `frontend/src/views/app-content/community-data:24` | 站点 + 创作者 + 作者 数据包 |
 | `_setLastCommunityMergeTime()` | `frontend/src/views/app-content/community-data:39` | 供测试覆盖时间戳；生产环境不应调用 |
 | `_getLastCommunityMergeTime()` | `frontend/src/views/app-content/community-data:42` | — |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:50` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:171` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:225` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:254` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:291` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:315` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:336` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:51` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:172` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:226` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:255` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:292` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:316` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:337` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:14` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:4` | — |
