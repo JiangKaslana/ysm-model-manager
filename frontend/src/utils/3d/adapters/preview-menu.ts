@@ -9,6 +9,7 @@
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuItemDef, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
 import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
+import { logWarn } from "../../core/log.ts";
 import { createSlideMenu, type SlideMenuView, type SlideMenuHandle } from "../../../ui/ui-slide-menu.ts";
 import { buildCameraControls, type CameraControlBridge } from "./camera-controls.ts";
 import type { SkyCapability } from "../caps/sky-capability.ts";
@@ -1081,6 +1082,9 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         const sameType = viaType
           ? activeTab === curType
           : !!candType && candType === curType;
+        // 【临时诊断】替换路由判定日志：真机定位「点击按钮界面被关」——若 sameType=false
+        // 误判跨源会走 switchExternal → cleanupPreview 整段销毁预览（疑似根因）
+        logWarn("preview-switch", `路由判定 p=${p} viaType=${viaType} candType=${String(candType)} curType=${curType} activeTab=${activeTab} sameType=${sameType}`);
         const row = document.createElement("div");
         row.className = "ysm-preview-menu-row";
         row.dataset.testid = "preview-switch-item";
@@ -1120,6 +1124,8 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         }
         row.onclick = (): void => {
           // 替换：不关菜单、不清场景——切换完成后局部刷新列表（renderRows 重读新当前路径）
+          // 【临时诊断】分路日志：确认走 switchTo（复用外壳）还是 switchExternal（cleanupPreview 销毁）
+          logWarn("preview-switch", `替换点击 p=${p} sameType=${sameType} 走 ${!sameType && ctx.switchExternal ? "switchExternal(可能 cleanupPreview)" : "switchTo(复用外壳)"}`);
           const r = !sameType && ctx.switchExternal
             ? ctx.switchExternal(p, ctx.getSiblings())
             : ctx.switchTo(p);
