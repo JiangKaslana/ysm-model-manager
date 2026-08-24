@@ -31,7 +31,7 @@ HTML 转义、搜索高亮与全局 toast 时长语义常量。`esc()` 是全前
 ## 对外 API / 入口
 
 - `esc(s: string): string` — **治理红线函数**：转义 `&` `<` `>` `"` `'` 五种字符为 HTML 实体（`&` 最先替换防二次转义）；null/undefined 按空串处理不抛错
-- `hl(text: string, query?: string): string` — 先在**原始 text** 上大小写不敏感定位 query 的**首个**命中，再按原始索引切 before/match/after 三段、各自 `esc()` 后拼 `<mark>`（非「先整体转义再查找」——该路径会因 `&lt;` 错位，html.ts:21-22 注释显式否决）；无 query 或未命中时返回纯转义文本
+- `hl(text: string, query?: string): string` — 先在**原始 text** 上大小写不敏感定位 query 的**首个**命中，再按原始索引切 before/match/after 三段、各自 `esc()` 后拼 `<mark>`（非「先整体转义再查找」——该路径会因 `&lt;` 错位，html.ts esc 注释显式否决）；无 query 或未命中时返回纯转义文本
 
 ## 与其他子系统关系
 

@@ -253,6 +253,7 @@ export const en: Record<string, string> = {
   "import.busyImporting": "Import in progress, please wait…",
   "import.fileTooLarge": "Exceeds 100 MB, please place it directly in the repository folder",
   "import.processError": "Import processing error, please retry",
+  "import.contextRouteUnavailable": "Page context routing unavailable, fell back to content inference",
   "import.readFailed": "Failed to read file",
   "import.unsupportedFormat": "Unsupported format. Only",
   "import.addedToQueue": "Added to queue: {n} files",

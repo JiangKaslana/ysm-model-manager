@@ -162,6 +162,30 @@ describe("executeCollected — 静默导入入口", () => {
     expect(mocks.ImportModelFolderTo).not.toHaveBeenCalled();
   });
 
+  it("有上下文但 ImportModelFolderTo 缺失（旧桥/Android 时序）→ 降级内容推断 + warn toast", async () => {
+    // executeCollected 内部两次 log()（各调一次 getApp）+ importFolder 一次，共三次——
+    // 需按调用序 mock：前两次给 log（AddOpLog 消费），第三次模拟缺失 ImportModelFolderTo 的旧桥
+    vi.mocked(getApp)
+      .mockResolvedValueOnce(mocks as never)
+      .mockResolvedValueOnce(mocks as never)
+      .mockResolvedValueOnce({
+        ImportModelFile: mocks.ImportModelFile,
+        ImportModelFolder: mocks.ImportModelFolder,
+        // 无 ImportModelFolderTo：模拟绑定时序缺失
+      } as never);
+    const toasts: Array<{ msg: unknown; type?: unknown }> = [];
+    const off = bus.on("toast:show", (p) => toasts.push(p));
+    const r = await executeCollected(
+      [{ file: mkFile("pack.zip"), relPath: "女仆包/pack.zip" }],
+      "maid-model",
+    );
+    expect(r.folders).toBe(1);
+    expect(mocks.ImportModelFolderTo).not.toHaveBeenCalled();
+    expect(mocks.ImportModelFolder).toHaveBeenCalledTimes(1);
+    expect(toasts.some((x) => x.type === "warn" && String(x.msg).includes("上下文"))).toBe(true);
+    off();
+  });
+
   it("同名文件两次拖入 → 两次执行（去重由后端 FILE_EXISTS / 调用方保证，执行器不拦历史重复）", async () => {
     await executeCollected([{ file: mkFile("dup.ysm"), relPath: "dup.ysm" }]);
     await executeCollected([{ file: mkFile("dup.ysm"), relPath: "dup.ysm" }]);

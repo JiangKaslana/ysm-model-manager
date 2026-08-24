@@ -107,3 +107,25 @@ func TestImportModelFolderTo_NeutralContextAmbiguousStaysFallback(t *testing.T) 
 		t.Fatalf("歧义内容在默认页应落 ysm 兜底根 %s: %v", want, err)
 	}
 }
+
+func TestImportModelFolderTo_NeutralContextYsmJsonPriority(t *testing.T) {
+	base := t.TempDir()
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	// ysm.json 是 YSM 解压目录入口，优先级不应依赖 items 顺序（审核 P3-1）：
+	// 单归属文件在 ysm.json 之前时，中性页委托旧路仍应落 ysm 根而非 litematic 根
+	files := []types.ImportFileItem{
+		folderItem("track.litematic"),
+		folderItem("ysm.json"),
+	}
+	if err := a.ImportModelFolderTo("YSM包", "", "ysm", files); err != nil {
+		t.Fatalf("中性上下文 ysm.json 优先导入失败: %v", err)
+	}
+	want := filepath.Join(base, types.GroupStorageRoot("ysm"), "YSM包")
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("ysm.json 非首位仍应落 ysm 根 %s: %v", want, err)
+	}
+	litematic := filepath.Join(base, types.GroupStorageRoot("litematic"), "YSM包")
+	if _, err := os.Stat(litematic); !os.IsNotExist(err) {
+		t.Errorf("不应按 litematic 单归属落位 %s", litematic)
+	}
+}

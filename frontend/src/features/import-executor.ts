@@ -186,10 +186,16 @@ export const importFolder = async (
     }
     const App = await getApp();
     // P3 审核修复：旧桥/Android 绑定时序缺 ImportModelFolderTo 时 typeof 守卫，
-    // 退回内容推断旧路径而非整条拖入 TypeError（文档承诺的空上下文兜底语义）
+    // 退回内容推断旧路径而非整条拖入 TypeError（文档承诺的空上下文兜底语义）。
+    // P3-2（审核）：降级不可静默——有页面上下文但桥缺失时 warn 提示，否则
+    // .zip 歧义文件夹会按内容推断落 ysm 根却 toast「导入成功」，错位不可见。
     if (rtype && typeof App.ImportModelFolderTo === "function") {
       await App.ImportModelFolderTo(folderName, subpath, rtype, items);
     } else {
+      if (rtype) {
+        console.warn(`[import] ImportModelFolderTo 不可用（旧桥/Android 时序），降级为内容推断：rtype=${rtype}`);
+        toast(t("import.contextRouteUnavailable"), "warn", 4000);
+      }
       await App.ImportModelFolder(folderName, subpath, items);
     }
     ImportHistory.push({
