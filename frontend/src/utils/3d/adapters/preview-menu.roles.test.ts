@@ -167,4 +167,43 @@ describe("角色面板（roles）", () => {
     expect(overlay.querySelector('[data-testid="preview-roles-empty"]')).not.toBeNull();
     handle.dispose();
   });
+
+  it("dock 🧍 → 详情拆分模型/动作两 section，初始展开模型、折叠动作；点动作 header 可展开", () => {
+    const defs = (): PreviewMenuItemDef[] => [
+      { id: "material", icon: "🎨", labelKey: "", fallback: "材质", kind: "panel", dockGroup: "model", render: () => {} },
+      { id: "play", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", render: () => {} },
+    ];
+    regRole("/m/a.jsm", defs());
+    const handle = mountPreviewRootMenu(overlay, makeCtx());
+    // 🧍 初始聚焦模型 section：model 展开、motion 折叠
+    (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
+    expect((overlay.querySelector('[data-testid="preview-role-model-body"]') as HTMLElement).style.display).toBe("block");
+    expect((overlay.querySelector('[data-testid="preview-role-motion-body"]') as HTMLElement).style.display).toBe("none");
+    // 点动作 section header → 展开（保持模型 section 状态）
+    (overlay.querySelector('[data-testid="preview-role-motion"] .cap-section-header') as HTMLElement).click();
+    expect((overlay.querySelector('[data-testid="preview-role-motion-body"]') as HTMLElement).style.display).toBe("block");
+    handle.dispose();
+  });
+
+  it("dock 💃 → 详情初始聚焦动作 section（play 行直达可见）；再点模型 section header 切换", () => {
+    const defs = (): PreviewMenuItemDef[] => [
+      { id: "material", icon: "🎨", labelKey: "", fallback: "材质", kind: "panel", dockGroup: "model", render: () => {} },
+      { id: "play", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", render: () => {} },
+    ];
+    regRole("/m/a.jsm", defs());
+    const handle = mountPreviewRootMenu(overlay, makeCtx());
+    // mountPreviewRootMenu 不自动注入适配器项 → 先注入 motion 组项使 dock-motion 出现
+    handle.setAdapterItems([
+      { id: "dockPlay", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", render: () => {} },
+    ]);
+    // 💃 初始聚焦动作 section：motion 展开、model 折叠，且 play 行（motion 面板项）可见
+    (overlay.querySelector('[data-testid="dock-motion"]') as HTMLElement).click();
+    expect((overlay.querySelector('[data-testid="preview-role-motion-body"]') as HTMLElement).style.display).toBe("block");
+    expect((overlay.querySelector('[data-testid="preview-role-model-body"]') as HTMLElement).style.display).toBe("none");
+    expect(overlay.querySelector('[data-testid="preview-play"]')).not.toBeNull();
+    // 点模型 section header → 展开（两 section 并存）
+    (overlay.querySelector('[data-testid="preview-role-model"] .cap-section-header') as HTMLElement).click();
+    expect((overlay.querySelector('[data-testid="preview-role-model-body"]') as HTMLElement).style.display).toBe("block");
+    handle.dispose();
+  });
 });

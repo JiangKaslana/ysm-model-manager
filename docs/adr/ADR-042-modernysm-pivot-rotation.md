@@ -1,6 +1,6 @@
 # ADR-042：渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植
 
-- **状态**：✅ 已采纳（§2.1 骨骼矩阵算法——旋转序 ZYX、cube 变换链已落地 commit b8fc3211，知识卡 go-threejs.md 沉淀；§2.2 二进制直读 / §2.3 动画纯计算移植仍排期，属后续演进项）
+- **状态**：✅ 已采纳（§2.1 骨骼矩阵算法——旋转序 ZYX、cube 变换链已落地 commit b8fc3211，知识卡 go-threejs.md 沉淀；§2.1 四项核对 2026-08-24：scale ✅ 已落地、隐藏联动 ✅ 已落地、glow ❌ 确实未建模、世界坐标回填 ⏭️ 无需实现，验证脚本 `tests/verify-adr-042.mjs`；§2.2 二进制直读 / §2.3 动画纯计算移植仍排期，属后续演进项）
 - **日期**：2026-08-09
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`upstream/ModernYSM-1.20.1-forge` / `go/threejs/spec.go` / `frontend/src/utils/3d/model3d.ts` / `frontend/src/utils/animation/` / `docs/knowledge/ysm_baked.md` / `docs/knowledge/animation-system.md` / `tests/port-verification/`
@@ -35,11 +35,11 @@
 | **pivot 平移** | `translate((pivotX - animTx), (pivotY + animTy), (pivotZ + animTz)) × 0.0625`，**X 取负** | `spec.go:528` 等 12 处 localPosition | ✅ Go `localPos={pp.x-bp.x, bp.y-pp.y, bp.z-pp.z}` 已 X 翻转，口径一致（YSMViewer C# ConvertBones 同款） |
 | **旋转序** | `rotateZ → rotateY → rotateX`（Z→Y→X） | `eulerToQuaternion(-rx,-ry,+rz)`，ADR-041 | ✅ **已裁决并落地（2026-08-22）**：Go/TS `eulerToQuaternion` 从 `M = Rx*Ry*Rz`（ADR-041 YSMViewer 口径）改为 `M = Rz*Ry*Rx`（ZYX intrinsic，对齐 Blockbench `Format.euler_order='ZYX'` + Three.js `Euler(order='ZYX')`）。证据：Blockbench `io/format.ts:704` 默认 `euler_order='ZYX'`，Bedrock 格式未覆盖；wine_fox `Tail2.cube#0` `rotation=[-15,-57.25,-90]` 手算对照，旧口径顶点 `[-3.019,-0.183,0.684]` vs 新口径 `[-1.595,2.237,-1.439]`，Blockbench 活规范取后者。单轴旋转四元数不变（旧 `TestEulerToQuaternion90X` 断言仍 pass），三轴非零 cube 顶点修正——"主题正确、小部件错"根因消除。 |
 | **cube 变换链** | `parseCube` L659 `origin[0]*=-1` + L662 `from[0]=-(from[0]+size[0])`；`updateTransform` `mesh.position=cube.origin-parent.origin` | `buildCubeMeshData`/`applyInflate`/`resolveCubePivot`/`computeMeshLocalPos` | ✅ **已落地（2026-08-22）**：cube 从 Bedrock JSON 到渲染顶点补齐 3 层 Blockbench X 镜像/翻号——(1) cube origin X 镜像 `ox=-(ox+sx)`（`parseCube` L662）；(2) cube pivot X 翻号 `cp[0]=-cp[0]`（`parseCube` L659）；(3) mesh localPos[0] 符号 `bonePivot.x+cp[0]`（Blockbench `mesh.position=cube.origin-parent.origin`，`cp[0]` 已翻号=`-Pivot[0]`）。之前 0 层 → 顶点 X 跟 Blockbench 相反，三轴非零 cube 旋转后朝向错位。验证：`tests/port-verification/compare-cube-vertices.mjs` 逐顶点对拍 3 组 cube（Skirt 三轴 / UpBody 无旋转 / Tail2 三轴），diff=0.0000；视觉验收：裙子/小部件朝向计算精度大幅提升到正确水平。 |
-| **scale** | `scale==0 → 不可见`（三轴全零才隐藏），普通 scale 组合 | spec LocalRotation/Scale | ❌ **未建模**：`BoneData`（spec.go:32-38）无 Scale 字段，静态 spec 不含 scale；动画 scale 由前端 animation.ts 驱动（§2.3 落地前为空） |
-| **隐藏联动** | **父不可见 → 子必不可见**（`NativeModelRenderer.java:186-189`） | `model3d.ts:801` setBoneVisible 需核对 | ❌ **未建模**：前端 setBoneVisible/toggleBone 仅按骨骼名操作自身子树，无「父隐子隐」自动联动；spec 亦无可见性传播字段（§2.3 动画驱动隐藏前不生效） |
+| **scale** | `scale==0 → 不可见`（三轴全零才隐藏），普通 scale 组合 | spec LocalRotation/Scale | ✅ **已落地（2026-08-24 核对）**：前端动画管线完整支持——`BoneChannels.scale`（animation.ts:52）→ `evaluateClip` 父子 scale 累积相乘（animation.ts:587-591）→ `ysm-animation-player.ts:121-129` 应用到 `THREE.Bone.scale`；`scale=0 → node.visible=false` 对齐上游 calculateBoneMatrix:213-215。`BoneData` 无需 Scale 字段（scale 是动画驱动，非静态属性） |
+| **隐藏联动** | **父不可见 → 子必不可见**（`NativeModelRenderer.java:186-189`） | `model3d.ts:801` setBoneVisible 需核对 | ✅ **已落地（2026-08-24 核对）**：`bone-visibility.ts:13` `setBoneVisible` 用 `g.traverse((c) => { c.visible = visible; })` 递归设置子骨骼 visible；`toggleBone` 同理。THREE.Object3D.traverse 天然实现「父隐子隐」 |
 | **背面剔除** | cullable quad 做仿射投影 `det <= 0` 剔除（`det > 0 才画`） | 与 three.js 默认背面剔除口径核对 | ✅ 前端统一 `side: THREE.FrontSide`（model3d.ts:339/344）+ `alphaTest 0.1`，与 Java 正向剔除语义一致（y 轴向上约定下同向） |
-| **发光骨骼** | `bone.glow` → 全亮 `LightTexture.pack(15,15)` | model3d 需补 glow 通道 | ❌ **未建模**：spec 无 glow 字段、材质无发光通道；属增强项，可后置 |
-| **世界坐标回填** | `unk3==1` 骨骼写回 stateBuffer（`m30/m31/m32 × 16`）供 molang 读绝对位置 | 移植 `bone_position_abs` 类函数依赖 | ❌ **未建模**：依赖 molang 求值器（§2.3），静态 spec 无需此数据 |
+| **发光骨骼** | `bone.glow` → 全亮 `LightTexture.pack(15,15)` | model3d 需补 glow 通道 | ❌ **确实未建模（2026-08-24 核对）**：上游 `GeoBone.glow = name.startsWith("ysmGlow")`，`NativeModelRenderer:152` 用 `LightTexture.pack(15,15)` 渲染发光骨骼。我们 BoneData 无 Glow 字段，spec-bones.go 无 ysmGlow 前缀检测，前端 ysm-adapter 无针对 ysmGlow 的 emissive 设置。落地路径：Go 侧 buildBoneLocalData 检测前缀 + BoneData 加 Glow bool → 前端材质设 emissive/emissiveIntensity |
+| **世界坐标回填** | `unk3==1` 骨骼写回 stateBuffer（`m30/m31/m32 × 16`）供 molang 读绝对位置 | 移植 `bone_position_abs` 类函数依赖 | ⏭️ **无需实现（2026-08-24 核对）**：上游 unk3==1 时把 localMat.m30/m31/m32 写入 stateBuffer，是 GPU 渲染内部用（calculateBoneMatrix:234-242）。我们用 Three.js CPU 渲染，`THREE.Bone.getWorldPosition()` 可替代。molang 若需读绝对位置，调用 getWorldPosition 即可 |
 
 ### 2.2 二进制直读 pivot/rotation —— 根治反推猜错（远期攻坚项）
 

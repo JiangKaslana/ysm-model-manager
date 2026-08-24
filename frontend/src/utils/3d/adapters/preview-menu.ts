@@ -619,7 +619,8 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
         // 模型组 + 动作组：存在活跃角色且有其技能（menuItems）→ 直达其详情，分别聚焦「模型/动作」section（1 跳）；
         // 否则回退 roles 列表（模型）/ 通用组根（动作）。per-model 工具（信息/截图/骨骼）+ play/perception
         // 统一收进角色详情（roleDetailView 按 dockGroup 过滤 entry.menuItems 并分 section）。多角色同框走详情内「切换角色」。
-        if (g.id === "model" || g.id === "motion") {
+        const isModelShortcut = g.id === "model";
+        if (isModelShortcut || g.id === "motion") {
           const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
           const active = sceneRegistry.getActiveId()
             ? sceneRegistry.getAll().find((x) => x.id === sceneRegistry.getActiveId())
@@ -636,7 +637,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
             }));
             return;
           }
-          if (g.id === "model" && rolesDef) {
+          if (isModelShortcut && rolesDef) {
             showMenu(makePanelView(rolesDef));
             return;
           }
@@ -1185,6 +1186,7 @@ function renderRoleSection(
   title.textContent = tr(cfg.titleKey, cfg.fallback);
   header.append(arrow, title);
   const body = document.createElement("div");
+  body.dataset.testid = cfg.testid + "-body";
   body.style.cssText = "display:" + (cfg.collapsed ? "none" : "block");
   header.addEventListener("click", (ev: MouseEvent): void => {
     ev.stopPropagation();
