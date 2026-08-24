@@ -123,7 +123,7 @@ func ExtractAvatarURI(modelPath, safeName string) string {
 		}
 		defer r.Close()
 
-		if avatar := extractAvatarFromContainer(r, modelPath, safeName); avatar != "" {
+		if avatar := extractAvatarFromContainer(r, safeName); avatar != "" {
 			return avatar
 		}
 
@@ -362,7 +362,7 @@ func readLimitedModel(path string) ([]byte, error) {
 
 // extractAvatarFromContainer 处理压缩包（zip/7z）头像提取的通用逻辑
 // 包括：解析作者列表、按作者名匹配、以及 avatar/ 目录降级逻辑
-func extractAvatarFromContainer(r container.Reader, modelPath, safeName string) string {
+func extractAvatarFromContainer(r container.Reader, safeName string) string {
 	// 1. 解析作者列表
 	var authors []authorEntry
 	ysmData := ReadFileFromContainer(r, "ysm.json")
