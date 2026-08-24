@@ -421,7 +421,8 @@ export const ja: Record<string, string> = {
   "credits.parseDesc": "クロスプラットフォームの YSM バイナリ形式デコード（WASM 内蔵）",
   "credits.repo": "リポジトリ管理",
   "credits.repoDesc": "ハードリンクインストール、ゴミ箱、インスタンス管理の設計源",
-  "credits.contribute": "PrismLauncher インスタンスレイアウト対応、大規模インスタンス性能、コミュニティ索引、ワークショップ修正に貢献",
+  "credits.zuogeren1Contribute": "PrismLauncher インスタンスレイアウト対応、大規模インスタンス性能、コミュニティ索引、ワークショップ修正に貢献",
+  "credits.jiangkaslanaContribute": "Rust スキャナのホットパス最適化とバッチ YSM レンダリング（PR #13）、レンダリングパス間のテクスチャ整合（PR #16）に貢献",
   "credits.special": "特別感謝",
 
   // ── Main Content Area ──

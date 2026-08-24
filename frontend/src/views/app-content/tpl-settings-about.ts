@@ -91,6 +91,12 @@ export function aboutHTML(): string {
 <!-- /stg-tab-about -->`;
 }
 
+/** 特别鸣谢贡献者（改这里加人，i18n 描述 key 见 credits.*Contribute） */
+const CONTRIBUTORS = [
+  { name: "zuogeren1", github: "zuogeren1", descKey: "credits.zuogeren1Contribute" },
+  { name: "JiangKaslana", github: "JiangKaslana", descKey: "credits.jiangkaslanaContribute" },
+];
+
 /** Credits 标签页（灵感来源/特别感谢） */
 export function creditsHTML(): string {
   return `<!-- stg-tab-credits -->
@@ -133,13 +139,14 @@ export function creditsHTML(): string {
 <div class="section-title stg-title stg-sub-title">🙏 ${t("credits.special")}</div>
 
 <div style="display:flex;gap:12px">
+  ${CONTRIBUTORS.map(c => `
   <div style="flex:1;background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px 14px">
-    <div style="font-size:13px;font-weight:600;margin-bottom:4px">👤 zuogeren1</div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:4px">👤 ${c.name}</div>
     <div style="font-size:var(--fs-sm);color:var(--muted);line-height:1.5">
-      ${t("credits.contribute")}<br>
-      <a href="https://github.com/zuogeren1" target="_blank" style="color:var(--accent)">@zuogeren1</a>
+      ${t(c.descKey)}<br>
+      <a href="https://github.com/${c.github}" target="_blank" style="color:var(--accent)">@${c.github}</a>
     </div>
-  </div>
+  </div>`).join("")}
 </div>
 
 </div>
