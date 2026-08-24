@@ -1,6 +1,7 @@
 // ===== 创意工坊纯数据层 =====
 import { t } from "../../core/i18n/t.ts";
 import { dbg } from "../../utils/debug/debug.ts";
+import { withCached, invalidateCache, type CachePolicy } from "../../utils/cache/with-cached.ts";
 import { getApp } from "../../backend/app.ts";
 import type { WorkshopSite, WorkshopCreator } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 
@@ -29,20 +30,24 @@ export interface CommunityData {
   failed?: boolean;
 }
 
-// ===== 社区索引拉取限流 =====
-// 进程生命周期内，最多每隔 COMMUNITY_MERGE_INTERVAL_MS 拉取一次社区索引。
-// 避免每次进创作者页都静默发起 3 路网络请求（每路 8s 超时，最坏 24s）。
-const COMMUNITY_MERGE_INTERVAL_MS = 6 * 3600 * 1000; // 6 小时
-let _lastCommunityMergeTime = 0;
+// ===== 社区索引拉取缓存 =====
+// 使用 withCached 统一缓存：6h TTL，STALE 策略（过期返回空不阻塞渲染）
+const COMMUNITY_MERGE_TTL_MS = 6 * 3600 * 1000; // 6 小时
+const COMMUNITY_MERGE_KEY = "community-merge";
 
-/** 供测试覆盖时间戳；生产环境不应调用 */
-export function _setLastCommunityMergeTime(t: number): void {
-  _lastCommunityMergeTime = t;
-}
-export function _getLastCommunityMergeTime(): number {
-  return _lastCommunityMergeTime;
+// 磁盘扫描 TTL：作者数据变更不频繁，5 分钟足够
+const SCAN_AUTHORS_TTL_MS = 5 * 60 * 1000; // 5 分钟
+const SCAN_AUTHORS_KEY = "scan-authors";
+
+/** 供测试强制刷新缓存 */
+export function forceRefreshCommunityMerge(): void {
+  invalidateCache(COMMUNITY_MERGE_KEY);
 }
 
+/** 供测试清除扫描缓存 */
+export function forceRefreshScanAuthors(): void {
+  invalidateCache(SCAN_AUTHORS_KEY);
+}
 
 /**
  * 加载站点 + 创作者数据（纯数据，不碰 DOM）
@@ -64,8 +69,12 @@ export async function loadCommunityData(): Promise<CommunityData> {
     const results = await Promise.all([
       App.DefaultWorkshopSites(),
       App.LoadWorkshopCreators(),
+      // 作者列表：从已有 ModelEntry 统计，无 IO，直接调用
       App.ListModelAuthors().catch(() => []),
-      App.ScanLocalAuthors().catch(() => []),
+      // 本地作者扫描：磁盘 IO 密集，加 withCached 5min TTL 缓存
+      withCached(SCAN_AUTHORS_KEY, SCAN_AUTHORS_TTL_MS, () =>
+        App.ScanLocalAuthors().catch(() => []),
+      ),
     ]);
     sites = results[0] || [];
     creators = results[1] || [];
@@ -117,15 +126,11 @@ export async function loadCommunityData(): Promise<CommunityData> {
   };
 }
 
-/** 后台静默拉取社区索引并合并（6h 内不重复） */
+/** 后台静默拉取社区索引并合并（withCached 6h TTL） */
 async function tryAutoMergeCommunity(creators: LocalCreator[]): Promise<void> {
-  const now = Date.now();
-  if (now - _lastCommunityMergeTime < COMMUNITY_MERGE_INTERVAL_MS) {
-    dbg("community", "社区索引拉取跳过: 距上次不足 6h");
-    return;
-  }
-  _lastCommunityMergeTime = now;
-  const community = await fetchCommunityCreators(DEFAULT_COMMUNITY_URL);
+  const community = await withCached(COMMUNITY_MERGE_KEY, COMMUNITY_MERGE_TTL_MS, async () => {
+    return fetchCommunityCreators(DEFAULT_COMMUNITY_URL);
+  }, "STALE");
   if (!community.length) return;
   const { added } = mergeCommunityCreators(creators, community);
   if (added > 0) {

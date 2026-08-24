@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 149 | 594 |
-| frontend/views | 116 | 333 |
+| 前端·工具 | 150 | 599 |
+| frontend/views | 117 | 338 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **461** | **1986** |
+| **合计** | **463** | **1996** |
 
 ## Go·头像
 
@@ -690,33 +690,33 @@
 | `App.ToggleModelEnable()` | `internal/app/app_files:288` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
 | `App.IsFileBanned()` | `internal/app/app_files:296` | — |
 | `App.ToggleEnable()` | `internal/app/app_files:305` | ========== 统一启用/禁用（兄弟会话裁定：无 rtype，纯路径包含判定）========== ToggleEnable 统一启禁入口——root 归属由「哪个已知根包含 |
-| `App.InstallModelFile()` | `internal/app/app_install_import:20` | ========== 安装 ========== |
-| `App.InstallModelTo()` | `internal/app/app_install_import:24` | — |
-| `App.InstallModelWithOverlay()` | `internal/app/app_install_import:42` | — |
-| `App.SyncCustomToRepo()` | `internal/app/app_install_import:47` | SyncCustomToRepo 同步整合包自定义目录到仓库（执行逻辑下沉 go/sync） |
-| `App.ImportModelFile()` | `internal/app/app_install_import:51` | — |
-| `App.DetectZipType()` | `internal/app/app_install_import:56` | DetectZipType 通过 ZIP 内容检测资源类型（供前端导入路由使用） |
-| `App.ImportModelFileSkipCheck()` | `internal/app/app_install_import:64` | — |
-| `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:72` | — |
-| `App.ImportModelFileTo()` | `internal/app/app_install_import:92` | — |
-| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:96` | — |
-| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:103` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
-| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:108` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
+| `App.InstallModelFile()` | `internal/app/app_install_import:21` | ========== 安装 ========== |
+| `App.InstallModelTo()` | `internal/app/app_install_import:25` | — |
+| `App.InstallModelWithOverlay()` | `internal/app/app_install_import:43` | — |
+| `App.SyncCustomToRepo()` | `internal/app/app_install_import:48` | SyncCustomToRepo 同步整合包自定义目录到仓库（执行逻辑下沉 go/sync） |
+| `App.ImportModelFile()` | `internal/app/app_install_import:55` | — |
+| `App.DetectZipType()` | `internal/app/app_install_import:60` | DetectZipType 通过 ZIP 内容检测资源类型（供前端导入路由使用） |
+| `App.ImportModelFileSkipCheck()` | `internal/app/app_install_import:68` | — |
+| `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:76` | — |
+| `App.ImportModelFileTo()` | `internal/app/app_install_import:96` | — |
+| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:100` | — |
+| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:107` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
+| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:112` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
 | `App.CountInstanceResources()` | `internal/app/app_install_instance:26` | CountInstanceResources 统计指定整合包中可清空的资源文件数 只统计仓库中已有的文件（同 clearInstanceDir 逻辑） rtype 为空时统计全部类 |
 | `App.ClearInstanceResources()` | `internal/app/app_install_instance:66` | ClearInstanceResources 清空指定整合包中已同步的文件 insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型） 返回清除的文件数量 |
 | `App.DeduplicateCustomDir()` | `internal/app/app_install_instance:152` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |
 | `App.GetInstanceStatus()` | `internal/app/app_install_instance:197` | ========== 状态同步 ========== GetInstanceStatus 获取整合包状态（按资源类型限定路径） rtype: 资源类型 ID，用于解析特定子目录；为 |
 | `App.GetResourceInstanceStatus()` | `internal/app/app_install_instance:209` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 统一走 GetInstanceStatus 路径，通过 rtype 限定实例侧扫描子目录 + 仓库 |
 | `App.SyncModelToggleStatus()` | `internal/app/app_install_instance:271` | — |
-| `App.RelinkCustomDir()` | `internal/app/app_install_instance:276` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
-| `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:296` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
-| `App.SyncResources()` | `internal/app/app_install_instance:340` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
-| `App.PushResourceToInstance()` | `internal/app/app_install_instance:378` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
-| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:396` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
-| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:434` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
-| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:451` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:472` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
-| `App.HasYSMMod()` | `internal/app/app_install_instance:522` | ========== YSM 检测 ========== |
+| `App.RelinkCustomDir()` | `internal/app/app_install_instance:280` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
+| `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:304` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
+| `App.SyncResources()` | `internal/app/app_install_instance:348` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
+| `App.PushResourceToInstance()` | `internal/app/app_install_instance:386` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
+| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:407` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
+| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:448` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
+| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:468` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:492` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
+| `App.HasYSMMod()` | `internal/app/app_install_instance:542` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install_link:11` | ========== 链接模式 ========== |
 | `App.GetLinkMode()` | `internal/app/app_install_link:38` | — |
 | `App.AddImportLog()` | `internal/app/app_install_log:8` | ========== 日志 ========== |
@@ -1702,6 +1702,11 @@
 | `compileMolang()` | `frontend/src/utils/animation/molang:48` | 编译 Molang 表达式为求值闭包。 |
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
+| `CachePolicy()` | `frontend/src/utils/cache/with-cached:15` | 缓存策略 |
+| `withCached()` | `frontend/src/utils/cache/with-cached:34` | 带过期时间的异步缓存包装器 策略行为（优先级从高到低）： FORCE  — 忽略缓存，强制重新计算（不写入缓存） STALE  — 命中缓存直接返回；过期则立即返回旧值 + 后台刷 |
+| `invalidateCache()` | `frontend/src/utils/cache/with-cached:88` | 清除指定缓存条目 |
+| `clearAllCache()` | `frontend/src/utils/cache/with-cached:94` | 清除所有缓存 |
+| `getCacheTtlMs()` | `frontend/src/utils/cache/with-cached:100` | 获取缓存条目的剩余 TTL（毫秒），未命中返回 -1 |
 | `swallowError()` | `frontend/src/utils/core/async:11` | 吞掉 promise 的异常并记录日志（比空 `.catch(() =&gt; {})` 可调试）。 |
 | `fireAndForget()` | `frontend/src/utils/core/async:16` | 启动一个异步操作但不等待，异常由 swallowError 兜底。 |
 | `delay()` | `frontend/src/utils/core/async:21` | Promise 包装的延迟。 |
@@ -1869,17 +1874,17 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `LocalCreator()` | `frontend/src/views/app-content/community-data:8` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
-| `CommunityData()` | `frontend/src/views/app-content/community-data:24` | 站点 + 创作者 + 作者 数据包 |
-| `_setLastCommunityMergeTime()` | `frontend/src/views/app-content/community-data:39` | 供测试覆盖时间戳；生产环境不应调用 |
-| `_getLastCommunityMergeTime()` | `frontend/src/views/app-content/community-data:42` | — |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:51` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:172` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:226` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:255` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:292` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:316` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:337` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `LocalCreator()` | `frontend/src/views/app-content/community-data:9` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
+| `CommunityData()` | `frontend/src/views/app-content/community-data:25` | 站点 + 创作者 + 作者 数据包 |
+| `forceRefreshCommunityMerge()` | `frontend/src/views/app-content/community-data:43` | 供测试强制刷新缓存 |
+| `forceRefreshScanAuthors()` | `frontend/src/views/app-content/community-data:48` | 供测试清除扫描缓存 |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:56` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:177` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:231` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:260` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:297` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:321` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:342` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:14` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:4` | — |
@@ -1970,6 +1975,11 @@
 | `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:70` | — |
 | `githubHTML()` | `frontend/src/views/app-content/tpl:171` | ===== GitHub 仓库页面 ===== |
 | `workshopHTML()` | `frontend/src/views/app-content/tpl:202` | — |
+| `CachePolicy()` | `frontend/src/views/app-content/with-cached:15` | 缓存策略 |
+| `withCached()` | `frontend/src/views/app-content/with-cached:34` | 带过期时间的异步缓存包装器 策略行为： NORMAL  — 命中缓存直接返回；过期则重新计算并更新缓存 STALE   — 命中缓存直接返回；过期则立即返回旧值 + 后台刷新缓存（ |
+| `invalidateCache()` | `frontend/src/views/app-content/with-cached:88` | 清除指定缓存条目 |
+| `clearAllCache()` | `frontend/src/views/app-content/with-cached:94` | 清除所有缓存 |
+| `getCacheTtlMs()` | `frontend/src/views/app-content/with-cached:100` | 获取缓存条目的剩余 TTL（毫秒），未命中返回 -1 |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:13` | 提取创作者头像（后台批量） 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache； 先前按「当前站点/作者限 |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |

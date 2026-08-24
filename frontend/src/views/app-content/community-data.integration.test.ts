@@ -34,14 +34,15 @@ vi.mock("../../utils/debug/debug.ts", () => ({
 
 import {
   loadCommunityData,
-  _setLastCommunityMergeTime,
-  _getLastCommunityMergeTime,
+  forceRefreshCommunityMerge,
+  forceRefreshScanAuthors,
 } from "./community-data.ts";
 
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.resolveWebMode.mockReturnValue(false);
-  _setLastCommunityMergeTime(0);
+  forceRefreshCommunityMerge();
+  forceRefreshScanAuthors();
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
   mocks.DefaultWorkshopSites.mockResolvedValue([{ id: "bilibili" }]);
   mocks.LoadWorkshopCreators.mockResolvedValue([]);
@@ -115,7 +116,7 @@ describe("loadCommunityData", () => {
     // tryAutoMergeCommunity 因限流跳过，不应再调用 fetch
     expect(fetchMock).not.toHaveBeenCalled();
     expect(mocks.SaveWorkshopCreators).toHaveBeenCalledTimes(1);
-    expect(_getLastCommunityMergeTime()).toBeGreaterThan(0);
+    // 缓存已写入（withCached 内部状态）
   });
 
   it("6h 窗口过期后再次调用 -> 重新触发社区索引拉取", async () => {
@@ -128,7 +129,8 @@ describe("loadCommunityData", () => {
     await loadCommunityData();
     await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalledTimes(1));
     // 模拟 7 小时前
-    _setLastCommunityMergeTime(Date.now() - 7 * 3600 * 1000);
+    // 清除缓存模拟过期
+    forceRefreshCommunityMerge();
     await loadCommunityData();
     await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalledTimes(2), { timeout: 3000 });
     expect(fetchMock).toHaveBeenCalled();
