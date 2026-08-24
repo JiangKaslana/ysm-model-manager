@@ -95,9 +95,9 @@
 
 | 维度 | 入口（文件:行） | 机制 |
 |---|---|---|
-| 装配点 | `frontend/src/backend/browser-adapter.ts:21-34` | 四个 `web*Bindings` 对象 spread 到一个 `webImpls`；`satisfies` 兜住 `(...args: never[]) => Promise<unknown>` |
-| Proxy 门控 | `browser-adapter.ts:57-84` | `get` trap 命中 `webImpls` 自有键 → 返回实现；否则 `makeFailFast`；`has` trap 供 `'X' in adapter` 能力探测 |
-| 类型对账 | `browser-adapter.ts:38-40` | `AssertSubset<WebImplGoKeys>` 编译期确保 webImpls 键 ⊆ AppBindings（除白名单 `SelectLocalRepo/GetFsaAuthState`） |
+| 装配点 | `frontend/src/backend/browser-adapter.ts` webImpls 装配 | 四个 `web*Bindings` 对象 spread 到一个 `webImpls`；`satisfies` 兜住 `(...args: never[]) => Promise<unknown>` |
+| Proxy 门控 | `browser-adapter.ts` Proxy get/has trap | `get` trap 命中 `webImpls` 自有键 → 返回实现；否则 `makeFailFast`；`has` trap 供 `'X' in adapter` 能力探测 |
+| 类型对账 | `browser-adapter.ts` `AssertSubset` | `AssertSubset<WebImplGoKeys>` 编译期确保 webImpls 键 ⊆ AppBindings（除白名单 `SelectLocalRepo/GetFsaAuthState`） |
 | 职责模块 | `web-common.ts`（原语）/ `web-fs.ts`（文件）/ `web-store.ts`（配置/日志）/ `web-community.ts`（社区） | 每个模块导出一个 `web*Bindings` 对象 |
 
 ### 加一个新 binding 的步骤

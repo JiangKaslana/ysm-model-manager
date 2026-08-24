@@ -99,14 +99,14 @@ perf:
 
 ## 不变量
 
-- Molang 表达式不解释执行：检测到即标记 hasMolang 并跳过该值（避免 eval 任意表达式）；注意实现细节——**直接字符串帧被跳过 ✓，但数组含 Molang 轴被零填充保留**（animation.ts:105-108），`hasMolangInChannelData`（animation.ts:177）只识别字符串值（对象/数组/纯数字键均不会被判为 Molang，属宽松误判风险）；**Molang 只是标记不拦截求值**（零填充帧仍被当真实关键帧插值，P3 观察）
+- Molang 表达式不解释执行：检测到即标记 hasMolang 并跳过该值（避免 eval 任意表达式）；注意实现细节——**直接字符串帧被跳过 ✓，但数组含 Molang 轴被零填充保留**（`animation.ts` Molang 跳过逻辑），`hasMolangInChannelData`（`animation.ts` Molang 检测函数）只识别字符串值（对象/数组/纯数字键均不会被判为 Molang，属宽松误判风险）；**Molang 只是标记不拦截求值**（零填充帧仍被当真实关键帧插值，P3 观察）
 - evaluateKeyframes 对空数组/越界时间返回端点值或 null，不抛异常（`t=NaN` 时二分插值产生 NaN 向量，无守卫，P3 观察）
 - `no-animations` 开关作用于 CSS animation；JS 驱动的动画（模型动画求值/数字滚动）不受该 class 影响，属模型数据呈现而非装饰动效
 - 播放循环（RAF）由消费方组件自行管理并须在卸载时 cancelAnimationFrame；曾有的 AnimationPlayer 封装类因长期无消费方已在死代码清理中移除，如需播放器请基于 evaluateClip 重建
-- **求值链路运行时消费方**（2026-08-21 更新）：`evaluateClip` 由 YSM 动画播放器消费（`utils/3d/ysm-animation-player.ts`，ADR-100 L1-L3，每帧 localOnly 求值驱动骨骼 Group）；`parseBedrockAnimationJSON` 消费方 `app-preview/wasm.ts`（+loader.ts）与 `ysm-adapter.ts`（动画扫描）；`animateNumber` 实际返回取消函数 `() => void`（**JSDoc 已标注 `@returns 取消函数`**），消费方 app-tree/render.ts:369、app-sidebar/events.ts:225 **忽略取消函数**（快速连续渲染叠加未清理 timer，P3 观察）；`isMolang` 为死代码（仅定义处命中）
-- **层级传播未应用父级旋转**（animation.ts:414-419，P3 观察）：注释声称「子级位移经父级旋转后」累加，实现却是纯向量相加 `pp+cp`、旋转仅欧拉角分量相加——父级非零旋转时传播结果错误；求值链路休眠态无运行时影响，属唤醒前的设计降级点（唤醒需先补旋转矩阵/四元数传播，测试仅覆盖无旋转父级）
+- **求值链路运行时消费方**（2026-08-21 更新）：`evaluateClip` 由 YSM 动画播放器消费（`utils/3d/ysm-animation-player.ts`，ADR-100 L1-L3，每帧 localOnly 求值驱动骨骼 Group）；`parseBedrockAnimationJSON` 消费方 `app-preview/wasm.ts`（+loader.ts）与 `ysm-adapter.ts`（动画扫描）；`animateNumber` 实际返回取消函数 `() => void`（**JSDoc 已标注 `@returns 取消函数`**），消费方 app-tree/render.ts、app-sidebar/events.ts **忽略取消函数**（快速连续渲染叠加未清理 timer，P3 观察）；`isMolang` 为死代码（仅定义处命中）
+- **层级传播未应用父级旋转**（`animation.ts` 层级传播逻辑，P3 观察）：注释声称「子级位移经父级旋转后」累加，实现却是纯向量相加 `pp+cp`、旋转仅欧拉角分量相加——父级非零旋转时传播结果错误；求值链路休眠态无运行时影响，属唤醒前的设计降级点（唤醒需先补旋转矩阵/四元数传播，测试仅覆盖无旋转父级）
 - **旋转通道口径（2026-08-24 定版）**：`parseBedrockAnimationJSON` 出口的 rotation 通道统一做**度→弧度 + X/Y 取负、Z 不取负**换算（`convertRotationKeyframes`，对齐上游 ModernYSM/TLM 共同口径 `RawBoneKeyFrame.init` + `RotationValue.convert`）；Molang 动态轴包求值后换算闭包（molang 三角函数按度求值）。此前缺失导致 bedrock 的度被当弧度直喂 Euler（45°→2578°），是预览角色乱飞根因。下游全弧度域：player 直接 `Euler(rz,ry,rx,'ZYX')`；位移通道保持像素原值 + X 取负叠加 pivot（player 层做）。测试夹具手工构造的 Keyframe 绕过解析层，须自备弧度值
-- **消费方文件名漂移已修正**（2026-08-09）：`parseBedrockAnimationJSON` 消费方为 `app-preview/wasm.ts:525`（+loader.ts:71，旧文 preview-wasm.ts 已过时）；stagger 消费方含 `app-content/site/render.ts`（旧文 site-view.ts 过时）；测试文件均为 `.ts`（旧文 .js 过时）
+- **消费方文件名漂移已修正**（2026-08-09）：`parseBedrockAnimationJSON` 消费方为 `app-preview/wasm.ts`（+loader.ts，旧文 preview-wasm.ts 已过时）；stagger 消费方含 `app-content/site/render.ts`（旧文 site-view.ts 过时）；测试文件均为 `.ts`（旧文 .js 过时）
 
 ## 相关
 

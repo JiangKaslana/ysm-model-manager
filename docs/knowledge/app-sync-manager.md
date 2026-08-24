@@ -59,7 +59,7 @@ invariant_anchors:
 
 ## 已知限制 / 待治理（2026-08-24 审计）
 
-- **applyFilter 不递归 children**（store.ts:70）：类型/状态筛选只过滤**顶层条目**。顶层容器聚合状态为 synced 时，其内部 disabled/legacy 子项在「已禁用」「旧仓库遗留」tab 下不可发现（只能去 all tab 展开找到）——容器聚合语义与状态筛选的正交性缺口。治理方向：筛选命中子项时保留父链（filter-keep-ancestors），或容器按子项状态拆分展示
+- **applyFilter 不递归 children**（store.ts applyFilter）：类型/状态筛选只过滤**顶层条目**。顶层容器聚合状态为 synced 时，其内部 disabled/legacy 子项在「已禁用」「旧仓库遗留」tab 下不可发现（只能去 all tab 展开找到）——容器聚合语义与状态筛选的正交性缺口。治理方向：筛选命中子项时保留父链（filter-keep-ancestors），或容器按子项状态拆分展示
 - 嵌套展开状态 `dirOpen` 以 `item.path` 为 key，而容器绝对路径由 Go 端 `dirLevelContainerPath` 按聚合状态选源侧——同一容器在状态变化后（diverged → optional）path 变化，旧展开状态失联（体验小瑕疵，非错误）
 
 ## 相关

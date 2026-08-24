@@ -60,11 +60,11 @@ use_when:
 
 > esc（`utils/dom/html.ts`，5-replace 含引号）是全项目 HTML 转义唯一入口（陷阱 #15，check-redlines R10 扫描）。以下旁路属已知遗留，落地前先 Grep 确认无重复实现。
 
-- **modal.ts re-export 双入口**：`dialogs/modal.ts:8` re-export `esc`，导致 version-updater.ts:4 / adv-filter.ts:7 / rename.ts:4 经 modal 导入、其余文件直连 html.ts——函数同一无行为分歧，但违反「统一入口」精神，且未来 modal.ts 改动 re-export 会漂移。建议统一从 `utils/dom/html.ts` 导入。
+- **modal.ts re-export 双入口**：`dialogs/modal.ts` re-export `esc`，导致 version-updater.ts / adv-filter.ts / rename.ts 经 modal 导入、其余文件直连 html.ts——函数同一无行为分歧，但违反「统一入口」精神，且未来 modal.ts 改动 re-export 会漂移。建议统一从 `utils/dom/html.ts` 导入。
 - **3 处手写部分转义绕过 esc**（均在 utils/dom 之外）：
-  - `views/app-content/index.ts:321` — `String(insName).replace(/"/g, "&quot;")`：只转义引号，`&`/`<` 未转义，拼入 innerHTML 属性。
-  - `views/app-content/site/render.ts:69` 与 `site/events.ts:149` — `fallbackDiv.replace(/"/g, '&quot;')`：已转义 HTML 嵌入单引号属性时手写引号转义。
-  - 测试内联 mock（import-queue.test.ts:114 / community.test.ts:23 / site/events.test.ts:69）自建 3-replace esc（缺 `>`、`'`），与真实 5 字符 esc 不一致——测试断言无法锁定真实转义行为。
+  - `views/app-content/index.ts` — `String(insName).replace(/"/g, "&quot;")`：只转义引号，`&`/`<` 未转义，拼入 innerHTML 属性。
+  - `views/app-content/site/render.ts` 与 `site/events.ts` — `fallbackDiv.replace(/"/g, '&quot;')`：已转义 HTML 嵌入单引号属性时手写引号转义。
+  - 测试内联 mock（import-queue.test.ts / community.test.ts / site/events.test.ts）自建 3-replace esc（缺 `>`、`'`），与真实 5 字符 esc 不一致——测试断言无法锁定真实转义行为。
   - 建议统一改 `esc`（或与 html.ts 输出语义对齐的共享函数），并修正测试内联 mock。
 
 ## 相关

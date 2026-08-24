@@ -29,8 +29,8 @@
 
 | 陷阱 | 位置 | 正确做法 |
 |------|------|----------|
-| 跨类型追加走错适配器 | `preview-menu.ts:1085` | 必须经 switchExternal → openModel3DFullscreen(cooperate) |
-| 异步回调写入已卸载 DOM | `skeleton.ts:82` | 每个 await 后检查 container.isConnected |
+| 跨类型追加走错适配器 | `preview-menu.ts` 跨类型追加 | 必须经 switchExternal → openModel3DFullscreen(cooperate) |
+| 异步回调写入已卸载 DOM | `skeleton.ts` async 守卫 | 每个 await 后检查 container.isConnected |
 | 手动调用导致 T-pose 回归 | `vrm.humanoid.update()` | 只用 vrm.update(dt) |
 
 ---

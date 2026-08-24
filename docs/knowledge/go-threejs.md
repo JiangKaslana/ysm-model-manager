@@ -44,7 +44,7 @@ invariant_anchors:
 
 ## 不变量
 
-- 骨骼局部坐标 = `bone.pivot - parent.pivot`；**欧拉角 → 四元数用 ZYX intrinsic 序（`M = Rz×Ry×Rx`）**，调用方传入已取反角度（`eulerToQuaternion(-rx, -ry, +rz)`——**Z 轴不取反**，源码 spec.go:351 / quaternion.ts:13），对齐 Blockbench `Format.euler_order='ZYX'`（io/format.ts:704）+ Three.js `Euler(order='ZYX')`。ADR-041 旧口径 `M = Rx×Ry×Rz` 已被 ADR-042 §2.1 裁决取代（2026-08-22）。单轴旋转两口径四元数相同，三轴非零 cube 顶点修正
+- 骨骼局部坐标 = `bone.pivot - parent.pivot`；**欧拉角 → 四元数用 ZYX intrinsic 序（`M = Rz×Ry×Rx`）**，调用方传入已取反角度（`eulerToQuaternion(-rx, -ry, +rz)`——**Z 轴不取反**，源码 spec.go eulerToQuaternion / quaternion.ts eulerToQuaternion），对齐 Blockbench `Format.euler_order='ZYX'`（io/format.ts EulerOrder）+ Three.js `Euler(order='ZYX')`。ADR-041 旧口径 `M = Rx×Ry×Rz` 已被 ADR-042 §2.1 裁决取代（2026-08-22）。单轴旋转两口径四元数相同，三轴非零 cube 顶点修正
 - 纹理尺寸为 0 时兜底 64×64
 - **cube inflate/mirror 消费**（2026-08-09 补齐，对齐 Java GeoCube/GeoQuad 口径）：`inflate` 时几何 origin 各轴 -i、size 各轴 +2i（Go 端像素坐标直接算，无需 /16）；`mirror` 时 UV 水平翻转（u 交换，几何不翻转）。box UV 展开（`parseUV`/`expandBoxUV`）**必须基于未膨胀的原始尺寸 `c.Size`**——对齐 C# 黄金参考 `csharp-builder.mjs`（先 `expandBoxUV(原始 sz)` 再 inflate 几何），若用膨胀后尺寸 UV 范围漂移 → 贴图拉伸/塌缩成色块（P2）
 - **负 inflate 下限防护**：inflate 超过半尺寸会把 cube 缩成负宽 → `hx2<0` 面翻转（法线反、正面剔除后不可见）；各轴 clamp 到 `thicknessEpsilon`（C# 黄金参考同缺陷，此为改进不背离）

@@ -40,7 +40,7 @@ invariant_anchors:
 
 ## 与其他子系统关系
 
-- 被 `internal/app/app.go` 持有：`logger`（`NewLogger()`）与 `runtimeLogs`（`NewRuntimeBuffer(200)`）两个字段；启动时 `log.SetOutput(io.MultiWriter(os.Stderr, a.runtimeLogs))`（app.go:64）把标准库 log 同时写终端与缓冲
+- 被 `internal/app/app.go` 持有：`logger`（`NewLogger()`）与 `runtimeLogs`（`NewRuntimeBuffer(200)`）两个字段；启动时 `log.SetOutput(io.MultiWriter(os.Stderr, a.runtimeLogs))`（app.go NewLogger）把标准库 log 同时写终端与缓冲
 - 被 `internal/app/app_install.go` 在导入/推送/删除各路径记录 success/failed/skipped/warn；该文件同时提供 `AddOpLog` 与 `GetRuntimeLogs` / `ClearRuntimeLogs` 三个 binding
 - 前端 `core/error-diary.ts` 监听所有 error toast，自动以 op=`"ui"` 写入日记，使 UI 报错持久化可回溯
 - 前端 `views/app-content/diagnostics/logs.ts` 消费两者：操作日志按 `Operation` 字段分组渲染（`OP_META` 给出 import/scan/download/sync/rename/delete/ui 七种中文标签+图标；组头右侧显示「N 条」），行内状态图标**优先读 `Level` 字段**（error→❌ / warn→⚠️ / debug→🔍 / fatal→💀 / info→✅），无 Level 时按 `Status` 兜底（success→✅ / failed→❌ / warn→⚠️ / skipped→⏭️），向后兼容旧日志
@@ -56,7 +56,7 @@ invariant_anchors:
 - **分组纯属前端呈现**：后端 `GetAll()` 只按写入顺序平铺返回，不排序不分组；前端先 `slice(-500).reverse()` 取最近 500 条转时间倒序，再用 `Map` 按 op 归组，故组的先后 = 该 op 最新一条出现的先后，组内保持时间倒序。后端改变返回顺序会直接改变诊断页组序
 - 运行时日志只在内存，不落盘、重启即失；操作日志落盘失败只记系统 log、不向上抛错（日志不阻塞主流程）
 - `RuntimeBuffer.Write` 按调用次数分条（标准库 log 一行一次 Write），不解析日志级别，消息保留原始换行
-- **落盘原子性 + 损坏恢复**：tmp+rename 原子替换（rename 失败清理 tmp）；损坏 `ysm-import-logs.json` 备份 `.corrupt` 后重建空存储（对齐 tags.go 模式）；JSON `null` 内容守卫已封（`logs.go:58-60`）
+- **落盘原子性 + 损坏恢复**：tmp+rename 原子替换（rename 失败清理 tmp）；损坏 `ysm-import-logs.json` 备份 `.corrupt` 后重建空存储（对齐 tags.go 模式）；JSON `null` 内容守卫已封（`logs.go` null 守卫）
 - **RuntimeBuffer 已有测试覆盖**（P3 补测：`runtime_test.go` 覆盖 Write 分条/环形丢弃最旧/cap≤0 回退 200/GetAll 副本/Clear；损坏恢复的 `.corrupt` 备份断言与 load 端 500 裁剪为 P4 待补）
 
 ## 相关

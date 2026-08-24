@@ -67,7 +67,7 @@ ADR-047 核心立项 A：全前端拖拽/缩放/旋转/hover 交互从 mouse 事
 - **左键守卫**：拖拽类 `pointerdown` 必须 `e.button === 0`（排除右键/触控笔右键）
 - **捕获成对**：`setPointerCapture` 与 `releasePointerCapture` 成对，释放前 `hasPointerCapture` 守卫（jsdom 无捕获实现时测试不炸）
 - **touch-action 全覆盖**：拖拽元素必须 `touch-action:none`，否则触屏上浏览器抢占手势
-- **async 窗口期 DOM 守卫**：每个 `await` 前后及 DOM 创建后立即检查 `container.isConnected`，防组件卸载后异步回调写入已卸载 DOM（`skeleton.ts:82`、`:112`、`:631` 三处，P2 修复）
+- **async 窗口期 DOM 守卫**：每个 `await` 前后及 DOM 创建后立即检查 `container.isConnected`，防组件卸载后异步回调写入已卸载 DOM（`skeleton.ts` 三处 async 守卫，P2 修复）
 
 ## 相关
 

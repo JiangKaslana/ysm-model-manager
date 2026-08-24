@@ -29,7 +29,7 @@ invariant_anchors:
 MC 平滑光照把每个面顶点的遮蔽量化为 **4 档亮度**，由 3 个邻居遮挡状态（side1、side2、corner）算出：
 
 ```js
-// prismarine-viewer viewer/lib/models.js:337-344 （逐字参考）
+// prismarine-viewer viewer/lib/models.js AO 计算（逐字参考）
 const side1Block = (side1 && side1.isCube) ? 1 : 0
 const side2Block = (side2 && side2.isCube) ? 1 : 0
 const cornerBlock = (corner && corner.isCube) ? 1 : 0
@@ -46,7 +46,7 @@ const light = (ao + 1) / 4   // → 0.25 / 0.5 / 0.75 / 1.0  ← 正是用户所
 MC 为防止 quad 在对角遮蔽不均时出斜缝，按对角 ao 和决定三角化方向：
 
 ```js
-// viewer/lib/models.js:351
+// viewer/lib/models.js anisotropy flip
 if (doAO && aos[0] + aos[3] >= aos[1] + aos[2]) {
   // 分割方向 A： (0,3,2) + (0,1,3)
 } else {
@@ -67,7 +67,7 @@ AO 依赖 `world.getBlock(cursor.offset(...sideDir/cornerDir))` 取**相邻方�
 它**不实时采样 `grass.png`/`foliage.png` colormap**，而是消费预计算的 **biome→RGB 表**：
 
 ```js
-// viewer/lib/models.js:3
+// viewer/lib/models.js tints 加载
 const tints = require('minecraft-data')('1.16.2').tints
 // tints.grass[biome] / tints.foliage[biome] / tints.water[biome]
 // tints.redstone[`${power}`] / tints.constant[blockName]

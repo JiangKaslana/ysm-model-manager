@@ -25,7 +25,7 @@ invariant_anchors:
 
 ## 核心职责
 
-- 将版本实例 + 资源类型 + 仓库根映射为 `ResourceSyncItem[]`（同步状态列表）。`ResourceTypeInfo` 定义于本包 `instance.go:16`（go/types 下无此类型，知识卡旧文漂移已修正）
+- 将版本实例 + 资源类型 + 仓库根映射为 `ResourceSyncItem[]`（同步状态列表）。`ResourceTypeInfo` 定义于本包 `instance.go`（go/types 下无此类型，知识卡旧文漂移已修正）
 
 ## 对外 API / 入口
 
@@ -53,7 +53,7 @@ invariant_anchors:
 
 > 修复任一项时删除对应行并补回归测试；跨包 IO 放大问题见 [go_sync](./go-sync.md) 已知限制节。
 
-- **appendItem 前缀检查无分隔符守卫**（instance.go:150）：`strings.HasPrefix(p, globalDir)` 未带 `basedir+sep` 守卫——同文件 `relOf`（L233）特意加了守卫防 `D:\repo` vs `D:\repo-instance` 误归属，此处口径不一；当前 p 来自双侧 Walk 结果通常安全，但属防御范式漏网
+- **appendItem 前缀检查无分隔符守卫**（instance.go appendItem）：`strings.HasPrefix(p, globalDir)` 未带 `basedir+sep` 守卫——同文件 `relOf`（L233）特意加了守卫防 `D:\repo` vs `D:\repo-instance` 误归属，此处口径不一；当前 p 来自双侧 Walk 结果通常安全，但属防御范式漏网
 - **legacy 在容器层被抹平**：`aggregateStatus` 把 legacy（旧硬链接）归入 hasPull → 含 legacy 子项的容器聚合为 optional（📤 可拉取），legacy 语义丢失、legacy tab 下看不到该容器（与前端 applyFilter 不递归叠加，见 [app-sync-manager](./app-sync-manager.md)）
 - **`__self` 魔法段名边缘冲突**：真实子目录恰名 `__self` 时与防御性自引用子项同 key 相互覆盖（极低概率，记录在案即可）
 - **sizeOf 静默吞错**：条目尺寸 `os.Stat` 失败返回 0 无告警，显示失真不可察觉

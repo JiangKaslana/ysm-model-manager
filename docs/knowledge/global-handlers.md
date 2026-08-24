@@ -33,7 +33,7 @@ use_when:
 
 ## 核心职责
 
-- `registerGlobalHandlers()`：**实际注册 5 组**（registerPageStore/registerContextMenus/registerSync/registerInstanceOps/registerAndroidEvents），返回 unsub 数组；`registerResourceManagerGlobal` 由 app-content 单独编排（index.ts:114，文件头注释自述「features/views 层注册由 app-content 编排」）——功能单点注册不变量仍成立（app-content 单点注册/单点释放）
+- `registerGlobalHandlers()`：**实际注册 5 组**（registerPageStore/registerContextMenus/registerSync/registerInstanceOps/registerAndroidEvents），返回 unsub 数组；`registerResourceManagerGlobal` 由 app-content 单独编排（index.ts registerResourceManagerGlobal 调用点，文件头注释自述「features/views 层注册由 app-content 编排」）——功能单点注册不变量仍成立（app-content 单点注册/单点释放）
 - **`sync:download:missing` busy 命中必须回 `done` 带 `skipped: true`**（P1 修复：原 `_downloadBusy` 命中直接 return 不发 done，app-sidebar 推送多实例/全类型时后续请求 30s 超时或经 instanceName fallback 误判成功）
 - `import-dnd.ts`（bindTreeDnD，ADR-060）：组件级绑定，不再 document 监听；`<app-tree>` 的 `connectedCallback` 对 `#tree` 容器调用 `bindTreeDnD(treeEl)`，监听 `dragover`/`dragleave`/`drop` 并返回 cleanup；`dragover` 命中 Files 时显示 `#tree-drop-hint`（`.tree-drop-hint`）显式提示，drop/dragleave 隐藏；drop 经 `features/dnd-collector.ts` 的 `collectFiles` 递归收集文件夹（`entry.file` Promise 化，深度上限 10；readEntries 带错误回调 + 3s 超时兜底，防 WebView2 目录读取挂起 onDrop；不支持 `webkitGetAsEntry` 时回退 `getAsFile`），单个文件 ≤100MB；收集到的文件经 `import-executor` 全局执行器（`directImport`）入仓，完成后广播 `import:history-changed` 驱动导入页刷新列表（致命陷阱 #10 的解法）
 - `sync.ts`（registerSync）：`sync:download:missing` — 按 `GetResourceInstanceStatus` 的 Missing 列表逐文件 `InstallModelTo`/`InstallResourceToInstance`，完成后 `InvalidateScanCache`，`finally` 必发 `sync:download:done`（带 token）+ `tree:reload`；`sync:toggle:status` — 遍历整合包 `SyncModelToggleStatus` 同步启用/禁用并写 `AddImportLog`，`finally` 发 `tree:reload`（致命陷阱 #3 的解法；`_toggleBusy` 并发守卫防连点竞态）

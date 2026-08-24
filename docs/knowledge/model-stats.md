@@ -38,7 +38,7 @@ invariant_anchors:
 - **`stats-core.ts`** — 纯计算核心（无 IO、无 WASM 依赖），输入为解码/直读产物文件，输出统计数值
   - `statsFromDecodedFiles(files)` — 批量统计：骨数 = `bones` 数组长度；立方体数 = 各 `bone.cubes` 长度之和（递归收集）；纹理宽高 = `max(嗅探, geometry description 描述)`
   - **纹理头魔数**：`PNG_SIG` / `JPG_SIG` / `GIF_SIG` / `BMP_SIG` / `TGA_SIG` — 与 Go `imagePixelArea` / `wasm.ts sniffTexSize` 同口径，勿单独改
-  - 输出 `ModelStatsResult`（`boneCount` / `cubeCount` / `texWidth` / `texHeight` / `hasError`），口径对齐 Go `decodeYSMViaNodeJS`（`internal/app/wasm_decoder.go:224`）与前端 `decodeYsmViaWasm`
+  - 输出 `ModelStatsResult`（`boneCount` / `cubeCount` / `texWidth` / `texHeight` / `hasError`），口径对齐 Go `decodeYSMViaNodeJS`（`internal/app/wasm_decoder.go` decodeYSMViaNodeJS）与前端 `decodeYsmViaWasm`
 
 - **`stats-protocol.ts`** — 协议层：`StatsWorkerRequest` / `StatsWorkerResponse` / `WebModelStats` / `WebModelStatsWithPath` 类型；`STATS_BATCH_LIMIT`（单批上限）
 

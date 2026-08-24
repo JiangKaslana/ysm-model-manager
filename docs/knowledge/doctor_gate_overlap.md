@@ -53,7 +53,7 @@ use_when:
 - updater helper 前置构建补入 Go 域
 - `checkGovernance` 手写规则废弃（由 check-redlines R1/R5/R8/W2 覆盖）
 
-顺带修复：`cmd/updater/main.go:35` 存量编译错误（`pid` 声明未使用，807c81a5 引入）——由新 gate 的 updater helper 检查暴露。
+顺带修复：`cmd/updater/main.go` 存量编译错误（`pid` 声明未使用，807c81a5 引入）——由新 gate 的 updater helper 检查暴露。
 
 存量债务（与本次重构无关）：`check-circular.mjs`（context-menu-handlers 循环依赖）与 `check-deadcode-baseline.mjs`（baseline 过期，25b31fed 改源码未更新基线）在 --all 全量模式下仍 FAIL，需单独处理。
 **2026-08-14 二次治本（已解决）**：并行工作区 `f259643c` 拆出 context-menu-shared.ts 破除循环依赖（check-circular 归零）；本会话清理死代码（提交 `feb00e05`）——删除 4 处死 re-export、8 处去 export、debug-render↔cleanup-helper dispose 去重、dnd-collector.mergeDropFiles 删除，`check-deadcode` errors 归零，全量 doctor 36/36。
