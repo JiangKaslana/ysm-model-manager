@@ -742,6 +742,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-120：Go/Rust 共享已扫描状态：manifest 注入跳过 jwalk",
+        "link": "/adr/ADR-120-go-rust-manifest-jwalk"
+      },
+      {
         "text": "ADR-119：dedup 并行化：共享并行哈希管道（串行收集+并行哈希+序号还原）",
         "link": "/adr/ADR-119-dedup-parallel-hash"
       },

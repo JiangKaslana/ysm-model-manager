@@ -154,6 +154,16 @@ if [ -n "$STAGED_TS" ]; then
   done
 fi
 
+# ── Shadow DOM 样式越界检查（非阻断提示；阻断由 pre-push 门禁兜底）──
+# 2026-08-24 复盘（21c01725 / 9942ada3）：components.css 全局 <link> 定义的类与 @keyframes
+# 不穿透 Shadow DOM 边界，shadow 内引用静默失效。pre-commit 仅秒级提示，给 AI/人工即时反馈；
+# 真正阻断在 pre-push（--strict）。逃生阀：YSM_SKIP_CSS_LAYER=1。
+if [ "${YSM_SKIP_CSS_LAYER:-0}" != "1" ]; then
+  echo ""
+  echo "[pre-commit] Shadow 样式越界检查..."
+  node scripts/css-layer-check.mjs 2>&1 || echo "⚠️  css-layer-check 执行失败（不阻断）"
+fi
+
 # ── gofmt 自动修复（staged go 文件；失败仅提示不阻断） ──
 # 修复必须发生在提交时：pre-push 内 commit --amend 是假成功（push 推的是钩子前快照 oid，
 # 钩子里 amend 只改本地 HEAD → 分叉，见 pre-push-gate.mjs 已知坑 2026-08-12）。

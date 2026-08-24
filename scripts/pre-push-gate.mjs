@@ -165,6 +165,9 @@ const ALL_STATIC_TOOLS = [
   { tool: 'i18n-check.mjs', args: ['--strict'] },
   'i18n-ui-check.mjs',
   // binding-check.mjs — Go 域已覆盖
+  // css-layer-check.mjs — Shadow DOM 样式越界门禁（keyframe 跨 shadow 静默失效 /
+  // 类误归全局 <link> 在 shadow 内不生效）。ERROR 阻断，见 21c01725 / 9942ada3 复盘。
+  { tool: 'css-layer-check.mjs', args: ['--strict'] },
 ];
 
 /** 文档相关静态工具（--docs 模式，doctor DOC_STATIC_TOOLS 迁入） */
