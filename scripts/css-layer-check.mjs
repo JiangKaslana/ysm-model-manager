@@ -19,6 +19,12 @@
  *   [WARN]  shadow tpl/组件 HTML 的 class="..." 使用的类，在当前 shadow 层无定义
  *           → 可能是漏迁/误归全局；WARN 因部分类来自内联或 document 层白名单
  *
+ * 发现机制（全自动，无手写域清单）：
+ *   递归遍历 frontend/src/views/_（每个视图目录），凡目录内任一 .ts 命中 shadow 样式标记
+ *   （export const XxxCSS / :host / adoptedStyleSheets）即认定为 shadow 域，
+ *   css 源=命中文件，html 源=目录内全部非测试 .ts。新增 shadow 视图无需改本脚本即自动纳入，
+ *   根除「手写 SHADOW_DOMAINS 清单」这类第二批漂移事实源（见评审 2026-08-24 第 2 条）。
+ *
  * 用法：
  *   node scripts/css-layer-check.mjs            # 报告，ERROR 也只提示（非阻断）
  *   node scripts/css-layer-check.mjs --strict   # ERROR 时 exit 1（供 pre-push 门禁）
@@ -37,74 +43,57 @@ if (process.env.YSM_SKIP_CSS_LAYER === "1") {
   process.exit(0);
 }
 
-// ── Shadow 域定义：每域 = 一组 CSS 源 + 一组使用这些类的 HTML/tpl 源 ──
-// app-content 由 content-css.ts 组合 6 个域文件；sidebar / app-tree / app-preview 各自独立。
+// ── Shadow 域全自动发现：不再手写 SHADOW_DOMAINS 清单 ──
+// 手写清单是第二批漂移事实源（见评审 2026-08-24 第 2 条）：新增 shadow 视图必忘配，
+// 导致 app-nav / app-toast / context-menu 等长年漏扫。改为递归遍历 frontend/src/views/*/，
+// 凡目录内任一 .ts 命中 shadow 样式标记即认定为 shadow 域，自动聚合其 css/html 源。
+//
+// 发现规则：
+//   css 源 = 目录内命中「export const XxxCSS」/「:host」/「adoptedStyleSheets」的 .ts 文件
+//            （即实际承载 shadow 样式定义的文件，与文件名无关——sidebar-css.ts / css.ts /
+//             app-tree-styles.ts / content-*.ts / tpl.ts 内联样式 一律自动捕获）
+//   html 源 = 目录内全部 .ts（排除 *.test.ts），纯逻辑文件无 class="..." 模板，提取零命中不贡献噪声
+//
+// 这样新增任何 shadow 视图无需改本脚本即自动纳入扫描，杜绝清单式漂移。
 
-// app-content 的 html 源：全目录 walk（不再维护任何「模式清单 / 逻辑白名单」——
-// 手写清单是第二批漂移事实源，见评审 2026-08-24 第 2 条）。
-// 规则：递归遍历 frontend/src/views/app-content/ + app-sync-manager/tpl.ts（内嵌 shadow 子树），
-// 仅排除 content-*.ts（CSS 源已单列在 css 数组，避免自我断言）与 *.test.ts（测试不渲染生产 DOM）。
-// 其余 .ts（含 index.ts / diagnostics/* / settings/* / site/* / init-*.ts 等）一律纳入——
-// 纯逻辑文件不含 class="..." 模板字符串，提取时零命中，不贡献噪声；渲染模板文件自动覆盖。
-// 逼出的 WARN 逐个审：真该有样式的补 CSS，纯 JS 锚点进 KNOWN_NO_CSS_CLASSES（见下方）。
+const CSS_MARKER = /export const [A-Za-z]+CSS|:host\b|adoptedStyleSheets/;
+
 function walkDir(dir) {
   const out = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       out.push(...walkDir(full));
-    } else if (
-      entry.isFile() &&
-      entry.name.endsWith(".ts") &&
-      !entry.name.startsWith("content-") &&
-      !entry.name.endsWith(".test.ts")
-    ) {
+    } else if (entry.isFile() && entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) {
       out.push(full);
     }
   }
   return out;
 }
-function collectAppContentHtml() {
-  const base = path.resolve(ROOT, "frontend/src/views/app-content");
-  const files = walkDir(base);
-  const smTpl = path.resolve(ROOT, "frontend/src/views/app-sync-manager/tpl.ts");
-  if (fs.existsSync(smTpl)) files.push(smTpl);
-  return files.map((p) => path.relative(ROOT, p).split(path.sep).join("/"));
+
+function discoverShadowDomains() {
+  const viewsRoot = path.resolve(ROOT, "frontend/src/views");
+  const domains = [];
+  if (!fs.existsSync(viewsRoot)) return domains;
+  for (const entry of fs.readdirSync(viewsRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const dir = path.join(viewsRoot, entry.name);
+    const files = walkDir(dir);
+    const cssSources = [];
+    for (const f of files) {
+      if (CSS_MARKER.test(fs.readFileSync(f, "utf8"))) cssSources.push(f);
+    }
+    if (cssSources.length === 0) continue; // 无 shadow 样式标记的目录：跳过（如 app-resource-manager 纯逻辑）
+    domains.push({
+      name: entry.name,
+      css: cssSources.map((p) => path.relative(ROOT, p).split(path.sep).join("/")),
+      html: files.map((p) => path.relative(ROOT, p).split(path.sep).join("/")),
+    });
+  }
+  return domains;
 }
 
-const SHADOW_DOMAINS = [
-  {
-    name: "app-content",
-    css: [
-      "frontend/src/views/app-content/content-layout.ts",
-      "frontend/src/views/app-content/content-repo.ts",
-      "frontend/src/views/app-content/content-creator.ts",
-      "frontend/src/views/app-content/content-diag.ts",
-      "frontend/src/views/app-content/content-util.ts",
-      "frontend/src/views/app-content/content-stg.ts",
-      // app-sync-manager 光 DOM 自定义元素内嵌在 app-content shadow 内，其 tpl.ts 内联了 .sm-* 样式 + @keyframes sk-shimmer，
-      // 作为本域 css 源参与 keyframes/class 聚合（同时也在下方 html 扫描其 class 使用）。
-      "frontend/src/views/app-sync-manager/tpl.ts",
-    ],
-    // html 源由 collectAppContentHtml() 递归聚合（见上方说明），不再手写清单。
-    html: collectAppContentHtml(),
-  },
-  {
-    name: "sidebar",
-    css: ["frontend/src/views/app-sidebar/sidebar-css.ts"],
-    html: ["frontend/src/views/app-sidebar/index.ts", "frontend/src/views/app-sidebar/tpl.ts"],
-  },
-  {
-    name: "app-tree",
-    css: ["frontend/src/views/app-tree/app-tree-styles.ts"],
-    html: ["frontend/src/views/app-tree/index.ts", "frontend/src/views/app-tree/tpl.ts"],
-  },
-  {
-    name: "app-preview",
-    css: ["frontend/src/views/app-preview/css.ts"],
-    html: ["frontend/src/views/app-preview/index.ts"],
-  },
-];
+const SHADOW_DOMAINS = discoverShadowDomains();
 
 // document 层类白名单：这些类定义在 components.css（全局 <link>），被 document 层 DOM 用，
 // 不进 shadow，故 shadow tpl 不应引用它们（若引用是潜在越界，但此处不阻断，仅统计）。
