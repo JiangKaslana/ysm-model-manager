@@ -6,6 +6,7 @@ import { getApp } from "../../../backend/app.ts";
 import { loadResourceRegistry } from "../../../utils/resource/registry.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { renderDisplayName } from "../../../utils/dom/display.ts";
+import { fileIcon } from "../../../utils/icon/icon.ts";
 import type { EscFn } from "./logs.ts";
 
 // P2-4 修复（重入守卫）：startDedup 重入标志——去重扫描大量 await（逐目录
@@ -331,7 +332,7 @@ ${rtResult.icon} ${rtResult.label}
           html += `<label class="diag-dedup-file${isDefault ? " diag-dedup-file-default" : ""}">
 <input type="radio" name="dedup-keep-${gi}" value="${fi}"${checked} class="diag-dedup-radio">
 <span class="diag-dedup-file-name">
-<span class="diag-dedup-file-name-text" title="${t("oldest.clickDetail", { name: esc(e.path) })}" data-path="${esc(e.path)}">${renderDisplayName(e.name)}</span>
+<span class="diag-dedup-file-name-text" title="${t("oldest.clickDetail", { name: esc(e.path) })}" data-path="${esc(e.path)}"><span class="diag-dedup-file-ic">${fileIcon(e.name)}</span>${renderDisplayName(e.name)}</span>
 <span class="diag-dedup-file-dir">📁 ${esc(dir)}</span>
 </span>
 <span class="diag-dedup-file-size">${(e.size / 1024).toFixed(0)}KB</span>
