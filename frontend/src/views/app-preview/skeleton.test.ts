@@ -167,7 +167,7 @@ describe("loadModel2D — 防御路径", () => {
     const ctx = makeCtx();
     const container = document.createElement("div");
     await loadModel2D(ctx, "/m/a.ysm", container);
-    expect(container.querySelector(".ysm-error-title")).toBeTruthy();
+    expect(container.querySelector(".pv-error-title")).toBeTruthy();
     expect(container.textContent).toContain("boom");
   });
 
@@ -211,7 +211,7 @@ describe("loadModel2D — 2D 成功路径", () => {
     document.body.appendChild(container);
     await loadModel2D(ctx, "/m/a.ysm", container);
 
-    expect(container.querySelector(".ysm-canvas")).toBeTruthy();
+    expect(container.querySelector(".pv-canvas")).toBeTruthy();
     expect(statsCardHTML).toHaveBeenCalledWith(
       expect.objectContaining({ bones: expect.any(Array) }),
       "/m/a.ysm",
@@ -273,7 +273,7 @@ describe("loadModel2D — 交互", () => {
     const container = document.createElement("div");
     document.body.appendChild(container); // 挂载以符合真实场景（loadModel2D 的 isConnected 守卫）
     await loadModel2D(ctx, "/m/a.ysm", container);
-    const canvas = container.querySelector(".ysm-canvas") as HTMLCanvasElement;
+    const canvas = container.querySelector(".pv-canvas") as HTMLCanvasElement;
     renderModel2D.mockClear();
 
     canvas.dispatchEvent(
@@ -298,7 +298,7 @@ describe("loadModel2D — 交互", () => {
     const container = document.createElement("div");
     document.body.appendChild(container); // 挂载以符合真实场景（loadModel2D 的 isConnected 守卫）
     await loadModel2D(ctx, "/m/a.ysm", container);
-    const canvas = container.querySelector(".ysm-canvas") as HTMLCanvasElement;
+    const canvas = container.querySelector(".pv-canvas") as HTMLCanvasElement;
     renderModel2D.mockClear();
 
     // 缩小 5 次（deltaY 大正值 → zoom 指数衰减趋近下限）

@@ -211,7 +211,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
       const el =
         container || this.root.getElementById("preview-content") || this.root;
       const dbg = document.createElement("div");
-      dbg.className = "ysm-debug";
+      dbg.className = "pv-debug";
       dbg.textContent = msg;
       el.appendChild(dbg);
     } catch (_) {}

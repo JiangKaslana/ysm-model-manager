@@ -110,7 +110,7 @@ export function fillMmdPlayPanel(list: HTMLElement, bridge: MmdPlayBridge): void
     emptySec.appendChild(hint);
 
     const refreshBtn = document.createElement("button");
-    refreshBtn.className = "ysm-btn";
+    refreshBtn.className = "pv-btn";
     refreshBtn.textContent = "重新扫描";
     refreshBtn.style.cssText = "font-size:12px;padding:4px 10px;align-self:flex-start";
     refreshBtn.onclick = () => { bridge.requestReload?.(); };

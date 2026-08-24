@@ -38,9 +38,9 @@ export async function showModelDetail(
   const gen = ++_detailGen;
   const savedTab = safeGet("ysm_previewTab") || "detail";
   ctx.root.innerHTML = `<div class="content" id="preview-content">
-  <div class="ysm-tab-row">
-    <button class="preview-tab ysm-tab ${savedTab === "detail" ? "ysm-tab-active" : "ysm-tab-inactive"}" data-tab="detail">📄 ${t("preview.detailTab")}</button>
-    <button class="preview-tab ysm-tab ${savedTab === "skeleton" ? "ysm-tab-active" : "ysm-tab-inactive"}" data-tab="skeleton">🏗️ ${t("preview.skeletonTab")}</button>
+  <div class="pv-tab-row">
+    <button class="pv-tab ${savedTab === "detail" ? "pv-tab-active" : "pv-tab-inactive"}" data-tab="detail">📄 ${t("preview.detailTab")}</button>
+    <button class="pv-tab ${savedTab === "skeleton" ? "pv-tab-active" : "pv-tab-inactive"}" data-tab="skeleton">🏗️ ${t("preview.skeletonTab")}</button>
   </div>
   <div id="preview-detail"${savedTab !== "detail" ? ' style="display:none"' : ""}><h3>📄 ${t("preview.modelInfo")}</h3><div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsing")}...</div></div></div>
   <div id="preview-skeleton"${savedTab !== "skeleton" ? ' style="display:none"' : ""}></div>
@@ -49,17 +49,17 @@ export async function showModelDetail(
 
   const switchTab = (tab: string): void => {
     safeSet("ysm_previewTab", tab);
-    ctx.root.querySelectorAll(".preview-tab").forEach((btn) => {
+    ctx.root.querySelectorAll(".pv-tab").forEach((btn) => {
       const isActive = (btn as HTMLElement).dataset.tab === tab;
-      btn.classList.toggle("ysm-tab-active", isActive);
-      btn.classList.toggle("ysm-tab-inactive", !isActive);
+      btn.classList.toggle("pv-tab-active", isActive);
+      btn.classList.toggle("pv-tab-inactive", !isActive);
     });
     const detail = ctx.root.getElementById("preview-detail");
     const skel = ctx.root.getElementById("preview-skeleton");
     if (detail) detail.style.display = tab === "detail" ? "" : "none";
     if (skel) skel.style.display = tab === "skeleton" ? "" : "none";
   };
-  ctx.root.querySelectorAll(".preview-tab").forEach((btn) => {
+  ctx.root.querySelectorAll(".pv-tab").forEach((btn) => {
     (btn as HTMLElement).onclick = (): void => switchTab((btn as HTMLElement).dataset.tab || "");
   });
 

@@ -23,7 +23,7 @@ export async function setup2DCanvas(
   const canvas = document.createElement("canvas");
   canvas.width = 180;
   canvas.height = 180;
-  canvas.className = "ysm-canvas";
+  canvas.className = "pv-canvas";
   container.appendChild(canvas);
 
   let textureImg: HTMLImageElement | null = null;
@@ -51,15 +51,15 @@ export function buildToggleRow(
   setLabelsOn: (v: boolean) => void;
 } {
   const toggleRow = document.createElement("div");
-  toggleRow.className = "ysm-toggle-row";
+  toggleRow.className = "pv-toggle-row";
   const eyeBtn = document.createElement("button");
-  eyeBtn.className = "ysm-btn";
+  eyeBtn.className = "pv-btn";
   const savedState = safeGet("ysm_showBoneLabels") !== "false";
   let _labelsOn = savedState;
   eyeBtn.innerHTML = _labelsOn ? `👁 ${t("preview.boneLabels")}` : `👁‍🗨 ${t("preview.boneLabels")}`;
   eyeBtn.title = "切换骨骼名称显示";
   const eyeHint = document.createElement("span");
-  eyeHint.className = "ysm-hint";
+  eyeHint.className = "pv-hint";
   eyeHint.textContent = _labelsOn ? t("preview.on") : t("preview.off");
   toggleRow.appendChild(eyeBtn);
   toggleRow.appendChild(eyeHint);
@@ -89,13 +89,13 @@ export function buildStatsCard(
   ctx: PreviewRoot & YsmDecoder & PreviewDebugger,
 ): void {
   const card = document.createElement("div");
-  card.className = "ysm-card";
+  card.className = "pv-card";
   card.innerHTML = statsCardHTML(model, modelPath, _decodedBy);
   const authors: Array<{ avatarUrl?: string | null; name?: string; role?: string }> =
     model._authors || [];
   if (authors.length > 0) {
     const authorHtml =
-      '<div class="ysm-card-section-label" style="margin-top:6px">👥 ' + t("preview.authors") + '</div>' +
+      '<div class="pv-card-section-label" style="margin-top:6px">👥 ' + t("preview.authors") + '</div>' +
       authors
         .map(
           (au) => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">
@@ -136,13 +136,13 @@ export function buildBoneExportRow(
   modelPath: string,
 ): void {
   const boneRow = document.createElement("div");
-  boneRow.className = "ysm-toggle-row";
+  boneRow.className = "pv-toggle-row";
   const boneBtn = document.createElement("button");
-  boneBtn.className = "ysm-btn";
+  boneBtn.className = "pv-btn";
   boneBtn.textContent = "📋 " + t("preview.exportBones");
   boneBtn.title = "导出骨骼名称为文本文件";
   const boneHint = document.createElement("span");
-  boneHint.className = "ysm-hint";
+  boneHint.className = "pv-hint";
   boneHint.textContent = `${model.boneCount} ${t("preview.bones")}`;
   boneBtn.onclick = (): void => {
     const lines = buildBoneNamesText(modelPath, model.boneCount ?? 0, model.bones || []);

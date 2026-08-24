@@ -270,10 +270,10 @@ describe("appendDebug", () => {
   it("无容器 → 追加到 #preview-content；有容器 → 追加到容器", () => {
     const el = mountPreview();
     el.appendDebug(null, "dbg1");
-    expect(el.root.querySelector(".ysm-debug")?.textContent).toBe("dbg1");
+    expect(el.root.querySelector(".pv-debug")?.textContent).toBe("dbg1");
     const box = document.createElement("div");
     el.appendDebug(box, "dbg2");
-    expect(box.querySelector(".ysm-debug")?.textContent).toBe("dbg2");
+    expect(box.querySelector(".pv-debug")?.textContent).toBe("dbg2");
     unmountElement(el);
   });
 });

@@ -27,44 +27,44 @@ h3 { font-size: var(--fs-base); font-weight: 600; color: var(--txt); text-transf
 .err { font-size: var(--fs-sm); color: var(--status-error); padding: 4px 0; }
 .preview-thumb { margin-bottom: 10px; border-radius:var(--radius-lg); overflow: hidden; background: var(--surf); border: 1px solid var(--bd); }
 .preview-thumb img { display: block; width: 100%; height: auto; object-fit: cover; }
-.ysm-stat-label { display:inline-block;min-width:80px; }
+.pv-stat-label { display:inline-block;min-width:80px; }
 
 /* === 骨骼预览区 === */
-.ysm-btn { font-size:var(--fs-xs);padding:1px 6px;border-radius:var(--radius-sm);border:1px solid var(--bd);background:var(--surf);color:var(--txt);cursor:pointer;display:flex;align-items:center;gap:3px; }
-.ysm-btn:hover { background:var(--hover); }
-.ysm-hint { font-size:var(--fs-tiny);color:var(--muted); }
-.ysm-canvas { width:100%;height:auto;border-radius:var(--radius-lg);background:rgba(0,0,0,.12);margin-bottom:6px;touch-action:none; }
-.ysm-grab { cursor:grab;touch-action:none; }
-.ysm-card { background:var(--surf);border:1px solid var(--bd);border-radius:var(--radius-lg);padding:8px 10px;margin-bottom:8px; }
-.ysm-card-title { display:flex;align-items:center;gap:4px;margin-bottom:6px;font-size:var(--fs-sm);font-weight:600;color:var(--txt); }
-.ysm-card-section { padding-left:8px;margin-bottom:5px; }
-.ysm-card-section-label { font-size:var(--fs-tiny);color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px; }
-.ysm-card-row { font-size:var(--fs-sm);color:var(--txt);line-height:1.6; }
-.ysm-tree-item { display:flex;align-items:center;gap:4px;padding-left:8px; }
-.ysm-tree-icon { font-size:var(--fs-xs);flex-shrink:0;width:16px;text-align:center; }
-.ysm-tree-arrow { color:var(--muted);margin:0 2px; }
-.ysm-tree-unit { color:var(--muted);font-size:var(--fs-xs);margin-left:2px; }
-.ysm-tree-size { color:var(--muted);font-size:8px;margin-left:auto; }
-.ysm-card-val { color:var(--accent);font-weight:600; }
+.pv-btn { font-size:var(--fs-xs);padding:1px 6px;border-radius:var(--radius-sm);border:1px solid var(--bd);background:var(--surf);color:var(--txt);cursor:pointer;display:flex;align-items:center;gap:3px; }
+.pv-btn:hover { background:var(--hover); }
+.pv-hint { font-size:var(--fs-tiny);color:var(--muted); }
+.pv-canvas { width:100%;height:auto;border-radius:var(--radius-lg);background:rgba(0,0,0,.12);margin-bottom:6px;touch-action:none; }
+.pv-grab { cursor:grab;touch-action:none; }
+.pv-card { background:var(--surf);border:1px solid var(--bd);border-radius:var(--radius-lg);padding:8px 10px;margin-bottom:8px; }
+.pv-card-title { display:flex;align-items:center;gap:4px;margin-bottom:6px;font-size:var(--fs-sm);font-weight:600;color:var(--txt); }
+.pv-card-section { padding-left:8px;margin-bottom:5px; }
+.pv-card-section-label { font-size:var(--fs-tiny);color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px; }
+.pv-card-row { font-size:var(--fs-sm);color:var(--txt);line-height:1.6; }
+.pv-tree-item { display:flex;align-items:center;gap:4px;padding-left:8px; }
+.pv-tree-icon { font-size:var(--fs-xs);flex-shrink:0;width:16px;text-align:center; }
+.pv-tree-arrow { color:var(--muted);margin:0 2px; }
+.pv-tree-unit { color:var(--muted);font-size:var(--fs-xs);margin-left:2px; }
+.pv-tree-size { color:var(--muted);font-size:8px;margin-left:auto; }
+.pv-card-val { color:var(--accent);font-weight:600; }
 .ysm-badge { font-size:var(--fs-tiny);padding:0 5px;border-radius:var(--radius-xs);background:color-mix(in srgb, var(--accent) 25%, transparent);color:var(--txt);margin-left:auto; }
-.ysm-section-blue { border-left:2px solid var(--accent); }
-.ysm-section-green { border-left:2px solid var(--status-success); }
-.ysm-section-orange { border-left:2px solid var(--sm-optional); }
-.ysm-tab-row { display:flex;gap:2px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--bd); }
-.ysm-tab { flex:1;font-size:var(--fs-sm);padding:3px 6px;border-radius:var(--radius-sm);border:1px solid var(--bd);cursor:pointer;text-align:center;transition:var(--tr-fast); }
-.ysm-tab:hover { border-color:var(--accent); }
-.ysm-tab-active { background:var(--accent);color:var(--bg); }
-.ysm-tab-inactive { background:var(--surf);color:var(--txt); }
-.ysm-export-row { display:flex;gap:6px;margin-top:4px;align-items:center; }
-.ysm-export-btn { font-size:var(--fs-xs);padding:2px 8px;border-radius:var(--radius-sm);border:1px solid var(--bd);background:var(--surf);color:var(--txt);cursor:pointer;transition:var(--tr-fast); }
-.ysm-export-btn:hover { background:var(--hover); }
-.ysm-export-btn:focus-visible { box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent);outline:none; }
-.ysm-toggle-row { display:flex;align-items:center;gap:4px;margin-bottom:6px;margin-top:4px;padding:4px 6px;background:var(--surf);border-radius:var(--radius-sm);justify-content:flex-end; }
-.ysm-debug { font-size:var(--fs-xs);color:#ff6b6b;margin-top:2px;opacity:0.8; }
-.ysm-loading-title { font-size:var(--fs-sm);font-weight:600;color:var(--muted);margin-bottom:4px; }
-.ysm-loading-bar { height:60px;border-radius:var(--radius-md);background:rgba(0,0,0,.08); }
-.ysm-error-title { font-size:var(--fs-sm);font-weight:600;margin-bottom:4px; }
-.ysm-error-body { font-size:var(--fs-xs);color:var(--muted);padding:8px 0; }
+.pv-section-blue { border-left:2px solid var(--accent); }
+.pv-section-green { border-left:2px solid var(--status-success); }
+.pv-section-orange { border-left:2px solid var(--sm-optional); }
+.pv-tab-row { display:flex;gap:2px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--bd); }
+.pv-tab { flex:1;font-size:var(--fs-sm);padding:3px 6px;border-radius:var(--radius-sm);border:1px solid var(--bd);cursor:pointer;text-align:center;transition:var(--tr-fast); }
+.pv-tab:hover { border-color:var(--accent); }
+.pv-tab-active { background:var(--accent);color:var(--bg); }
+.pv-tab-inactive { background:var(--surf);color:var(--txt); }
+.pv-export-row { display:flex;gap:6px;margin-top:4px;align-items:center; }
+.pv-export-btn { font-size:var(--fs-xs);padding:2px 8px;border-radius:var(--radius-sm);border:1px solid var(--bd);background:var(--surf);color:var(--txt);cursor:pointer;transition:var(--tr-fast); }
+.pv-export-btn:hover { background:var(--hover); }
+.pv-export-btn:focus-visible { box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent);outline:none; }
+.pv-toggle-row { display:flex;align-items:center;gap:4px;margin-bottom:6px;margin-top:4px;padding:4px 6px;background:var(--surf);border-radius:var(--radius-sm);justify-content:flex-end; }
+.pv-debug { font-size:var(--fs-xs);color:#ff6b6b;margin-top:2px;opacity:0.8; }
+.pv-loading-title { font-size:var(--fs-sm);font-weight:600;color:var(--muted);margin-bottom:4px; }
+.pv-loading-bar { height:60px;border-radius:var(--radius-md);background:rgba(0,0,0,.08); }
+.pv-error-title { font-size:var(--fs-sm);font-weight:600;margin-bottom:4px; }
+.pv-error-body { font-size:var(--fs-xs);color:var(--muted);padding:8px 0; }
 
 /* === 3D 悬浮触发 FAB（ADR-057 §2.3，Shadow DOM 内面板右下角） === */
 .preview-fab{position:absolute;right:12px;bottom:12px;width:44px;height:44px;border-radius:50%;border:1px solid var(--bd);background:var(--accent);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:20;transition:filter .12s ease}

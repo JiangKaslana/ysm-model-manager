@@ -64,7 +64,7 @@ export async function loadModel2D(
   content.innerHTML = "";
   const container = document.createElement("div");
   container.style.cssText = "margin-bottom:8px;opacity:0.6";
-  container.innerHTML = `<div class="ysm-loading-title">🏗️ ${t("preview.loadingStructure")}</div><div class="ysm-loading-bar"></div>`;
+  container.innerHTML = `<div class="pv-loading-title">🏗️ ${t("preview.loadingStructure")}</div><div class="pv-loading-bar"></div>`;
   content.appendChild(container);
   try {
     const loaded = await loadModelData(modelPath, {
@@ -75,7 +75,7 @@ export async function loadModel2D(
     const _decodedBy = loaded.decodedBy;
     if (!container.isConnected) return;
     if (!model?.bones?.length) {
-      container.innerHTML = `<div class="ysm-error-title">🏗️ ${t("preview.skeletonStructure")}</div><div class="ysm-error-body">⚠️ ${t("preview.noGeometry")}</div>`;
+      container.innerHTML = `<div class="pv-error-title">🏗️ ${t("preview.skeletonStructure")}</div><div class="pv-error-body">⚠️ ${t("preview.noGeometry")}</div>`;
       return;
     }
     container.style.opacity = "1";
@@ -84,11 +84,11 @@ export async function loadModel2D(
     if (!container.isConnected) return;
     const { eyeBtn, eyeHint, getLabelsOn, setLabelsOn } = buildToggleRow(container);
     const zoomBtn = document.createElement("button");
-    zoomBtn.className = "ysm-btn";
+    zoomBtn.className = "pv-btn";
     zoomBtn.innerHTML = "🔍 " + t("preview.zoom");
     zoomBtn.title = "全窗口查看模型";
     zoomBtn.onclick = (): void => { openFullPreview(canvas, model, textureImg, getLabelsOn()); };
-    container.querySelector<HTMLElement>(".ysm-toggle-row")!.appendChild(zoomBtn);
+    container.querySelector<HTMLElement>(".pv-toggle-row")!.appendChild(zoomBtn);
     let _zoom = 1, _rotation = 0;
     const model2d = model as Parameters<typeof renderModel2D>[1];
     const doRender = (): void => {
@@ -97,7 +97,7 @@ export async function loadModel2D(
     };
     doRender();
     eyeBtn.onclick = (): void => { const next = !getLabelsOn(); setLabelsOn(next); safeSet("ysm_showBoneLabels", String(next)); doRender(); };
-    canvas.classList.add("ysm-grab");
+    canvas.classList.add("pv-grab");
     canvas.title = "左键全窗放大 · 滚轮缩放 · 左右拖拽旋转";
     let _dragging = false, _dragged = false, _lastX = 0;
     canvas.addEventListener("pointerdown", (e) => { if (e.button !== 0) return; _dragging = true; _dragged = false; _lastX = e.clientX; canvas.setPointerCapture(e.pointerId); });
@@ -183,5 +183,5 @@ export async function loadModel2D(
     const btn3d = ctx.root.getElementById("btn-3d-preview");
     if (btn3d) btn3d.onclick = (): void => { _toggle3D(); };
     if (_prefer3D) requestAnimationFrame(() => btn3d?.click());
-  } catch (e) { container.innerHTML = `<div class="ysm-error-title" style="color:#ff6b6b">🏗️ ${t("preview.skeletonStructure")}</div><div class="ysm-error-body">⚠️ ${t("preview.parseFailed")}: ${esc(safeErrorMessage(e))}</div>`; }
+  } catch (e) { container.innerHTML = `<div class="pv-error-title" style="color:#ff6b6b">🏗️ ${t("preview.skeletonStructure")}</div><div class="pv-error-body">⚠️ ${t("preview.parseFailed")}: ${esc(safeErrorMessage(e))}</div>`; }
 }

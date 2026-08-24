@@ -115,9 +115,9 @@ export async function showLitematic(
   const savedTab = safeGet("lt_previewTab") || "detail";
 
   ctx.root.innerHTML = `<div class="content" id="preview-content">
-  <div class="ysm-tab-row">
-    <button class="preview-tab ysm-tab ${savedTab === "detail" ? "ysm-tab-active" : "ysm-tab-inactive"}" data-tab="detail">📋 ${t("preview.detailTab")}</button>
-    <button class="preview-tab ysm-tab ${savedTab === "material" ? "ysm-tab-active" : "ysm-tab-inactive"}" data-tab="material">🧱 ${t("preview.materialList")}</button>
+  <div class="pv-tab-row">
+    <button class="pv-tab ${savedTab === "detail" ? "pv-tab-active" : "pv-tab-inactive"}" data-tab="detail">📋 ${t("preview.detailTab")}</button>
+    <button class="pv-tab ${savedTab === "material" ? "pv-tab-active" : "pv-tab-inactive"}" data-tab="material">🧱 ${t("preview.materialList")}</button>
   </div>
   <div id="preview-detail"${savedTab !== "detail" ? ' style="display:none"' : ""}>
     <div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsingLitematica")}...</div></div>
@@ -129,17 +129,17 @@ export async function showLitematic(
   // Tab 切换
   const switchTab = (tab: string): void => {
     safeSet("lt_previewTab", tab);
-    ctx.root.querySelectorAll(".preview-tab").forEach((btn) => {
+    ctx.root.querySelectorAll(".pv-tab").forEach((btn) => {
       const isActive = (btn as HTMLElement).dataset.tab === tab;
-      btn.classList.toggle("ysm-tab-active", isActive);
-      btn.classList.toggle("ysm-tab-inactive", !isActive);
+      btn.classList.toggle("pv-tab-active", isActive);
+      btn.classList.toggle("pv-tab-inactive", !isActive);
     });
     const detail = ctx.root.getElementById("preview-detail");
     const material = ctx.root.getElementById("preview-material");
     if (detail) detail.style.display = tab === "detail" ? "" : "none";
     if (material) material.style.display = tab === "material" ? "" : "none";
   };
-  ctx.root.querySelectorAll(".preview-tab").forEach((btn) => {
+  ctx.root.querySelectorAll(".pv-tab").forEach((btn) => {
     (btn as HTMLElement).onclick = (): void => switchTab((btn as HTMLElement).dataset.tab || "");
   });
 

@@ -84,26 +84,26 @@ export function statsCardHTML(
   const texCount = model.textures?.length || 0;
   const extraCount = texCount > 0 ? texCount - 1 : 0;
   if (extraCount > 0) {
-    texMapHtml = `<div class="ysm-card-row" style="font-size:9px;color:var(--muted);padding:1px 0">📎 ${t("preview.extraTextures", { extra: extraCount, total: texCount })}</div>`;
+    texMapHtml = `<div class="pv-card-row" style="font-size:9px;color:var(--muted);padding:1px 0">📎 ${t("preview.extraTextures", { extra: extraCount, total: texCount })}</div>`;
   }
   return `
-<div class="ysm-card-title">📊 ${t("preview.modelOverview")}${badge}</div>
-<div class="ysm-card-section ysm-section-blue">
-  <div class="ysm-card-section-label">🔗 ${t("preview.modelStructure")}</div>
-  <div class="ysm-card-row">
-    <span class="ysm-stat-label">${t("preview.skeletonLabel")}</span><span class="ysm-card-val">${model.boneCount}</span> ${t("preview.unit")}<br>
-    <span class="ysm-stat-label">${t("preview.cubesLabel")}</span><span class="ysm-card-val">${model.cubeCount}</span> ${t("preview.unit")}
+<div class="pv-card-title">📊 ${t("preview.modelOverview")}${badge}</div>
+<div class="pv-card-section pv-section-blue">
+  <div class="pv-card-section-label">🔗 ${t("preview.modelStructure")}</div>
+  <div class="pv-card-row">
+    <span class="pv-stat-label">${t("preview.skeletonLabel")}</span><span class="pv-card-val">${model.boneCount}</span> ${t("preview.unit")}<br>
+    <span class="pv-stat-label">${t("preview.cubesLabel")}</span><span class="pv-card-val">${model.cubeCount}</span> ${t("preview.unit")}
   </div>
 </div>
-<div class="ysm-card-section ysm-section-green">
-  <div class="ysm-card-section-label">🖼️ ${t("preview.textureSize")}</div>
-  <div class="ysm-card-row">
-     <span class="ysm-card-val">${model.texWidth || "?"} × ${model.texHeight || "?"}</span> ${t("preview.px")}
+<div class="pv-card-section pv-section-green">
+  <div class="pv-card-section-label">🖼️ ${t("preview.textureSize")}</div>
+  <div class="pv-card-row">
+     <span class="pv-card-val">${model.texWidth || "?"} × ${model.texHeight || "?"}</span> ${t("preview.px")}
   </div>
   ${texMapHtml}
 </div>
-<div class="ysm-card-section ysm-section-orange">
-  <div class="ysm-card-section-label">💾 ${t("preview.fileInfo")}</div>
-  <div class="ysm-card-row">${fmt}</div>
+<div class="pv-card-section pv-section-orange">
+  <div class="pv-card-section-label">💾 ${t("preview.fileInfo")}</div>
+  <div class="pv-card-row">${fmt}</div>
 </div>`;
 }

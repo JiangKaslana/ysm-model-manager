@@ -89,7 +89,7 @@ describe("setup2DCanvas", () => {
     const { canvas, textureImg } = await setup2DCanvas(container, makeModel({ texture: null }));
     expect(canvas.width).toBe(180);
     expect(canvas.height).toBe(180);
-    expect(canvas.className).toBe("ysm-canvas");
+    expect(canvas.className).toBe("pv-canvas");
     expect(container.contains(canvas)).toBe(true);
     expect(textureImg).toBeNull();
   });
@@ -152,9 +152,9 @@ describe("buildStatsCard", () => {
       "YSMParser",
       makeCtx(),
     );
-    const card = container.querySelector(".ysm-card");
+    const card = container.querySelector(".pv-card");
     expect(card).toBeTruthy();
-    expect(container.querySelectorAll(".ysm-card").length).toBe(1);
+    expect(container.querySelectorAll(".pv-card").length).toBe(1);
   });
 
   it("有作者 → 卡片内作者列表 + 详情页 ysm-author-avatars 填充", () => {
@@ -205,7 +205,7 @@ describe("buildBoneExportRow", () => {
     const btn = container.querySelector("button") as HTMLButtonElement;
     expect(btn).toBeTruthy();
     expect(btn.textContent).toContain("preview.exportBones");
-    const hint = container.querySelector(".ysm-hint") as HTMLElement;
+    const hint = container.querySelector(".pv-hint") as HTMLElement;
     expect(hint.textContent).toContain("1");
   });
 
