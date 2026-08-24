@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 151 | 607 |
+| 前端·工具 | 151 | 608 |
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **464** | **2002** |
+| **合计** | **464** | **2003** |
 
 ## Go·头像
 
@@ -1386,6 +1386,7 @@
 | `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu:65` | 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:461` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:469` | 挂载预览底部根菜单，返回句柄 |
+| `previewItemToNode()` | `frontend/src/utils/3d/adapters/preview-menu:1164` | 公共映射：PreviewMenuItemDef（flat 面板项）→ PreviewMenuNode（声明式节点）。 |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |

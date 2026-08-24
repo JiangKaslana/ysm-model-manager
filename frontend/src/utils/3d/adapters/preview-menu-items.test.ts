@@ -14,7 +14,7 @@ import {
 import { ysmMenuItems, type YsmMenuItemsOpts } from "./ysm-adapter.ts";
 import { mmdMenuItems, type MmdMenuItemsOpts } from "./mmd-adapter.ts";
 import { vrmMenuItems, type VrmMenuItemsOpts } from "./vrm-adapter.ts";
-import { mountPreviewRootMenu, type PreviewMenuCtx } from "./preview-menu.ts";
+import { mountPreviewRootMenu, previewItemToNode, type PreviewMenuCtx } from "./preview-menu.ts";
 import type { BoneTree } from "../bone-tools.ts";
 import {
   expectContainsAtLeast,
@@ -199,6 +199,51 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
       if (d.kind === "panel") expect(typeof d.render, `${d.id}.render`).toBe("function");
       if (d.kind === "action") expect(typeof d.run, `${d.id}.run`).toBe("function");
     });
+  });
+
+  it("previewItemToNode 映射：flat 项 → 声明式节点，字段逐一对齐（方案 A 第 3 步）", () => {
+    [...ysmItems, ...mmdItems, ...vrmItems].forEach((d) => {
+      const n = previewItemToNode(d);
+      expect(n.id, `${d.id}.id`).toBe(d.id);
+      expect(n.kind, `${d.id}.kind`).toBe(d.kind === "action" ? "action" : "panel");
+      expect(n.labelKey, `${d.id}.labelKey`).toBe(d.labelKey);
+      expect(n.fallback, `${d.id}.fallback`).toBe(d.fallback);
+      expect(n.icon, `${d.id}.icon`).toBe(d.icon);
+      expect(n.dockGroup, `${d.id}.dockGroup`).toBe(d.dockGroup);
+      expect(n.sharedOnly, `${d.id}.sharedOnly`).toBe(d.sharedOnly);
+      expect(n.requiresEnvironment, `${d.id}.requiresEnvironment`).toBe(d.requiresEnvironment);
+      // panel → renderCustom 逃生舱（结构数据化，内容保留逃生舱）
+      if (d.kind === "panel") {
+        expect(typeof n.renderCustom, `${d.id}.renderCustom`).toBe("function");
+      }
+      if (d.kind === "action") {
+        expect(typeof n.action, `${d.id}.action`).toBe("function");
+      }
+    });
+  });
+
+  it("previewItemToNode closePopup 兜底：renderCustom 可选 closePopup 传 noop，不抛（映射稳定性）", () => {
+    // 纯 fake 项：避开真实适配器面板的 DOM/three 副作用
+    let gotClose: (() => void) | null = null;
+    const fake: PreviewMenuItemDef = {
+      id: "fake-panel",
+      icon: "🧪",
+      labelKey: "preview.modelInfo",
+      fallback: "模型",
+      kind: "panel",
+      dockGroup: "model",
+      render: (list, closePopup): void => {
+        gotClose = closePopup;
+        list.textContent = "fake";
+      },
+    };
+    const n = previewItemToNode(fake);
+    const list = document.createElement("div");
+    // 显式传 undefined closePopup（renderMenu 经 node.renderCustom(list, undefined) 调用）
+    n.renderCustom?.(list, undefined);
+    expect(list.textContent).toBe("fake");
+    // 兜底生效：closePopup 必为可调用函数（渲染时 hideMenu 注入；缺省 noop 防崩溃）
+    expect(typeof gotClose).toBe("function");
   });
 
   it("labelKey 全部有翻译（zh-CN 有键；三语一致性由 locales-consistency.test 保证）", () => {

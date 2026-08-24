@@ -1155,6 +1155,32 @@ function roleBaseName(e: ModelEntry): string {
 }
 
 /**
+ * 公共映射：PreviewMenuItemDef（flat 面板项）→ PreviewMenuNode（声明式节点）。
+ * 方案 A 第 3 步：收敛 roleDetailView 内两处重复样板为单一映射点——
+ * 结构字段（id/kind/labelKey/icon/dockGroup/守卫）数据化；内容仍走 renderCustom 逃生舱
+ * （动态数据面板，如模型统计/纹理列表/骨骼树，按 MikuMikuAR renderCustom 官方定位保留）。
+ * 未来把具体面板从逃生舱迁成静态数据节点时，只改本函数一处。
+ */
+export function previewItemToNode(d: PreviewMenuItemDef): PreviewMenuNode {
+  return {
+    id: d.id,
+    kind: d.kind === "action" ? "action" : "panel",
+    labelKey: d.labelKey,
+    fallback: d.fallback,
+    icon: d.icon,
+    dockGroup: d.dockGroup,
+    sharedOnly: d.sharedOnly,
+    requiresEnvironment: d.requiresEnvironment,
+    renderCustom: d.render
+      ? (list, closePopup): void => {
+          d.render?.(list, closePopup ?? (() => {}));
+        }
+      : undefined,
+    action: d.run,
+  };
+}
+
+/**
  * 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。
  *  - folder → 可折叠 section（testid = node.id，body testid = node.id + "-body"，兼容既有 e2e 选择器）
  *  - panel / action → 行（经 makeRow + navigate / run）
@@ -1312,22 +1338,7 @@ function roleDetailView(
             labelKey: "preview.roleModelSection",
             fallback: "模型",
             defaultOpen: deps.initialSection !== "motion",
-            children: modelItems.map((d): PreviewMenuNode => ({
-              id: d.id,
-              kind: d.kind === "action" ? "action" : "panel",
-              labelKey: d.labelKey,
-              fallback: d.fallback,
-              icon: d.icon,
-              dockGroup: d.dockGroup,
-              sharedOnly: d.sharedOnly,
-              requiresEnvironment: d.requiresEnvironment,
-              renderCustom: d.render
-                ? (list, closePopup): void => {
-                    d.render?.(list, closePopup ?? (() => {}));
-                  }
-                : undefined,
-              action: d.run,
-            })),
+            children: modelItems.map(previewItemToNode),
           },
           {
             id: "preview-role-motion",
@@ -1335,22 +1346,7 @@ function roleDetailView(
             labelKey: "preview.roleMotionSection",
             fallback: "动作",
             defaultOpen: deps.initialSection === "motion",
-            children: motionItems.map((d): PreviewMenuNode => ({
-              id: d.id,
-              kind: d.kind === "action" ? "action" : "panel",
-              labelKey: d.labelKey,
-              fallback: d.fallback,
-              icon: d.icon,
-              dockGroup: d.dockGroup,
-              sharedOnly: d.sharedOnly,
-              requiresEnvironment: d.requiresEnvironment,
-              renderCustom: d.render
-                ? (list, closePopup): void => {
-                    d.render?.(list, closePopup ?? (() => {}));
-                  }
-                : undefined,
-              action: d.run,
-            })),
+            children: motionItems.map(previewItemToNode),
           },
         ],
         deps,
