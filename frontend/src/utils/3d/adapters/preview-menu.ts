@@ -7,6 +7,7 @@
 // 关闭统一走 SlideMenu header ✕（根级）/ ←（子级），外部点击关闭。
 
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuItemDef, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { createSlideMenu, type SlideMenuView, type SlideMenuHandle } from "../../../ui/ui-slide-menu.ts";
 import { buildCameraControls, type CameraControlBridge } from "./camera-controls.ts";
@@ -1154,55 +1155,110 @@ function roleBaseName(e: ModelEntry): string {
 }
 
 /**
- * 角色详情子面板：该角色 menuItems 的 model 组 panel 项（各适配器能力内显示）。
- * 模块级共享：fillRoles 点角色名进入；dock 🧍 捷径当存在活跃角色 menuItems 时直接进入（1 跳直达模型信息）。
- * onSwitchRole（可选）→ 详情顶部渲染「切换角色 ›」行（dock 捷径直达时回角色列表；fillRoles 内由 back 返回即可，不再加）。
+ * 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。
+ *  - folder → 可折叠 section（testid = node.id，body testid = node.id + "-body"，兼容既有 e2e 选择器）
+ *  - panel / action → 行（经 makeRow + navigate / run）
+ *  - divider / sectionTitle → 轻量分隔/标题行
+ *  - visibleWhen → 条件守卫（返回 false 不渲染）
+ * 这是「单一渲染器吃树数据」的落点：新增/迁移菜单项时写 PreviewMenuNode 数据即可，
+ * 渲染逻辑不随菜单项膨胀（对齐 MikuMikuAR renderMenu 范式）。
  */
-/** 角色详情子面板内的单个能力分组 section（模型/动作），可折叠；initialSection 决定默认展开哪个 */
-function renderRoleSection(
-  l: HTMLElement,
-  cfg: {
-    testid: string;
-    titleKey: string;
-    fallback: string;
-    items: PreviewMenuItemDef[];
-    collapsed: boolean;
+function renderMenu(
+  container: HTMLElement,
+  nodes: PreviewMenuNode[],
+  deps: {
     makeRow: (def: PreviewMenuItemDef, opts?: { chevron?: boolean }) => HTMLElement;
     makePanelView: (def: PreviewMenuItemDef) => SlideMenuView;
     menu: SlideMenuHandle;
   },
 ): void {
-  if (cfg.items.length === 0) return;
-  const section = document.createElement("div");
-  section.dataset.testid = cfg.testid;
-  const header = document.createElement("div");
-  header.className = "cap-section-header";
-  header.style.cssText =
-    "display:flex;align-items:center;gap:6px;padding:8px 10px;min-height:32px;cursor:pointer;user-select:none;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
-  const arrow = document.createElement("span");
-  arrow.textContent = cfg.collapsed ? "▸" : "▾";
-  arrow.style.cssText = "font-size:10px;display:inline-block";
-  const title = document.createElement("span");
-  title.textContent = tr(cfg.titleKey, cfg.fallback);
-  header.append(arrow, title);
-  const body = document.createElement("div");
-  body.dataset.testid = cfg.testid + "-body";
-  body.style.cssText = "display:" + (cfg.collapsed ? "none" : "block");
-  header.addEventListener("click", (ev: MouseEvent): void => {
-    ev.stopPropagation();
-    const nowCollapsed = body.style.display === "none";
-    body.style.display = nowCollapsed ? "block" : "none";
-    arrow.textContent = nowCollapsed ? "▾" : "▸";
-  });
-  cfg.items.forEach((def) => {
-    const row = cfg.makeRow(def, { chevron: true });
-    row.onclick = (): void => {
-      cfg.menu.navigate(cfg.makePanelView(def));
+  for (const node of nodes) {
+    if (node.visibleWhen && !node.visibleWhen()) continue;
+    // folder：可折叠 section（kind==="folder" 或有 children）
+    if (node.kind === "folder" || Array.isArray(node.children)) {
+      const children = node.children ?? [];
+      if (children.length === 0) continue;
+      const section = document.createElement("div");
+      section.dataset.testid = node.id;
+      const header = document.createElement("div");
+      header.className = "cap-section-header";
+      header.style.cssText =
+        "display:flex;align-items:center;gap:6px;padding:8px 10px;min-height:32px;cursor:pointer;user-select:none;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+      const collapsed = node.defaultOpen === false;
+      const arrow = document.createElement("span");
+      arrow.textContent = collapsed ? "▸" : "▾";
+      arrow.style.cssText = "font-size:10px;display:inline-block";
+      const title = document.createElement("span");
+      title.textContent = node.labelKey ? tr(node.labelKey, node.fallback ?? node.id) : node.id;
+      header.append(arrow, title);
+      const body = document.createElement("div");
+      body.dataset.testid = node.id + "-body";
+      body.style.cssText = "display:" + (collapsed ? "none" : "block");
+      header.addEventListener("click", (ev: MouseEvent): void => {
+        ev.stopPropagation();
+        const nowCollapsed = body.style.display === "none";
+        body.style.display = nowCollapsed ? "block" : "none";
+        arrow.textContent = nowCollapsed ? "▾" : "▸";
+      });
+      renderMenu(body, children, deps);
+      section.append(header, body);
+      container.appendChild(section);
+      continue;
+    }
+    // divider：轻量分隔线
+    if (node.kind === "divider") {
+      const hr = document.createElement("div");
+      hr.dataset.testid = node.id;
+      hr.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
+      container.appendChild(hr);
+      continue;
+    }
+    // sectionTitle：小标题行（不折叠）
+    if (node.kind === "sectionTitle") {
+      const st = document.createElement("div");
+      st.dataset.testid = node.id;
+      st.textContent = node.labelKey ? tr(node.labelKey, node.fallback ?? node.id) : node.id;
+      st.style.cssText =
+        "padding:6px 10px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+      container.appendChild(st);
+      continue;
+    }
+    // 叶节点：panel / action / custom —— 转成 PreviewMenuItemDef 走既有 makeRow/navigate/run 机制
+    const def: PreviewMenuItemDef = {
+      id: node.id,
+      icon: node.icon ?? "",
+      labelKey: node.labelKey ?? "",
+      fallback: node.fallback ?? node.id,
+      kind: node.kind === "action" ? "action" : "panel",
+      dockGroup: node.dockGroup,
+      sharedOnly: node.sharedOnly,
+      requiresEnvironment: node.requiresEnvironment,
+      render: node.renderCustom
+        ? (list, closePopup): void => {
+            node.renderCustom?.(list, closePopup);
+          }
+        : undefined,
+      run: node.action
+        ? (): void => {
+            void node.action?.({
+              toast: () => {},
+              setStatus: () => {},
+              closeAllOverlays: () => {},
+            });
+          }
+        : undefined,
     };
-    body.appendChild(row);
-  });
-  section.append(header, body);
-  l.appendChild(section);
+    const row = deps.makeRow(def, { chevron: def.kind === "panel" });
+    row.onclick = (ev: MouseEvent): void => {
+      ev.stopPropagation();
+      if (def.kind === "panel") {
+        deps.menu.navigate(deps.makePanelView(def));
+      } else if (def.run) {
+        def.run();
+      }
+    };
+    container.appendChild(row);
+  }
 }
 
 /**
@@ -1245,26 +1301,60 @@ function roleDetailView(
         l.appendChild(empty);
         return;
       }
-      renderRoleSection(l, {
-        testid: "preview-role-model",
-        titleKey: "preview.roleModelSection",
-        fallback: "模型",
-        items: modelItems,
-        collapsed: deps.initialSection === "motion",
-        makeRow: deps.makeRow,
-        makePanelView: deps.makePanelView,
-        menu: deps.menu,
-      });
-      renderRoleSection(l, {
-        testid: "preview-role-motion",
-        titleKey: "preview.roleMotionSection",
-        fallback: "动作",
-        items: motionItems,
-        collapsed: deps.initialSection === "model",
-        makeRow: deps.makeRow,
-        makePanelView: deps.makePanelView,
-        menu: deps.menu,
-      });
+      // 声明式树驱动（方案 A 第 2 步）：模型/动作两 section 改为 PreviewMenuNode 数据，
+      // 由 renderMenu 统一渲染——消除 renderRoleSection 命令式 DOM，新增面板只改数据。
+      renderMenu(
+        l,
+        [
+          {
+            id: "preview-role-model",
+            kind: "folder",
+            labelKey: "preview.roleModelSection",
+            fallback: "模型",
+            defaultOpen: deps.initialSection !== "motion",
+            children: modelItems.map((d): PreviewMenuNode => ({
+              id: d.id,
+              kind: d.kind === "action" ? "action" : "panel",
+              labelKey: d.labelKey,
+              fallback: d.fallback,
+              icon: d.icon,
+              dockGroup: d.dockGroup,
+              sharedOnly: d.sharedOnly,
+              requiresEnvironment: d.requiresEnvironment,
+              renderCustom: d.render
+                ? (list, closePopup): void => {
+                    d.render?.(list, closePopup ?? (() => {}));
+                  }
+                : undefined,
+              action: d.run,
+            })),
+          },
+          {
+            id: "preview-role-motion",
+            kind: "folder",
+            labelKey: "preview.roleMotionSection",
+            fallback: "动作",
+            defaultOpen: deps.initialSection === "motion",
+            children: motionItems.map((d): PreviewMenuNode => ({
+              id: d.id,
+              kind: d.kind === "action" ? "action" : "panel",
+              labelKey: d.labelKey,
+              fallback: d.fallback,
+              icon: d.icon,
+              dockGroup: d.dockGroup,
+              sharedOnly: d.sharedOnly,
+              requiresEnvironment: d.requiresEnvironment,
+              renderCustom: d.render
+                ? (list, closePopup): void => {
+                    d.render?.(list, closePopup ?? (() => {}));
+                  }
+                : undefined,
+              action: d.run,
+            })),
+          },
+        ],
+        deps,
+      );
     },
   };
 }
