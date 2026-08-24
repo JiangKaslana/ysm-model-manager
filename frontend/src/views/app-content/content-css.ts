@@ -9,10 +9,12 @@ import { contentRepoCSS } from "./content-repo.ts";
 import { contentCreatorCSS } from "./content-creator.ts";
 import { contentDiagCSS } from "./content-diag.ts";
 import { contentUtilCSS } from "./content-util.ts";
+import { contentStgCSS } from "./content-stg.ts";
 export const contentCSS: string = [
   contentLayoutCSS,
   contentRepoCSS,
   contentCreatorCSS,
   contentDiagCSS,
   contentUtilCSS,
+  contentStgCSS,
 ].join("\n");

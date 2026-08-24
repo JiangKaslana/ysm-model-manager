@@ -1,6 +1,7 @@
 // ===== 诊断页(diag-*) + 性能(perf-*) + 日志(log-*) + 冲突(conflict-*) + 扫描(scan-*) + 设置页残留 + 工坊 GitHub（gh-* 全族）+ 二级菜单 + 模型列表行 + 队列状态 =====
 export const contentDiagCSS: string = `
-/* 设置页卡片/路径样式已迁 components.css；此处仅保留 :host-context 作用域规则 */
+/* 设置页 .stg-* 与通用 .tab-body 已迁 content-stg.ts 并入 shadow（content-css 组合层）；
+   components.css 仅服务全局 document 层 dialogs（.dlg-*/.afv-*/.mc-pick-*/.br-* 等），不再含 stg */
 .settings-group { padding:0 16px; }
 .setting-row { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--surf); border-radius:var(--radius-md); margin-bottom:4px; font-size:var(--fs-md); animation:fadeSlideUp var(--tr-enter) both; }
 .setting-row .label { color:var(--txt); }

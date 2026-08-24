@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 149 | 594 |
-| frontend/views | 115 | 330 |
+| frontend/views | 116 | 331 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **460** | **1980** |
+| **合计** | **461** | **1981** |
 
 ## Go·头像
 
@@ -1876,10 +1876,11 @@
 | `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:295` | 合并社区站点到本地 workshop_sites.json |
 | `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:316` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
-| `contentCSS()` | `frontend/src/views/app-content/content-css:12` | — |
+| `contentCSS()` | `frontend/src/views/app-content/content-css:13` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:2` | — |
 | `contentLayoutCSS()` | `frontend/src/views/app-content/content-layout:5` | — |
 | `contentRepoCSS()` | `frontend/src/views/app-content/content-repo:2` | — |
+| `contentStgCSS()` | `frontend/src/views/app-content/content-stg:7` | — |
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:16` | — |
 | `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:129` | — |
