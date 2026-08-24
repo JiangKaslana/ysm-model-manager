@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-23T23:26:57.217Z",
+  "generated": "2026-08-24T03:49:10.771Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|esbuild",
@@ -78,6 +78,7 @@
     "src/utils/resource/schema.ts|types|ResourceTypeVariant",
     "src/utils/resource/schema.ts|types|ZipEntryMatch",
     "src/utils/resource/types.ts|exports|matchTypeByExt",
+    "src/views/app-content/diagnostics/conflicts.ts|exports|scanSyncConflicts",
     "src/views/app-content/diagnostics/perf-cli.ts|exports|setHTML",
     "src/views/app-content/diagnostics/perf-trace.ts|exports|formatTime",
     "src/views/app-preview/fbx-3d.ts|exports|cleanupFbx3D",

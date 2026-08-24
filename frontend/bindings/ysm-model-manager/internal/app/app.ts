@@ -226,6 +226,16 @@ export function DeleteResourcePack(path: string, rtype: string): $CancellablePro
 }
 
 /**
+ * DetectConflicts 检测指定整合包与全局仓库之间的文件冲突
+ * rtype: 资源类型 ID
+ * instanceName: 整合包名称
+ * 返回冲突报告 JSON
+ */
+export function DetectConflicts(rtype: string, instanceName: string): $CancellablePromise<string> {
+    return $Call.ByID(2472631939, rtype, instanceName);
+}
+
+/**
  * DetectResourceType 检测指定文件的资源类型
  */
 export function DetectResourceType(path: string): $CancellablePromise<string> {
@@ -321,9 +331,10 @@ export function ExtractYsmSummary(path: string): $CancellablePromise<ysm$0.YsmSu
 /**
  * FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。
  * 契约（见 docs/wails-bindings.md）：成功 → DedupGroup[]；失败 → {error: string}。
+ * configStr: 可选的去重配置 JSON 字符串，格式: {"strategy":"...", "keepPolicy":"...", "priorityPath":"..."}
  */
-export function FindDuplicateFiles(dir: string): $CancellablePromise<string> {
-    return $Call.ByID(1295941240, dir);
+export function FindDuplicateFiles(dir: string, ...configStr: string[]): $CancellablePromise<string> {
+    return $Call.ByID(1295941240, dir, configStr);
 }
 
 /**
@@ -966,6 +977,18 @@ export function ResetResourceRoot(rtype: string): $CancellablePromise<void> {
 
 export function ResetWorkshopConfigs(): $CancellablePromise<types$0.WorkshopSite[] | null> {
     return $Call.ByID(2959472146);
+}
+
+/**
+ * ResolveConflicts 批量解决冲突
+ * conflictsJSON: 冲突列表 JSON（来自 DetectConflicts）
+ * defaultStrategy: 默认解决策略 (force_remote/force_local/manual)
+ * rtype: 资源类型 ID
+ * instanceName: 整合包名称
+ * 返回解决结果 JSON
+ */
+export function ResolveConflicts(conflictsJSON: string, defaultStrategy: string, rtype: string, instanceName: string): $CancellablePromise<string> {
+    return $Call.ByID(1918295312, conflictsJSON, defaultStrategy, rtype, instanceName);
 }
 
 export function RestartApplication(): $CancellablePromise<void> {

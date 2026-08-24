@@ -36,7 +36,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 26 | 206 |
+| Go(internal)·应用入口 | 27 | 208 |
 | 前端·根 (app-modules/bus) | 4 | 18 |
 | frontend/backend | 18 | 97 |
 | 前端·核心 | 18 | 36 |
@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 149 | 595 |
-| frontend/views | 115 | 327 |
+| frontend/views | 115 | 328 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **458** | **1968** |
+| **合计** | **459** | **1971** |
 
 ## Go·头像
 
@@ -757,6 +757,8 @@
 | `App.OpenFolder()` | `internal/app/app_scan:609` | — |
 | `App.OpenInstanceFolder()` | `internal/app/app_scan:645` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
 | `progressReader.Read()` | `internal/app/app_scan:679` | — |
+| `App.DetectConflicts()` | `internal/app/app_sync:16` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
+| `App.ResolveConflicts()` | `internal/app/app_sync:52` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:29` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:38` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -1873,6 +1875,7 @@
 | `contentRepoCSS()` | `frontend/src/views/app-content/content-repo:2` | — |
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:16` | — |
+| `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:134` | — |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
 | `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
