@@ -99,13 +99,37 @@ fn scan_impl(root: &Path, policy: &ScanPolicy, include_banned_dirs: bool) -> Sca
     ScanReport { entries, errors }
 }
 
-#[derive(Debug)]
-struct Candidate {
-    name: String,
-    path: PathBuf,
-    ext: String,
-    subdir: String,
-    rtype: String,
+#[derive(Debug, Clone)]
+pub struct Candidate {
+    pub name: String,
+    pub path: PathBuf,
+    pub ext: String,
+    pub subdir: String,
+    pub rtype: String,
+}
+
+/// Manifest-driven scan: skip filesystem discovery (jwalk) entirely and resolve metadata
+/// for a pre-enumerated candidate list supplied by the Go scanner (which already walked the
+/// tree and classified entries). Used by the `ysm_scan_manifest` ABI to avoid duplicating
+/// Go's discovery work — see ADR-120.
+///
+/// Candidates whose ext is not supported by `policy` are dropped (caller must filter, but we
+/// guard here too so a stale manifest cannot inject unsupported entries).
+pub fn scan_impl_manifest(mut candidates: Vec<Candidate>, policy: &ScanPolicy) -> ScanReport {
+    candidates.retain(|c| !c.ext.is_empty() && policy.supports_ext(&c.ext));
+    let resolved: Vec<Result<ModelEntry, ScanError>> =
+        candidates.into_par_iter().map(resolve_metadata).collect();
+    let mut entries = Vec::new();
+    let mut errors = Vec::new();
+    for item in resolved {
+        match item {
+            Ok(entry) => entries.push(entry),
+            Err(err) => errors.push(err),
+        }
+    }
+    entries.sort_by(|a, b| a.path.cmp(&b.path));
+    errors.sort_by(|a, b| a.path.cmp(&b.path));
+    ScanReport { entries, errors }
 }
 
 fn resolve_metadata(candidate: Candidate) -> Result<ModelEntry, ScanError> {

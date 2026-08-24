@@ -1,4 +1,4 @@
-use crate::response::{scan_json, ScanResponse};
+use crate::response::{scan_json, scan_json_manifest, ScanResponse};
 use std::{panic::AssertUnwindSafe, ptr, slice, str};
 
 /// Owned byte buffer returned across the C ABI.
@@ -60,6 +60,42 @@ pub unsafe extern "C" fn ysm_scan_json(
         let root = input_utf8(root_ptr, root_len, "root")?;
         let registry = input_utf8(registry_ptr, registry_len, "registry")?;
         Ok::<_, String>(scan_json(root, registry))
+    }));
+    let response = match result {
+        Ok(Ok(response)) => response,
+        Ok(Err(error)) => ScanResponse::fatal(error),
+        Err(_) => ScanResponse::fatal("Rust scanner panicked"),
+    };
+    // SAFETY: null was rejected above and the caller owns writable output storage.
+    unsafe { ptr::write(out, encode_response(response)) };
+    0
+}
+
+/// Scan one library root using a pre-enumerated manifest supplied by the Go scanner,
+/// skipping filesystem discovery. `manifest_ptr`/`manifest_len` carry a UTF-8 JSON array of
+/// manifest entries. See ADR-120.
+///
+/// # Safety
+/// Non-empty input pointers must reference their declared readable byte ranges. `out` must
+/// point to writable storage for one [`YsmBuffer`].
+#[no_mangle]
+pub unsafe extern "C" fn ysm_scan_manifest(
+    root_ptr: *const u8,
+    root_len: usize,
+    registry_ptr: *const u8,
+    registry_len: usize,
+    manifest_ptr: *const u8,
+    manifest_len: usize,
+    out: *mut YsmBuffer,
+) -> i32 {
+    if out.is_null() {
+        return -1;
+    }
+    let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let root = input_utf8(root_ptr, root_len, "root")?;
+        let registry = input_utf8(registry_ptr, registry_len, "registry")?;
+        let manifest = input_utf8(manifest_ptr, manifest_len, "manifest")?;
+        Ok::<_, String>(scan_json_manifest(root, registry, manifest))
     }));
     let response = match result {
         Ok(Ok(response)) => response,

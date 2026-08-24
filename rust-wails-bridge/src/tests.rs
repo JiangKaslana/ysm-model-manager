@@ -1,5 +1,5 @@
 use super::*;
-use crate::response::scan_json;
+use crate::response::{scan_json, scan_json_manifest};
 use serde_json::Value;
 use std::{
     fs,
@@ -152,4 +152,101 @@ fn c_abi_buffer_can_be_released() {
     let value: Value = serde_json::from_slice(json).unwrap();
     assert_eq!(value["entries"].as_array().unwrap().len(), 1);
     unsafe { ysm_buffer_free(buffer.ptr, buffer.len, buffer.cap) };
+}
+
+/// ADR-120 核心契约：manifest 路径（Go 预枚举）产出 == jwalk 路径（ysm_scan_json）产出。
+/// 同一棵树，两种发现方式，最终 entries 必须逐字段一致（路径/大小/扩展名/哈希/ModTime）。
+#[test]
+fn manifest_scan_matches_jwalk_scan() {
+    let root = TempRoot::new();
+    fs::write(root.0.join("hero.ysm"), b"hero-content").unwrap();
+    let model_dir = root.0.join("official-winefox");
+    fs::create_dir_all(&model_dir).unwrap();
+    fs::write(model_dir.join("ysm.json"), b"{}").unwrap();
+    // 注意：registry 仅放行 .ysm + ysm.json（is_model_json_name 白名单），
+    // animation.json 等非 ysm.json 的 .json 被 jwalk 过滤——manifest 必须与此口径一致。
+
+    let root_text = root.0.to_string_lossy();
+    let registry_text = registry();
+    // Windows 路径反斜杠需转义为 JSON 合法字符串；用正斜杠等价（PathBuf 接受）
+    let hero_path = root.0.join("hero.ysm").to_string_lossy().replace('\\', "/");
+    let ysmjson_path = model_dir.join("ysm.json").to_string_lossy().replace('\\', "/");
+
+    // jwalk 基准
+    let jwalk = serde_json::to_value(scan_json(&root_text, registry_text)).unwrap();
+    let jwalk_entries = jwalk["entries"].as_array().unwrap();
+    assert_eq!(jwalk_entries.len(), 2, "jwalk 应产出 2 条（hero.ysm / ysm.json 目录）");
+
+    // manifest：仅列 jwalk 真会产出的 2 条（路径绝对、ext/name/subdir/rtype 对齐）
+    let manifest = format!(
+        r#"[
+            {{"Path":"{}","Ext":".ysm","Name":"hero.ysm","subdir":"","rtype":"ysm"}},
+            {{"Path":"{}","Ext":".json","Name":"official-winefox","subdir":"","rtype":"ysm"}}
+        ]"#,
+        hero_path, ysmjson_path,
+    );
+
+    let manifest_value =
+        serde_json::to_value(scan_json_manifest(&root_text, registry_text, &manifest)).unwrap();
+    let manifest_entries = manifest_value["entries"].as_array().unwrap();
+    assert_eq!(manifest_entries.len(), 2, "manifest 应产出 2 条");
+
+    // 按 Path 排序后逐字段比对
+    let sort_by_path = |v: &Value| -> Vec<Value> {
+        let mut arr: Vec<Value> = v["entries"].as_array().unwrap().clone();
+        arr.sort_by(|a, b| a["Path"].as_str().cmp(&b["Path"].as_str()));
+        arr
+    };
+    let jwalk_sorted = sort_by_path(&jwalk);
+    let manifest_sorted = sort_by_path(&manifest_value);
+
+    for (j, m) in jwalk_sorted.iter().zip(manifest_sorted.iter()) {
+        // Windows 路径分隔符：jwalk 产出反斜杠，manifest 输入正斜杠，归一化后比对
+        let j_path = j["Path"].as_str().unwrap().replace('\\', "/");
+        let m_path = m["Path"].as_str().unwrap().replace('\\', "/");
+        assert_eq!(j_path, m_path, "Path 必须一致（分隔符归一化）");
+        assert_eq!(j["Ext"], m["Ext"], "Ext 必须一致");
+        assert_eq!(j["Name"], m["Name"], "Name 必须一致");
+        assert_eq!(j["Size"], m["Size"], "Size 必须一致");
+        assert_eq!(j["Hash"], m["Hash"], "Hash 必须一致（同一文件 sha256）");
+        assert_eq!(j["ModTime"], m["ModTime"], "ModTime 必须一致");
+    }
+    assert_eq!(manifest_value["cacheable"], true);
+}
+
+/// manifest 含 policy 不支持的 ext → 被 scan_impl_manifest 丢弃，不产生条目（不 panic）。
+#[test]
+fn manifest_drops_unsupported_ext() {
+    let root = TempRoot::new();
+    fs::write(root.0.join("note.txt"), b"x").unwrap();
+    let note_path = root.0.join("note.txt").to_string_lossy().replace('\\', "/");
+    let manifest = format!(
+        r#"[{{"Path":"{}","Ext":".txt","Name":"note.txt","subdir":"","rtype":"ysm"}}]"#,
+        note_path,
+    );
+    let value = serde_json::to_value(scan_json_manifest(
+        &root.0.to_string_lossy(),
+        registry(),
+        &manifest,
+    ))
+    .unwrap();
+    assert_eq!(value["entries"].as_array().unwrap().len(), 0);
+    assert_eq!(value["cacheable"], true);
+}
+
+/// 无效 manifest JSON → fatal，不 panic（ABI 安全网）。用存在的 root 排除 not-readable 分支。
+#[test]
+fn invalid_manifest_is_fatal() {
+    let root = TempRoot::new();
+    let value = serde_json::to_value(scan_json_manifest(
+        &root.0.to_string_lossy(),
+        registry(),
+        "not-json",
+    ))
+    .unwrap();
+    assert_eq!(value["entries"], Value::Array(vec![]));
+    assert!(value["error"]
+        .as_str()
+        .unwrap()
+        .contains("invalid manifest json"));
 }
