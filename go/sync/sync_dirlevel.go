@@ -285,6 +285,9 @@ func syncResourcesDirLevel(globalDir, instanceDir, rtype string, scanFn ScanEntr
 }
 
 // collectEntriesWalk 原 filepath.Walk 实现（scanFn 未命中时回退，语义权威基准）。
+// 以下所有分支逻辑（isDirTypeModelFolder / containsModelSubfolder / 容器下钻注册自身键）
+// 均继承自原 SyncResourcesDirLevel 的 Walk 实现，保持与旧行为完全一致——
+// collectEntriesFromScan 的反推结果须与之等价（见 sync_dirlevel_scan_test.go）。
 func collectEntriesWalk(rootDir string, rtype string) map[string]string {
 	entries := make(map[string]string)
 	filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
@@ -367,21 +370,18 @@ func collectEntriesFromScan(entries []types.ModelEntry, rootDir, rtype string) m
 		modelFiles = append(modelFiles, e)
 	}
 
-	// directChildModelFolder 判定 parent 是否直接含子模型文件夹（对照 containsModelSubfolder）
-	directChildModelFolder := func(parent string) bool {
-		prefix := parent + sep
-		for d := range dirHasModelFile {
-			if d == parent {
-				continue
-			}
-			if strings.HasPrefix(d, prefix) {
-				rest := d[len(prefix):]
-				if !strings.Contains(rest, sep) {
-					return true
-				}
-			}
+	// directChildModelFolder 判定 parent 是否直接含子模型文件夹（对照 containsModelSubfolder）。
+	// 预处理一次 parent→直接子模型夹 反向索引，使每次查询 O(1)（原实现为 O(n_files × n_dirs)
+	// 全量扫描 dirHasModelFile，大仓库下有感知）。语义与原实现严格等价。
+	directChildModelDirs := make(map[string][]string)
+	for d := range dirHasModelFile {
+		p := filepath.Dir(d)
+		if p == rootDir || strings.HasPrefix(p, rootDir+sep) {
+			directChildModelDirs[p] = append(directChildModelDirs[p], d)
 		}
-		return false
+	}
+	directChildModelFolder := func(parent string) bool {
+		return len(directChildModelDirs[parent]) > 0
 	}
 
 	out := make(map[string]string)
