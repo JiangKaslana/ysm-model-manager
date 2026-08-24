@@ -49,12 +49,17 @@ const SHADOW_DOMAINS = [
       "frontend/src/views/app-content/content-diag.ts",
       "frontend/src/views/app-content/content-util.ts",
       "frontend/src/views/app-content/content-stg.ts",
+      // app-sync-manager 光 DOM 自定义元素内嵌在 app-content shadow 内，其 tpl.ts 内联了 .sm-* 样式 + @keyframes sk-shimmer，
+      // 作为本域 css 源参与 keyframes/class 聚合（同时也在下方 html 扫描其 class 使用）。
+      "frontend/src/views/app-sync-manager/tpl.ts",
     ],
     // 使用 app-content 样式层的 tpl/组件（HTML 模板字符串 + 行内 class）
+    // 含 app-sync-manager（光 DOM 自定义元素，被内嵌在 app-content shadow 内，共享其样式层）
     html: [
       "frontend/src/views/app-content/tpl-settings.ts",
       "frontend/src/views/app-content/settings/path-cards.ts",
       "frontend/src/views/app-content/index.ts",
+      "frontend/src/views/app-sync-manager/tpl.ts",
     ],
   },
   {
@@ -158,6 +163,29 @@ for (const dom of SHADOW_DOMAINS) {
     if (!kf.has(r)) {
       errorCount++;
       problems.push(`[ERROR] ${dom.name}: animation 引用 @keyframes '${r}' 但在本 shadow 层无定义（跨 shadow keyframe 静默失效）`);
+    }
+  }
+}
+
+// ── 检查 1b：shadow tpl 内联 style="animation:<name>..." 引用的 keyframe 是否同层有 @keyframes ──
+// 覆盖 app-sync-manager 等光 DOM 子树：其内联 style 的 animation 引用在 app-content shadow 层生效，
+// 若同层无 @keyframes 则静默失效（与检查 1 同理，但源在内联 HTML 而非 CSS 文件）。
+for (const dom of SHADOW_DOMAINS) {
+  let cssAgg = "";
+  for (const f of dom.css) {
+    const t = readSafe(f);
+    if (t) cssAgg += "\n" + t;
+  }
+  const kf = extractKeyframes(cssAgg);
+  for (const f of dom.html) {
+    const t = readSafe(f);
+    if (!t) continue;
+    const refs = extractAnimationRefs(t); // 复用：内联 style 的 animation: 同语法
+    for (const r of refs) {
+      if (!kf.has(r)) {
+        errorCount++;
+        problems.push(`[ERROR] ${dom.name}: tpl ${path.basename(f)} 内联 style 引用 @keyframes '${r}' 但在本 shadow 层无定义（跨 shadow keyframe 静默失效）`);
+      }
     }
   }
 }
