@@ -101,6 +101,12 @@ export const contentStgCSS: string = `
 /* ===== 通用 tab-body（跨设置/仓库/ins/gh/cr 各 tab 复用，归位 shadow） ===== */
 .tab-body { flex:1;display:flex;flex-direction:column;overflow:hidden; }
 
+/* ===== 设置页分组/行（从 content-diag.ts 收口；tpl-settings.ts 仍消费，属 settings 资产） ===== */
+.settings-group { padding:0 16px; }
+.setting-row { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--surf); border-radius:var(--radius-md); margin-bottom:4px; font-size:var(--fs-md); animation:fadeSlideUp var(--tr-enter) both; }
+.setting-row .label { color:var(--txt); }
+.setting-row .value { color:var(--muted); }
+
 /* ===== 设置页 tab 按钮（从 content-repo.ts 拆出，设置页资产不归仓库域托管） ===== */
 /* 本地化 keyframe：shadow 内引用全局 fadeSlideDown 不生效（keyframes 不穿 shadow），故本地定义 stgTabIn */
 .stg-tab { padding:var(--pad-nav) 14px;border-radius:var(--radius-md) var(--radius-md) 0 0;border:1px solid transparent;border-bottom:2px solid transparent;background:transparent;color:var(--muted);cursor:pointer;font-size:var(--fs-nav);font-family:inherit;transition:var(--tr-normal);white-space:nowrap;min-height:var(--touch-min);animation:stgTabIn var(--tr-enter) both; }

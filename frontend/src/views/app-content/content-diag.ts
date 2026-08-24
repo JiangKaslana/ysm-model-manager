@@ -1,12 +1,7 @@
-// ===== 诊断页(diag-*) + 性能(perf-*) + 日志(log-*) + 冲突(conflict-*) + 扫描(scan-*) + 设置页残留 + 工坊 GitHub（gh-* 全族）+ 二级菜单 + 模型列表行 + 队列状态 =====
+// ===== 诊断页(diag-*) + 性能(perf-*) + 日志(log-*) + 冲突(conflict-*) + 扫描(scan-*) + 工坊 GitHub（gh-* 全族）+ 二级菜单 + 模型列表行 + 队列状态 =====
+// 注：设置页 .stg-* / .tab-body / .settings-group / .setting-row 已收口 content-stg.ts（并入 shadow）；
+//     components.css 仅服务全局 document 层 dialogs（.dlg-*/.afv-*/.mc-pick-*/.br-* 等），不再含 stg/settings。
 export const contentDiagCSS: string = `
-/* 设置页 .stg-* 与通用 .tab-body 已迁 content-stg.ts 并入 shadow（content-css 组合层）；
-   components.css 仅服务全局 document 层 dialogs（.dlg-*/.afv-*/.mc-pick-*/.br-* 等），不再含 stg */
-.settings-group { padding:0 16px; }
-.setting-row { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--surf); border-radius:var(--radius-md); margin-bottom:4px; font-size:var(--fs-md); animation:fadeSlideUp var(--tr-enter) both; }
-.setting-row .label { color:var(--txt); }
-.setting-row .value { color:var(--muted); }
-
 /* ===== 诊断页面：左栏按钮 + 右栏信息 ===== */
 .log-row { padding:3px 16px; display:flex; gap:6px; font-size:var(--fs-base); align-items:center; border-bottom:1px solid var(--bd); }
 .log-row .log-status { font-size:var(--fs-sm); width:20px; text-align:center; }

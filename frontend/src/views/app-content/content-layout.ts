@@ -29,9 +29,12 @@ export const contentLayoutCSS: string = `
    document 层定义的 keyframes 不穿透 Shadow DOM 边界，shadow 内 .stg-card / .setting-row /
    .gh-card / .repo-tab / .recy-item / .rm-* 等引用的 fadeSlide*/breathe-subtle 必须在本层重定义。
    components.css 的全局副本仅服务 document 层光 DOM（dialog 等），两处定义并存但作用域不同。 */
-@keyframes fadeSlideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-@keyframes fadeSlideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
-@keyframes fadeSlideLeft { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:translateX(0); } }
+/* 注意：以下 4 个本地化 keyframe 必须与 frontend/css/components.css 全局副本逐字节一致
+   （translateY(6px)/translateY(-4px)/translateX(-8px)），否则 document 层 dialog 与
+   shadow 内容会用同名不同参动画，造成观感分裂（见评审 2026-08-24 第 1 条）。 */
+@keyframes fadeSlideUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeSlideDown { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeSlideLeft { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
 @keyframes breathe-subtle { 0%,100% { filter:brightness(1); } 50% { filter:brightness(1.18); } }
 
 /* ===== 页头 & 段落标题（跨域通用） ===== */

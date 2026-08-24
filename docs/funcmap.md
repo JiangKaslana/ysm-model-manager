@@ -1878,7 +1878,7 @@
 | `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:316` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:14` | — |
-| `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:2` | — |
+| `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:4` | — |
 | `contentLayoutCSS()` | `frontend/src/views/app-content/content-layout:10` | — |
 | `contentRepoCSS()` | `frontend/src/views/app-content/content-repo:2` | — |
 | `contentStgCSS()` | `frontend/src/views/app-content/content-stg:7` | — |

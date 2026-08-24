@@ -130,3 +130,6 @@ test.describe("设置页", () => {
     expect(styles.tabFlexDir).toBe("column");
   });
 });
+// 注：本 computed-style 断言仅锚定 .stg-card / .tab-body 两个类，证明「shadow 内样式真实生效」机制成立；
+// 非「设置页全部样式均生效」的全面证明。其余类（.stg-title/.stg-grid/.settings-group/.setting-row 等）
+// 由 scripts/css-layer-check.mjs（pre-push 门禁）兜越界，二者互补而非互替（评审 2026-08-24 第 4 条）。

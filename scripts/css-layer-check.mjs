@@ -39,6 +39,42 @@ if (process.env.YSM_SKIP_CSS_LAYER === "1") {
 
 // ── Shadow 域定义：每域 = 一组 CSS 源 + 一组使用这些类的 HTML/tpl 源 ──
 // app-content 由 content-css.ts 组合 6 个域文件；sidebar / app-tree / app-preview 各自独立。
+
+// app-content 的 html 源不再用手写清单（手写清单是第二批漂移事实源，见评审 2026-08-24 第 2 条）。
+// 改为递归聚合 frontend/src/views/app-content/ 下「实际渲染进 shadow 的模板」：
+//   - tpl*.ts（tpl.ts / tpl-settings.ts / tpl-settings-about.ts / tpl-recycle.ts 等，排除 .test.ts）
+//   - settings/ 下的模板（path-cards.ts 等；排除 store/theme/keymap/ui-prefs/worker-prefs/init 等纯逻辑 + .test.ts）
+//   - init-pages.ts（页面注册聚合入口）
+//   - app-sync-manager/tpl.ts（光 DOM 子树，内嵌在 app-content shadow 内，共享其样式层）
+// 新增模板文件自动纳入，机检不再漏扫。
+const SETTINGS_LOGIC_EXCLUDE = new Set([
+  "store.ts", "theme.ts", "keymap.ts", "ui-prefs.ts", "worker-prefs.ts", "init.ts",
+]);
+function collectAppContentHtml() {
+  const base = path.resolve(ROOT, "frontend/src/views/app-content");
+  const out = [];
+  // 顶层 tpl*.ts（非测试）
+  for (const f of fs.readdirSync(base)) {
+    if (/^tpl.*\.ts$/.test(f) && !f.endsWith(".test.ts")) out.push(path.join(base, f));
+  }
+  // settings/ 下模板（排除纯逻辑与测试）
+  const settingsDir = path.join(base, "settings");
+  if (fs.existsSync(settingsDir)) {
+    for (const f of fs.readdirSync(settingsDir)) {
+      if (f.endsWith(".test.ts")) continue;
+      if (SETTINGS_LOGIC_EXCLUDE.has(f)) continue;
+      out.push(path.join(settingsDir, f));
+    }
+  }
+  // init-pages.ts
+  const initPages = path.join(base, "init-pages.ts");
+  if (fs.existsSync(initPages)) out.push(initPages);
+  // app-sync-manager/tpl.ts（内嵌 shadow 子树）
+  const smTpl = path.resolve(ROOT, "frontend/src/views/app-sync-manager/tpl.ts");
+  if (fs.existsSync(smTpl)) out.push(smTpl);
+  return out.map((p) => path.relative(ROOT, p).split(path.sep).join("/"));
+}
+
 const SHADOW_DOMAINS = [
   {
     name: "app-content",
@@ -53,14 +89,8 @@ const SHADOW_DOMAINS = [
       // 作为本域 css 源参与 keyframes/class 聚合（同时也在下方 html 扫描其 class 使用）。
       "frontend/src/views/app-sync-manager/tpl.ts",
     ],
-    // 使用 app-content 样式层的 tpl/组件（HTML 模板字符串 + 行内 class）
-    // 含 app-sync-manager（光 DOM 自定义元素，被内嵌在 app-content shadow 内，共享其样式层）
-    html: [
-      "frontend/src/views/app-content/tpl-settings.ts",
-      "frontend/src/views/app-content/settings/path-cards.ts",
-      "frontend/src/views/app-content/index.ts",
-      "frontend/src/views/app-sync-manager/tpl.ts",
-    ],
+    // html 源由 collectAppContentHtml() 递归聚合（见上方说明），不再手写清单。
+    html: collectAppContentHtml(),
   },
   {
     name: "sidebar",
@@ -82,6 +112,13 @@ const SHADOW_DOMAINS = [
 // document 层类白名单：这些类定义在 components.css（全局 <link>），被 document 层 DOM 用，
 // 不进 shadow，故 shadow tpl 不应引用它们（若引用是潜在越界，但此处不阻断，仅统计）。
 const DOCUMENT_LAYER_FILE = "frontend/css/components.css";
+
+// 已知「仅作 JS 钩子/容器锚点、样式全靠内联 style= 写死、无独立 shadow CSS 规则」的类。
+// 这些类带本域专属前缀但刻意无 CSS 定义，属合法状态位，非漏迁。
+// 未来若真要给它们加 shadow CSS 规则，从此集移除即会触发 WARN，倒逼复核（评审 2026-08-24 第 2 条）。
+const KNOWN_NO_CSS_CLASSES = new Set([
+  "recy-page", "repo-left", "diag-log-filter", "ws-creators-list", "ws-browser-bar", "ws-url",
+]);
 
 // 提取 CSS 文本中的类名（.foo / .foo-bar）与 @keyframes 名
 function extractClasses(cssText) {
@@ -131,7 +168,7 @@ function extractHtmlClasses(htmlText) {
 // 各域「专属前缀」：本域内定义、不应出现在 document 层/其他域的专属类。
 // 仅当类名匹配本域专属前缀且本域无定义时 WARN（精准锁定"自己域的专属类漏定义"）。
 const DOMAIN_PREFIXES = {
-  "app-content": ["stg-", "repo-", "cr-", "gh-", "ws-", "diag-", "recy-", "rm-", "set-", "page", "section-title", "stat-card", "placeholder-box", "ptag"],
+  "app-content": ["stg-", "repo-", "cr-", "gh-", "ws-", "diag-", "recy-", "rm-", "set-", "settings-", "page", "section-title", "stat-card", "placeholder-box", "ptag"],
   sidebar: ["instance-card", "card-", "footer", "sk-", "tag", "pkg-icon", "list"],
   "app-tree": ["tree-", "node-"],
   "app-preview": ["preview", "dp-"],
@@ -192,7 +229,7 @@ for (const dom of SHADOW_DOMAINS) {
 
 // ── 检查 2：反向断言 components.css 不含已回迁 shadow 的类 ──
 const compCss = readSafe(DOCUMENT_LAYER_FILE) || "";
-for (const forbidden of [/\.stg-[a-z-]+/, /\.tab-body\b/]) {
+for (const forbidden of [/\.stg-[a-z-]+/, /\.tab-body\b/, /\.settings-group\b/, /\.setting-row\b/]) {
   const re = new RegExp(forbidden.source, "g");
   if (re.test(compCss)) {
     errorCount++;
@@ -215,7 +252,7 @@ for (const dom of SHADOW_DOMAINS) {
     const used = extractHtmlClasses(t);
     for (const c of used) {
       const isOwnPrefix = prefixes.some((p) => c === p || c.startsWith(p));
-      if (isOwnPrefix && !cssClasses.has(c)) {
+      if (isOwnPrefix && !cssClasses.has(c) && !KNOWN_NO_CSS_CLASSES.has(c)) {
         warnCount++;
         problems.push(`[WARN] ${dom.name}: tpl ${path.basename(f)} 使用本域专属类 '${c}' 但在本 shadow 层无定义（疑似漏迁/误归全局，需人工确认）`);
       }

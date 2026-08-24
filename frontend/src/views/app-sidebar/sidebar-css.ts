@@ -62,5 +62,7 @@ ${btnBaseCSS}
 }
 /* 本地化 fadeSlideLeft：.instance-card (L30) 引用，document 层 components.css 定义的同名 keyframes
    不穿透 Shadow DOM 边界，须在 sidebar shadow 内重定义。 */
-@keyframes fadeSlideLeft { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:translateX(0); } }
+/* 本地化 keyframe：与 content-layout.ts / components.css 副本逐字节一致（translateX(-8px)），
+   违则 sidebar 与 app-content 同名动画幅度分裂（评审 2026-08-24 第 1 条）。 */
+@keyframes fadeSlideLeft { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
 `;
