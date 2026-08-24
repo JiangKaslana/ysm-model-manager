@@ -26,7 +26,7 @@
 | Go·路径 | 1 | 6 |
 | Go·回收站 | 2 | 19 |
 | go/repoaudit | 1 | 9 |
-| go/rustbridge | 2 | 3 |
+| go/rustbridge | 2 | 4 |
 | go/scanner | 1 | 10 |
 | Go·同步 | 8 | 36 |
 | Go·标签 | 1 | 8 |
@@ -48,7 +48,7 @@
 | frontend/views | 116 | 331 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **461** | **1981** |
+| **合计** | **461** | **1982** |
 
 ## Go·头像
 
@@ -383,7 +383,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Scan()` | `go/rustbridge/bridge_windows:24` | — |
+| `Scan()` | `go/rustbridge/bridge_windows:27` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_windows:72` | ScanManifest 使用 Go 预枚举的文件清单调用 Rust，跳过 Rust 侧的文件系统发现（jwalk）。 |
 | `ScanError()` | `go/rustbridge/types_windows:7` | — |
 | `ScanResponse()` | `go/rustbridge/types_windows:12` | — |
 

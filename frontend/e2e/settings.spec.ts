@@ -86,4 +86,47 @@ test.describe("设置页", () => {
     expect(text.trim().length).toBeGreaterThan(0);
     expect(text).not.toContain("Loading");
   });
+
+  test("设置页 stg-card / tab-body 样式在 shadow 内真实生效（computed style 断言）", async ({ page }) => {
+    // 背景：2026-08-24 复盘——.stg-* / .tab-body 曾误置于全局 components.css <link>，
+    // 被 app-content 的 Shadow DOM 边界阻断，computed style 全裸奔（CI 全绿但视觉失效）。
+    // 纯 DOM 存在性断言抓不到此类回归，必须断言 computed style。
+    // 进入设置页（第 6 个 nav）
+    const navItems = page.locator('[data-testid="nav-item"]');
+    await navItems.nth(5).click();
+    await page.waitForFunction(
+      () => {
+        const content = document.querySelector("app-content");
+        const card = content?.shadowRoot?.querySelector(".stg-card");
+        return Boolean(card);
+      },
+      undefined,
+      { timeout: 10000, polling: 200 },
+    );
+
+    const styles = await page.evaluate(() => {
+      const content = document.querySelector("app-content")!;
+      const sr = content.shadowRoot!;
+      const card = sr.querySelector(".stg-card") as HTMLElement;
+      const tabBody = sr.querySelector(".tab-body") as HTMLElement;
+      const cs = card ? getComputedStyle(card) : null;
+      const tcs = tabBody ? getComputedStyle(tabBody) : null;
+      return {
+        cardBorderStyle: cs?.borderTopStyle ?? "missing",
+        cardBorderWidth: cs?.borderTopWidth ?? "missing",
+        cardBackground: cs?.backgroundColor ?? "missing",
+        tabDisplay: tcs?.display ?? "missing",
+        tabFlexDir: tcs?.flexDirection ?? "missing",
+      };
+    });
+
+    // .stg-card 必须有边框（border:1px solid var(--bd)）→ 裸奔时为 'none' / '0px'
+    expect(styles.cardBorderStyle).toBe("solid");
+    expect(styles.cardBorderWidth).not.toBe("0px");
+    // .stg-card 背景应取自 --surf（非透明初始值）
+    expect(styles.cardBackground).not.toBe("rgba(0, 0, 0, 0)");
+    // .tab-body 必须 flex 布局（display:flex;flex-direction:column）
+    expect(styles.tabDisplay).toBe("flex");
+    expect(styles.tabFlexDir).toBe("column");
+  });
 });
