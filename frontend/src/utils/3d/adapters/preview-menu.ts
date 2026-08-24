@@ -47,7 +47,8 @@ export interface PreviewMenuCtx {
   /** 3D 渲染器容器：点击该区域关闭菜单（不再全局点击杀弹窗） */
   getViewContainer: () => HTMLElement;
   close: () => void;
-  switchTo: (path: string, options?: { keepInScene?: boolean }) => void;
+  /** 切换模型（同源复用外壳替换）。返回 Promise 供调用方在完成后局部刷新（如 fillSwitch 列表重渲染）；mount 层透传 handle.switchTo 的 Promise */
+  switchTo: (path: string, options?: { keepInScene?: boolean }) => Promise<void> | void;
   /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标，由 app 层 openModel3DFullscreen 提供）。
    *  第二参透传 siblings，切换后新会话「当前目录」tab 有候选（P1-2） */
   switchExternal?: (path: string, siblings?: string[], options?: { keepInScene?: boolean }) => Promise<void> | void;
@@ -991,7 +992,7 @@ const PREVIEW_LAST_RTYPE_KEY = "ysm.preview.lastRtype";
  *  默认高亮优先级：① 用户手动记忆的类型（localStorage）② 当前模型自身类型（getCurrentRtype）
  *  ③ 第一个类型 tab。「当前目录」tab 已移除（记忆/当前类型生效后可少一个 tab）；
  *  rtypes 为空（无注册路由）时仍走 siblings 列表兜底，不空白。 */
-function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
+function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void, menu: SlideMenuHandle): void {
   const cur = ctx.getCurrentPath();
   const rtypes = ctx.getTypeTabs?.() ?? [];
   const curRtype = ctx.getCurrentRtype?.() ?? "";
@@ -1107,22 +1108,23 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
             "width:22px;height:22px;flex-shrink:0;background:rgba(255,255,255,0.08);border:none;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;margin-left:auto";
           append.onclick = (ev): void => {
             ev.stopPropagation();
-            closePopup();
-            if (!sameType && ctx.switchExternal) {
-              void ctx.switchExternal(p, ctx.getSiblings(), { keepInScene: true });
-            } else {
-              void ctx.switchTo(p, { keepInScene: true });
+            // 追加（keepInScene 同台）：不清场景、不关菜单——完成后局部刷新列表（✓ 高亮归位）
+            const r = !sameType && ctx.switchExternal
+              ? ctx.switchExternal(p, ctx.getSiblings(), { keepInScene: true })
+              : ctx.switchTo(p, { keepInScene: true });
+            if (r && typeof (r as Promise<void>).then === "function") {
+              void (r as Promise<void>).then(() => menu.refresh());
             }
           };
           row.appendChild(append);
         }
         row.onclick = (): void => {
-          closePopup();
-          // 同类型 → switchTo 复用外壳；跨类型 → switchExternal 整段重建，并透传 siblings（P1-1 / P1-2）
-          if (!sameType && ctx.switchExternal) {
-            void ctx.switchExternal(p, ctx.getSiblings());
-          } else {
-            void ctx.switchTo(p);
+          // 替换：不关菜单、不清场景——切换完成后局部刷新列表（renderRows 重读新当前路径）
+          const r = !sameType && ctx.switchExternal
+            ? ctx.switchExternal(p, ctx.getSiblings())
+            : ctx.switchTo(p);
+          if (r && typeof (r as Promise<void>).then === "function") {
+            void (r as Promise<void>).then(() => menu.refresh());
           }
         };
         listBody.appendChild(row);
@@ -1493,7 +1495,7 @@ function fillRoles(
   const sep = document.createElement("div");
   sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
   list.appendChild(sep);
-  fillSwitch(list, ctx, closePopup);
+  fillSwitch(list, ctx, closePopup, menu);
 }
 
 /** 能力面板通用渲染：cap 存在 → renderCapControls；不存在 → 渲染单行 fallback 提示 */

@@ -363,10 +363,15 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       if (cleanupFn) cleanupFn();
       else closeOverlay();
     },
-    switchTo: (p: string, options?: { keepInScene?: boolean }) => {
+    switchTo: (p: string, options?: { keepInScene?: boolean }): Promise<void> | void => {
       const active = _handles[_handles.length - 1];
       const r = active?.handle.switchTo?.(p, options);
-      if (r) void r.catch((err: unknown) => logWarn("preview-menu", `switchTo 切换失败: ${String(err)}`));
+      // 透传 Promise：调用方（fillSwitch 替换/追加）在完成后局部刷新面板（renderRows 重读新当前路径）
+      if (r) {
+        void r.catch((err: unknown) => logWarn("preview-menu", `switchTo 切换失败: ${String(err)}`));
+        return r;
+      }
+      return undefined;
     },
     switchExternal: opts.switchExternal
       ? (p: string, s?: string[], options?: { keepInScene?: boolean }): void => {

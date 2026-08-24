@@ -227,4 +227,55 @@ describe("角色面板（roles）", () => {
       expect(roleBaseName(e), path).toBe(expected);
     }
   });
+
+  it("替换角色：点击行不关菜单，switchTo 完成后局部刷新列表（✓ 归位到新模型）", async () => {
+    // 可控异步 switchTo：resolve 后 getCurrentPath 指向新路径，验证 refresh 重渲染
+    let currentPath = "/m/a.ysm";
+    let resolveSwitch: (() => void) | null = null;
+    const switchTo = vi.fn((p: string) => {
+      return new Promise<void>((resolve) => {
+        resolveSwitch = () => {
+          currentPath = p;
+          resolve();
+        };
+      });
+    });
+    const handle = mountPreviewRootMenu(
+      overlay,
+      makeCtx({
+        getCurrentPath: () => currentPath,
+        getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
+        switchTo,
+      }),
+    );
+    // 🧍 → 角色列表 → 底部加载区（fillSwitch）列出候选
+    (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    const itemA = [...overlay.querySelectorAll('[data-testid="preview-switch-item"]')].find(
+      (el) => el.textContent?.includes("a.ysm"),
+    ) as HTMLElement | undefined;
+    const itemB = [...overlay.querySelectorAll('[data-testid="preview-switch-item"]')].find(
+      (el) => el.textContent?.includes("b.ysm"),
+    ) as HTMLElement | undefined;
+    expect(itemA).toBeDefined();
+    expect(itemB).toBeDefined();
+    // 点 b 行替换：菜单保持打开（不 closePopup）、switchTo 被调
+    itemB!.click();
+    expect(popup.style.display).toBe("flex");
+    expect(switchTo).toHaveBeenCalledWith("/m/b.ysm");
+    // switchTo resolve 后：列表局部刷新，新当前项 b 变 ✓（原 a 行恢复 📦）
+    resolveSwitch!();
+    await Promise.resolve();
+    await Promise.resolve();
+    const itemANew = [...overlay.querySelectorAll('[data-testid="preview-switch-item"]')].find(
+      (el) => el.textContent?.includes("a.ysm"),
+    ) as HTMLElement | undefined;
+    const itemBNew = [...overlay.querySelectorAll('[data-testid="preview-switch-item"]')].find(
+      (el) => el.textContent?.includes("b.ysm"),
+    ) as HTMLElement | undefined;
+    expect(itemBNew?.querySelector("span")?.textContent).toBe("✓");
+    expect(itemANew?.querySelector("span")?.textContent).toBe("📦");
+    handle.dispose();
+  });
 });
