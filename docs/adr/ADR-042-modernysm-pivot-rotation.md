@@ -1,6 +1,6 @@
 # ADR-042：渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植
 
-- **状态**：✅ 已采纳（§2.1 骨骼矩阵算法——旋转序 ZYX、cube 变换链已落地 commit b8fc3211，知识卡 go-threejs.md 沉淀；§2.1 四项核对 2026-08-24：scale ✅ 已落地、隐藏联动 ✅ 已落地、glow ✅ 已落地 commit a93b61ba（isGlowBone + BoneData.Glow + MeshStandardMaterial emissive）、世界坐标回填 ⏭️ 无需实现，验证脚本 `tests/verify-adr-042.mjs`；§2.2 bone 层二进制直读已落地（C++ 解析器 YSMParserV3.cpp:862-876 直读 pivot/rotation 并导出到 geometry JSON，我们已在用），cube 层反推猜错属另一条链路待解决；§2.3 基础动画链路已通——molangjs 源码内嵌 + compileMolang 求值器 + evaluateClip 关键帧插值，模型能按 .animation.json 动起来；blend/transition/状态机未接，属"动画切换平滑"增强）
+- **状态**：✅ 已采纳（§2.1 骨骼矩阵算法——旋转序 ZYX、cube 变换链已落地 commit b8fc3211，知识卡 go-threejs.md 沉淀；§2.1 四项核对 2026-08-24：scale ✅ 已落地、隐藏联动 ✅ 已落地、glow ✅ 已落地 commit a93b61ba（isGlowBone + BoneData.Glow + MeshStandardMaterial emissive）、世界坐标回填 ⏭️ 无需实现，验证脚本 `tests/verify-adr-042.mjs`；§2.2 bone 层二进制直读已落地（C++ 解析器 YSMParserV3.cpp:862-876 直读 pivot/rotation 并导出到 geometry JSON，我们已在用），cube 层反推猜错属另一条链路待解决；§2.3 基础动画链路已通——molangjs 源码内嵌 + compileMolang 求值器 + evaluateClip 关键帧插值，模型能按 .animation.json 动起来；transition 跨 clip 平滑过渡已落地 commit 163a6f09（selectClip 从当前姿态采集 rest + alpha 归零）；blend（多源混合）/ 状态机未接，属增强）
 - **日期**：2026-08-09
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`upstream/ModernYSM-1.20.1-forge` / `go/threejs/spec.go` / `frontend/src/utils/3d/model3d.ts` / `frontend/src/utils/animation/` / `docs/knowledge/ysm_baked.md` / `docs/knowledge/animation-system.md` / `tests/port-verification/`
@@ -76,7 +76,7 @@
 > | 4. molang builtin math | ✅ 已落地 | `molang-lib/math.js`（Sin/Cos/Atan2/Lerp/MinAngle… 整套直译） |
 > | molang 求值器 | ✅ 已落地 | `molang.ts` `compileMolang` 返回 `(animTime) => number` 闭包，被 `animation.ts:115,140` 调用 |
 > | 2. blend | ❌ 未接 | `grep blend` 整个 `frontend/src/utils/animation/` 零命中 |
-> | 3. transition | ❌ 未接 | `grep transition` 零命中 |
+> | 3. transition | ✅ 已落地（2026-08-24 commit 163a6f09） | `selectClip` 从当前姿态采集 rest + alpha 归零，跨 clip 切换平滑过渡（~0.2s），不再硬切 |
 > | 状态机 | ❌ 未接 | 无 `AnimationController`/predicate 优先级 |
 >
 > **molangjs 内嵌策略**：npm 的 molangjs 包因 `"type":"module"` + CJS dist 混用在 Node 测试环境连续报错，本项目采用**源码内嵌**——`frontend/src/utils/animation/molang-lib/` 保留 JannisX11 molangjs（MIT，Blockbench 官方依赖）原始版权头，本地路径 import，彻底避开 ESM/CJS 混用坑。单例 parser + `cache_enabled=true`（400 条 LRU），未知 query/variable → 0 优雅降级，Infinity/NaN → 0 守卫。
