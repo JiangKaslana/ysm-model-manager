@@ -11,6 +11,7 @@ import (
 
 	"ysm-model-manager/go/fsutil"
 	ysmsync "ysm-model-manager/go/sync"
+	"ysm-model-manager/go/scanner"
 	"ysm-model-manager/go/types"
 )
 
@@ -61,7 +62,9 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		// UI 粒度不一致误导；file-level 类型走 SyncResources（相对路径对比）
 		var result types.ResourceSyncResult
 		if types.IsDirLevelSync(rt.ID) {
-			result = ysmsync.SyncResourcesDirLevel(globalDir, instDir, rt.ID)
+			// 注入 scanner.ScanEntriesWithHit 复用刷新已缓存的扫描结果，
+			// 消除 8 个 MMD 子类型 ×(1+N 整合包) 对同一仓库树的重复 Walk
+			result = ysmsync.SyncResourcesDirLevelScan(globalDir, instDir, rt.ID, scanner.ScanEntriesWithHit)
 		} else {
 			result = ysmsync.SyncResources(globalDir, instDir, rt.ID)
 		}

@@ -223,58 +223,40 @@ func relKeyDirLevel(root, path string, isDir bool) string {
 //   - 平铺模型文件在任意深度收集
 //   - 模型文件夹在任意深度收集
 //   - 非模型空子目录跳过（SkipDir 优化），避免无意义遍历
+// ScanEntriesFn 可选注入：复用 scanner 已缓存的扫描结果，避免对已被扫描层走盘过的
+// 目录（如全局仓库根）重复全树 Walk。返回 (entries, hit)；hit=false 时调用方回退
+// filepath.Walk 原行为。
+type ScanEntriesFn func(dir string) ([]types.ModelEntry, bool)
+
+// SyncResourcesDirLevel 文件夹级同步（默认 filepath.Walk，行为不变，供测试/旧调用方使用）。
 func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceSyncResult {
+	return syncResourcesDirLevel(globalDir, instanceDir, rtype, nil)
+}
+
+// SyncResourcesDirLevelScan 同 SyncResourcesDirLevel，但注入 scanFn 复用扫描缓存，
+// 消除 8 个 MMD 子类型 ×(1+N 整合包) 对同一仓库树的重复 Walk（性能修复）。
+// scanFn 一般用 scanner.ScanEntriesWithHit；其结果带 30s TTL + single-flight，
+// 故 8×(N+1) 次调用对同一目录实际只走盘一次。无嵌套模式类型（MMD/YSM）从已扫描
+// 文件列表精确反推同步条目；含嵌套模式（maid-model 等）回退 filepath.Walk。
+func SyncResourcesDirLevelScan(globalDir, instanceDir, rtype string, scanFn ScanEntriesFn) types.ResourceSyncResult {
+	return syncResourcesDirLevel(globalDir, instanceDir, rtype, scanFn)
+}
+
+func syncResourcesDirLevel(globalDir, instanceDir, rtype string, scanFn ScanEntriesFn) types.ResourceSyncResult {
 	result := types.ResourceSyncResult{}
 
-	// collectEntries 单次 Walk 收集整棵树的同步单元：
-	// 以相对路径（relKeyDirLevel）为 key，保留完整目录层级。
+	// collectEntries 收集整棵树的同步单元：以相对路径（relKeyDirLevel）为 key，
+	// 保留完整目录层级。scanFn 命中时从已扫描文件列表反推（避免重复 Walk），
+	// 否则退回 filepath.Walk 原行为。
 	collectEntries := func(rootDir string) map[string]string {
-		entries := make(map[string]string)
-		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				log.Printf("[sync] Walk 错误 %s: %v", path, err)
-				return nil
-			}
-			if !info.IsDir() {
-				// 平铺模型文件：在任意深度收集（不再限定 rootDir 顶层）
-				if types.IsTypeModelFile(path, rtype) {
-					if key := relKeyDirLevel(rootDir, path, false); key != "" {
-						entries[key] = path
-					}
+		if scanFn != nil {
+			if entries, hit := scanFn(rootDir); hit && len(entries) > 0 {
+				if m := collectEntriesFromScan(entries, rootDir, rtype); m != nil {
+					return m
 				}
-				return nil
 			}
-			if path == rootDir {
-				return nil
-			}
-			// 跳过回收站目录（与 scanner.ScanEntries 对齐）
-			if fsutil.IsRecycleDir(path) {
-				return filepath.SkipDir
-			}
-			// 模型文件夹：在任意深度收集（不再限定一级子目录）
-			if isDirTypeModelFolder(path, rtype) {
-				// 容器目录混入直接平铺模型文件（.ysm/.zip）也会被 isDirTypeModelFolder 判真，
-				// 但若它同时含子模型文件夹，则是「容器」而非「叶子模型夹」——整体收编 SkipDir
-				// 会吞掉子夹层级（如 嵌套1/ 内含平铺 .ysm + 01_taisho_maid/ + 嵌套2/ 深层）。
-				// 此时下钻保留各子夹层级，让 nestDirLevelTree 重建容器。
-				if containsModelSubfolder(path, rtype) {
-					// code review P3：容器下钻时也注册自身键（目录 marker）——与对侧同名
-					// 叶子目录（仅平铺文件——pre-fix 安装）键一致，避免键集不相交产生
-					// 幻影 Missing+Extra（内容相同却显示分歧）
-					if key := relKeyDirLevel(rootDir, path, true); key != "" {
-						entries[key] = path
-					}
-					return nil
-				}
-				if key := relKeyDirLevel(rootDir, path, true); key != "" {
-					entries[key] = path
-				}
-				return filepath.SkipDir
-			}
-			// 非模型子目录：继续递归（可能包含深层嵌套的模型文件夹/文件）
-			return nil
-		})
-		return entries
+		}
+		return collectEntriesWalk(rootDir, rtype)
 	}
 
 	globalDirs := collectEntries(globalDir)
@@ -300,6 +282,139 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 	sort.Strings(result.Missing)
 	sort.Strings(result.Extra)
 	return result
+}
+
+// collectEntriesWalk 原 filepath.Walk 实现（scanFn 未命中时回退，语义权威基准）。
+func collectEntriesWalk(rootDir string, rtype string) map[string]string {
+	entries := make(map[string]string)
+	filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Printf("[sync] Walk 错误 %s: %v", path, err)
+			return nil
+		}
+		if !info.IsDir() {
+			// 平铺模型文件：在任意深度收集（不再限定 rootDir 顶层）
+			if types.IsTypeModelFile(path, rtype) {
+				if key := relKeyDirLevel(rootDir, path, false); key != "" {
+					entries[key] = path
+				}
+			}
+			return nil
+		}
+		if path == rootDir {
+			return nil
+		}
+		// 跳过回收站目录（与 scanner.ScanEntries 对齐）
+		if fsutil.IsRecycleDir(path) {
+			return filepath.SkipDir
+		}
+		// 模型文件夹：在任意深度收集（不再限定一级子目录）
+		if isDirTypeModelFolder(path, rtype) {
+			// 容器目录混入直接平铺模型文件（.ysm/.zip）也会被 isDirTypeModelFolder 判真，
+			// 但若它同时含子模型文件夹，则是「容器」而非「叶子模型夹」——整体收编 SkipDir
+			// 会吞掉子夹层级（如 嵌套1/ 内含平铺 .ysm + 01_taisho_maid/ + 嵌套2/ 深层）。
+			// 此时下钻保留各子夹层级，让 nestDirLevelTree 重建容器。
+			if containsModelSubfolder(path, rtype) {
+				// code review P3：容器下钻时也注册自身键（目录 marker）——与对侧同名
+				// 叶子目录（仅平铺文件——pre-fix 安装）键一致，避免键集不相交产生
+				// 幻影 Missing+Extra（内容相同却显示分歧）
+				if key := relKeyDirLevel(rootDir, path, true); key != "" {
+					entries[key] = path
+				}
+				return nil
+			}
+			if key := relKeyDirLevel(rootDir, path, true); key != "" {
+				entries[key] = path
+			}
+			return filepath.SkipDir
+		}
+		// 非模型子目录：继续递归（可能包含深层嵌套的模型文件夹/文件）
+		return nil
+	})
+	return entries
+}
+
+// collectEntriesFromScan 从 scanner 已扫描的模型文件列表反推目录级同步条目，
+// 语义与 collectEntriesWalk 对齐。仅适用于「无嵌套模式」类型（MMD/YSM）：
+// 此类类型的「模型文件夹」= 直接含模型文件的目录，可从扁平文件列表精确重建；
+// 含嵌套模式（maid-model：assets/<ns>/maid_model.json）无法从文件列表精确重建，
+// 调用方须先判 NestedPatternsFor 为空，否则应返回 nil 回退 Walk。
+//
+// 重建规则（对照 Walk 的 SkipDir 语义）：
+//   - 平铺模型文件：仅当父目录不是「叶子模型文件夹」时登记（叶子夹 SkipDir 不登记内部文件；
+//     容器夹下钻则登记内部文件；父为 rootDir 恒登记）。
+//   - 模型文件夹：所有直接含模型文件的目录（含容器）均登记为目录键。
+func collectEntriesFromScan(entries []types.ModelEntry, rootDir, rtype string) map[string]string {
+	// 含嵌套模式无法精确重建，回退 nil → 调用方走 Walk
+	if len(types.NestedPatternsFor(rtype)) > 0 {
+		return nil
+	}
+	sep := string(filepath.Separator)
+	rootDir = filepath.Clean(rootDir)
+
+	// 直接含模型文件的目录索引 + 收集的模型文件
+	dirHasModelFile := make(map[string]bool)
+	var modelFiles []types.ModelEntry
+	for _, e := range entries {
+		p := e.Path
+		if p != rootDir && !strings.HasPrefix(p, rootDir+sep) {
+			continue // 不在 rootDir 下的条目忽略（防御）
+		}
+		if !types.IsTypeModelFile(p, rtype) {
+			continue
+		}
+		dirHasModelFile[filepath.Dir(p)] = true
+		modelFiles = append(modelFiles, e)
+	}
+
+	// directChildModelFolder 判定 parent 是否直接含子模型文件夹（对照 containsModelSubfolder）
+	directChildModelFolder := func(parent string) bool {
+		prefix := parent + sep
+		for d := range dirHasModelFile {
+			if d == parent {
+				continue
+			}
+			if strings.HasPrefix(d, prefix) {
+				rest := d[len(prefix):]
+				if !strings.Contains(rest, sep) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	out := make(map[string]string)
+	// 1) 平铺模型文件：父为 rootDir 或父非叶子模型文件夹时登记
+	for _, e := range modelFiles {
+		p := e.Path
+		parent := filepath.Dir(p)
+		if parent == rootDir {
+			if key := relKeyDirLevel(rootDir, p, false); key != "" {
+				out[key] = p
+			}
+			continue
+		}
+		isLeafFolder := dirHasModelFile[parent] && !directChildModelFolder(parent)
+		if !isLeafFolder {
+			if key := relKeyDirLevel(rootDir, p, false); key != "" {
+				out[key] = p
+			}
+		}
+	}
+	// 2) 模型文件夹：直接含模型文件的目录（含容器）均登记为目录键
+	for d := range dirHasModelFile {
+		if d == rootDir {
+			continue
+		}
+		if !strings.HasPrefix(d, rootDir+sep) {
+			continue
+		}
+		if key := relKeyDirLevel(rootDir, d, true); key != "" {
+			out[key] = d
+		}
+	}
+	return out
 }
 
 // FileDiffEntry 文件级差异条目（用于文件夹内容级 diff）

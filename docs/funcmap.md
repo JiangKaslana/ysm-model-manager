@@ -28,7 +28,7 @@
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 2 | 3 |
 | go/scanner | 1 | 10 |
-| Go·同步 | 8 | 33 |
+| Go·同步 | 8 | 35 |
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
@@ -48,7 +48,7 @@
 | frontend/views | 115 | 330 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **460** | **1977** |
+| **合计** | **460** | **1979** |
 
 ## Go·头像
 
@@ -279,8 +279,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `BuildSyncItems()` | `go/instance/instance:27` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
-| `ResourceTypeInfo()` | `go/instance/instance:18` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
+| `BuildSyncItems()` | `go/instance/instance:28` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
+| `ResourceTypeInfo()` | `go/instance/instance:19` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
 
 ## go/internal
 
@@ -415,9 +415,11 @@
 | `ConflictReport()` | `go/sync/conflict:57` | ConflictReport 冲突报告 |
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
-| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:226` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
-| `DiffFolderContents()` | `go/sync/sync_dirlevel:332` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
-| `FileDiffEntry()` | `go/sync/sync_dirlevel:306` | FileDiffEntry 文件级差异条目（用于文件夹内容级 diff） |
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:232` | SyncResourcesDirLevel 文件夹级同步（默认 filepath.Walk，行为不变，供测试/旧调用方使用）。 |
+| `SyncResourcesDirLevelScan()` | `go/sync/sync_dirlevel:241` | SyncResourcesDirLevelScan 同 SyncResourcesDirLevel，但注入 scanFn 复用扫描缓存， 消除 8 个 MMD 子类型 ×(1+N |
+| `DiffFolderContents()` | `go/sync/sync_dirlevel:447` | DiffFolderContents 对同名文件夹进行内容级 diff 扫描两侧文件夹内的模型文件，比较差异，返回子文件级别的同步状态 用于在文件夹级同步单元内恢复单文件粒度的同步 |
+| `ScanEntriesFn()` | `go/sync/sync_dirlevel:229` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `FileDiffEntry()` | `go/sync/sync_dirlevel:421` | FileDiffEntry 文件级差异条目（用于文件夹内容级 diff） |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
 | `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
@@ -1587,10 +1589,10 @@
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdRotMode()` | `frontend/src/utils/3d/model3d` | — |
 | `SpecBone3D()` | `frontend/src/utils/3d/model3d:11` | — |
-| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:19` | — |
-| `Spec3D()` | `frontend/src/utils/3d/model3d:39` | — |
-| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:44` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `BoneMaps()` | `frontend/src/utils/3d/model3d:58` | 骨骼层级映射（dispatch 拾取归属用，ADR-093 T5） |
+| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:23` | — |
+| `Spec3D()` | `frontend/src/utils/3d/model3d:43` | — |
+| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:48` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
+| `BoneMaps()` | `frontend/src/utils/3d/model3d:62` | 骨骼层级映射（dispatch 拾取归属用，ADR-093 T5） |
 | `JavaModelFace()` | `frontend/src/utils/3d/parse-java-model:44` | 单面解析产物（像素坐标 + Three 域 UV） |
 | `JavaModelResult()` | `frontend/src/utils/3d/parse-java-model:59` | — |
 | `PackEntryReader()` | `frontend/src/utils/3d/parse-java-model:73` | 条目读取器：Go binding ReadPackEntry 包装（返回 base64 或 null） |

@@ -33,7 +33,7 @@
 | `repoaudit/` | 仓库健康审计核心（GUI 绑定层与 CLI 共用，防双轨口径漂移） 〔源码 1: repoaudit.go · 测试 1〕 |
 | `rustbridge/` | Windows Rust 扫描 DLL 的嵌入、校验、加载与窄 ABI 适配层 〔源码 4: bridge_windows.go doc.go embedded_windows.go types_windows.go · 子目录 1: bin/〕 |
 | `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 3: rust_backend_stub.go rust_backend_windows.go scanner.go · 测试 6〕 |
-| `sync/` | 整合包同步 〔源码 8: conflict.go sync.go sync_diff.go sync_dirlevel.go sync_discovery.go sync_hash.go sync_push.go syn… · 测试 11〕 |
+| `sync/` | 整合包同步 〔源码 8: conflict.go sync.go sync_diff.go sync_dirlevel.go sync_discovery.go sync_hash.go sync_push.go syn… · 测试 12〕 |
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
 | `texture_cache/` | 纹理缓存管理（KTX2/PNG 缓存，支持后台编码与快速命中） 〔源码 1: texture_cache.go · 测试 2〕 |
 | `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 6〕 |

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"ysm-model-manager/go/scanner"
 	"ysm-model-manager/go/types"
 )
 
@@ -210,6 +211,10 @@ func TestBuildSyncItems_IndependentTypes(t *testing.T) {
 	caInst := filepath.Join(base, "inst", "CustomAnim")
 	_ = os.MkdirAll(caInst, 0755)
 	_ = os.WriteFile(filepath.Join(epGlobal, "walk.vmd"), []byte("vmd"), 0644)
+	// 模拟生产：文件变更后 scanner 缓存被失效（watcher/导入/启用禁用都会触发）。
+	// 否则 SyncResourcesDirLevelScan 复用刷新期已缓存的 base/mmd（不含 walk.vmd），
+	// 会误判 walk.vmd 非 Missing——正是「复用扫描缓存」性能修复的契约前提。
+	scanner.InvalidateCache()
 
 	items2 := BuildSyncItems(ins,
 		[]ResourceTypeInfo{{ID: "CustomAnim", Icon: "🎬"}},
