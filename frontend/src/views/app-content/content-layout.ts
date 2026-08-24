@@ -1,4 +1,4 @@
-// ===== <app-content> 基础层：host 变量 + 通用 keyframes + 骨架 + 通用卡片系统 =====
+// ===== <app-content> 基础层：host 变量 + 通用 keyframes + 骨架 + 通用卡片系统 + 工坊(ws-*)通用按钮类 =====
 // 全局 fadeSlideUp / fadeSlideLeft / fadeSlideDown / breathe-subtle 由 app shell 注入，此处直接引用。
 import { btnBaseCSS, focusVisibleCSS } from "../../utils/dom/css.ts";
 
@@ -159,4 +159,19 @@ ${focusVisibleCSS}
 /* SVG icons（跨域复用） */
 .ws-icon { width:1em;height:1em;vertical-align:-.15em;fill:none;stroke:currentColor;flex-shrink:0; }
 .ws-icon[fill] { fill:currentColor;stroke:none; }
+
+/* ===== 工坊（workshop）通用工具按钮类（归位自 content-creator.ts，跨 creator/gh 复用） ===== */
+.ws-btn-muted { color:var(--muted); }
+.ws-btn-muted:hover { color:var(--txt); }
+.ws-btn-accent { color:var(--accent);border-color:color-mix(in srgb, var(--accent) 33%, transparent);background:color-mix(in srgb, var(--accent) 13%, transparent); }
+.ws-btn-accent:hover { background:color-mix(in srgb, var(--accent) 25%, transparent); }
+.ws-dl-selected[disabled], .ws-btn-sm[disabled] { opacity:.4;cursor:default; }
+.ws-dl-selected[disabled]:hover, .ws-btn-sm[disabled]:hover { background:transparent; }
+.ws-filter-btn { position:relative; }
+.ws-back, .cr-back-btn, .cr-back-repo, .ws-btn, .ws-btn-txt,
+.ws-back-repo { padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--bd);background:transparent;color:var(--txt);cursor:pointer;font-size:var(--fs-base);font-family:inherit; }
+.ws-back:hover, .cr-back-btn:hover, .cr-back-repo:hover, .ws-btn:hover, .ws-btn-txt:hover,
+.ws-back-repo:hover { background:var(--hover); }
+.ws-open-btn { padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--bd);background:transparent;color:var(--accent);cursor:pointer;font-size:var(--fs-sm);font-family:inherit; }
+.ws-open-btn:hover { background:var(--hover); }
 `;

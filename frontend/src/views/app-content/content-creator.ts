@@ -1,4 +1,4 @@
-// ===== 创作者域：标签/频道/卡片/详情浮层/编辑（.cr-* 全族） =====
+// ===== 创作者域：标签/频道/卡片/详情浮层/编辑（.cr-* 全族；.ws-* 工坊类已归位 content-layout.ts） =====
 export const contentCreatorCSS: string = `
 /* ===== 创作者标签 (cr-tag) ===== */
 .cr-tag { display:inline-flex;align-items:center;gap:2px;font-size:9px;padding:0 5px;border-radius:var(--radius-xs);line-height:16px;font-weight:500;flex-shrink:0; }
@@ -26,21 +26,6 @@ export const contentCreatorCSS: string = `
 .cr-action-btn-muted:hover { background:var(--hover);color:var(--txt); }
 .cr-action-btn-accent { color:var(--accent);border-color:var(--accent); }
 .cr-action-btn-accent:hover { background:var(--accent);color:var(--bg); }
-
-/* 工坊仓库页通用工具按钮 */
-.ws-btn-muted { color:var(--muted); }
-.ws-btn-muted:hover { color:var(--txt); }
-.ws-btn-accent { color:var(--accent);border-color:color-mix(in srgb, var(--accent) 33%, transparent);background:color-mix(in srgb, var(--accent) 13%, transparent); }
-.ws-btn-accent:hover { background:color-mix(in srgb, var(--accent) 25%, transparent); }
-.ws-dl-selected[disabled], .ws-btn-sm[disabled] { opacity:.4;cursor:default; }
-.ws-dl-selected[disabled]:hover, .ws-btn-sm[disabled]:hover { background:transparent; }
-.ws-filter-btn { position:relative; }
-.ws-back, .cr-back-btn, .cr-back-repo, .ws-btn, .ws-btn-txt,
-.ws-back-repo { padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--bd);background:transparent;color:var(--txt);cursor:pointer;font-size:var(--fs-base);font-family:inherit; }
-.ws-back:hover, .cr-back-btn:hover, .cr-back-repo:hover, .ws-btn:hover, .ws-btn-txt:hover,
-.ws-back-repo:hover { background:var(--hover); }
-.ws-open-btn { padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--bd);background:transparent;color:var(--accent);cursor:pointer;font-size:var(--fs-sm);font-family:inherit; }
-.ws-open-btn:hover { background:var(--hover); }
 
 .cr-browse-repo { font-size:var(--fs-xs);padding:2px 6px;border-radius:var(--radius-sm);border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:inherit;white-space:nowrap; }
 .cr-browse-repo:hover { background:var(--accent);color:var(--bg); }
