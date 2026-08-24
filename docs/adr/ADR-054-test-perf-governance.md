@@ -1,6 +1,6 @@
 # ADR-054：测试性能治理：fixtures 裁剪与 vitest 环境分流
 
-- **状态**：✅ 已采纳（Accepted）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-12
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`ADR-023 测试体系`；`frontend/vitest.config.ts`；`frontend/src/real-data-fuzz.test.ts`；`go/ysm/extracted_fixture_test.go`；`go/threejs/spec_fixture_test.go`；`frontend/src/utils/debug/debug.ts`；参考 `MikuMikuAR ADR-255`

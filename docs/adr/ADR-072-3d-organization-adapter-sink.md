@@ -1,6 +1,6 @@
 # ADR-072：3D 代码归置与预览派发注册表化：适配器下沉 utils/3d/adapters
 
-- **状态**：✅ 已采纳（根治三主线落地：薄包装归位 views `4413fb2a` + `resolveMmdSiblings` 断环 `761138dd` + adapter 注入化消反向依赖 `ca1780e7`；终态 `utils/3d/adapters` 0 backend import，check-circular/check-layering 双零）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/views/app-preview/`、`frontend/src/utils/3d/`、`frontend/src/utils/resource/types.ts`、`resource_types.json`、`ADR-066`、`ADR-070`、`ADR-071`

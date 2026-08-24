@@ -1,6 +1,6 @@
 # ADR-029：YSMParser 解码架构：WASM 内嵌取代 sidecar EXE
 
-- **状态**：✅ 已采纳（Accepted）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-04
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/wasm/ysm-wasm-data.js`（base64 内嵌）、`frontend/src/wasm/ysm-glue-data.js`、`frontend/src/wasm/ysm-parser.js`、`app.go`（`runYSMParserOnFile` Go CLI fallback）、`go/ysm/`（Go 端几何解析）、`docs/architecture.md §4`

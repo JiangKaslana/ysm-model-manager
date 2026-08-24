@@ -1,6 +1,6 @@
 # ADR-062：AppConfig 可配置化下沉：运行阈值与检查间隔从常量收敛为配置项
 
-- **状态**：✅ 已采纳（编码全部落地：`6c7d3450` Go 主体 + 各包 configFunc 注入与 0=默认测试；`0c065f76` 前端设置页版本检查间隔 + SaveThresholds；`1ec2e82a` 子代理审核 4 条修复）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-15
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`docs/knowledge/extensibility-index.md 6.7/4.4/1.9a`、`go/types/config.go`、`go/scanner/scanner.go:46`、`go/download/download.go:26`、`go/logs/logs.go:18,21,27`、`go/logs/runtime.go:11`、`go/fileops/fileops.go:20`、`frontend/src/features/version-updater.ts:24,26`、`frontend/src/backend/web-store.ts:33-34`、`internal/app/app.go`（启动注入 `LoadAppConfig`）

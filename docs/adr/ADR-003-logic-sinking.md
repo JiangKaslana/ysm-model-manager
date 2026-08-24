@@ -1,6 +1,6 @@
 # ADR-003：业务逻辑从 Binding 层下沉至纯 Go 包（Logic Sinking）
 
-- **状态**：✅ 已采纳（P0/P1/P1.5/P2/P3 全部完成）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-03（初定），原方案记录于 2026-06-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`internal/app/app_*.go` / `go/download/` / `go/avatar/` / `go/sync/` / AGENTS.md §2.2

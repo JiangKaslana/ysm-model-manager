@@ -1,6 +1,6 @@
 # ADR-092：资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并
 
-- **状态**：✅ 已采纳（Group 分层路由全链路落地：GROUP_META/GROUP_OF/groupStorageRootOf 派生 + GetRepoRoot 走 GroupStorageRoot；「resourceGroups 顶层数组」为被替代决策，动态派生即可）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-18
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`ADR-066 通用资源预览, ADR-067 压缩容器资源检测, ADR-103 注册表加载单源化, resource_types.json 单一事实来源`

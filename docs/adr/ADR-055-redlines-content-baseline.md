@@ -1,6 +1,6 @@
 # ADR-055：红线门禁行号不敏感比对
 
-- **状态**：✅ 已采纳（Accepted）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-12
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`docs/governance-rules.md`；`scripts/check-redlines.mjs`；`scripts/pre-push-gate.mjs`；`scripts/baseline/redlines-baseline.json`

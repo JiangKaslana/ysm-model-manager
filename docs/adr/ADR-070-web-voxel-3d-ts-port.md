@@ -1,6 +1,6 @@
 # ADR-070：网页版体素 3D：蓝图/投影预览 TS 平移 voxel 解析
 
-- **状态**：✅ 已采纳（M1 门控 + meta 恢复 → M2 TS 平移 voxel → M3 门控移除接入，web 蓝图/投影 3D 全链路贯通）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`go/litematic/voxel.go`、`go/litematic/nbt.go`、`go/litematic/parser.go`、`frontend/src/views/app-preview/litematic-3d.ts`、`frontend/src/backend/browser-adapter.ts`、`frontend/src/backend/nbt-parse.ts`、`frontend/src/backend/voxel-parse.ts`、`frontend/src/backend/web-fs.ts`、`docs/adr/ADR-066-universal-resource-preview.md`

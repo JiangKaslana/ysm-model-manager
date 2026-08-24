@@ -1,6 +1,6 @@
 # ADR-057：3D 预览悬浮触发按钮与双端响应式控制层
 
-- **状态**：✅ 已采纳（方向已定，编码实现按 §2.8 小步快跑落地）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-13
 - **决策人**：Jieling（人类首席架构师）、AI 代理（Riku）
 - **相关**：`frontend/src/views/app-preview/skeleton.ts`（`#ysm-overlay-3d` 控制层，L297–L624）；`frontend/src/views/app-preview/css.ts`；`frontend/src/utils/dom/android-bridge.ts`；ADR-004（3D 管线/坐标系）、ADR-036（3D 键位可配置）、ADR-047（安卓触屏可用性）、ADR-049（网页版桥接）、ADR-014（TS 门槛）、ADR-027（Web Component 契约）；MikuMikuAR `frontend/src/core/icons.ts`、`menus/nav-actions.ts`、`app.css @media(pointer:coarse)`

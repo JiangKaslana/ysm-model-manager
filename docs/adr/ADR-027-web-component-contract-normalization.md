@@ -1,6 +1,6 @@
 # ADR-027：Web Component 对外契约规范化
 
-- **状态**：✅ 已采纳（Accepted）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-04
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`docs/Design.md` §14–§20（契约唯一事实来源） / [ADR-008](./ADR-008-event-registration-pattern.md)（订阅侧规范，本 ADR 为其发射侧补充） / [ADR-005](./ADR-005-frontend-governance-rules.md) / [ADR-014](./ADR-014-typescript-migration.md) / `frontend/src/bus.ts` / `frontend/src/views/`

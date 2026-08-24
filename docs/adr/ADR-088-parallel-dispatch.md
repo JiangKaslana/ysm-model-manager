@@ -1,6 +1,6 @@
 ---
 kind: adr
-status: accepted
+status: ✅ 已采纳
 title: "ADR-088：检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行"
 date: 2026-08-17
 authors: [deepseek, jieling]
@@ -9,7 +9,9 @@ related: [ADR-086, ADR-087, scripts/pre-push-gate.mjs, scripts/_lib/contract-tes
 
 # ADR-088：检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行
 
-- **状态**：✅ 已采纳（pre-push-gate 域间 Promise.all 并行落地；静态工具分组/其余子项收益有限或已回退，不构成未偿还债）
+- **实施状态**：查知识卡 [app-preview](../knowledge/app-preview.md)（ADR 只记决策方向，不记实施进度）
+
+- **状态**：✅ 已采纳
 - **日期**：2026-08-17
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`ADR-086`、`ADR-087`、`scripts/pre-push-gate.mjs`、`scripts/_lib/contract-tests.mjs`
@@ -193,29 +195,6 @@ Go ∥ 前端:  max(Go 18s, 前端 40s) = 40s
 
 ---
 
-## 6. 实施状态
-
-| 优先级 | 任务 | 状态 | 说明 |
-|--------|------|------|------|
-| T1 | `_lib/proc.mjs` 新增 `runSpawn` async 封装 | ❌ **不需要** | 复用了 pre-push-gate 既有 `shAsync()`（line 68），零新增代码 |
-| T2 | Go 域异步化 | ✅ **已落地**（含于 T4） | 6 个 `sh()` → `await shAsync()` |
-| T3 | 前端域异步化 | ✅ **已落地**（含于 T4） | 3 个 `sh()` → `await shAsync()`；vite∥tsc 原已有 |
-| T4 | 域间 `Promise.all` | ✅ **已落地**（核心改动） | `Promise.all([asyncFn, asyncFn])`，~105 行改动 |
-| T5 | 静态工具分组并行 | ❌ **回退** | spawn 开销吃掉收益（2m15s vs 75s） |
-| T6 | pre-commit gen 分组并行 | ⏸️ 待实施 | bash `&`+`wait`，秒级收益 |
-| T7 | 并行后全量实测耗时 vs 基线对比 | ⏸️ 待实施 | 需 `node scripts/pre-push-gate.mjs --all --dry-run` 实测 |
-| T8 | 回退条件触发时回退并记录 | ⏸️ 待命 | 翻转条件：单项耗时超预算 20% |
-
-**关键设计决策**（实施中发现的）：
-
-1. **不新增 `runSpawn`**：Take巧 #4 回退时 `_lib/proc.mjs` 的 `spawn` import 和 `runSpawn` 函数已删除。Take巧 #1 复用了 pre-push-gate 自身已有的 `shAsync()`（line 68），零新增代码、零 import。
-
-2. **`Promise.all` 而非 `allSettled`**：域间并行时一个域失败不代表另一个域要继续跑（Go build 失败时前端 build 结果无意义），`Promise.all` 的 fail-fast 语义更合适。
-
-3. **非 Go/前端域保持 `sh()`（execFileSync）**：数据域、红线域、静态工具的 `sh()` 调用未被修改，仍用同步 execFileSync（零 spawn 开销），因为不在 Promise.all 内、无并行需求。
-
----
-
 ## 7. 数据溯源
 
 - 用户「我们还没关注脚本的并行能力呢」→ 摸底 pre-push-gate / pre-commit 并行现状 → 识别 5 个 Take巧
@@ -223,18 +202,3 @@ Go ∥ 前端:  max(Go 18s, 前端 40s) = 40s
 - ADR-086 §2.3 保留项「check-layering R1/R2 零容忍」— 并行不降级
 - ADR-087 §2 Take巧 #1-#3 已验证 pre-commit 秒级扩展可行（+0.6s 预算）
 - 隔壁子代理 10 个 fix 已验证 `commit-with-check.mjs` 与 pre-push-gate 的衔接（#8 stdin 传入 staged files）
-
----
-
-## 8. 待办
-
-| 项 | 描述 | 优先级 | 状态 |
-|----|------|--------|------|
-| T1 | `_lib/proc.mjs` 新增 `runSpawn` async 封装 | P1 | ⏸️ 待实施 |
-| T2 | Go 域异步化 | P2 | ⏸️ 待实施 |
-| T3 | 前端域异步化 | P3 | ⏸️ 待实施 |
-| T4 | 域间 `Promise.allSettled` | P4 | ⏸️ 待实施 |
-| T5 | 静态工具分组并行 | P5 | ⏸️ 待实施 |
-| T6 | pre-commit gen 分组并行 | P6 | ⏸️ 待实施 |
-| T7 | 并行后实测 vs ADR-086 基准 | P7 | ⏸️ 待实施 |
-| T8 | 回退条件触发时回退并记录 | P8（翻转条件） | ⏸️ 待命 |

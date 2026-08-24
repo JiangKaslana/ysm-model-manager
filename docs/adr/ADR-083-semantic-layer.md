@@ -1,6 +1,6 @@
 # ADR-083：语义层双抽象——跨格式语义骨骼 + 语义 morph + 感知层程序化生命力
 
-- **状态**：✅ 已采纳（语义骨骼 + 语义 morph + 5 感知模块全落地）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-17
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/utils/3d/semantic-bones.ts`、`frontend/src/utils/3d/semantic-morphs.ts`、`frontend/src/utils/3d/perception/`、`frontend/src/utils/3d/adapters/mmd-adapter.ts`、`vrm-adapter.ts`、`docs/adr/ADR-081-semantic-bone-layer.md`、借鉴 [MikuMikuAR](https://github.com/eghrhegpe/MikuMikuAR) `motion-algos/`、`scene/perception/`

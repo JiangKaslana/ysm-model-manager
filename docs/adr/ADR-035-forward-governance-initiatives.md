@@ -1,6 +1,6 @@
 # ADR-035：远期治理立项：组件测试与 CI 门槛
 
-- **状态**：✅ 已采纳（立项登记，实施排期中；2026-08-09 增补 G-4 E2E 覆盖广度报告）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-04
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/components` / `.github/workflows/release.yml` / `scripts/ai-mistake-tracker.mjs`

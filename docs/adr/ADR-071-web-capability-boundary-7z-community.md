@@ -1,6 +1,6 @@
 # ADR-071：网页版能力边界：.7z 明确不支持 + 社区站点编辑保存补齐
 
-- **状态**：✅ 已采纳（M1 .7z 提示落地；M2 社区编辑已由 R3-P0 实现——见 §4 补注）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/backend/web-fs.ts`、`frontend/src/backend/web-community.ts`、`frontend/src/views/app-content/site`、`docs/adr/ADR-066-universal-resource-preview.md`

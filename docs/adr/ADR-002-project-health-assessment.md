@@ -116,7 +116,6 @@ Go 端有 17 个 `_test.go`，但核心业务包（`avatar` / `download` / `sync
 
 - **正面**：明确了项目当前健康状态和改进路线；优先级列表可直接转为 TASK_PLAN.md 条目。
 - **负面**：评估本身不修复任何问题；真正的工作量在 P0-P1 任务中，预计需持续数周落地。
-- **进度更新**：原 P1 任务 `app_install.go` 下沉**已完成**（见 §3.1 / §4），该条风险提示已失效；`DownloadQueue ↔ App` 循环引用打断**亦已完成**（改为回调注入，详见 §4 P1 翻牌）；`app_scan.go` 核心逻辑已下沉至 `go/scanner`（见 §3.1 / L55 勘误），691 行实为 Binding 门面方法 + helper，非未还债。Binding 层 god-object 拆分主线实质已收口。
 
 ---
 

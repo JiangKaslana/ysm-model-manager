@@ -1,6 +1,6 @@
 # ADR-079：WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游
 
-- **状态**：✅ 已采纳（M1-M4 全落地：网页 COI SW / 桌面中间件 / 重编译 pthread / 接入降级）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`upstream/YesSteveModel-Parser/build-wasm`、`frontend/src/wasm/ysm-worker-loader.ts`、`docs/adr/ADR-070-web-voxel-3d-ts-port.md`、借鉴 `MikuMikuAR`（`frontend/dist-web/app/sw.js` COI Service Worker + `CoopCoepMiddleware` mpr build tag）

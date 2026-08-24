@@ -1,6 +1,6 @@
 # ADR-068：统一容器桥接层：ContainerReader 抽象收敛 ysm/geometry/avatar 解包重复
 
-- **状态**：✅ 已采纳（接口 + geometry/avatar/ysm 迁移已落地：d01a37ee）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`docs/adr/ADR-067-zip-packaged-resource-detection.md`、`go/geometry/archive.go`、`go/ysm/summary.go`、`go/ysm/parse.go`、`go/ysm/texsize.go`、`go/avatar/avatar_extract.go`、`go/packs/mcmeta.go`

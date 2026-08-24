@@ -1,6 +1,6 @@
 # ADR-024: 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表）
 
-- **状态**：✅ 已采纳（联邦架构落地：frontend/src/utils/3d/adapters 6 个 adapter + resource_types.json 注册表驱动，零 type 硬编码分支；非债遗留：图标 SVG 化）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-04（决策时间线：联邦愿景 2025-06-07 起草 / P7 多资源计划 2026-06-10 定稿 / 注册表现行落地）
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`resource_types.json`（单一事实来源）/ `go/types/`（注册表运行时）/ `internal/app/resource_bindings.go` / 原 `docs/archive/vision.md` + `docs/archive/design/plan-p7-multi-resource.md`（已迁本 ADR）

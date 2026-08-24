@@ -1,6 +1,6 @@
 # ADR-030：后端持久化与健壮性契约
 
-- **状态**：✅ 已采纳（Accepted）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-04
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`internal/app/`（Wails Binding 入口）、`go/types/config.go`（`AppConfig`）、`app.go`（`SaveAppConfig`/`LoadAppConfig`/`shutdown`/`WindowGetSize`）、`go/sync/sync.go`、`go/ysm/header.go`、`docs/Design.md`（前端字段命名）

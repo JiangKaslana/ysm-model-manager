@@ -1,6 +1,6 @@
 # ADR-037：E2E 测试引入（Playwright + vite dev 纯前端模式）
 
-- **状态**：✅ 已采纳（推翻了 ADR-021「C 层 E2E 不引入」决策）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-04
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`docs/adr/ADR-021-declarative-menu-testing.md`（被推翻条款 C 层） / `frontend/package.json`（Playwright devDependency） / `frontend/vite.config.js` / `frontend/e2e/` / `frontend/src/test-utils/`（G-1 基础设施） / `docs/Design.md` §19.1（testid 规范） / `tests/test_testid_contract.mjs`（testid 契约守护）

@@ -1,6 +1,6 @@
 # ADR-081：语义骨骼层——跨格式语义骨骼统一抽象
 
-- **状态**：✅ 已采纳（L1 呼吸 + L2 注视追踪已落地，L3 眨眼/LipSync 格式特化待接入）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-17
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/utils/3d/semantic-bones.ts`、`frontend/src/utils/3d/perception/`、`frontend/src/utils/3d/adapters/mmd-adapter.ts`、`vrm-adapter.ts`、`mount-preview-core.ts`、借鉴 [MikuMikuAR](https://github.com/eghrhegpe/MikuMikuAR) `motion-algos/proc-motion-shared.ts`（候选名匹配表）、`scene/perception/`（感知层）

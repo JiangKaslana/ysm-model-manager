@@ -1,6 +1,6 @@
 # ADR-067：zip 化资源识别：扩展名歧义消解与内容指纹覆盖
 
-- **状态**：✅ 已采纳（S1+S2+S4 原子落地 `6e504851`，S5 检测层收敛落地 `9f1a20e1`；.7z 内容检测遗留见 §3）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`go/packs/mcmeta.go, go/types/extensions.go, go/importer/importer_file.go, go/types/resource_types_embed.go, resource_types.json, frontend/src/utils/resource/types.ts, ADR-066`

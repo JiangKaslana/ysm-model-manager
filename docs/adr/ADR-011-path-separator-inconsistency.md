@@ -1,6 +1,6 @@
 # ADR-011：前端路径拼接分隔符不一致
 
-- **状态**：✅ 已采纳（2026-08-04 清零完成：前端路径拼接统一正斜杠）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-03
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/core/context-menus.js` / `frontend/src/views/app-tree/bus-handlers.js` / `frontend/src/features/import-queue.js` / `frontend/src/views/app-content/community/settings.js`

@@ -1,6 +1,6 @@
 # ADR-053：网页版桥接能力边界（ADR-049 增强 B1–B3 收尾）
 
-- **状态**：✅ 已采纳（Accepted；2026-08-14 修订：MoveModelFile/CopyModelFile 由 C 类升为 A 类 P0，见 §5 修订记录）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-12
 - **决策人**：Jieling（人类首席架构师）、AI 代理（Riku）
 - **相关**：`ADR-049 网页版桥接`；`frontend/src/backend/browser-adapter.ts`；`frontend/src/views/app-content/community-data.ts`；`frontend/src/views/app-nav/index.ts`；`frontend/src/views/app-tree/toolbar-events.ts`

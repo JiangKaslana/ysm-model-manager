@@ -1,6 +1,7 @@
 # ADR-042：渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植
 
-- **状态**：✅ 已采纳（§2.1 骨骼矩阵算法——旋转序 ZYX、cube 变换链已落地 commit b8fc3211，知识卡 go-threejs.md 沉淀；§2.1 四项核对 2026-08-24：scale ✅ 已落地、隐藏联动 ✅ 已落地、glow ✅ 已落地 commit a93b61ba（isGlowBone + BoneData.Glow + MeshStandardMaterial emissive）、世界坐标回填 ⏭️ 无需实现，验证脚本 `tests/verify-adr-042.mjs`；§2.2 bone 层二进制直读已落地（C++ 解析器 YSMParserV3.cpp:862-876 直读 pivot/rotation 并导出到 geometry JSON，我们已在用），cube 层反推猜错属另一条链路待解决；§2.3 基础动画链路已通——molangjs 源码内嵌 + compileMolang 求值器 + evaluateClip 关键帧插值，模型能按 .animation.json 动起来；transition 跨 clip 平滑过渡已落地 commit 163a6f09（selectClip 从当前姿态采集 rest + alpha 归零）；blend（多源混合）/ 状态机未接，属增强）
+- **状态**：✅ 已采纳
+- **实施状态**：查知识卡 [go-threejs](../knowledge/go-threejs.md) / [animation-system](../knowledge/animation-system.md)（ADR 只记决策方向，不记实施进度）
 - **日期**：2026-08-09
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`upstream/ModernYSM-1.20.1-forge` / `go/threejs/spec.go` / `frontend/src/utils/3d/model3d.ts` / `frontend/src/utils/animation/` / `docs/knowledge/ysm_baked.md` / `docs/knowledge/animation-system.md` / `tests/port-verification/`

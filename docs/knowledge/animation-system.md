@@ -113,6 +113,47 @@ invariant_anchors:
 - **旋转通道口径（2026-08-24 定版）**：`parseBedrockAnimationJSON` 出口的 rotation 通道统一做**度→弧度 + X/Y 取负、Z 不取负**换算（`convertRotationKeyframes`，对齐上游 ModernYSM/TLM 共同口径 `RawBoneKeyFrame.init` + `RotationValue.convert`）；Molang 动态轴包求值后换算闭包（molang 三角函数按度求值）。此前缺失导致 bedrock 的度被当弧度直喂 Euler（45°→2578°），是预览角色乱飞根因。下游全弧度域：player 直接 `Euler(rz,ry,rx,'ZYX')`；位移通道保持像素原值 + X 取负叠加 pivot（player 层做）。测试夹具手工构造的 Keyframe 绕过解析层，须自备弧度值
 - **消费方文件名漂移已修正**（2026-08-09）：`parseBedrockAnimationJSON` 消费方为 `app-preview/wasm.ts`（+loader.ts，旧文 preview-wasm.ts 已过时）；stagger 消费方含 `app-content/site/render.ts`（旧文 site-view.ts 过时）；测试文件均为 `.ts`（旧文 .js 过时）
 
+## ADR-015 UI 动效实施进度（v1.7.6 已全部落地）
+
+| 优先级 | 项目 | 状态 |
+|--------|------|------|
+| P0 | 对话框入场/退场动画 | ✅ |
+| P0 | 按钮 `:active` scale 反馈 | ✅ |
+| P1 | 页面切换淡入 | ✅ |
+| P1 | 模型树文件夹展开子行淡入 | ⚠️ 已禁用（`animation-fill-mode: both` 叠加虚拟滚动 `innerHTML` 替换导致滚动闪烁，见 `bug-chronicle.md`） |
+| P1 | 预览面板内容过渡 | ✅ |
+| P2 | 创作者频道卡片筛选淡出 | ✅ |
+| P2 | 导入队列项目滑入 | ✅ |
+| P2 | 设置页高级面板展开/折叠 | ✅ |
+| P2 | 同步管理器标签切换过渡 | ✅ |
+| P3 | 回收站项目动画 | ✅ |
+| P3 | 资源管理器详情过渡 | ✅ |
+| P3 | GitHub 仓库卡片交错入场 | ✅ |
+| P3 | 诊断页面板切换交叉淡入 | ✅ |
+| P3 | 批量重命名预览列表脉冲 | ✅ |
+| P3 | 导航侧栏激活指示器滑动 | ✅ |
+| 新增 | 一级 Tab 淡入+微下移（`fadeSlideDown`） | ✅ |
+| 新增 | 二级菜单 淡入+微右移（`fadeSlideLeft`） | ✅ |
+| 新增 | GitHub 仓库卡片 stagger + hover 上浮 + 图标旋转 | ✅ |
+| 新增 | 预设搜索词 / 筛选标签 stagger 入场 | ✅ |
+| 新增 | 设置页卡片 stagger 入场 | ✅ |
+| 新增 | 关于页区块 stagger 入场 | ✅ |
+
+## ADR-042 §2.3 动画纯计算移植进度（2026-08-24 核对）
+
+基础动画链路已通——模型能按 `.animation.json` 动起来，不再是"静止在默认姿态"。
+
+| 子项 | 状态 | 证据 |
+|------|------|------|
+| 关键帧插值 | ✅ 已落地 | `evaluateKeyframes` + `evaluateClip` 做插值 + 父子传播 |
+| molang builtin math | ✅ 已落地 | `molang-lib/math.js`（Sin/Cos/Atan2/Lerp/MinAngle… 整套直译） |
+| molang 求值器 | ✅ 已落地 | `molang.ts` `compileMolang` 返回 `(animTime) => number` 闭包，被 `animation.ts:115,140` 调用 |
+| transition（跨 clip） | ✅ 已落地 | `selectClip` 从当前姿态采集 rest + alpha 归零，commit 163a6f09 |
+| blend（多源混合） | ❌ 未接 | `grep blend` 整个 `frontend/src/utils/animation/` 零命中 |
+| 状态机 | ❌ 未接 | 无 `AnimationController`/predicate 优先级 |
+
+molangjs 内嵌策略：npm 包因 `"type":"module"` + CJS dist 混用在 Node 测试环境连续报错，本项目采用**源码内嵌**——`frontend/src/utils/animation/molang-lib/` 保留 JannisX11 molangjs（MIT，Blockbench 官方依赖）原始版权头，本地路径 import。
+
 ## 相关
 
 - [model3d](./model3d.md) / [model2d](./model2d.md) — 模型动画的呈现端

@@ -1,6 +1,6 @@
 # ADR-066：全资源预览器：统一预览契约与注册表驱动分发
 
-- **状态**：✅ 已采纳（P0 硬编码派发墙、P1 VrmAdapter、P2 MmdAdapter、P3 mountPreview 统一核心、P3-E YSM 入 core 全部已落地；`utils/3d/adapters/` 五适配器完整，统一 `mount3D` 入口）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/views/app-preview/loader.ts`、`frontend/src/views/app-preview/index.ts`、`frontend/src/views/app-preview/litematic-meta.ts`、`frontend/src/utils/resource/types.ts`、`resource_types.json`、`frontend/src/utils/3d/model3d.ts`、`frontend/src/views/app-preview/litematic-3d.ts`、`ADR-061`、`ADR-064`、`ADR-065`、`ADR-067`（zip 化资源识别，P0.x 硬前置）、`ADR-072`（物理归置补完：适配器下沉 utils/3d/adapters + 派发注册表化，✅ 已落地）
@@ -86,7 +86,7 @@ flowchart TD
 |----|--------|---------|---------|
 | **A 识别** | 这是 ysm 吗？ | ✅ 已收敛 | ADR-067 / 069 |
 | **B 解密** | 加密 .ysm → zip 文件树 | ✅ 已收敛（YSMParser WASM 单一解码器，前端 `ysm-parser.ts` 与 Go `decode_inject.go` 同调一个 wasm） | — |
-| **C 解包** | 容器 → 条目 | ✅ 已采纳（ADR-068 ContainerReader，d01a37ee 落地 `go/container` 包 + geometry/avatar/ysm 迁移，~294 行 7z 对称外壳删除） | ADR-068 |
+| **C 解包** | 容器 → 条目 | ✅ 已采纳 | ADR-068 |
 | **D 解析 + 渲染** | 文件树 → 基岩模型 → Spec3D → Three.js | ✅ **桌面 Go 直渲 + 网页 TS 移植双闭环**（ADR-049 P2-2；WASM 路线已弃） | 路线 B 暂缓（ROI 负，见 ADR-066-routeB-research） |
 
 **澄清两点（避免误判「三份重复」）**：

@@ -1,6 +1,6 @@
 # ADR-038：YSM 文件夹模型统一契约：ysm.json 单一入口与整组操作
 
-- **状态**：✅ 已采纳（D2 白名单 + D3 整组操作均已落地）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-05
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：[ADR-028](ADR-028-installer-atomic-link-relink.md)（目录级安装/链接原子性）、[ADR-004](ADR-004-3d-rendering-pipeline.md)（ysm.json 清单解析）、[ADR-003](ADR-003-logic-sinking.md)（fileops 下沉）；`go/scanner/scanner.go`、`frontend/src/features/dnd-shared.ts`、`go/importer/importer_file.go`、`internal/app/app_install.go`

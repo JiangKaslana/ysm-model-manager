@@ -1,6 +1,6 @@
 # ADR-065：整合包侧资源类型语义收敛：rtype 分支注册表驱动单点
 
-- **状态**：✅ 已采纳（落地：e120b5cf——4 处 rtype 硬编码字面量收敛注册表驱动）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-15
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`docs/knowledge/extensibility-index.md`、`go/sync/sync_push.go:79`、`go/sync/sync.go:286`、`go/instance/instance.go:41`、`go/sync/sync_relink.go:78`、`go/importer/importer_file.go:71`、`go/ysm/ysm.go:102,135`、ADR-064（同步层对比收敛，互补）
