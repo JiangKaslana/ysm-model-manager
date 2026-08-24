@@ -34,9 +34,6 @@ vi.mock("../../../bindings/ysm-model-manager/internal/app/app.js", () => ({
 vi.mock("../../core/handlers/global.ts", () => ({
   registerGlobalHandlers: vi.fn(() => []),
 }));
-vi.mock("../app-resource-manager/index.ts", () => ({
-  registerResourceManagerGlobal: vi.fn(),
-}));
 vi.mock("./diagnostics/init.ts", () => ({
   initDiagnostics: vi.fn(),
   startDedup: vi.fn(),

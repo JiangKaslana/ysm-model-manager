@@ -11,7 +11,7 @@
 | go/cli | 4 | 29 |
 | go/container | 1 | 27 |
 | Go·去重 | 1 | 5 |
-| Go·下载 | 1 | 15 |
+| Go·下载 | 1 | 17 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 14 |
 | Go·文件系统 | 10 | 18 |
@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 149 | 595 |
-| frontend/views | 117 | 333 |
+| frontend/views | 115 | 326 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **458** | **1951** |
+| **合计** | **456** | **1946** |
 
 ## Go·头像
 
@@ -146,21 +146,23 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SetConfigFunc()` | `go/download/download:39` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `HTTPStatusError.Error()` | `go/download/download:90` | — |
-| `TruncationError.Error()` | `go/download/download:98` | — |
-| `TruncationError.Unwrap()` | `go/download/download:104` | Unwrap 让 errors.Is(err, ErrTruncated) 成立——调用方既可判断类别（errors.Is）， 又可提取数值（errors.As），无需文本匹配（# |
-| `New()` | `go/download/download:116` | New 创建 Downloader，默认 5 分钟超时（可被 AppConfig.DownloadTimeoutSec 覆盖，ADR-062）。 |
-| `NewWithClient()` | `go/download/download:121` | NewWithClient 使用指定 HTTP client。 |
-| `Downloader.File()` | `go/download/download:305` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
-| `Downloader.FileWithChecksum()` | `go/download/download:311` | FileWithChecksum 与 File 相同，额外校验下载内容 SHA256 与期望值一致。 |
-| `Downloader.FromGitHubAPI()` | `go/download/download:316` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
-| `Downloader.FromGitHubAPIWithChecksum()` | `go/download/download:321` | FromGitHubAPIWithChecksum 与 FromGitHubAPI 相同，额外校验 SHA256（P2 预留，语义同 FileWithChecksum）。 |
-| `ResolveSavePath()` | `go/download/download:345` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
-| `HTTPStatusError()` | `go/download/download:86` | HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值， 替代 strings.Contains(err.Error(), "4 |
-| `TruncationError()` | `go/download/download:93` | TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。 |
-| `ProgressFn()` | `go/download/download:107` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
-| `Downloader()` | `go/download/download:110` | Downloader 文件下载器。 |
+| `SetConfigFunc()` | `go/download/download:40` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `HTTPStatusError.Error()` | `go/download/download:91` | — |
+| `TruncationError.Error()` | `go/download/download:99` | — |
+| `TruncationError.Unwrap()` | `go/download/download:105` | Unwrap 让 errors.Is(err, ErrTruncated) 成立——调用方既可判断类别（errors.Is）， 又可提取数值（errors.As），无需文本匹配（# |
+| `Downloader.WithRetry()` | `go/download/download:138` | WithRetry 返回开启重试的下载器副本（不改原实例）。 |
+| `New()` | `go/download/download:203` | New 创建 Downloader，默认 5 分钟超时（可被 AppConfig.DownloadTimeoutSec 覆盖，ADR-062）。 |
+| `NewWithClient()` | `go/download/download:208` | NewWithClient 使用指定 HTTP client。 |
+| `Downloader.File()` | `go/download/download:392` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
+| `Downloader.FileWithChecksum()` | `go/download/download:398` | FileWithChecksum 与 File 相同，额外校验下载内容 SHA256 与期望值一致。 |
+| `Downloader.FromGitHubAPI()` | `go/download/download:403` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
+| `Downloader.FromGitHubAPIWithChecksum()` | `go/download/download:408` | FromGitHubAPIWithChecksum 与 FromGitHubAPI 相同，额外校验 SHA256（P2 预留，语义同 FileWithChecksum）。 |
+| `ResolveSavePath()` | `go/download/download:432` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
+| `HTTPStatusError()` | `go/download/download:87` | HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值， 替代 strings.Contains(err.Error(), "4 |
+| `TruncationError()` | `go/download/download:94` | TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。 |
+| `ProgressFn()` | `go/download/download:108` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
+| `Downloader()` | `go/download/download:111` | Downloader 文件下载器。 |
+| `RetryPolicy()` | `go/download/download:131` | RetryPolicy 下载重试策略（字段 0 回退包级默认常量，见 WithRetry 注释）。 |
 
 ## go/executil
 
@@ -2082,13 +2084,6 @@
 | `fillYsmShotPanel()` | `frontend/src/views/app-preview/ysm-controls:95` | 截图面板：6 角度保存（原视图菜单截图子区，相机控件已归 core 根菜单 camera 项） |
 | `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:135` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
-| `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:60` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
-| `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:76` | — |
-| `PackMetaDetail()` | `frontend/src/views/app-resource-manager/tpl:8` | 详情面板元数据（ReadPackMeta / ReadShaderpackLang 返回 JSON 的兼容视图） |
-| `sidebarHTML()` | `frontend/src/views/app-resource-manager/tpl:21` | 侧栏布局（路径 + 操作栏 + 列表） |
-| `itemHTML()` | `frontend/src/views/app-resource-manager/tpl:63` | 列表项 HTML |
-| `detailHTML()` | `frontend/src/views/app-resource-manager/tpl:100` | 详情面板 HTML |
-| `placeholderHTML()` | `frontend/src/views/app-resource-manager/tpl:159` | 空状态占位 |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
 | `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:162` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |

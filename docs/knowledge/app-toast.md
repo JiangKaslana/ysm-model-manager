@@ -38,7 +38,7 @@ invariant_anchors:
 
 ## 与其他子系统关系
 
-- 全应用各组件（app-content / app-sidebar / app-sync-manager / app-resource-manager / core/context-menus 等）的异常与结果反馈均汇入此组件
+- 全应用各组件（app-content / app-sidebar / app-sync-manager / core/context-menus 等）的异常与结果反馈均汇入此组件
 - 撤销型 toast 支撑破坏性操作的可撤销路径（UX 维度「操作结果可撤销」）
 - 样式走全局 CSS 变量（`var(--card)` / `var(--paid)` / `var(--free)` / `var(--accent)`），层级走 `var(--z-toast)`
 

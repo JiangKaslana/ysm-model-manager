@@ -16,7 +16,6 @@ tests:
   - frontend/src/core/context-menus.test.ts
   - frontend/src/core/handlers/instance-ops.test.ts
   - frontend/src/views/app-nav/index.test.ts
-  - frontend/src/views/app-resource-manager/index.test.ts
   - frontend/src/views/app-sync-manager/index.test.ts
   - frontend/src/views/app-toast/index.test.ts
   - frontend/src/views/context-menu/index.test.ts
@@ -29,6 +28,10 @@ use_when:
   - 批量操作
   - 移入回收站
   - 重命名
+invariant_anchors:
+  - frontend/src/core/context-menus.ts|registerContextMenus
+  - frontend/src/core/menu-defs.ts|MENU_DEFS
+  - frontend/src/core/menu-defs.ts|getMenuDef
 ---
 
 # 右键菜单系统

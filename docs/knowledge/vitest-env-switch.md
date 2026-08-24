@@ -138,7 +138,7 @@ getAppMock.mockResolvedValue({
 | `backend/app.test.ts` | 标注 + 模式1 | `beforeAll` stubGlobal window（window.go 注入路径）；被测 `backend/app.ts` 顶层无副作用 |
 | `utils/dom/android-bridge.test.ts` | 标注 + 模式1 | 同款 stubGlobal（window.wails 判定）；被测源码顶层无副作用 |
 
-**WebComponentBase 治理（源码侧，配套 9 处视图）**：`views/{context-menu,app-toast,app-content,app-nav,app-preview,app-resource-manager,app-sidebar,app-sync-manager,app-tree}/index.ts` 的 `class X extends HTMLElement` 统一改 `extends WebComponentBase`（`frontend/src/utils/dom/web-component-base.ts`：浏览器=HTMLElement，node=空类，类型恒为 typeof HTMLElement）——node 环境 import 视图不再炸，无需 vi.mock 视图（见模式 5）。
+**WebComponentBase 治理（源码侧，配套 8 处视图）**：`views/{context-menu,app-toast,app-content,app-nav,app-preview,app-sidebar,app-sync-manager,app-tree}/index.ts` 的 `class X extends HTMLElement` 统一改 `extends WebComponentBase`（`frontend/src/utils/dom/web-component-base.ts`：浏览器=HTMLElement，node=空类，类型恒为 typeof HTMLElement）——node 环境 import 视图不再炸，无需 vi.mock 视图（见模式 5）。`app-resource-manager` 已于 2026-08-24 删除。
 
 ### 仍需 happy-dom 的（约 74 个）
 

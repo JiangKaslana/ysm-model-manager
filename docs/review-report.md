@@ -182,7 +182,7 @@
 | 🟡 中 P3 | [app-tree/bus-handlers.ts#L65](../frontend/src/views/app-tree/bus-handlers.ts#L65) | `SaveAppConfig(dir, "", "", "copy", theme)` 硬编码 linkMode="copy" → 会把用户已保存的硬链接模式冲掉（对比 sidebar events.ts 保留旧值的正确写法） | 先 LoadAppConfig 透传 `cfg.linkMode` |
 | 🟡 中 P3 | [app-tree/bus-handlers.ts#L356-L412](../frontend/src/views/app-tree/bus-handlers.ts#L356-L412) | `batchToggle`/`batchToggleAll`/`toggleFolderBatch` 无并发守卫，连点菜单 → 重叠循环二次 Toggle 把状态打回原形但 toast 仍报成功 | vm 加 `_batchBusy` 标志 |
 | 🟡 中 P3 | `resource-registry.ts#L29-L31` | 注册表加载失败被缓存为 `{}` 且永不重试 → Go 桥瞬断后整个会话 `getStorageSubDir` 全部降级 | 失败不缓存（保持 null），下次调用重试 |
-| 🟡 中 P3 | [app-resource-manager/index.ts#L91-L102](../frontend/src/views/app-resource-manager/index.ts#L91-L102) | `_init` 无 generation 守卫：rtype/instance 属性连变或配置事件并发时，后发先至把旧类型列表写进新 DOM | 入口记 generation，await 返回后校验 |
+| 🟡 中 P3 | ~~`app-resource-manager/index.ts#L91-L102`~~ 组件已删除（2026-08-24），建议失效 | `_init` 无 generation 守卫：rtype/instance 属性连变或配置事件并发时，后发先至把旧类型列表写进新 DOM | 入口记 generation，await 返回后校验 |
 | 🟡 中 P3 | [context-menus.ts#L167-L171](../frontend/src/core/context-menus.ts#L167-L171)、[L338-L341](../frontend/src/core/context-menus.ts#L338-L341) | `MoveToRecycle` 失败 `catch {}` 静默吞错，违「异常路径必须 toast」红线 | catch 补 toast |
 | 🟡 中 P3 | [handler-dnd.ts#L9](../frontend/src/features/import-dnd.ts#L9)、[L189-L192](../frontend/src/features/import-dnd.ts#L189-L192) | `MAX_FILE_SIZE` 为 100MB，toast 文案却写「超过 10MB」误导用户 | 文案改 100MB 或抽常量复用 |
 | 🟡 中 P3 | `debug.ts#L28`、`L86-L97` | `window._DBG_RING` / `window.debugGetSpec`（直接暴露 Go 绑定）常驻 window，调试残留违背「零隐式全局」精神 | `import.meta.env.DEV` 守卫或生产剥离 |

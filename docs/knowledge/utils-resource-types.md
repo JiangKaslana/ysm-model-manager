@@ -52,7 +52,7 @@ invariant_anchors:
 
 ## 与其他子系统关系
 
-- `RESOURCE_TYPES` 是消费面最广的前端常量：`app-sidebar`、`app-tree`、`app-content`、`app-sync-manager`、`app-resource-manager`、`app-preview`、`core/handler-dnd`、`core/handler-sync`、`core/context-menus`、`features/*`
+- `RESOURCE_TYPES` 是消费面最广的前端常量：`app-sidebar`、`app-tree`、`app-content`、`app-sync-manager`、`app-preview`、`core/handler-dnd`、`core/handler-sync`、`core/context-menus`、`features/*`（`app-resource-manager` 已于 2026-08-24 删除）
 - `loadResourceRegistry` 消费方：`features/recycle-bin.ts`、`features/oldest-models.ts`、`app-content/community/settings.ts` + `diagnostics.ts`
 - Wails 调用统一走 `getApp()`（治理红线 §3.2，禁止 window.go.main.App）
 

@@ -1508,10 +1508,6 @@ export const autoSidebar = [
             "link": "/knowledge/app-preview"
           },
           {
-            "text": "资源管理页 app-resource-manager",
-            "link": "/knowledge/app-resource-manager"
-          },
-          {
             "text": "侧边栏 app-sidebar",
             "link": "/knowledge/app-sidebar"
           },

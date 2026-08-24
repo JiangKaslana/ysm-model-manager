@@ -33,7 +33,6 @@ import "./views/app-toast/index.ts";
 loadView("app-tree", () => import("./views/app-tree/index.ts"));
 loadView("app-sidebar", () => import("./views/app-sidebar/index.ts"));
 const appContentReady = loadView("app-content", () => import("./views/app-content/index.ts"));
-loadView("app-resource-manager", () => import("./views/app-resource-manager/index.ts"));
 loadView("app-sync-manager", () => import("./views/app-sync-manager/index.ts"));
 
 //  窗口状态已由 Go 端 shutdown 保存，前端不再重复写入

@@ -7,7 +7,6 @@ source_files:
   - frontend/src/test-utils/
 tests:
   - frontend/src/views/app-nav/index.test.ts
-  - frontend/src/views/app-resource-manager/index.test.ts
   - frontend/src/views/app-sync-manager/index.test.ts
   - frontend/src/views/app-toast/index.test.ts
   - frontend/src/views/app-tree/render.test.ts

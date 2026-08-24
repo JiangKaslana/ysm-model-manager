@@ -27,6 +27,11 @@ use_when:
   - getApp
   - 方法签名
   - app.ts 绑定
+invariant_anchors:
+  - internal/app/app.go|func (a *App) GetAppVersion
+  - internal/app/app_scan.go|func (a *App) ScanModelEntries
+  - internal/app/app_scan.go|func (a *App) SearchModels
+  - internal/app/app_install_import.go|InstallModelTo
 ---
 
 # Wails Binding API 总览 internal/app

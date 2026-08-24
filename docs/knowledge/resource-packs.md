@@ -26,11 +26,11 @@ use_when:
 
 ## 替代方案
 
-- **仓库页**：`app-nav` 全局类型下拉 → `repo:rtype-changed` bus → `app-tree` 重渲染
+- **仓库页**：`app-nav` 全局类型下拉 → `repo:rtype-changed` bus → `app-tree` 重渲染；资源包/光影包详情 & 启禁由 `app-preview`（`showResourcePack`/`showShaderpack`）与统一 `ToggleEnable` 承载
 - **整合包页**：`app-sync-manager` 直接管理同步状态（推/拉），不再嵌套 `<app-resource-manager>`
-- **独立资源管理**：`<app-resource-manager rtype="...">` 仍可直接使用（组件本身保留）
+- **独立资源管理**：`<app-resource-manager rtype="...">` 组件已于 2026-08-24 一并删除——启禁走统一 `ToggleEnable`、详情走 `app-preview`
 
 ## 相关
 
-- [app_resource_manager](./app-resource-manager.md) — 组件本身仍存在
 - [app_sync_manager](./app-sync-manager.md) — 整合包同步面板（已移除 RM 嵌套）
+- [app-preview](./app-preview.md) — 资源包/光影包详情预览入口
