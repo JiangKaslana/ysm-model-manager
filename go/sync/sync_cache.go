@@ -1,4 +1,4 @@
-// ===== 同步目录扫描结果缓存（30s TTL）=====
+// ===== 同步目录扫描结果缓存（TTL 跟随 scanner.EffectiveCacheTTL，默认 30s）=====
 // 背景：BuildSyncItems 结果缓存能挡住“重复刷新”，但首次重算仍有多条路径直接 Walk：
 //   - SyncResources（resourcepack/shaderpack 文件级）
 //   - SyncResourcesDirLevel 含嵌套类型（maid-model）回退 Walk
@@ -20,7 +20,18 @@ import (
 	"ysm-model-manager/go/scanner"
 )
 
-const syncDirectoryScanCacheTTL = 30 * time.Second
+var (
+	registerHookOnce sync.Once
+)
+
+// RegisterInvalidationHook 把同步扫描缓存挂到 scanner 失效钩子上。
+// 原为包内隐式 init 注册（导入即产生跨包副作用），改为 app 层启动时显式调用，
+// 依赖可见且可测；内部 sync.Once 保证幂等，可安全重复调用。
+func RegisterInvalidationHook() {
+	registerHookOnce.Do(func() {
+		scanner.OnCacheInvalidated(InvalidateSyncScanCaches)
+	})
+}
 
 // syncDirectoryScanKey 标识一次同步扫描结果。
 // kind 用于区分三类结果：
@@ -43,10 +54,6 @@ var (
 	syncDirLevelScanCache  sync.Map // syncDirectoryScanKey -> *syncDirectoryScanEntry (map[string]string)
 	syncFolderScanCache    sync.Map // syncDirectoryScanKey -> *syncDirectoryScanEntry (map[string]string)
 )
-
-func init() {
-	scanner.OnCacheInvalidated(InvalidateSyncScanCaches)
-}
 
 // InvalidateSyncScanCaches 清空全部同步目录扫描结果缓存。
 // scanner.InvalidateCache/InvalidatePath 会自动调用；不走 scanner 失效的 push/pull/toggle
@@ -90,7 +97,8 @@ func loadSyncScanCache[T any](cache *sync.Map, key any) (T, bool) {
 
 func storeSyncScanCache[T any](cache *sync.Map, key any, value T) {
 	cache.Store(key, &syncDirectoryScanEntry{
-		value:     value,
-		expiresAt: time.Now().Add(syncDirectoryScanCacheTTL),
+		value: value,
+		// 写缓存时刻取当前生效 TTL（scanner 单一事实源，随 AppConfig.ScanCacheTTLMs 变化）
+		expiresAt: time.Now().Add(scanner.EffectiveCacheTTL()),
 	})
 }

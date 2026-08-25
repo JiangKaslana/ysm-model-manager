@@ -24,11 +24,11 @@ type ResourceTypeInfo struct {
 	Icon string `json:"icon"`
 }
 
-// ===== 同步结果缓存（30s TTL）=====
+// ===== 同步结果缓存（TTL 跟随 scanner.EffectiveCacheTTL，默认 30s）=====
 // 背景：仓库树复用 scanner 30s 缓存后已经“正常 30 秒后刷新”；但整合包 BuildSyncItems
 // 仍有 file-level SyncResources、maid-model 嵌套回退 Walk、实例侧 DiffFolderContents
 // 等多条路径每次 stats:refresh 都会重新走盘。这里在最终结果上再叠一层短 TTL 缓存，
-// 让整合包页也在 30s 内走缓存；真实数据变更由 scanner 失效钩子 + 显式失效清理。
+// 让整合包页也在同一刷新周期内走缓存；真实数据变更由 scanner 失效钩子 + 显式失效清理。
 var syncItemsCache sync.Map // string → *syncItemsCacheEntry
 
 type syncItemsCacheEntry struct {
@@ -36,10 +36,15 @@ type syncItemsCacheEntry struct {
 	expiresAt time.Time
 }
 
-const syncItemsCacheTTL = 30 * time.Second
+var registerHookOnce sync.Once
 
-func init() {
-	scanner.OnCacheInvalidated(InvalidateSyncItemsCache)
+// RegisterInvalidationHook 把同步结果缓存挂到 scanner 失效钩子上。
+// 原为包内隐式 init 注册（导入即产生跨包副作用，单测隔离与依赖追溯靠注释记忆），
+// 改为 app 层启动时显式调用；内部 sync.Once 保证幂等，可安全重复调用。
+func RegisterInvalidationHook() {
+	registerHookOnce.Do(func() {
+		scanner.OnCacheInvalidated(InvalidateSyncItemsCache)
+	})
 }
 
 // InvalidateSyncItemsCache 清空全部整合包同步结果缓存。
@@ -142,9 +147,18 @@ func buildDirLevelChildren(globalPath, instPath, rtype, rIcon, groupGlobalDir st
 	return children
 }
 
+// itemMeta resolveItemMeta 的判定结果打包：目录入口/最终状态/默认状态/图标四元组。
+// 收拢为结构体后 appendOneItem 只接收一个 meta，根除「拆包再按位转发」的参数漂移。
+type itemMeta struct {
+	isDirEntry    bool
+	status        types.SyncStatus
+	defaultStatus types.SyncStatus
+	icon          string // 空=由调用方按 rtype 填默认
+}
+
 // resolveItemMeta 解析同步条目的元信息：是否是 dirLevel 允许的条目/目录入口、
 // 禁用判定（⛔）/legacy 硬链接（🔗）/文件夹（📁）图标与状态。
-// 返回值：(是否合法条目, 目录入口 bool, 最终 status, 最终 icon)
+// 返回值：(判定结果打包, 是否合法条目)
 // 三分支（Synced/Missing/Extra）统一走同一判定链，根除历史上「仅 Synced 分支做
 // 禁用检测」导致 Extra/Missing 夹上 .disabled 伪装可推送的口径漂移。
 func resolveItemMeta(
@@ -152,7 +166,10 @@ func resolveItemMeta(
 	isDirLevelType bool,
 	defaultStatus types.SyncStatus,
 	isLegacy func(string) bool,
-) (valid bool, isDirEntry bool, status types.SyncStatus, icon string) {
+) (itemMeta, bool) {
+	var meta itemMeta
+	meta.status = defaultStatus
+	var isDirEntry bool
 	if isDirLevelType {
 		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
 			isDirEntry = true
@@ -160,23 +177,32 @@ func resolveItemMeta(
 	}
 	// 放行条件：扩展名命中 → 资源包夹 → dirLevel 的目录入口（三者任一）
 	if !types.IsTypeModelFile(p, rtype) && !fsutil.IsResourcePackFolder(p) && !isDirEntry {
-		return false, false, defaultStatus, ""
+		return meta, false
 	}
 	lowName := strings.ToLower(filepath.Base(p))
-	isDisabled := types.IsDisableSuffix(lowName)
-	status = defaultStatus
-	icon = "" // 空=由调用方按 rtype 填默认
+	meta.isDirEntry = isDirEntry
+	meta.defaultStatus = defaultStatus
 	if isDirEntry {
-		icon = "📁"
+		meta.icon = "📁"
 	}
-	if isDisabled {
-		status = types.SyncStatusDisabled
-		icon = "⛔"
+	if types.IsDisableSuffix(lowName) {
+		meta.status = types.SyncStatusDisabled
+		meta.icon = "⛔"
 	} else if isLegacy != nil && isLegacy(p) {
-		status = types.SyncStatusLegacy
-		icon = "🔗"
+		meta.status = types.SyncStatusLegacy
+		meta.icon = "🔗"
 	}
-	return true, isDirEntry, status, icon
+	return meta, true
+}
+
+// rtypeCtx 单资源类型的处理上下文（processOneResourceType 一次构建）：
+// 把 appendOneItem 原先逐条拆包转发的 rtype/rIcon/globalDir/instDir/isDirLevelType
+// 五个类型内不变量收拢，签名从 11 参收敛到「接收者 + 条目路径 + meta」。
+type rtypeCtx struct {
+	rt         ResourceTypeInfo
+	globalDir  string
+	instDir    string
+	isDirLevel bool
 }
 
 // appendOneItem 组装 ResourceSyncItem 并 append 到 typeItems：
@@ -184,53 +210,45 @@ func resolveItemMeta(
 //   - 文件：直接平铺，无 children
 //
 // 是原 appendItem 闭包 L234-271 的后半段升格；前缀判定（合法/禁用/图标）由 resolveItemMeta
-// 负责，本函数只接收已经通过的结果，确保「过滤→组装」职责分层。
-func appendOneItem(
-	typeItems *[]types.ResourceSyncItem,
-	p, rtype, rIcon, globalDir, instDir string,
-	isDirLevelType bool,
-	isDirEntry bool,
-	status types.SyncStatus,
-	defaultStatus types.SyncStatus,
-	metaIcon string,
-) {
-	if metaIcon == "" {
-		metaIcon = rIcon
+// 打包进 itemMeta，本方法只消费已通过判定的结果，确保「过滤→组装」职责分层。
+func (c *rtypeCtx) appendOneItem(typeItems *[]types.ResourceSyncItem, p string, meta itemMeta) {
+	icon := meta.icon
+	if icon == "" {
+		icon = c.rt.Icon
 	}
 	var children []types.ResourceSyncItem
-	isDir := isDirEntry
-	if isDirLevelType && isDirEntry {
+	if c.isDirLevel && meta.isDirEntry {
 		instPath := p
-		if strings.HasPrefix(p, globalDir) {
-			rel := strings.TrimPrefix(p, globalDir)
-			instPath = filepath.Join(instDir, rel)
+		if strings.HasPrefix(p, c.globalDir) {
+			rel := strings.TrimPrefix(p, c.globalDir)
+			instPath = filepath.Join(c.instDir, rel)
 		}
-		children = buildDirLevelChildren(p, instPath, rtype, rIcon, globalDir)
+		children = buildDirLevelChildren(p, instPath, c.rt.ID, c.rt.Icon, c.globalDir)
 		// diverged 提升规则（code review P2）：仅当「原 status 就是 synced（未被
 		// disabled/legacy 覆盖）+ 子项有非 synced 差异」才升；missing/optional 夹
 		// 保持自身状态，避免「整体缺失」误标成「部分差异」。
-		if len(children) > 0 && defaultStatus == types.SyncStatusSynced && status == defaultStatus {
+		if len(children) > 0 && meta.defaultStatus == types.SyncStatusSynced && meta.status == meta.defaultStatus {
 			hasDiff := false
-			for _, c := range children {
-				if c.Status != types.SyncStatusSynced {
+			for _, ch := range children {
+				if ch.Status != types.SyncStatusSynced {
 					hasDiff = true
 					break
 				}
 			}
 			if hasDiff {
-				status = types.SyncStatusDiverged
-				metaIcon = "🗂️"
+				meta.status = types.SyncStatusDiverged
+				icon = "🗂️"
 			}
 		}
 	}
 	*typeItems = append(*typeItems, types.ResourceSyncItem{
 		Path:     p,
 		Name:     filepath.Base(p),
-		Status:   status,
-		Type:     rtype,
-		Icon:     metaIcon,
+		Status:   meta.status,
+		Type:     c.rt.ID,
+		Icon:     icon,
 		Size:     fileSize(p),
-		IsDir:    isDir,
+		IsDir:    meta.isDirEntry,
 		Children: children,
 	})
 }
@@ -267,14 +285,15 @@ func processOneResourceType(
 	}
 
 	var typeItems []types.ResourceSyncItem
+	ctx := &rtypeCtx{rt: rt, globalDir: globalDir, instDir: instDir, isDirLevel: isDirLevel}
 	// appendItem 统一出口：三分支共用 resolveItemMeta+appendOneItem，过滤/禁用/
 	// 图标/子项 全程同口径。
 	appendItem := func(p string, defaultStatus types.SyncStatus, isLegacy func(string) bool) {
-		valid, isDirEntry, status, icon := resolveItemMeta(p, rt.ID, isDirLevel, defaultStatus, isLegacy)
-		if !valid {
+		meta, ok := resolveItemMeta(p, rt.ID, isDirLevel, defaultStatus, isLegacy)
+		if !ok {
 			return
 		}
-		appendOneItem(&typeItems, p, rt.ID, rt.Icon, globalDir, instDir, isDirLevel, isDirEntry, status, defaultStatus, icon)
+		ctx.appendOneItem(&typeItems, p, meta)
 	}
 
 	for _, p := range result.Synced {
@@ -323,9 +342,10 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 	}
 
 	// 阶段 ③：写缓存（clone 一次防调用方改返回值污染缓存；读端也 clone 一次）
+	// TTL 写入时刻取当前生效值（scanner 单一事实源，随 AppConfig.ScanCacheTTLMs 变化）
 	syncItemsCache.Store(key, &syncItemsCacheEntry{
 		items:     cloneSyncItems(items),
-		expiresAt: time.Now().Add(syncItemsCacheTTL),
+		expiresAt: time.Now().Add(scanner.EffectiveCacheTTL()),
 	})
 	return items
 }

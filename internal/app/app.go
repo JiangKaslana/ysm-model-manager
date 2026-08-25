@@ -14,8 +14,10 @@ import (
 	"ysm-model-manager/go/avatar"
 	"ysm-model-manager/go/config"
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/instance"
 	"ysm-model-manager/go/logs"
 	"ysm-model-manager/go/scanner"
+	ysmsync "ysm-model-manager/go/sync"
 	"ysm-model-manager/go/tags"
 	"ysm-model-manager/go/types"
 	"ysm-model-manager/go/updater"
@@ -121,6 +123,11 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	scanner.SetErrorSink(func(msg string) {
 		a.AddOpLog("scan", msg, "", "", 0, "warn", msg)
 	})
+
+	// 派生缓存失效钩子注册（原 go/instance、go/sync 包内隐式 init 注册改为启动期
+	// 显式调用：导入不再产生跨包副作用，依赖在组装点可见；内部 sync.Once 幂等）
+	instance.RegisterInvalidationHook()
+	ysmsync.RegisterInvalidationHook()
 
 	// 恢复窗口位置
 	pos := a.GetWindowPosition()

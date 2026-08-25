@@ -125,6 +125,13 @@ func scanTTL() time.Duration {
 	return scanCacheTTL
 }
 
+// EffectiveCacheTTL 导出当前生效的扫描缓存 TTL，供派生缓存（go/instance 同步结果、
+// go/sync 扫描缓存）写缓存时取同一刷新周期——30s 刷新周期的单一事实源，
+// 消除各派生缓存各自硬编码 30s 与用户配置 ScanCacheTTLMs 错位的漂移。
+func EffectiveCacheTTL() time.Duration {
+	return scanTTL()
+}
+
 // normalizeScanKey 统一缓存 key：TrimSpace + filepath.Clean（去尾部分隔符/相对路径归一）。
 // ScanEntries 与 InvalidatePath 必须共用同一规整，否则失效 key 与扫描 key 字节级不一致会脱靶（P2 修复）。
 func normalizeScanKey(dir string) string {

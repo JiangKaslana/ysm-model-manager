@@ -22,6 +22,8 @@ func TestSyncScanCache_LoadStore(t *testing.T) {
 }
 
 func TestSyncScanCache_ScannerInvalidateClears(t *testing.T) {
+	// 钩子注册已从隐式 init 改为显式调用（app 层启动时注册），测试自备同款前置
+	RegisterInvalidationHook()
 	key := syncDirectoryScanKey{kind: "folder", root: "/scanner-clear", rtype: "ysm"}
 	syncFolderScanCache.Store(key, &syncDirectoryScanEntry{
 		value:     map[string]string{"a": "/scanner-clear/a"},

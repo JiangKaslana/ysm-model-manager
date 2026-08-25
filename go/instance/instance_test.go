@@ -831,6 +831,8 @@ func TestBuildSyncItems_ResultCacheHitReturnsCloneAndInvalidateClears(t *testing
 // TestBuildSyncItems_ScannerInvalidateClearsResultCache 锁定 scanner 失效钩子：
 // scanner.InvalidateCache 必须连带清空 instance 的同步结果缓存。
 func TestBuildSyncItems_ScannerInvalidateClearsResultCache(t *testing.T) {
+	// 钩子注册已从隐式 init 改为显式调用（app 层启动时注册），测试自备同款前置
+	RegisterInvalidationHook()
 	ins := &types.VersionInstance{Name: "cache", VersionDir: t.TempDir()}
 	rtypes := []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}
 	roots := map[string]string{"ysm": t.TempDir()}
