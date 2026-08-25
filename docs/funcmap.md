@@ -41,15 +41,15 @@
 | 前端·根 (app-modules/bus) | 4 | 18 |
 | frontend/backend | 18 | 97 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 17 | 82 |
+| 前端·特性 | 17 | 83 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 155 | 627 |
-| frontend/views | 116 | 335 |
+| frontend/views | 115 | 334 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **474** | **2038** |
+| **合计** | **473** | **2038** |
 
 ## Go·头像
 
@@ -1058,7 +1058,7 @@
 | `tryFetchModels()` | `frontend/src/features/community/data:55` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
 | `ProgressGuardHooks()` | `frontend/src/features/community/download-queue-progress:16` | createProgressGuard 依赖注入（controller 提供查找与收口回调） |
 | `ProgressGuard()` | `frontend/src/features/community/download-queue-progress:24` | 进度条守卫控制器 |
-| `createProgressGuard()` | `frontend/src/features/community/download-queue-progress:40` | — |
+| `createProgressGuard()` | `frontend/src/features/community/download-queue-progress:267` | — |
 | `DownloadTask()` | `frontend/src/features/community/download-queue-store:27` | 下载任务 |
 | `QueueError()` | `frontend/src/features/community/download-queue-store:35` | 队列错误项 |
 | `DownloadState()` | `frontend/src/features/community/download-queue-store:41` | 队列状态快照 |
@@ -1080,7 +1080,8 @@
 | `QueueError()` | `frontend/src/features/community/download-queue` | — |
 | `QueueControllerOptions()` | `frontend/src/features/community/download-queue:43` | createDownloadQueue 选项 |
 | `QueueController()` | `frontend/src/features/community/download-queue:52` | 队列控制器 |
-| `createDownloadQueue()` | `frontend/src/features/community/download-queue:77` | 创建一个下载队列 UI 控制器。 |
+| `DownloadQueue()` | `frontend/src/features/community/download-queue:60` | 旧契约别名（events.ts / download-tasks.ts 仍使用 DownloadQueue 命名） |
+| `createDownloadQueue()` | `frontend/src/features/community/download-queue:325` | 创建一个下载队列 UI 控制器。 |
 | `DOWNLOAD_CONFIRM_BYTES()` | `frontend/src/features/community/download-tasks:7` | 超过该大小需弹窗确认（含边界值本身直接下载） |
 | `DOWNLOAD_REJECT_BYTES()` | `frontend/src/features/community/download-tasks:9` | 超过该大小直接拒绝（含边界值本身需确认） |
 | `DownloadSizeDecision()` | `frontend/src/features/community/download-tasks:11` | — |
@@ -1089,7 +1090,7 @@
 | `buildDownloadTasks()` | `frontend/src/features/community/download-tasks:31` | 选中集 → 下载任务列表（路径统一转正斜杠；未匹配的选中项静默跳过） |
 | `RepoEventsContext()` | `frontend/src/features/community/events:16` | bindRepoEvents 上下文 |
 | `RepoEventsHandle()` | `frontend/src/features/community/events:28` | 绑定返回值 |
-| `bindRepoEvents()` | `frontend/src/features/community/events:41` | 绑定仓库模型页面的所有事件。 |
+| `bindRepoEvents()` | `frontend/src/features/community/events:324` | 绑定仓库模型页面的所有事件。 |
 | `WorkshopModel()` | `frontend/src/features/community/render:10` | 工坊模型条目（index.json 结构） |
 | `WorkshopSite()` | `frontend/src/features/community/render:18` | 工坊站点 |
 | `isModelMissing()` | `frontend/src/features/community/render:28` | 判断模型是否缺失（本地不存在） |
@@ -2008,7 +2009,6 @@
 | `renderSiteView()` | `frontend/src/views/app-content/site-view:51` | 站点视图渲染主入口 — 编排壳：构造数据 → 构 HTML → 绑事件 → 聚 cleanup。 |
 | `bindDragEvents()` | `frontend/src/views/app-content/site/drag:14` | 绑定拖拽 JSON 导入事件：创作者 JSON / 站点 JSON 识别 + 合并。 |
 | `bindEditEvents()` | `frontend/src/views/app-content/site/edit:513` | 绑定编辑模式事件：编辑入口 / 拉取配置 / 取消 / 保存 / 行内编辑 / 删除创作者 / 拖拽排序 / 增删搜索词 / 搜索过滤。 |
-| `bindBrowseEvents()` | `frontend/src/views/app-content/site/events:27` | 绑定浏览态事件：空状态按钮 / 创作者卡片网格 / 预设搜索 / 收藏 / 头像调试 / 卡片点击详情浮层 / 键盘导航 / storage 同步。 |
 | `CrCardCtx()` | `frontend/src/views/app-content/site/render:13` | 创作者卡片工厂上下文 |
 | `BuildSiteHtmlCtx()` | `frontend/src/views/app-content/site/render:24` | buildSiteHtml 依赖的渲染上下文 |
 | `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |

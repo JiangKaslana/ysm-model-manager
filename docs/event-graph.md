@@ -247,7 +247,7 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menus.ts` | 80 |
-| `frontend/src/features/community/events.ts` | 222 |
+| `frontend/src/features/community/events.ts` | 180 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -287,7 +287,7 @@
 |------|----|
 | `frontend/src/views/app-content/index.ts` | 106 |
 | `frontend/src/views/app-content/index.ts` | 178 |
-| `frontend/src/views/app-content/site/events.ts` | 41 |
+| `frontend/src/views/app-content/site/events.ts` | 201 |
 | `frontend/src/views/app-nav/index.ts` | 20 |
 | `frontend/src/views/app-nav/index.ts` | 161 |
 | `frontend/src/views/app-sidebar/events.ts` | 202 |
@@ -337,8 +337,8 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-content/site/events.ts` | 131 |
-| `frontend/src/views/app-content/site/events.ts` | 297 |
+| `frontend/src/views/app-content/site/events.ts` | 169 |
+| `frontend/src/views/app-content/site/events.ts` | 310 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -374,7 +374,7 @@
 | `frontend/src/core/handlers/instance-ops.ts` | 157 |
 | `frontend/src/core/handlers/sync.ts` | 102 |
 | `frontend/src/core/handlers/sync.ts` | 211 |
-| `frontend/src/features/community/download-queue.ts` | 122 |
+| `frontend/src/features/community/download-queue.ts` | 110 |
 | `frontend/src/features/import-executor.ts` | 70 |
 | `frontend/src/features/import-executor.ts` | 258 |
 | `frontend/src/features/recycle-bin.ts` | 78 |
@@ -474,13 +474,13 @@
 | `frontend/src/core/handlers/sync.ts` | 170 |
 | `frontend/src/core/handlers/sync.ts` | 204 |
 | `frontend/src/core/handlers/sync.ts` | 227 |
-| `frontend/src/features/community/download-queue.ts` | 305 |
-| `frontend/src/features/community/download-queue.ts` | 337 |
-| `frontend/src/features/community/events.ts` | 165 |
-| `frontend/src/features/community/events.ts` | 179 |
-| `frontend/src/features/community/events.ts` | 252 |
-| `frontend/src/features/community/events.ts` | 296 |
-| `frontend/src/features/community/events.ts` | 318 |
+| `frontend/src/features/community/download-queue.ts` | 268 |
+| `frontend/src/features/community/download-queue.ts` | 294 |
+| `frontend/src/features/community/events.ts` | 125 |
+| `frontend/src/features/community/events.ts` | 137 |
+| `frontend/src/features/community/events.ts` | 206 |
+| `frontend/src/features/community/events.ts` | 258 |
+| `frontend/src/features/community/events.ts` | 295 |
 | `frontend/src/features/import-dnd.ts` | 41 |
 | `frontend/src/features/import-dnd.ts` | 59 |
 | `frontend/src/features/import-dnd.ts` | 98 |
@@ -562,8 +562,8 @@
 | `frontend/src/views/app-content/site/edit.ts` | 221 |
 | `frontend/src/views/app-content/site/edit.ts` | 228 |
 | `frontend/src/views/app-content/site/edit.ts` | 243 |
-| `frontend/src/views/app-content/site/events.ts` | 104 |
-| `frontend/src/views/app-content/site/events.ts` | 271 |
+| `frontend/src/views/app-content/site/events.ts` | 146 |
+| `frontend/src/views/app-content/site/events.ts` | 274 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 108 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 118 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 124 |
@@ -666,7 +666,7 @@
 | `frontend/src/core/handlers/android-events.ts` | 64 |
 | `frontend/src/core/handlers/sync.ts` | 120 |
 | `frontend/src/core/handlers/sync.ts` | 234 |
-| `frontend/src/features/community/download-queue.ts` | 121 |
+| `frontend/src/features/community/download-queue.ts` | 109 |
 | `frontend/src/features/import-executor.ts` | 71 |
 | `frontend/src/features/import-executor.ts` | 257 |
 | `frontend/src/features/recycle-bin.ts` | 79 |
