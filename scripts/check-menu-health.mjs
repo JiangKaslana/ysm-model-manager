@@ -12,7 +12,8 @@
  *   3. labelKey 在 zh-CN 语言包存在（三语一致性由 locales-consistency.test 保证）
  *   4. dockGroup ∈ PreviewMenuGroupId 联合类型（单一事实来源，自动从 preview-menu-defs.ts 推导）或 无（非法值导致 dock 按钮进错组）
  *   5. kind ∈ {panel, action, divider}
- *   6. panel 项必有 render；action 项必有 run（缺失则面板/动作不可执行）
+ *   6. panel 项必有 render 或 renderCustom；action 项必有 run（缺失则面板/动作不可执行）
+ *      renderCustom 为 ADR-085 逃生舱入口（PreviewMenuItemDef.render → PreviewMenuNode.renderCustom）
  *
  * 解析策略：正则解析 4 个菜单表文件（preview-menu-defs.ts + ysm/mmd/vrm-adapter.ts），
  * 对每个 `id: "xxx"` 匹配回溯对象块（配对 { }，跳过字符串内 { }），提取字段。
@@ -21,10 +22,11 @@
  *   node scripts/check-menu-health.mjs                 # 默认行为
  *   node scripts/check-menu-health.mjs --json    # JSON 输出（供 pre-push-gate 解析）
  * 退出码：0 = 健康；1 = 存在违规（阻断推送）
- * 依赖：node:fs / node:path
+ * 依赖：node:fs / node:path / node:url
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { ROOT } from './_lib/scan-files.mjs';
 
 const JSON_MODE = process.argv.includes('--json');
@@ -71,7 +73,7 @@ function collectZhCNPreviewKeys() {
 
 // 从 `id` 匹配位置回溯最近未配对的 `{`，再配对找到对象闭合 `}`。
 // 跳过字符串字面量内的 { }（避免误配 render 函数体）。
-function extractItemBlock(content, idPos) {
+export function extractItemBlock(content, idPos) {
   // 往前找最近的 {（跳过字符串内）
   let i = idPos - 1;
   let depth = 0;
@@ -109,7 +111,7 @@ function extractItemBlock(content, idPos) {
   return content.slice(openLine, closePos + 1);
 }
 
-function parseItem(block, id) {
+export function parseItem(block, id) {
   const field = (re) => {
     const m = block.match(re);
     return m ? m[1] : null;
@@ -119,12 +121,12 @@ function parseItem(block, id) {
     labelKey: field(/labelKey:\s*"([^"]+)"/),
     dockGroup: field(/dockGroup:\s*"([^"]+)"/),
     kind: field(/kind:\s*"([^"]+)"/),
-    hasRender: /render:\s*\(/.test(block),
+    hasRender: /(?:render|renderCustom):\s*\(/.test(block),
     hasRun: /\brun:\s*\(/.test(block),
   };
 }
 
-function parseFile(rel) {
+export function parseFile(rel) {
   const content = readRel(rel);
   const items = [];
   const idRe = /id:\s*"([a-z0-9\-]+)"/g;
@@ -142,6 +144,7 @@ function parseFile(rel) {
 }
 
 // ── 主逻辑 ──
+function main() {
 const allItems = [];
 for (const f of MENU_FILES) allItems.push(...parseFile(f));
 const zhCNKeys = collectZhCNPreviewKeys();
@@ -264,3 +267,7 @@ if (JSON_MODE) {
 }
 
 process.exit(ok ? 0 : 1);
+}
+
+// 仅当作为入口直接执行时才跑主流程（被契约测试 import 时不触发，避免误退出）
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) main();
