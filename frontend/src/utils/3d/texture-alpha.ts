@@ -26,7 +26,7 @@ export function getTextureAlphaInfo(texture: THREE.Texture): TextureAlphaInfo {
         width: pixels.width,
         height: pixels.height,
       }
-    : { mode: "blend", index: null, width: 0, height: 0 };
+    : { mode: "opaque", index: null, width: 0, height: 0 };
   texture.userData[ALPHA_INFO_KEY] = info;
   return info;
 }
@@ -36,7 +36,12 @@ export function getTextureAlphaMode(texture: THREE.Texture): TextureAlphaMode {
   return getTextureAlphaInfo(texture).mode;
 }
 
-const BLEND_MIN_RATIO = 0.005;
+// blend 阈值收敛：0.005 过低——整张贴图只要混入 >0.5% 半透明像素（车漆抗锯齿、
+// 窗玻璃、发光渐变、轮毂边缘）就把整 mesh 判 blend，transparent=true+depthWrite=false
+// 进透明队列 → 多模型同场时透明乱序叠加/不写深度，硬实部件（底盘/背光位）被后画
+// 物体覆盖或背向被盖掉（"底盘消失/左灯仅单侧见"）。收紧到 5%，让准不透明主结构走
+// opaque/cutout（alphaTest），仅真玻璃/强透材质保持 blend。
+const BLEND_MIN_RATIO = 0.05;
 
 function classifyRgba(data: ArrayLike<number>): TextureAlphaMode {
   let hasTransparent = false;

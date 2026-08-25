@@ -55,10 +55,11 @@ describe("getTextureAlphaMode", () => {
 
   it("keeps blend when semi-transparent ratio exceeds threshold", () => {
     const tex = rgbaTexture(
-      Array.from({ length: 256 }, (_, i) =>
-        i < 3 ? [10, 20, 30, 128] : [0, 0, 0, 255],
+      Array.from({ length: 50 }, (_, i) =>
+        i < 4 ? [10, 20, 30, 128] : [0, 0, 0, 255],
       ),
     );
+    // 4/50 = 8% 半透明 > 5% 阈值 → blend
     expect(getTextureAlphaMode(tex)).toBe("blend");
   });
 
@@ -91,7 +92,8 @@ describe("getTextureAlphaInfo", () => {
     (tex as unknown as { format: THREE.PixelFormat }).format = THREE.RGBFormat;
     const info = getTextureAlphaInfo(tex);
     expect(info.index).toBeNull();
-    expect(info.mode).toBe("blend");
+    // 像素不可读回退 opaque：避免 taint/跨域源整模型被误判全透明（导致硬实部件丢失）
+    expect(info.mode).toBe("opaque");
   });
 
   it("caches one info object per texture", () => {
