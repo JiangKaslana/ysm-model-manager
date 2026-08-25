@@ -27,6 +27,7 @@ import {
   AnimationControllerRuntime,
   type AnimationController,
 } from "../animation/animation-controller.ts";
+import { setMolangScope } from "../animation/molang.ts";
 
 export interface YsmAnimPlayer {
   apply(dt: number): void;
@@ -111,39 +112,43 @@ export function createYsmAnimPlayer(
         playing = false;
       }
 
-      // 执行 timeline 事件（v.* 变量赋值、粒子触发等）
-      executeTimeline(clip.timeline, prevTime, elapsed);
-      prevElapsed = elapsed;
+      // 执行 timeline 事件（v.* 变量赋值、粒子触发等）+ 控制器条件评估。
+      // 控制器启用时开启持久变量作用域：timeline 的 v.* 写入跨帧可见，控制器条件可读
+      // （ADR-100 L4 语义：v. 每实体持久，temp. 每帧重置）。
+      if (controllerRuntime) setMolangScope(controllerVariables);
+      try {
+        executeTimeline(clip.timeline, prevTime, elapsed);
+        prevElapsed = elapsed;
 
-      // 动画控制器：每帧评估转换条件，必要时切换 clip
-      if (controllerRuntime) {
-        // 收集当前变量（从 timeline 事件写入的 v.* 变量）
-        // 注意：当前实现中 timeline 事件直接执行 Molang，变量未持久化到外部 Map。
-        // 这里传入空对象，后续实现跨帧变量持久化后补充。
-        const switched = controllerRuntime.update(dt, controllerVariables);
-        if (switched) {
-          // 找到新动画对应的 clip 索引
-          const newAnim = controllerRuntime.currentAnimation;
-          const newIdx = clipNameToIdx.get(newAnim);
-          if (newIdx !== undefined && newIdx !== currentIdx) {
-            currentIdx = newIdx;
-            elapsed = 0;
-            prevElapsed = 0;
-            playing = true;
-            // 跨 clip transition：从当前姿态重新采集 rest
-            for (const [name, node] of boneByName) {
-              let rest = restPose.get(name);
-              if (!rest) {
-                rest = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: new THREE.Vector3() };
-                restPose.set(name, rest);
+        // 动画控制器：每帧评估转换条件，必要时切换 clip
+        if (controllerRuntime) {
+          const switched = controllerRuntime.update(dt);
+          if (switched) {
+            // 找到新动画对应的 clip 索引
+            const newAnim = controllerRuntime.currentAnimation;
+            const newIdx = clipNameToIdx.get(newAnim);
+            if (newIdx !== undefined && newIdx !== currentIdx) {
+              currentIdx = newIdx;
+              elapsed = 0;
+              prevElapsed = 0;
+              playing = true;
+              // 跨 clip transition：从当前姿态重新采集 rest
+              for (const [name, node] of boneByName) {
+                let rest = restPose.get(name);
+                if (!rest) {
+                  rest = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: new THREE.Vector3() };
+                  restPose.set(name, rest);
+                }
+                rest.pos.copy(node.position);
+                rest.quat.copy(node.quaternion);
+                rest.scale.copy(node.scale);
+                blendAlpha.set(name, 0);
               }
-              rest.pos.copy(node.position);
-              rest.quat.copy(node.quaternion);
-              rest.scale.copy(node.scale);
-              blendAlpha.set(name, 0);
             }
           }
         }
+      } finally {
+        if (controllerRuntime) setMolangScope(null);
       }
 
       const transforms = evaluateClip(clip, elapsed, boneHierarchy, true);
@@ -210,6 +215,8 @@ export function createYsmAnimPlayer(
     },
 
     dispose(): void {
+      // 兜底清空持久作用域（apply 中途异常退出时避免泄漏到其他播放器）
+      setMolangScope(null);
       elapsed = 0;
       prevElapsed = 0;
       playing = true;
@@ -255,6 +262,8 @@ export function createYsmAnimPlayer(
       return playing && elapsed < (getClip().length || Infinity);
     },
     setController(controller: AnimationController): void {
+      // 新模型 → 全新变量作用域（v.* 不跨模型泄漏）
+      controllerVariables = {};
       // 创建控制器运行时，回调在状态切换时自动切换 clip
       controllerRuntime = new AnimationControllerRuntime(
         controller,

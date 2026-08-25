@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 155 | 626 |
+| 前端·工具 | 155 | 627 |
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **471** | **2027** |
+| **合计** | **471** | **2028** |
 
 ## Go·头像
 
@@ -237,7 +237,7 @@
 | `IsMainModelName()` | `go/geometry/archive:1210` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
 | `ParseComponentsFromZip()` | `go/geometry/archive:1222` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
 | `ParseComponentsFrom7z()` | `go/geometry/archive:1392` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
-| `ParseBedrockGeometry()` | `go/geometry/parse:235` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
+| `ParseBedrockGeometry()` | `go/geometry/parse:238` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
 
@@ -1699,17 +1699,17 @@
 | `setVrmMaterialVisible()` | `frontend/src/utils/3d/vrm-materials:38` | 材质显隐：Material.visible（MToon/标准/基础均支持） |
 | `setVrmMaterialOpacity()` | `frontend/src/utils/3d/vrm-materials:48` | 材质透明度（0-1）：opacity 设置 + transparent 联动 |
 | `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
-| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:31` | — |
-| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:54` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
+| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:32` | — |
+| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:55` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:25` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
 | `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:50` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
 | `ControllerTransition()` | `frontend/src/utils/animation/animation-controller:10` | 状态转换定义 |
-| `ControllerState()` | `frontend/src/utils/animation/animation-controller:20` | 单个状态定义 |
-| `AnimationController()` | `frontend/src/utils/animation/animation-controller:34` | 动画控制器（状态机） |
-| `parseAnimationControllerJSON()` | `frontend/src/utils/animation/animation-controller:50` | 解析 Bedrock Animation Controller JSON |
-| `AnimationControllerRuntime()` | `frontend/src/utils/animation/animation-controller:151` | 动画控制器运行时：维护当前状态，每帧评估转换条件。 |
-| `findControllerForAnimation()` | `frontend/src/utils/animation/animation-controller:253` | 从多个控制器中查找匹配指定动画名的控制器。 |
+| `ControllerState()` | `frontend/src/utils/animation/animation-controller:22` | 单个状态定义 |
+| `AnimationController()` | `frontend/src/utils/animation/animation-controller:36` | 动画控制器（状态机） |
+| `parseAnimationControllerJSON()` | `frontend/src/utils/animation/animation-controller:52` | 解析 Bedrock Animation Controller JSON |
+| `AnimationControllerRuntime()` | `frontend/src/utils/animation/animation-controller:159` | 动画控制器运行时：维护当前状态，每帧评估转换条件。 |
+| `findControllerForAnimation()` | `frontend/src/utils/animation/animation-controller:260` | 从多个控制器中查找匹配指定动画名的控制器。 |
 | `Vec3()` | `frontend/src/utils/animation/animation:12` | 三维向量 [x, y, z] |
 | `MolangAxes()` | `frontend/src/utils/animation/animation:15` | Molang 轴三元组（null = 该轴为纯数字，取 Keyframe 对应轴值） |
 | `Keyframe()` | `frontend/src/utils/animation/animation:18` | 关键帧 |
@@ -1727,7 +1727,8 @@
 | `Easings()` | `frontend/src/utils/animation/molang-lib/easing:2` | — |
 | `Molang()` | `frontend/src/utils/animation/molang-lib/molang:11` | — |
 | `MolangFn()` | `frontend/src/utils/animation/molang:18` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |
-| `compileMolang()` | `frontend/src/utils/animation/molang:48` | 编译 Molang 表达式为求值闭包。 |
+| `setMolangScope()` | `frontend/src/utils/animation/molang:39` | 设置/清除当前持久变量作用域。 |
+| `compileMolang()` | `frontend/src/utils/animation/molang:71` | 编译 Molang 表达式为求值闭包。 |
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
 | `CachePolicy()` | `frontend/src/utils/cache/with-cached:15` | 缓存策略 |

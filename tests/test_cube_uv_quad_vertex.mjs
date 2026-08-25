@@ -41,7 +41,7 @@ const bonePivot = { x: 0, y: 0, z: 0 };
 const mesh = buildCubeMeshData(cube, bonePivot, 64, 64, "root", 0);
 if (!mesh) {
   fail("buildCubeMeshData 返回 null");
-  console.error(failed === 1 ? "\n❌ 契约测试失败" : "\n❌ 契约测试失败");
+  console.error("\n❌ 契约测试失败");
   process.exit(1);
 }
 

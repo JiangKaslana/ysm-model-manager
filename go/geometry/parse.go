@@ -130,7 +130,10 @@ func buildModel(formatVersion string, texW, texH int, bones []boneJSON) *types.B
 		})
 		cubeTotal += len(cubes)
 	}
-	model.BoneCount = len(bones)
+	// GUI 装饰骨骼已被过滤（continue 跳过），BoneCount 必须以过滤后的
+	// model.Bones 为准，否则破坏 BoneCount == len(Bones) 不变量
+	// （concurrent.go 校验会误报「骨骼数不一致」）。
+	model.BoneCount = len(model.Bones)
 	model.CubeCount = cubeTotal
 	if skippedGUI > 0 {
 		log.Printf("[geometry] 过滤 %d 个 GUI 装饰骨骼", skippedGUI)

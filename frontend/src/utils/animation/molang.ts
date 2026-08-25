@@ -23,11 +23,34 @@ export type MolangFn = (animTime: number) => number;
 const parser = new (Molang as unknown as new () => {
   parse(expr: string, variables: Record<string, number>): number;
   resetVariables(): void;
+  variables: Record<string, number>;
   variableHandler: ((key: string, variables: object) => number) | null;
 })();
-// 未知 query/variable → 0：mod 扩展的游戏态查询（ysm.*/按键/药效等）在预览器
-// 无宿主语境，优雅降级而非抛错（对齐 YSMViewer Molang 求值失败回退口径）
-parser.variableHandler = () => 0;
+
+// 每播放器持久变量作用域（控制器 v.* 跨帧持久化，ADR-100 L4 语义：v. 每实体持久、
+// temp. 每帧重置）。默认 null = 无作用域，行为与原先一致（每次求值 reset、v.* 不持久）。
+// 启用方式：播放器在 timeline + 控制器求值段 setMolangScope(scope)，结束后 setMolangScope(null)。
+let activeScope: Record<string, number> | null = null;
+
+/**
+ * 设置/清除当前持久变量作用域。
+ * @param scope 每播放器 v.* 变量容器；传 null 恢复默认（v.* 不跨帧持久）
+ */
+export function setMolangScope(scope: Record<string, number> | null): void {
+  activeScope = scope;
+  // 未知 query/variable → 0：mod 扩展的游戏态查询（ysm.*/按键/药效等）在预览器
+  // 无宿主语境，优雅降级而非抛错（对齐 YSMViewer Molang 求值失败回退口径）。
+  // 有作用域时 v.* 读从作用域取（控制器条件读 timeline 写入的变量）。
+  parser.variableHandler = scope
+    ? (key: string): number => {
+        const norm = key.startsWith("v.") ? "variable" + key.slice(1) : key;
+        if (norm.startsWith("variable.") && typeof scope[norm] === "number") {
+          return scope[norm];
+        }
+        return 0;
+      }
+    : () => 0;
+}
 
 /** 构建 anim_time 上下文（molangjs 精确键匹配，q./query. 双写） */
 function makeVariables(animTime: number): Record<string, number> {
@@ -56,6 +79,13 @@ export function compileMolang(expr: string): MolangFn | null {
       try {
         parser.resetVariables();
         const v = parser.parse(expr, makeVariables(animTime));
+        // 持久作用域启用时，把本次解析产生的 v.* 写入并入作用域（跨帧可见）。
+        // 无作用域时跳过——保持原先「每次求值 reset、v.* 不持久」语义不变。
+        if (activeScope) {
+          for (const k in parser.variables) {
+            if (k.startsWith("variable.")) activeScope[k] = parser.variables[k];
+          }
+        }
         // L4：编译成功但运行时产生 Infinity/NaN（如 1e999、除以零）→ 零占位
         // 对齐 P1 Infinity 守卫口径，避免 NaN 穿透到渲染层
         return typeof v === "number" && Number.isFinite(v) ? v : 0;

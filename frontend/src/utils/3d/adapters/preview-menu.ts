@@ -413,7 +413,7 @@ const PREVIEW_LAST_RTYPE_KEY = "ysm.preview.lastRtype";
  *  默认高亮优先级：① 用户手动记忆的类型（localStorage）② 当前模型自身类型（getCurrentRtype）
  *  ③ 第一个类型 tab。「当前目录」tab 已移除（记忆/当前类型生效后可少一个 tab）；
  *  rtypes 为空（无注册路由）时仍走 siblings 列表兜底，不空白。 */
-function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, menu: SlideMenuHandle): void {
+function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx): void {
   const cur = ctx.getCurrentPath();
   const rtypes = ctx.getTypeTabs?.() ?? [];
   const curRtype = ctx.getCurrentRtype?.() ?? "";
@@ -954,7 +954,7 @@ function fillRoles(
   const sep = document.createElement("div");
   sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
   list.appendChild(sep);
-  fillSwitch(list, ctx, menu);
+  fillSwitch(list, ctx);
 }
 
 /** 能力面板通用渲染：cap 存在 → renderCapControls；不存在 → 渲染单行 fallback 提示 */

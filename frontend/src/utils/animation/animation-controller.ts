@@ -10,10 +10,12 @@ import { compileMolang, type MolangFn } from "./molang.ts";
 export interface ControllerTransition {
   /** 目标状态名 */
   target: string;
-  /** 编译后的 Molang 条件闭包（返回 0/非0） */
+  /** 编译后的 Molang 条件闭包（返回 0/非0）；null = 无条件或编译失败，由 unconditional 区分 */
   condition: MolangFn | null;
   /** 原始条件表达式（调试用） */
   raw: string;
+  /** 是否显式无条件转换（空表达式）：true 时总是触发；false 且 condition 为 null = 编译失败，跳过 */
+  unconditional: boolean;
 }
 
 /** 单个状态定义 */
@@ -106,8 +108,14 @@ export function parseAnimationControllerJSON(jsonStr: string): {
           // 转换格式: { "targetState": "conditionExpression" }
           for (const [target, condExpr] of Object.entries(transRaw)) {
             if (typeof condExpr !== "string") continue;
+            // 空表达式 = 显式无条件转换（总是触发）；非空但编译失败 = 条件非法，
+            // 运行期跳过不触发（不 fail-open），并上报错误便于排查。
+            const unconditional = condExpr.trim() === "";
             const condition = compileMolang(condExpr);
-            transitions.push({ target, condition, raw: condExpr });
+            if (!unconditional && !condition) {
+              errors.push(`[${controllerName}.${stateName}] 转换条件编译失败: ${target} → ${condExpr}`);
+            }
+            transitions.push({ target, condition, raw: condExpr, unconditional });
           }
         }
       }
@@ -153,8 +161,6 @@ export class AnimationControllerRuntime {
   private currentState: ControllerState;
   private currentAnimIndex = 0;
   private timeInState = 0;
-  /** 上一帧的变量快照（用于检测变量变化） */
-  private prevVariables: Record<string, number> = {};
   /** 状态切换回调 */
   private onStateChange?: (animationName: string, blendTime: number) => void;
 
@@ -185,11 +191,12 @@ export class AnimationControllerRuntime {
 
   /**
    * 每帧更新：评估转换条件，必要时切换状态。
+   * v.* 变量经 molang.ts 的 setMolangScope 持久作用域读取（timeline 写入跨帧可见），
+   * 此处不再接收变量快照。
    * @param dt 帧间隔（秒）
-   * @param variables 当前 v.* / ctrl.* / q.* 变量快照
    * @returns 是否发生了状态切换
    */
-  update(dt: number, variables: Record<string, number>): boolean {
+  update(dt: number): boolean {
     this.timeInState += dt;
 
     // 评估当前状态的转换条件
@@ -197,14 +204,16 @@ export class AnimationControllerRuntime {
       let conditionMet = false;
       if (trans.condition) {
         try {
-          conditionMet = trans.condition(0) !== 0; // anim_time 不影响条件评估
+          // 用 timeInState 作为 anim_time：时间条件（query.anim_time >= 1）才能触发
+          conditionMet = trans.condition(this.timeInState) !== 0;
         } catch {
           // 条件表达式执行失败，跳过
         }
-      } else {
-        // 无条件转换（总是触发）
+      } else if (trans.unconditional) {
+        // 显式无条件转换（空表达式）：总是触发
         conditionMet = true;
       }
+      // else: 条件编译失败 → 跳过不触发（不再 fail-open 成无条件转换）
 
       if (conditionMet) {
         // 执行当前状态的 on_exit 动作
@@ -233,7 +242,6 @@ export class AnimationControllerRuntime {
       }
     }
 
-    this.prevVariables = { ...variables };
     return false;
   }
 
@@ -242,7 +250,6 @@ export class AnimationControllerRuntime {
     this.currentState = this.controller.states.get(this.controller.initialState)!;
     this.currentAnimIndex = 0;
     this.timeInState = 0;
-    this.prevVariables = {};
   }
 }
 

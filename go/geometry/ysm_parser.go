@@ -243,7 +243,9 @@ func parseModelOrder(raw string) []string {
 func parseYsmArchive(entries []container.Entry, logPrefix string) *ysmArchiveData {
 	result := &ysmArchiveData{}
 	for _, e := range entries {
-		if !types.IsYsmEntryJSON(e.Name()) || e.IsDir() {
+		// 与兄弟调用点一致：IsYsmEntryJSON 是整串精确匹配，必须先取 basename，
+		// 否则嵌套目录（sub/ysm.json）的 ysm.json 会被静默跳过、元数据丢失。
+		if !types.IsYsmEntryJSON(filepath.Base(e.Name())) || e.IsDir() {
 			continue
 		}
 		rc, err := e.Open()

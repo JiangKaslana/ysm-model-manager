@@ -744,7 +744,9 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 							// 载具/投射物声明纹理（含共享 player skin，textures/skin.png 等）。
 							// 无同名纹理时也命中——plane 共享皮肤的关键分支（wine_fox 17_mini
 							// 根因：此前落全局 texArr 越界贴到 gui 背景）。
-							if di, ok := declaredTexByModel[base]; ok && di.relPath != "" {
+							// 键由 modelBaseNoExt 小写生成，此处 base 未小写，须显式 ToLower
+							// 否则混合大小写模型名（models/Plane.json）查不到键、退回旧错绑路径。
+							if di, ok := declaredTexByModel[strings.ToLower(base)]; ok && di.relPath != "" {
 								var cand string
 								if filepath.IsAbs(di.relPath) {
 									cand = filepath.Clean(di.relPath)

@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { createYsmAnimPlayer, type YsmAnimPlayer } from "./ysm-animation-player.ts";
 import type { AnimationClip } from "../animation/animation.ts";
 import type { BoneHierarchyNode } from "../animation/animation.ts";
+import { compileMolang } from "../animation/molang.ts";
+import type { AnimationController } from "../animation/animation-controller.ts";
 
 function makeClip(length = 2.0, boneName = "root"): AnimationClip {
   return {
@@ -346,5 +348,101 @@ describe("createYsmAnimPlayer", () => {
     // 收敛到 clipB 目标
     for (let i = 0; i < 30; i++) player.apply(0.05);
     expect(bone.position.x).toBeCloseTo(-8.0, 4);
+  });
+
+  // ---- 动画控制器（wine_fox 状态机，ADR-100 L4 语义：v. 每实体持久）----
+
+  it("控制器: timeline 写 v.* 后条件触发状态切换（跨帧持久作用域）", () => {
+    const bone = makeBone("root");
+    const clipIdle: AnimationClip = {
+      name: "idle",
+      loop: true,
+      length: 2,
+      timeline: [
+        { time: 0.5, actions: [compileMolang("v.flag = 1")!], raw: ["v.flag = 1"] },
+      ],
+      bones: {
+        root: {
+          position: [
+            { time: 0, post: [0, 0, 0], pre: [0, 0, 0], lerp: "linear" },
+            { time: 1, post: [0, 0, 0], pre: [0, 0, 0], lerp: "linear" },
+          ],
+        },
+      },
+    };
+    const clipRun = makeConstPosClip("run", "root", [1, 0, 0]);
+    const controller: AnimationController = {
+      name: "test",
+      initialState: "idle",
+      states: new Map([
+        ["idle", {
+          name: "idle",
+          animations: ["idle"],
+          onExit: [],
+          transitions: [
+            { target: "run", condition: compileMolang("v.flag != 0"), raw: "v.flag != 0", unconditional: false },
+          ],
+          blendTransition: 0.2,
+        }],
+        ["run", {
+          name: "run",
+          animations: ["run"],
+          onExit: [],
+          transitions: [],
+          blendTransition: 0.2,
+        }],
+      ]),
+    };
+    const player = createYsmAnimPlayer(new Map([["root", bone]]), [clipIdle, clipRun], H, ["idle", "run"]);
+    player.setController(controller);
+
+    // 第一帧：timeline 事件(0.5)未触发，v.flag 未写 → 条件不满足
+    player.apply(0.3);
+    expect(player.getControllerState()).toBe("idle");
+    expect(player.currentIndex()).toBe(0);
+
+    // 第二帧：跨过 0.5 → v.flag=1 写入作用域 → 条件触发切换
+    player.apply(0.3);
+    expect(player.getControllerState()).toBe("run");
+    expect(player.currentIndex()).toBe(1);
+  });
+
+  it("控制器: 时间条件按 timeInState 评估（query.anim_time >= 0.5）", () => {
+    const bone = makeBone("root");
+    const clipIdle = makeConstPosClip("idle", "root", [0, 0, 0]);
+    const clipRun = makeConstPosClip("run", "root", [1, 0, 0]);
+    const controller: AnimationController = {
+      name: "test",
+      initialState: "idle",
+      states: new Map([
+        ["idle", {
+          name: "idle",
+          animations: ["idle"],
+          onExit: [],
+          transitions: [
+            { target: "run", condition: compileMolang("query.anim_time >= 0.5"), raw: "query.anim_time >= 0.5", unconditional: false },
+          ],
+          blendTransition: 0.2,
+        }],
+        ["run", {
+          name: "run",
+          animations: ["run"],
+          onExit: [],
+          transitions: [],
+          blendTransition: 0.2,
+        }],
+      ]),
+    };
+    const player = createYsmAnimPlayer(new Map([["root", bone]]), [clipIdle, clipRun], H, ["idle", "run"]);
+    player.setController(controller);
+
+    // timeInState=0.3 < 0.5：不切换
+    player.apply(0.3);
+    expect(player.getControllerState()).toBe("idle");
+
+    // timeInState=0.6 >= 0.5：切换（修复前硬编码 anim_time=0，永不触发）
+    player.apply(0.3);
+    expect(player.getControllerState()).toBe("run");
+    expect(player.currentIndex()).toBe(1);
   });
 });
