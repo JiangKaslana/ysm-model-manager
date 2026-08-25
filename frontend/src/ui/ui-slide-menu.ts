@@ -52,9 +52,41 @@ export interface SlideMenuHandle {
 
 /** 构建 slide-menu 卡片外壳（含轻量导航栈）。 */
 export function createSlideMenu(opts?: { title?: string; closeIcon?: string }): SlideMenuHandle {
+  smInstallStyles();
+  const shell = smBuildShell(opts);
+  const stack: SlideMenuView[] = [];
+  let onClose: (() => void) | undefined;
+
+  const renderTop = (): void => smRenderTop(stack, shell.list, shell.title, shell.backBtn, opts);
+  const handleBack = (): void => {
+    if (stack.length > 1) {
+      stack.pop();
+      renderTop();
+    } else {
+      onClose?.();
+    }
+  };
+  smBindBackButton(shell.backBtn, handleBack);
+
+  return smBuildHandle(shell, stack, renderTop, handleBack, {
+    getOnClose: () => onClose,
+    setOnClose: (fn) => { onClose = fn; },
+  });
+}
+
+function smInstallStyles(): void {
   installSlideMenuStyles();
   installUiComponentsStyles();
+}
 
+interface SmShell {
+  root: HTMLDivElement;
+  list: HTMLDivElement;
+  title: HTMLSpanElement;
+  backBtn: HTMLSpanElement;
+}
+
+function smBuildShell(opts?: { title?: string; closeIcon?: string }): SmShell {
   const root = document.createElement("div");
   root.className = "menu-wrapper slide-menu";
   root.tabIndex = -1;
@@ -89,35 +121,27 @@ export function createSlideMenu(opts?: { title?: string; closeIcon?: string }): 
   viewport.appendChild(header);
   viewport.appendChild(panel);
   root.appendChild(viewport);
+  return { root, list, title, backBtn };
+}
 
-  // ── 轻量导航栈 ──
-  // 不搬 MikuMikuAR 的 registry/schema 业务层，仅保留「栈 + 返回」的纯视觉语义：
-  // 根级 slide-back 显示 ✕（关闭），子集显示 ←（返回上一级）。
-  const stack: SlideMenuView[] = [];
+function smRenderTop(
+  stack: SlideMenuView[],
+  list: HTMLElement,
+  title: HTMLSpanElement,
+  backBtn: HTMLSpanElement,
+  opts?: { closeIcon?: string }
+): void {
+  const top = stack[stack.length - 1];
+  if (!top) return;
+  list.innerHTML = "";
+  title.textContent = top.title;
+  const atRoot = stack.length <= 1;
+  backBtn.textContent = atRoot ? opts?.closeIcon ?? "✕" : "←";
+  backBtn.title = atRoot ? "关闭" : "返回";
+  top.render(list);
+}
 
-  const renderTop = (): void => {
-    const top = stack[stack.length - 1];
-    if (!top) return;
-    list.innerHTML = "";
-    title.textContent = top.title;
-    const atRoot = stack.length <= 1;
-    backBtn.textContent = atRoot ? opts?.closeIcon ?? "✕" : "←";
-    backBtn.title = atRoot ? "关闭" : "返回";
-    top.render(list);
-  };
-
-  const handleBack = (): void => {
-    if (stack.length > 1) {
-      stack.pop();
-      renderTop();
-    } else {
-      fireClose();
-    }
-  };
-
-  let onClose: (() => void) | undefined;
-  const fireClose = (): void => onClose?.();
-
+function smBindBackButton(backBtn: HTMLSpanElement, handleBack: () => void): void {
   backBtn.onclick = handleBack;
   backBtn.onkeydown = (e: KeyboardEvent): void => {
     if (e.key === "Enter" || e.key === " ") {
@@ -125,16 +149,25 @@ export function createSlideMenu(opts?: { title?: string; closeIcon?: string }): 
       handleBack();
     }
   };
+}
 
+interface SmHandleDeps {
+  getOnClose: () => (() => void) | undefined;
+  setOnClose: (fn: () => void) => void;
+}
+
+function smBuildHandle(
+  shell: SmShell,
+  stack: SlideMenuView[],
+  renderTop: () => void,
+  handleBack: () => void,
+  deps: SmHandleDeps
+): SlideMenuHandle {
   return {
-    root,
-    list,
-    setTitle: (t: string): void => {
-      title.textContent = t;
-    },
-    setOnClose: (fn: () => void): void => {
-      onClose = fn;
-    },
+    root: shell.root,
+    list: shell.list,
+    setTitle: (t: string): void => { shell.title.textContent = t; },
+    setOnClose: (fn: () => void): void => { deps.setOnClose(fn); },
     home: (view: SlideMenuView): void => {
       stack.length = 0;
       stack.push(view);
@@ -145,16 +178,10 @@ export function createSlideMenu(opts?: { title?: string; closeIcon?: string }): 
       renderTop();
     },
     back: (): void => handleBack(),
-    refresh: (): void => {
-      renderTop();
-    },
+    refresh: (): void => { renderTop(); },
     isShowing: (view: SlideMenuView): boolean => stack[stack.length - 1] === view,
-    reset: (): void => {
-      stack.length = 0;
-    },
+    reset: (): void => { stack.length = 0; },
     isAtRoot: (): boolean => stack.length <= 1,
-    dispose: (): void => {
-      root.remove();
-    },
+    dispose: (): void => { shell.root.remove(); },
   };
 }
