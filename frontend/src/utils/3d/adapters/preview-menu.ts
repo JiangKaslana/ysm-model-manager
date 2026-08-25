@@ -20,6 +20,7 @@ import type { LightCapability } from "../caps/light-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import { RESOURCE_TYPE_LABELS, resolveTypeSafe, getPreviewableTypeTabs } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
+import { attachTooltip } from "../../../utils/dom/tooltip.ts";
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 import { t } from "../../../core/i18n/t.ts";
 import type { MenuControlDef, SceneCapability } from "../caps/scene-capability.ts";
@@ -57,9 +58,8 @@ export interface PreviewMenuCtx {
   switchExternal?: (path: string, siblings?: string[], options?: { keepInScene?: boolean }) => Promise<void> | void;
   /** 卸载已加载角色（mount3D 注入：移除 roots + dispose + 注册表注销 + 相机重算） */
   unloadRole?: (id: string) => void;
-  /** 动作节点真 ctx：mount3D 注入真实现，适配器动作可 toast/setStatus/closeAllOverlays */
+  /** 动作节点真 ctx：mount3D 注入真实现，适配器动作可 toast/closeAllOverlays */
   toast: (message: string) => void;
-  setStatus: (message: string) => void;
   closeAllOverlays: () => void;
 }
 
@@ -114,10 +114,9 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     popup.style.display = "none";
   };
 
-  // 真 action ctx：从 PreviewMenuCtx 取 toast/setStatus/closeAllOverlays
+  // 真 action ctx：从 PreviewMenuCtx 取 toast/closeAllOverlays
   const actionCtx: PreviewActionMenuCtx = {
     toast: ctx.toast,
-    setStatus: ctx.setStatus,
     closeAllOverlays: ctx.closeAllOverlays,
   };
   // 根级 ✕（SlideMenu onClose）语义 = 关闭整个 3D 预览（对齐旧 close 菜单项）
@@ -529,7 +528,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, menu: SlideMenuHandl
           const append = document.createElement("button");
           append.dataset.testid = "preview-switch-append";
           append.textContent = "➕";
-          append.title = tr("preview.appendModel", "追加到场景");
+          attachTooltip(append, () => tr("preview.appendModel", "追加到场景"));
           append.style.cssText =
             "width:22px;height:22px;flex-shrink:0;background:rgba(255,255,255,0.08);border:none;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;margin-left:auto";
           append.onclick = (ev): void => {
@@ -855,10 +854,9 @@ function fillRoles(
   menu: SlideMenuHandle,
   setAdapterItems: (items: PreviewMenuNode[]) => void,
 ): void {
-  // 真 action ctx：从 PreviewMenuCtx 取 toast/setStatus/closeAllOverlays
+  // 真 action ctx：从 PreviewMenuCtx 取 toast/closeAllOverlays
   const actionCtx: PreviewActionMenuCtx = {
     toast: ctx.toast,
-    setStatus: ctx.setStatus,
     closeAllOverlays: ctx.closeAllOverlays,
   };
   list.innerHTML = "";
@@ -893,7 +891,7 @@ function fillRoles(
       const radio = document.createElement("button");
       radio.dataset.testid = "preview-role-focus";
       radio.textContent = isActive ? "●" : "○";
-      radio.title = tr("preview.roleFocus", "设为焦点");
+      attachTooltip(radio, () => tr("preview.roleFocus", "设为焦点"));
       radio.style.cssText =
         "width:18px;height:18px;flex-shrink:0;background:transparent;border:none;cursor:pointer;font-size:14px;line-height:1" +
         (isActive ? ";color:#7c83ff" : ";color:rgba(255,255,255,0.5)");
@@ -909,7 +907,7 @@ function fillRoles(
       const name = document.createElement("span");
       name.dataset.testid = "preview-role-name";
       name.textContent = roleBaseName(e);
-      name.title = e.path;
+      attachTooltip(name, e.path);
       name.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
       row.onclick = (): void => {
         menu.navigate(roleDetailView(e, { makeRow, makePanelView, menu, actionCtx }));
@@ -918,7 +916,7 @@ function fillRoles(
       const tools = document.createElement("button");
       tools.dataset.testid = "preview-role-tools";
       tools.textContent = "⚙";
-      tools.title = tr("preview.roleTools", "模型工具");
+      attachTooltip(tools, () => tr("preview.roleTools", "模型工具"));
       tools.style.cssText =
         "width:22px;height:22px;flex-shrink:0;background:rgba(255,255,255,0.08);border:none;border-radius:4px;cursor:pointer;font-size:13px;line-height:1";
       tools.onclick = (ev): void => {

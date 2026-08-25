@@ -385,9 +385,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     toast: (msg: string): void => {
       bus.emit("toast:show", { msg, duration: 3000 });
     },
-    setStatus: (msg: string): void => {
-      bus.emit("toast:show", { msg, duration: 2000 });
-    },
     closeAllOverlays: (): void => {
       menuHandle.dispose();
     },

@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 153 | 612 |
+| 前端·工具 | 154 | 618 |
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **469** | **2013** |
+| **合计** | **470** | **2019** |
 
 ## Go·头像
 
@@ -1385,18 +1385,18 @@
 | `renderEnvLevel()` | `frontend/src/utils/3d/adapters/preview-menu-env:136` | — |
 | `PreviewStatePath()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:14` | 状态路径：类型化字符串（沿用 MikuMikuAR 契约；ysm 侧 state 映射表尚未建立时为占位） |
 | `PreviewActionMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:24` | 动作节点回调上下文（与 ActionMenuCtx 对齐；ysm 侧 toast/closeOverlays 由 ctx.menu 提供） |
-| `PreviewMenuNodeKind()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:31` | 节点种类：folder 可嵌套；其余为叶节点（与 MikuMikuAR MenuKind 对齐，加 ysm 的 panel 语义） |
-| `PreviewControlSpec()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:45` | 控件绑定规格（slider/toggle/button/field 用；ysm 侧 state 映射表建立后 bind 生效） |
-| `PreviewMenuNode()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:65` | 声明式菜单节点：菜单即数据。与 PreviewMenuItemDef 的映射见 preview-menu-defs.ts 顶部注释 |
-| `isPreviewFolderNode()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:105` | 类型守卫：节点是否为 folder（可下钻） |
-| `collectPreviewLeafNodes()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:110` | 递归收集全部叶子节点（folder 展开；供测试/审计遍历） |
-| `collectPreviewNodeIds()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:123` | 递归收集全部节点 id（供 id 唯一性契约测试） |
+| `PreviewMenuNodeKind()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:30` | 节点种类：folder 可嵌套；其余为叶节点（与 MikuMikuAR MenuKind 对齐，加 ysm 的 panel 语义） |
+| `PreviewControlSpec()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:44` | 控件绑定规格（slider/toggle/button/field 用；ysm 侧 state 映射表建立后 bind 生效） |
+| `PreviewMenuNode()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:64` | 声明式菜单节点：菜单即数据。与 PreviewMenuItemDef 的映射见 preview-menu-defs.ts 顶部注释 |
+| `isPreviewFolderNode()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:104` | 类型守卫：节点是否为 folder（可下钻） |
+| `collectPreviewLeafNodes()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:109` | 递归收集全部叶子节点（folder 展开；供测试/审计遍历） |
+| `collectPreviewNodeIds()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:122` | 递归收集全部节点 id（供 id 唯一性契约测试） |
 | `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu` | — |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:34` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:35` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:77` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:86` | 挂载预览底部根菜单，返回句柄 |
-| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:593` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
-| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:645` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
+| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:592` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
+| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:644` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
@@ -1806,10 +1806,10 @@
 | `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
 | `isFileExistsError()` | `frontend/src/utils/dom/errors:87` | 判断错误消息是否为「文件已存在」冲突（索引 4.2 收敛）。 |
-| `YSW_FAB_CSS()` | `frontend/src/utils/dom/fab:6` | — |
-| `ensureFabStyles()` | `frontend/src/utils/dom/fab:75` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
-| `IconButtonOpts()` | `frontend/src/utils/dom/fab:90` | — |
-| `createIconButton()` | `frontend/src/utils/dom/fab:102` | 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。 |
+| `YSW_FAB_CSS()` | `frontend/src/utils/dom/fab:7` | — |
+| `ensureFabStyles()` | `frontend/src/utils/dom/fab:76` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
+| `IconButtonOpts()` | `frontend/src/utils/dom/fab:91` | — |
+| `createIconButton()` | `frontend/src/utils/dom/fab:105` | 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。 |
 | `FLASH_DURATION_MS()` | `frontend/src/utils/dom/feedback:10` | 默认闪烁时长（ms） |
 | `FlashOptions()` | `frontend/src/utils/dom/feedback:13` | 闪烁反馈配置 |
 | `flashBtn()` | `frontend/src/utils/dom/feedback:28` | 按钮/行闪烁反馈：加 flash class，duration 后移除。 |
@@ -1822,6 +1822,12 @@
 | `safeRemove()` | `frontend/src/utils/dom/storage:25` | 安全删：存储不可用时静默忽略（不中断调用方） |
 | `TOAST_MS()` | `frontend/src/utils/dom/toast-ms:6` | — |
 | `ToastType()` | `frontend/src/utils/dom/toast-ms:22` | toast:show 的 type 取值域（与 ToastPayload.type 对齐） |
+| `YSW_TOOLTIP_CSS()` | `frontend/src/utils/dom/tooltip:9` | — |
+| `ensureTooltipStyles()` | `frontend/src/utils/dom/tooltip:17` | 幂等注入 tooltip 全局样式到 head（模式同 ensureFabStyles） |
+| `TooltipOptions()` | `frontend/src/utils/dom/tooltip:101` | — |
+| `attachTooltip()` | `frontend/src/utils/dom/tooltip:110` | 给元素挂悬浮提示，返回 cleanup 函数（摘除全部监听并隐藏）。 |
+| `promoteTitle()` | `frontend/src/utils/dom/tooltip:149` | 把元素上的原生 title 升级为自定义 tooltip（模板里已写 title 的按钮一行接入）。 |
+| `promoteTitleIfPresent()` | `frontend/src/utils/dom/tooltip:158` | promoteTitle + 空值守卫（querySelector 结果可能为 null 的绑定点一行接入） |
 | `VS_BUFFER()` | `frontend/src/utils/dom/virtual-scroll:8` | 可见行缓冲：上下各多渲染 BUFFER 行，保证快速滚动不露白 |
 | `calcVisibleRange()` | `frontend/src/utils/dom/virtual-scroll:17` | 根据滚动位置计算可见行范围。 |
 | `installScrollSync()` | `frontend/src/utils/dom/virtual-scroll:36` | 在滚动容器上安装监听，滚动时经 rAF 合并后触发重渲（一帧最多一次）。 |
@@ -2025,18 +2031,18 @@
 | `collectBlobUrls()` | `frontend/src/views/app-preview/cache:48` | 收集缓存值中全部 blob URL（evict 释放用） |
 | `cacheSet()` | `frontend/src/views/app-preview/cache:65` | — |
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
-| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:26` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
-| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:98` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
-| `showFbxPreview()` | `frontend/src/views/app-preview/detail-3d:127` | 显示 FBX 预览卡（文件名 + FAB 进 3D；FBX 无标准 meta 读取，保持简单形态，ADR-112） |
-| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:156` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
-| `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:185` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
-| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:245` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
-| `nextDetailGen()` | `frontend/src/views/app-preview/detail:24` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
-| `getDetailGen()` | `frontend/src/views/app-preview/detail:29` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
-| `showModelDetail()` | `frontend/src/views/app-preview/detail:34` | 显示模型详情（YSM 模型） |
-| `showResourcePack()` | `frontend/src/views/app-preview/detail:145` | 显示资源包信息（pack.mcmeta + pack.png） |
-| `showSimplePreview()` | `frontend/src/views/app-preview/detail:187` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
-| `showShaderpack()` | `frontend/src/views/app-preview/detail:205` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
+| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:27` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
+| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:100` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
+| `showFbxPreview()` | `frontend/src/views/app-preview/detail-3d:130` | 显示 FBX 预览卡（文件名 + FAB 进 3D；FBX 无标准 meta 读取，保持简单形态，ADR-112） |
+| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:160` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
+| `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:190` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
+| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:251` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
+| `nextDetailGen()` | `frontend/src/views/app-preview/detail:25` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
+| `getDetailGen()` | `frontend/src/views/app-preview/detail:30` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
+| `showModelDetail()` | `frontend/src/views/app-preview/detail:35` | 显示模型详情（YSM 模型） |
+| `showResourcePack()` | `frontend/src/views/app-preview/detail:146` | 显示资源包信息（pack.mcmeta + pack.png） |
+| `showSimplePreview()` | `frontend/src/views/app-preview/detail:189` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
+| `showShaderpack()` | `frontend/src/views/app-preview/detail:207` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
 | `openEmpty3DFullscreen()` | `frontend/src/views/app-preview/empty-3d:35` | 打开空场景 3D 全屏预览（无需 path）。 |
 | `cleanupEmpty3D()` | `frontend/src/views/app-preview/empty-3d:40` | 清理空场景 3D（WebGL renderer + rAF 循环） |
 | `invalidateEmptyPreview()` | `frontend/src/views/app-preview/empty-3d:45` | 作废在途空场景加载 |
@@ -2058,10 +2064,10 @@
 | `LoadModelOpts()` | `frontend/src/views/app-preview/loader:11` | loadModelData 选项（Bedrock 通用模型加载控制） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:29` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
 | `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:174` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
-| `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:38` | — |
-| `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:87` | 关闭活跃女仆 3D 预览 |
-| `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:92` | 作废在途女仆 3D 加载 |
-| `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:101` | 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。 |
+| `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:39` | — |
+| `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:88` | 关闭活跃女仆 3D 预览 |
+| `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:93` | 作废在途女仆 3D 加载 |
+| `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:102` | 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。 |
 | `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:78` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:83` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `appendMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:88` | 同台追加 MMD 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） |
@@ -2109,9 +2115,9 @@
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
-| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:34` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
-| `setActive3DClose()` | `frontend/src/views/app-preview/skeleton:40` | 设置当前活跃的 3D 全屏 overlay 关闭函数（maid/通用 Bedrock 模型复用此机制）。 |
-| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:57` | 加载模型 2D 骨骼线条图 + 统计面板 |
+| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:35` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
+| `setActive3DClose()` | `frontend/src/views/app-preview/skeleton:41` | 设置当前活跃的 3D 全屏 overlay 关闭函数（maid/通用 Bedrock 模型复用此机制）。 |
+| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:58` | 加载模型 2D 骨骼线条图 + 统计面板 |
 | `resolveStageSiblings()` | `frontend/src/views/app-preview/stage-siblings:13` | 扫描 StageAnim 目录下所有资源文件（VMD + 音频 + config）；失败返回 [] |
 | `resolveStageVmdList()` | `frontend/src/views/app-preview/stage-siblings:39` | 仅获取 StageAnim 下所有 VMD 文件路径列表 |
 | `resolveStageAudioList()` | `frontend/src/views/app-preview/stage-siblings:45` | 仅获取 StageAnim 下所有音频文件路径列表 |

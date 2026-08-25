@@ -1,58 +1,72 @@
-# Bus 事件映射表
+# Bus 事件契约报告
 
 > **自动生成** — 由 `scripts/event-graph.mjs` 生成。
-> 改事件名 / payload 时，先看此表定位影响面。
+> 基于 `frontend/src/bus.ts` 的 `BusEvents` 接口校验所有调用方。
 
-## 总览
+## ⚠️ 异常摘要
 
-| 事件 | 发射方 | 订阅方 | 一次性订阅 | 退订方 |
-|------|--------|--------|-----------|--------|
-| `avatar:refresh` | 1 | 1 | 0 | 0 |
-| `batch:disable` | 0 | 1 | 0 | 0 |
-| `batch:disable-all` | 1 | 1 | 0 | 0 |
-| `batch:enable` | 0 | 1 | 0 | 0 |
-| `batch:enable-all` | 1 | 1 | 0 | 0 |
-| `batch:rename` | 1 | 1 | 0 | 0 |
-| `config:updated` | 4 | 0 | 0 | 0 |
-| `ctx:show` | 4 | 1 | 0 | 0 |
-| `dir:batch-rename` | 1 | 1 | 0 | 0 |
-| `dir:mkdir` | 1 | 1 | 0 | 0 |
-| `dir:recycle` | 1 | 1 | 0 | 0 |
-| `dir:rename` | 1 | 1 | 0 | 0 |
-| `import:history-changed` | 3 | 0 | 0 | 0 |
-| `instance:clear` | 1 | 1 | 0 | 0 |
-| `instance:export-list` | 1 | 1 | 0 | 0 |
-| `lang:changed` | 2 | 2 | 0 | 0 |
-| `menu:show` | 2 | 1 | 0 | 0 |
-| `model:select` | 8 | 1 | 0 | 0 |
-| `morph:apply` | 1 | 0 | 0 | 0 |
-| `nav:changed` | 6 | 3 | 0 | 0 |
-| `package:selected` | 2 | 1 | 0 | 0 |
-| `repo:rtype-changed` | 3 | 6 | 0 | 0 |
-| `repo:search-creator` | 0 | 1 | 0 | 0 |
-| `repo:subdir-changed` | 1 | 1 | 0 | 0 |
-| `stage:load` | 1 | 0 | 0 | 0 |
-| `stats:refresh` | 21 | 2 | 0 | 0 |
-| `sync:download:done` | 2 | 2 | 0 | 0 |
-| `sync:download:missing` | 1 | 0 | 0 | 0 |
-| `sync:toggle:status` | 3 | 1 | 0 | 0 |
-| `theme:change` | 1 | 0 | 0 | 0 |
-| `toast:show` | 192 | 2 | 0 | 0 |
-| `tree:reload` | 11 | 1 | 0 | 0 |
-| `tree:set-search` | 1 | 1 | 0 | 0 |
+### 孤儿发射（emit 了但无 on/once 订阅方）
 
-## 事件详情
+- `import:history-changed` — emit×3
+- `theme:change` — emit×1
+- `config:updated` — emit×4
+- `morph:apply` — emit×1
+- `stage:load` — emit×1
+- `sync:download:missing` — emit×1
+
+### 鬼订阅（有 on/once 但从未被 emit）
+
+- `batch:enable` — on×1
+- `batch:disable` — on×1
+
+## 事件总览
+
+| 事件 | 发射方 | 订阅方 | 一次性订阅 | 退订方 | 状态 |
+|------|--------|--------|-----------|--------|------|
+| `avatar:refresh` | 1 | 1 | 0 | 0 | ✅ |
+| `batch:disable` | 0 | 1 | 0 | 0 | 👻 鬼订阅 |
+| `batch:disable-all` | 1 | 1 | 0 | 0 | ✅ |
+| `batch:enable` | 0 | 1 | 0 | 0 | 👻 鬼订阅 |
+| `batch:enable-all` | 1 | 1 | 0 | 0 | ✅ |
+| `batch:rename` | 1 | 1 | 0 | 0 | ✅ |
+| `config:updated` | 4 | 0 | 0 | 0 | 🔇 孤儿发射 |
+| `ctx:show` | 4 | 1 | 0 | 0 | ✅ |
+| `dir:batch-rename` | 1 | 1 | 0 | 0 | ✅ |
+| `dir:mkdir` | 1 | 1 | 0 | 0 | ✅ |
+| `dir:recycle` | 1 | 1 | 0 | 0 | ✅ |
+| `dir:rename` | 1 | 1 | 0 | 0 | ✅ |
+| `import:history-changed` | 3 | 0 | 0 | 0 | 🔇 孤儿发射 |
+| `instance:clear` | 1 | 1 | 0 | 0 | ✅ |
+| `instance:export-list` | 1 | 1 | 0 | 0 | ✅ |
+| `lang:changed` | 2 | 2 | 0 | 0 | ✅ |
+| `menu:show` | 2 | 1 | 0 | 0 | ✅ |
+| `model:select` | 8 | 1 | 0 | 0 | ✅ |
+| `morph:apply` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
+| `nav:changed` | 7 | 3 | 0 | 0 | ✅ |
+| `package:selected` | 2 | 1 | 0 | 0 | ✅ |
+| `repo:rtype-changed` | 3 | 6 | 0 | 0 | ✅ |
+| `repo:search-creator` | 2 | 1 | 0 | 0 | ✅ |
+| `repo:subdir-changed` | 1 | 1 | 0 | 0 | ✅ |
+| `stage:load` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
+| `stats:refresh` | 21 | 2 | 0 | 0 | ✅ |
+| `sync:download:done` | 2 | 2 | 0 | 0 | ✅ |
+| `sync:download:missing` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
+| `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
+| `theme:change` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
+| `toast:show` | 205 | 2 | 0 | 0 | ✅ |
+| `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
+| `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
+
+## 调用详情
 
 ### `avatar:refresh`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/features/community/download-queue-store.ts` | 261 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/init-workshop.ts` | 112 |
@@ -60,21 +74,18 @@
 ### `batch:disable`
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 29 |
 
 ### `batch:disable-all`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/toolbar-events.ts` | 178 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 20 |
@@ -82,43 +93,37 @@
 ### `batch:enable`
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 24 |
 
 ### `batch:enable-all`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/toolbar-events.ts` | 177 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 19 |
 
 ### `batch:rename`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menu-handlers.ts` | 107 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 218 |
 
 ### `config:updated`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/settings/path-cards.ts` | 77 |
@@ -128,8 +133,7 @@
 
 ### `ctx:show`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sidebar/events.ts` | 126 |
@@ -138,71 +142,61 @@
 | `frontend/src/views/app-tree/events.ts` | 400 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menus.ts` | 79 |
 
 ### `dir:batch-rename`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menu-dir-handlers.ts` | 13 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 162 |
 
 ### `dir:mkdir`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menu-dir-handlers.ts` | 50 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 69 |
 
 ### `dir:recycle`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menu-dir-handlers.ts` | 51 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 98 |
 
 ### `dir:rename`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menu-dir-handlers.ts` | 11 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 36 |
 
 ### `import:history-changed`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/features/import-executor.ts` | 46 |
@@ -211,43 +205,37 @@
 
 ### `instance:clear`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menu-handlers.ts` | 101 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/handlers/instance-ops.ts` | 101 |
 
 ### `instance:export-list`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menu-handlers.ts` | 96 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/handlers/instance-ops.ts` | 14 |
 
 ### `lang:changed`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/i18n/locale.ts` | 82 |
 | `frontend/src/core/i18n/locale.ts` | 128 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/index.ts` | 112 |
@@ -255,63 +243,57 @@
 
 ### `menu:show`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menus.ts` | 80 |
 | `frontend/src/features/community/events.ts` | 222 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/context-menu/index.ts` | 25 |
 
 ### `model:select`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/features/oldest-models.ts` | 50 |
 | `frontend/src/features/recycle-bin.ts` | 108 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 346 |
-| `frontend/src/views/app-preview/detail-3d.ts` | 222 |
-| `frontend/src/views/app-preview/detail-3d.ts` | 289 |
+| `frontend/src/views/app-preview/detail-3d.ts` | 227 |
+| `frontend/src/views/app-preview/detail-3d.ts` | 295 |
 | `frontend/src/views/app-tree/events.ts` | 165 |
 | `frontend/src/views/app-tree/events.ts` | 342 |
 | `frontend/src/views/app-tree/index.ts` | 404 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-preview/index.ts` | 111 |
 
 ### `morph:apply`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-preview/detail-3d.ts` | 234 |
+| `frontend/src/views/app-preview/detail-3d.ts` | 240 |
 
 ### `nav:changed`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/index.ts` | 106 |
 | `frontend/src/views/app-content/index.ts` | 178 |
+| `frontend/src/views/app-content/site/events.ts` | 41 |
 | `frontend/src/views/app-nav/index.ts` | 62 |
 | `frontend/src/views/app-nav/index.ts` | 139 |
 | `frontend/src/views/app-sidebar/events.ts` | 202 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 86 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/page-store.ts` | 55 |
@@ -320,23 +302,20 @@
 
 ### `package:selected`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sidebar/events.ts` | 88 |
 | `frontend/src/views/app-sidebar/events.ts` | 187 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/init-pages.ts` | 37 |
 
 ### `repo:rtype-changed`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/settings/init.ts` | 346 |
@@ -344,7 +323,6 @@
 | `frontend/src/views/app-nav/index.ts` | 204 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/features/repo-rtype.ts` | 23 |
@@ -356,38 +334,39 @@
 
 ### `repo:search-creator`
 
-**订阅方（on）：**
+**发射方：**
+| 文件 | 行 |
+|------|----|
+| `frontend/src/views/app-content/site/events.ts` | 131 |
+| `frontend/src/views/app-content/site/events.ts` | 297 |
 
+**订阅方（on）：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/index.ts` | 104 |
 
 ### `repo:subdir-changed`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-nav/index.ts` | 207 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sync-manager/index.ts` | 194 |
 
 ### `stage:load`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-preview/detail-3d.ts` | 299 |
+| `frontend/src/views/app-preview/detail-3d.ts` | 306 |
 
 ### `stats:refresh`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menu-shared.ts` | 17 |
@@ -413,7 +392,6 @@
 | `frontend/src/views/app-tree/events.ts` | 208 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sidebar/index.ts` | 93 |
@@ -421,15 +399,13 @@
 
 ### `sync:download:done`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/handlers/sync.ts` | 23 |
 | `frontend/src/core/handlers/sync.ts` | 119 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sidebar/index.ts` | 233 |
@@ -437,16 +413,14 @@
 
 ### `sync:download:missing`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sidebar/index.ts` | 257 |
 
 ### `sync:toggle:status`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 360 |
@@ -454,23 +428,20 @@
 | `frontend/src/views/app-tree/events.ts` | 206 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/handlers/sync.ts` | 131 |
 
 ### `theme:change`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/theme-core.ts` | 34 |
 
 ### `toast:show`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/app-modules.ts` | 69 |
@@ -529,7 +500,8 @@
 | `frontend/src/features/version-updater.ts` | 209 |
 | `frontend/src/features/version-updater.ts` | 243 |
 | `frontend/src/features/version-updater.ts` | 253 |
-| `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 970 |
+| `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 383 |
+| `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 976 |
 | `frontend/src/utils/3d/adapters/switch-preview.ts` | 97 |
 | `frontend/src/utils/3d/adapters/switch-preview.ts` | 166 |
 | `frontend/src/utils/dom/dialogs/batch-rename.ts` | 96 |
@@ -579,6 +551,18 @@
 | `frontend/src/views/app-content/settings/ui-prefs.ts` | 151 |
 | `frontend/src/views/app-content/settings/ui-prefs.ts` | 161 |
 | `frontend/src/views/app-content/settings/worker-prefs.ts` | 43 |
+| `frontend/src/views/app-content/site/drag.ts` | 38 |
+| `frontend/src/views/app-content/site/drag.ts` | 75 |
+| `frontend/src/views/app-content/site/drag.ts` | 98 |
+| `frontend/src/views/app-content/site/drag.ts` | 107 |
+| `frontend/src/views/app-content/site/edit.ts` | 86 |
+| `frontend/src/views/app-content/site/edit.ts` | 93 |
+| `frontend/src/views/app-content/site/edit.ts` | 108 |
+| `frontend/src/views/app-content/site/edit.ts` | 134 |
+| `frontend/src/views/app-content/site/edit.ts` | 167 |
+| `frontend/src/views/app-content/site/edit.ts` | 174 |
+| `frontend/src/views/app-content/site/events.ts` | 104 |
+| `frontend/src/views/app-content/site/events.ts` | 271 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 108 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 118 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 124 |
@@ -588,8 +572,8 @@
 | `frontend/src/views/app-content/workshop-tabs.ts` | 59 |
 | `frontend/src/views/app-content/workshop-tabs.ts` | 107 |
 | `frontend/src/views/app-nav/index.ts` | 229 |
-| `frontend/src/views/app-preview/detail-3d.ts` | 235 |
-| `frontend/src/views/app-preview/detail-3d.ts` | 300 |
+| `frontend/src/views/app-preview/detail-3d.ts` | 241 |
+| `frontend/src/views/app-preview/detail-3d.ts` | 307 |
 | `frontend/src/views/app-preview/index.ts` | 230 |
 | `frontend/src/views/app-preview/index.ts` | 250 |
 | `frontend/src/views/app-preview/mmd-controls.ts` | 282 |
@@ -667,7 +651,6 @@
 | `frontend/src/views/app-tree/toolbar-search.ts` | 263 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/error-diary.ts` | 49 |
@@ -675,8 +658,7 @@
 
 ### `tree:reload`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menu-shared.ts` | 16 |
@@ -692,21 +674,18 @@
 | `frontend/src/views/app-sidebar/index.ts` | 346 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 261 |
 
 ### `tree:set-search`
 
-**发射方（emit）：**
-
+**发射方：**
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/index.ts` | 108 |
 
 **订阅方（on）：**
-
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/index.ts` | 135 |

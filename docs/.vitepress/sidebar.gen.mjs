@@ -715,6 +715,10 @@ export const autoSidebar = [
         "link": "/download-hardening-research-2026-08-17"
       },
       {
+        "text": "Bus 事件契约报告",
+        "link": "/event-graph"
+      },
+      {
         "text": "最终审计总结报告",
         "link": "/final-audit-summary-2026-08-18"
       },
@@ -1634,6 +1638,10 @@ export const autoSidebar = [
           {
             "text": "核心工具函数 core-utils",
             "link": "/knowledge/core_utils"
+          },
+          {
+            "text": "悬浮提示 tooltip",
+            "link": "/knowledge/dom_tooltip"
           },
           {
             "text": "localStorage 安全读写 safeGet/safeSet",

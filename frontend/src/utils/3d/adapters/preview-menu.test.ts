@@ -26,6 +26,8 @@ function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
     getViewContainer: () => document.createElement("div"),
     close: vi.fn(),
     switchTo: vi.fn(),
+    toast: vi.fn(),
+    closeAllOverlays: vi.fn(),
     ...overrides,
   };
 }

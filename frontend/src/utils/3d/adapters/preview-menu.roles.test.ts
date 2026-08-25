@@ -28,6 +28,8 @@ function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
     close: vi.fn(),
     switchTo: vi.fn(),
     unloadRole: vi.fn(),
+    toast: vi.fn(),
+    closeAllOverlays: vi.fn(),
     ...overrides,
   };
 }

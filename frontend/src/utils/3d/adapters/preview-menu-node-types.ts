@@ -23,7 +23,6 @@ export type PreviewStatePath =
 /** 动作节点回调上下文（与 ActionMenuCtx 对齐；ysm 侧 toast/closeOverlays 由 ctx.menu 提供） */
 export interface PreviewActionMenuCtx {
   toast: (message: string) => void;
-  setStatus: (message: string) => void;
   closeAllOverlays: () => void;
 }
 
