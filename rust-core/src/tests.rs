@@ -1,5 +1,5 @@
 use super::*;
-use super::scan::is_model_json_name;
+use super::scan::{is_disable_suffix, is_model_json_name, strip_disable_suffix};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -198,4 +198,88 @@ fn rtype_first_declared_wins() {
     assert_eq!(policy.rtype_for_ext(".json"), "ysm");
     assert_eq!(policy.rtype_for_ext(".zip"), "other");
     assert_eq!(policy.rtype_for_ext(".nbt"), "blueprint");
+}
+
+// ===== Rust-Go 边界契约测试（共享 fixture）=====
+// 读 tests/parity/go-rust-predicates.json，与 Go go/types 端逐字对齐三个谓词。
+// 单一权威 = Go（ADR-038 D2）；cargo test 的 cwd = crate 根，经 CARGO_MANIFEST_DIR 定址。
+const PARITY_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../tests/parity/go-rust-predicates.json"
+);
+
+fn parity_json<'a>(doc: &'a serde_json::Value, key: &str) -> Vec<(&'a str, &'a str)> {
+    doc[key]
+        .as_array()
+        .unwrap_or_else(|| panic!("fixture 缺 {key} 数组"))
+        .iter()
+        .map(|pair| {
+            let a = pair[0].as_str().unwrap_or_default();
+            let b = pair[1].as_str().unwrap_or_default();
+            (a, b)
+        })
+        .collect()
+}
+
+#[test]
+fn parity_strip_disable_suffix() {
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(PARITY_FIXTURE).unwrap())
+            .expect("parse parity fixture");
+    for (input, expected) in parity_json(&doc, "strip_disable_suffix") {
+        assert_eq!(
+            strip_disable_suffix(input),
+            expected,
+            "strip_disable_suffix({input:?})"
+        );
+    }
+}
+
+#[test]
+fn parity_is_model_json_name() {
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(PARITY_FIXTURE).unwrap())
+            .expect("parse parity fixture");
+    for (input, want) in parity_json(&doc, "is_ysm_entry_json") {
+        let expected = want == "true";
+        assert_eq!(
+            is_model_json_name(input),
+            expected,
+            "is_model_json_name({input:?})"
+        );
+    }
+}
+
+#[test]
+fn parity_is_disable_suffix() {
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(PARITY_FIXTURE).unwrap())
+            .expect("parse parity fixture");
+    for (input, want) in parity_json(&doc, "is_disable_suffix") {
+        let expected = want == "true";
+        assert_eq!(is_disable_suffix(input), expected, "is_disable_suffix({input:?})");
+    }
+}
+
+#[test]
+fn disabled_dir_skipped_in_fast_but_discovered_in_index() {
+    // scan_fast 对齐 Go scanner（.disabled 目录整组 SkipDir，ADR-038 D3.7）；
+    // scan_index 故意下钻以保禁用目录模型可再启用（与 .ban 对称，见 scan.rs doc）。
+    let root = TempRoot::new("disabled-dir");
+    let dis_dir = root.path().join("ModelB.disabled");
+    fs::create_dir_all(&dis_dir).unwrap();
+    fs::write(dis_dir.join("ysm.json"), b"{}").unwrap();
+    fs::write(dis_dir.join("extra.ysm"), b"x").unwrap();
+
+    assert!(scan_fast(root.path(), &policy()).entries.is_empty());
+
+    // index 模式整组下钻：ysm.json（重命名为父目录名）与 extra.ysm 都成为条目
+    let indexed = scan_index(root.path(), &policy());
+    assert!(indexed.errors.is_empty(), "{:?}", indexed.errors);
+    assert_eq!(indexed.entries.len(), 2);
+    assert!(
+        indexed.entries.iter().all(|e| e.path.starts_with(&dis_dir)),
+        "index 模式应发现禁用目录内全部条目: {:?}",
+        indexed.entries.iter().map(|e| &e.path).collect::<Vec<_>>()
+    );
 }

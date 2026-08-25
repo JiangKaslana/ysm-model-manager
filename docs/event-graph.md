@@ -53,7 +53,7 @@
 | `sync:download:missing` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
 | `theme:change` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
-| `toast:show` | 205 | 2 | 0 | 0 | ✅ |
+| `toast:show` | 206 | 2 | 0 | 0 | ✅ |
 | `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
 
@@ -444,9 +444,10 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/app-modules.ts` | 69 |
-| `frontend/src/app-modules.ts` | 79 |
-| `frontend/src/app-modules.ts` | 106 |
+| `frontend/src/app-modules.ts` | 72 |
+| `frontend/src/app-modules.ts` | 82 |
+| `frontend/src/app-modules.ts` | 92 |
+| `frontend/src/app-modules.ts` | 123 |
 | `frontend/src/core/context-menu-shared.ts` | 22 |
 | `frontend/src/core/context-menu-shared.ts` | 48 |
 | `frontend/src/core/context-menu-shared.ts` | 58 |

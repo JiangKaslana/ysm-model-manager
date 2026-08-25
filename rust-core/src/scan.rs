@@ -7,15 +7,18 @@ use std::{
 };
 
 /// Compatibility scan matching the existing Go scanner contract.
-/// Directories ending in `.ban` are not descended into.
+/// Directories ending in `.ban` or `.disabled` (case-insensitive) are not descended into —
+/// mirrors Go `scanner.ScanEntries` (`types.IsDisableSuffix` → SkipDir).
 pub fn scan_fast(root: impl AsRef<Path>, policy: &ScanPolicy) -> ScanReport {
     scan_impl(root.as_ref(), policy, false)
 }
 
 /// Stateful-index scan used by the new desktop shell.
 ///
-/// Unlike [`scan_fast`], this intentionally descends into `.ban` directories so disabled
-/// directory-based models remain discoverable and can be re-enabled after a restart.
+/// Unlike [`scan_fast`], this intentionally descends into `.ban` and `.disabled` directories
+/// (both are ADR-038 D3.7 disable suffixes) so disabled directory-based models remain
+/// discoverable and can be re-enabled after a restart. This is a **deliberate divergence**
+/// from Go `scanner.ScanEntries` (which always skips them) — see rustbridge.md contract table.
 pub fn scan_index(root: impl AsRef<Path>, policy: &ScanPolicy) -> ScanReport {
     scan_impl(root.as_ref(), policy, true)
 }
@@ -188,7 +191,7 @@ fn system_time_to_unix_ms(time: std::time::SystemTime) -> i64 {
     }
 }
 
-fn strip_disable_suffix(name: &str) -> &str {
+pub(crate) fn strip_disable_suffix(name: &str) -> &str {
     let lower = name.to_ascii_lowercase();
     if lower.ends_with(".ban") {
         &name[..name.len() - 4]
@@ -207,7 +210,18 @@ fn strip_disable_suffix(name: &str) -> &str {
 /// 无目录作用域，resourcepacks/shaderpacks/MMD 子目录里任何叫 info.json/
 /// main.json 的文件都会误成 ysm 模型条目（rtype 解析为第一个声明 .json 的类型）。
 pub(crate) fn is_model_json_name(name: &str) -> bool {
-    name.eq_ignore_ascii_case("ysm.json")
+    // 对齐 Go types.IsYsmEntryJSON（ADR-038 D2 单点权威）：EqualFold(TrimSpace, "ysm.json")。
+    // TrimSpace 是契约契约——Go scanner L359 用 NormalizeResourceName 后再走 IsYsmEntryJSON，
+    // " ysm.json " 在 Go 放行；Rust 此前未 trim 会拒绝（静默漂移，parity fixture 已锁定）。
+    name.trim().eq_ignore_ascii_case("ysm.json")
+}
+
+/// name 是否带禁用后缀（.disabled/.ban，大小写不敏感）——对齐 Go types.IsDisableSuffix。
+/// 供 should_skip_dir_name 与契约测试共用；strip_disable_suffix 侧需识别具体后缀故自带判断
+/// （.ban 优先，与 Go 的常量序相反，但两后缀互不为后缀，剥离结果一致——parity fixture 锁定）
+pub(crate) fn is_disable_suffix(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.ends_with(".ban") || lower.ends_with(".disabled")
 }
 
 fn extension_of(name: &str) -> String {
@@ -221,7 +235,7 @@ fn extension_of(name: &str) -> String {
 fn should_skip_dir_name(name: &str, include_banned_dirs: bool) -> bool {
     name.eq_ignore_ascii_case(".recycle")
         || name == ".github"
-        || (!include_banned_dirs && name.to_ascii_lowercase().ends_with(".ban"))
+        || (!include_banned_dirs && is_disable_suffix(name))
 }
 
 fn first_relative_component(root: &Path, path: &Path) -> Option<String> {

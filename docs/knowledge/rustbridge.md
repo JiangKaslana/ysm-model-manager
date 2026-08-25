@@ -62,12 +62,19 @@ Rust 扫描路径必须与 Go scanner 单点口径一致（code review 反复核
 
 | 契约点 | Rust 口径 | Go 单点 |
 |--------|----------|---------|
-| `.json` 条目门禁 | 仅 `ysm.json`（`is_model_json_name`） | `types.IsYsmEntryJSON`（ADR-038 D2：.json 仅放行 ysm.json；legacy 几何是 FileInventory 分类非扫描条目） |
+| `.json` 条目门禁 | 仅 `ysm.json`（`is_model_json_name`，**含 TrimSpace** 对齐） | `types.IsYsmEntryJSON`（ADR-038 D2：.json 仅放行 ysm.json；legacy 几何是 FileInventory 分类非扫描条目） |
+| 禁用后缀剥离 | `strip_disable_suffix`（.ban/.disabled，大小写不敏感） | `types.StripDisableSuffix`（.disabled 在前 .ban 兼容） |
+| 目录级禁用 | `scan_fast` 跳过 `.ban`+`.disabled` 目录；`scan_index` 故意下钻（新桌面壳需发现禁用模型以再启用） | `scanner.go` `IsDisableSuffix` 无条件 SkipDir（无 index 模式） |
 | 条目名 | ysm.json → 父目录名 | `scanner.go` 同口径重命名 |
 | 类型字段 | `ModelEntry.rtype`（registry 首声明优先） | `e.Type`（`SupportedExtsForSubtype` 白名单） |
 
+> **隔离后缀序分歧（无语义差异）**：Go 常量序 `.disabled`→`.ban`，Rust `.ban` 优先；两后缀互不为后缀，剥离结果逐字一致。
+
+> **故意分歧（登记非瑕疵）**：目录级 `.ban`/`.disabled`——`scan_index` 为让禁用目录模型可再启用而整组下钻（含其内全部 ysm/ysm.json 条目），Go scanner 无对应模式恒 SkipDir。该行为是 Rust 壳面向新桌面壳的刻意扩展，**不得**按 Go 口径改掉；`scan_fast` 才对齐 Go 恒跳。
+
 - **CI 覆盖**（`.github/workflows/test.yml`）：cargo test（rust-core + rust-wails-bridge）+ 构建桥 DLL + `go test -tags rust_backend`——rust_backend 路径不再零覆盖
 - **测试**：`rust-core/src/tests.rs` 的 `scan_preserves_go_filter_contract` 锁条目门禁（main/info.json 不入条目 + rtype 传播）
+- **共享契约向量（2026-08-25）**：`tests/parity/go-rust-predicates.json` 为三个纯谓词（`strip_disable_suffix` / `is_ysm_entry_json` / `is_disable_suffix`）的 input→output 单一事实源，被 `go/types/parity_test.go` 与 `rust-core/src/tests.rs`（`parity_*`）双端读取。任一端改口径另一端 CI 当场红，取代人肉 review 兜底。新增谓词/改口径：改 fixture，两端读同一份自动对齐。路径定址：Go 经包目录向上找仓库根，Rust 经 `CARGO_MANIFEST_DIR` 定址，不受 cwd 影响。
 
 ## 验证方式（AI 动 Rust 的入口——安全网）
 
