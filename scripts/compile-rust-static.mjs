@@ -39,9 +39,14 @@ const r = run('cargo', cargoArgs, { cwd: ROOT, timeout: 120_000 });
 if (!r.ok) fail(`cargo build 失败：
 ${r.out.slice(-800)}`);
 
-// 查找产物 .a 文件
+// 查找产物：Unix 用 .a，Windows MSVC 用 .lib（统一复制为 .a 供 Go -l: 使用）
 const targetDir = targetArg ? path.join(RUST_DIR, 'target', targetArg, 'release') : path.join(RUST_DIR, 'target', 'release');
-const libFile = path.join(targetDir, 'libysm_model_manager_wails_bridge.a');
-if (!fs.existsSync(libFile)) fail(`静态库未找到: ${libFile}`);
-fs.copyFileSync(libFile, path.join(OUTPUT_DIR, 'libysm_model_manager_wails_bridge.a'));
-console.log(`[compile-rust-static] ✅ ${path.join(OUTPUT_DIR, 'libysm_model_manager_wails_bridge.a')}`);
+const candidateFiles = [
+  path.join(targetDir, 'libysm_model_manager_wails_bridge.a'),
+  path.join(targetDir, 'ysm_model_manager_wails_bridge.lib'),
+];
+const libFile = candidateFiles.find(f => fs.existsSync(f));
+if (!libFile) fail(`静态库未找到，已搜索: \n  [REDACTED]`);
+const outName = libFile.endsWith('.lib') ? 'libysm_model_manager_wails_bridge.a' : path.basename(libFile);
+fs.copyFileSync(libFile, path.join(OUTPUT_DIR, outName));
+console.log(`[compile-rust-static] ✅ ${path.join(OUTPUT_DIR, outName)}（源: ${path.basename(libFile)}）`);
