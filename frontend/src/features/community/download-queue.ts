@@ -56,6 +56,254 @@ export interface QueueController {
   destroy: () => void;
 }
 
+/** 旧契约别名（events.ts / download-tasks.ts 仍使用 DownloadQueue 命名） */
+export type DownloadQueue = QueueController;
+
+interface CmDqPrev {
+  status: string;
+  file: string;
+  lastDoneSeq: number;
+}
+
+interface CmDqCtx {
+  sr: HTMLElement;
+  esc: (s: string) => string;
+  getLocalMap: () => Map<string, string>;
+  onFileSuccess?: (name: string) => void;
+  onAllDone?: (result: { cancelled: boolean; errorList: QueueError[] }) => void;
+  progressGuard: ProgressGuard;
+  prev: CmDqPrev;
+}
+
+function cmDqQsEl(ctx: CmDqCtx): HTMLElement | null {
+  return ctx.sr.querySelector("#gh-queue-status");
+}
+
+function cmDqDlBtn(ctx: CmDqCtx): HTMLButtonElement | null {
+  return ctx.sr.querySelector(".gh-dl-selected");
+}
+
+function cmDqCleanupProgressUI(ctx: CmDqCtx, errorSummary?: string): void {
+  ctx.progressGuard.clearCompleteTimer();
+  ctx.progressGuard.stuckGuardReset();
+  const qs = cmDqQsEl(ctx);
+  if (qs) {
+    if (errorSummary) {
+      qs.innerHTML = errorSummary;
+    } else {
+      qs.classList.remove("show");
+    }
+  }
+  const btn = cmDqDlBtn(ctx);
+  if (btn) btn.disabled = false;
+  try {
+    getApp()
+      .then((App) => {
+        if (App.ClearScanCache) App.ClearScanCache();
+        import("../../views/app-content/community-data.ts").then(m => m.clearAllCommunityCache()).catch((e) => console.warn("[download-queue] clearAllCommunityCache:", e));
+      })
+      .catch(() => {});
+  } catch (_) {
+    /* 清除缓存失败不影响清理 */
+  }
+  bus.emit("tree:reload");
+  bus.emit("stats:refresh");
+}
+
+function cmDqHandleFileStart(ctx: CmDqCtx, s: DownloadState): void {
+  ctx.progressGuard.stuckGuardReset();
+  let cancelling = false;
+  const done = s.total - s.remaining;
+  const qs = cmDqQsEl(ctx);
+  if (qs) {
+    const remain = s.total - done;
+    qs.innerHTML =
+      '<div class="gh-progress-row">' +
+      '<span class="gh-queue-icon">⬇️</span>' +
+      '<span class="gh-progress-name">' +
+      renderDisplayName(s.currentFile) +
+      "</span>" +
+      '<span class="gh-progress-pct">⏳</span>' +
+      (remain > 1
+        ? '<span class="gh-progress-remain">' +
+          t("community.downloadQueue.remain", { n: remain }) +
+          "</span>"
+        : "") +
+      '<button class="btn-base sm gh-cancel-queue" title="' + t("common.cancel") + '">✕</button>' +
+      "</div>" +
+      '<div class="gh-progress-bar-wrap"><div class="gh-progress-fill"></div></div>';
+    qs.querySelector(".gh-cancel-queue")?.addEventListener("click", async () => {
+      if (cancelling) return;
+      cancelling = true;
+      try {
+        await cancelDownloads();
+      } finally {
+        cancelling = false;
+      }
+    });
+  }
+}
+
+function cmDqHandleFileDone(ctx: CmDqCtx, done: {
+  name: string;
+  status: string;
+  errMsg: string;
+}): void {
+  ctx.progressGuard.forceFileDone(done);
+  if (done.status === "ok") {
+    if (done.name) ctx.getLocalMap().set(done.name, "");
+    cmDqUncheckByName(ctx, done.name);
+  } else if (done.status === "fail") {
+    cmDqUncheckByName(ctx, done.name);
+  }
+}
+
+function cmDqUncheckByName(ctx: CmDqCtx, name: string): void {
+  const cb = ctx.sr.querySelector(
+    '.gh-sel[data-name="' + escapeAttrValue(name) + '"]',
+  );
+  if (cb) (cb as HTMLInputElement).checked = false;
+  if (ctx.onFileSuccess) ctx.onFileSuccess(name);
+}
+
+function cmDqHandleQueueEnded(ctx: CmDqCtx, s: DownloadState): void {
+  if (!ctx.progressGuard.beginQueueEnded()) return;
+  const cancelled = s.status === "cancelled";
+  let summary = "";
+  if (s.errorList.length > 0) {
+    summary =
+      '<div class="gh-queue-error">⚠️ ' +
+      t("downloadQueue.failedListTitle", { n: s.errorList.length }) +
+      "</div>" +
+      s.errorList
+        .slice(0, 5)
+        .map(
+          (e) =>
+            '<div class="gh-queue-err-item">❌ ' +
+            renderDisplayName(e.name) +
+            ": " +
+            ctx.esc(e.err) +
+            "</div>",
+        )
+        .join("") +
+      (s.errorList.length > 5
+        ? '<div class="gh-queue-ellipsis">' +
+          t("downloadQueue.moreCount", { n: s.errorList.length - 5 }) +
+          "</div>"
+        : "");
+  }
+  if (cancelled) {
+    cmDqCleanupProgressUI(ctx, summary || '<span class="gh-queue-cancel">⏹ ' + t("downloadQueue.cancelled") + "</span>");
+  } else {
+    cmDqCleanupProgressUI(ctx, summary || undefined);
+  }
+  if (ctx.onAllDone) ctx.onAllDone({ cancelled, errorList: s.errorList });
+}
+
+function cmDqHandleCancel(ctx: CmDqCtx, s: DownloadState): void {
+  ctx.progressGuard.clearCompleteTimer();
+  cmDqHandleQueueEnded(ctx, s);
+}
+
+function cmDqHandleRun(ctx: CmDqCtx, s: DownloadState): void {
+  ctx.progressGuard.resetCompletionMutex();
+  const qs = cmDqQsEl(ctx);
+  const btn = cmDqDlBtn(ctx);
+  if (btn) btn.disabled = true;
+  if (qs && !qs.classList.contains("show")) {
+    qs.classList.add("show");
+    if (s.currentFile) {
+      cmDqHandleFileStart(ctx, s);
+    } else {
+      qs.innerHTML =
+        '<span class="gh-queue-icon">⬇️</span> ' +
+        t("downloadQueue.downloadingRemain", { n: s.remaining || "?" });
+    }
+  }
+}
+
+function cmDqHandleEnded(ctx: CmDqCtx): void {
+  const btn = cmDqDlBtn(ctx);
+  if (btn) btn.disabled = false;
+  const qs = cmDqQsEl(ctx);
+  if (qs) qs.classList.remove("show");
+}
+
+function cmDqHandleStateChange(ctx: CmDqCtx, s: DownloadState): void {
+  if (s._lastDoneSeq > ctx.prev.lastDoneSeq) {
+    cmDqHandleFileDone(ctx, s._lastDone!);
+    ctx.prev.lastDoneSeq = s._lastDoneSeq;
+  }
+
+  if (s.currentFile && s.currentFile !== ctx.prev.file) {
+    cmDqHandleFileStart(ctx, s);
+  }
+
+  if (s.progress && (s.progress.dl > 0 || s.progress.total > 0)) {
+    ctx.progressGuard.render(s);
+  }
+
+  if (s.status !== ctx.prev.status) {
+    if (s.status === "done" || s.status === "cancelled") {
+      cmDqHandleCancel(ctx, s);
+    } else if (s.status === "downloading") {
+      cmDqHandleRun(ctx, s);
+    } else if (s.status === "idle" && ctx.prev.status === "downloading") {
+      cmDqHandleEnded(ctx);
+    }
+  }
+
+  ctx.prev.file = s.status === "done" || s.status === "cancelled" ? "" : s.currentFile;
+  ctx.prev.status = s.status;
+}
+
+async function cmDqEnqueue(ctx: CmDqCtx, tasks: DownloadTask[]): Promise<void> {
+  if (isActiveStatus(STATE)) return;
+  if (!tasks.length) return;
+
+  try {
+    const { GetRepoRoot } = await getApp();
+    const filesRoot = await GetRepoRoot(currentRepoType());
+    if (!filesRoot) {
+      bus.emit("toast:show", {
+        msg: t("workshop.configureRepo"),
+        duration: 3000,
+        type: "warn",
+      });
+      return;
+    }
+    tasks.forEach((t) => (t.saveDir = filesRoot));
+
+    const btn = cmDqDlBtn(ctx);
+    if (btn) btn.disabled = true;
+
+    const qs = cmDqQsEl(ctx);
+    if (qs) {
+      qs.classList.add("show");
+      qs.innerHTML =
+        '<span class="gh-queue-icon">⬇️</span> ' +
+        t("downloadQueue.preparingTotal", { n: tasks.length });
+    }
+
+    ctx.prev.lastDoneSeq = 0;
+    ctx.progressGuard.resetCompletionMutex();
+    await enqueueDownloads(tasks);
+  } catch (e) {
+    STATE.status = "idle";
+    notify();
+    bus.emit("toast:show", {
+      msg: `❌ ${t("workshop.enqueueFailed")}: ` + (safeErrorMessage(e)),
+      duration: 4000,
+      type: "error",
+    });
+    cmDqCleanupProgressUI(ctx);
+  }
+}
+
+async function cmDqCancel(): Promise<void> {
+  await cancelDownloads();
+}
+
 /**
  * 属性选择器值转义。
  * 浏览器用标准 CSS.escape 正确处理 & < > 等字符（修复 &amp; 不还原问题，ADR-039 P3）；
@@ -81,291 +329,36 @@ export function createDownloadQueue({
   onFileSuccess,
   onAllDone,
 }: QueueControllerOptions): QueueController {
-  let _prevStatus = "idle";
-  let _prevFile = "";
-  let _prevLastDoneSeq = 0;
-
-  const qsEl = (): HTMLElement | null => sr.querySelector("#gh-queue-status");
-  const dlBtn = (): HTMLButtonElement | null =>
-    sr.querySelector(".gh-dl-selected");
-
-  // ── 进度条守卫（99% 卡进度防骗 + completeTimer 收口互斥）──
-  // 细节见 download-queue-progress.ts；收口回调经依赖注入回到本控制器，
-  // 保证 completeTimer 3s 到期后的清理/onAllDone 与 handleQueueEnded 双路互斥语义不变。
-  const progressGuard: ProgressGuard = createProgressGuard({
-    qsEl,
-    onTimedCompletion: (summary) => {
-      cleanupProgressUI(summary);
-      if (onAllDone) onAllDone({ cancelled: false, errorList: STATE.errorList });
+  const ctx: CmDqCtx = {
+    sr,
+    esc,
+    getLocalMap,
+    onFileSuccess,
+    onAllDone,
+    progressGuard: createProgressGuard({
+      qsEl: () => cmDqQsEl(ctx),
+      onTimedCompletion: (summary) => {
+        cmDqCleanupProgressUI(ctx, summary);
+        if (onAllDone) onAllDone({ cancelled: false, errorList: STATE.errorList });
+      },
+    }),
+    prev: {
+      status: "idle",
+      file: "",
+      lastDoneSeq: 0,
     },
-  });
-
-  // ── 工具函数 ──
-
-  const cleanupProgressUI = (errorSummary?: string): void => {
-    progressGuard.clearCompleteTimer();
-    progressGuard.stuckGuardReset();
-    const qs = qsEl();
-    if (qs) {
-      if (errorSummary) {
-        qs.innerHTML = errorSummary;
-      } else {
-        qs.classList.remove("show");
-      }
-    }
-    // 统一恢复下载按钮（成功/取消/失败路径都经此清理，防按钮卡死）
-    const btn = dlBtn();
-    if (btn) btn.disabled = false;
-    try {
-      getApp()
-        .then((App) => {
-          if (App.ClearScanCache) App.ClearScanCache();
-          // 同步清除 JS 侧 withCached 缓存，避免旧数据残留
-          import("../../views/app-content/community-data.ts").then(m => m.clearAllCommunityCache()).catch((e) => console.warn("[download-queue] clearAllCommunityCache:", e));
-        })
-        .catch(() => {});
-    } catch (_) {
-      /* 清除缓存失败不影响清理 */
-    }
-    bus.emit("tree:reload");
-    bus.emit("stats:refresh");
   };
 
-  // ── 事件 → UI 映射 ──
+  const unsub = subscribe((s) => cmDqHandleStateChange(ctx, s));
 
-  /** 新文件开始下载 → 渲染进度行 + 取消按钮 */
-  function handleFileStart(s: DownloadState): void {
-    progressGuard.stuckGuardReset();
-    // P2 修复（审核）：取消按钮重入守卫标志（本次文件渲染生命周期内有效）
-    let cancelling = false;
-    const done = s.total - s.remaining;
-    const qs = qsEl();
-    if (qs) {
-      const remain = s.total - done;
-      qs.innerHTML =
-        '<div class="gh-progress-row">' +
-        '<span class="gh-queue-icon">⬇️</span>' +
-        '<span class="gh-progress-name">' +
-        renderDisplayName(s.currentFile) +
-        "</span>" +
-        '<span class="gh-progress-pct">⏳</span>' +
-        (remain > 1
-          ? '<span class="gh-progress-remain">' +
-            t("community.downloadQueue.remain", { n: remain }) +
-            "</span>"
-          : "") +
-        '<button class="btn-base sm gh-cancel-queue" title="' + t("common.cancel") + '">✕</button>' +
-        "</div>" +
-        '<div class="gh-progress-bar-wrap"><div class="gh-progress-fill"></div></div>';
-      qs.querySelector(".gh-cancel-queue")?.addEventListener("click", async () => {
-        // P2 修复（审核）：取消按钮加本地重入守卫——快速连点会重复发 CancelQueue
-        if (cancelling) return;
-        cancelling = true;
-        try {
-          await cancelDownloads();
-        } finally {
-          cancelling = false;
-        }
-      });
-    }
-  }
-
-  /** 文件下载完成 → 更新本地缓存 / 清勾选（进度复位委托 progressGuard.forceFileDone） */
-  function handleFileDone(done: {
-    name: string;
-    status: string;
-    errMsg: string;
-  }): void {
-    progressGuard.forceFileDone(done);
-    if (done.status === "ok") {
-      if (done.name) getLocalMap().set(done.name, "");
-      uncheckByName(done.name);
-    } else if (done.status === "fail") {
-      uncheckByName(done.name);
-    }
-  }
-
-  /** 清勾选并通知外部（ok/fail 分支共用；fail 也需清勾选防 selectedSet 残留） */
-  function uncheckByName(name: string): void {
-    // ADR-039 P3：用 CSS.escape 修复 &amp; 在属性选择器中不还原的问题
-    const cb = sr.querySelector(
-      '.gh-sel[data-name="' + escapeAttrValue(name) + '"]',
-    );
-    if (cb) (cb as HTMLInputElement).checked = false;
-    if (onFileSuccess) onFileSuccess(name);
-  }
-
-  /** 队列结束 → 显示错误摘要 / 清理 UI / 通知外部 */
-  function handleQueueEnded(s: DownloadState): void {
-    // P1 修复：收口互斥——若 completeTimer 已先触发过 onAllDone/cleanupProgressUI，
-    // status done 迟到时不得重复收口
-    if (!progressGuard.beginQueueEnded()) return;
-    const cancelled = s.status === "cancelled";
-    let summary = "";
-    if (s.errorList.length > 0) {
-      summary =
-        '<div class="gh-queue-error">⚠️ ' +
-        t("downloadQueue.failedListTitle", { n: s.errorList.length }) +
-        "</div>" +
-        s.errorList
-          .slice(0, 5)
-          .map(
-            (e) =>
-              '<div class="gh-queue-err-item">❌ ' +
-              renderDisplayName(e.name) +
-              ": " +
-              esc(e.err) +
-              "</div>",
-          )
-          .join("") +
-        (s.errorList.length > 5
-          ? '<div class="gh-queue-ellipsis">' +
-            t("downloadQueue.moreCount", { n: s.errorList.length - 5 }) +
-            "</div>"
-          : "");
-    }
-    if (cancelled) {
-      cleanupProgressUI(summary || '<span class="gh-queue-cancel">⏹ ' + t("downloadQueue.cancelled") + "</span>");
-    } else {
-      cleanupProgressUI(summary || undefined);
-    }
-    if (onAllDone) onAllDone({ cancelled, errorList: s.errorList });
-  }
-
-  // ── 核心：订阅 STATE → 渲染 DOM ──
-
-  function handleStateChange(s: DownloadState): void {
-    // 文件完成事件（可能夹在 file-start 和 progress 之间到达）
-    if (s._lastDoneSeq > _prevLastDoneSeq) {
-      handleFileDone(s._lastDone!);
-      _prevLastDoneSeq = s._lastDoneSeq;
-    }
-
-    // 新文件开始
-    if (s.currentFile && s.currentFile !== _prevFile) {
-      handleFileStart(s);
-    }
-
-    // 下载进度更新
-    if (s.progress && (s.progress.dl > 0 || s.progress.total > 0)) {
-      progressGuard.render(s);
-    }
-
-    // 队列状态变化
-    if (s.status !== _prevStatus) {
-      if (s.status === "done" || s.status === "cancelled") {
-        progressGuard.clearCompleteTimer(); // 强制清掉进度条 3s timer，防止 "100% → done" 间隙
-        handleQueueEnded(s);
-      } else if (s.status === "downloading") {
-        // 状态变 active（新批次或 resume 恢复）——复位收口互斥标志（P1 修复）
-        progressGuard.resetCompletionMutex();
-        // 队列启动或 resume 恢复 — 确保 UI 就绪
-        const qs = qsEl();
-        const btn = dlBtn();
-        if (btn) btn.disabled = true;
-        if (qs && !qs.classList.contains("show")) {
-          // resume 路径：UI 未初始化，补上进度条
-          qs.classList.add("show");
-          if (s.currentFile) {
-            handleFileStart(s);
-          } else {
-            qs.innerHTML =
-              '<span class="gh-queue-icon">⬇️</span> ' +
-              t("downloadQueue.downloadingRemain", { n: s.remaining || "?" });
-          }
-        }
-      } else if (s.status === "idle" && _prevStatus === "downloading") {
-        // P3 修复（审核）：网页版（resolveWebMode）直链下载完成后 store 置 idle，
-        // 无后端 done 事件流——原实现按钮永久卡禁用、「准备下载」一直挂屏（陷阱 #3 变体）。
-        // store 入队失败回滚也经 idle 过渡（enqueue catch 另有 cleanupProgressUI 兜底，双保险无害）。
-        const btn = dlBtn();
-        if (btn) btn.disabled = false;
-        const qs = qsEl();
-        if (qs) qs.classList.remove("show");
-      }
-    }
-
-    // P3 防御修复（审核）：队列结束显式清零 _prevFile——若 Go 端事件缺失未发
-    // currentFile=""（子代理 P1 场景），残留旧文件名会导致同文件名二次下载
-    // 时 handleFileStart 不触发、进度条不渲染
-    _prevFile = s.status === "done" || s.status === "cancelled" ? "" : s.currentFile;
-    _prevStatus = s.status;
-  }
-
-  const unsub = subscribe(handleStateChange);
-
-  // 页面进入时恢复下载状态（防止切页期间进度丢失）
   void resume();
 
-  // ── 公开 API ──
-
-  async function enqueue(tasks: DownloadTask[]): Promise<void> {
-    if (isActiveStatus(STATE)) return;
-    if (!tasks.length) return;
-
-    try {
-      // P2 修复：getApp/GetRepoRoot 移入 try 内——原实现前置 await 在 try 外，
-      // 任一 reject 时按钮永久卡禁用且无 toast（陷阱 #3 变体）
-      const { GetRepoRoot } = await getApp();
-      // ADR-064 锚定：落库目录随当前仓库类型（原锁 RESOURCE_TYPES.YSM，
-      // 未来其他类型下载会错库落盘）
-      const filesRoot = await GetRepoRoot(currentRepoType());
-      if (!filesRoot) {
-        bus.emit("toast:show", {
-          msg: t("workshop.configureRepo"),
-          duration: 3000,
-          type: "warn",
-        });
-        return;
-      }
-      tasks.forEach((t) => (t.saveDir = filesRoot));
-
-      const btn = dlBtn();
-      if (btn) btn.disabled = true;
-
-      const qs = qsEl();
-      if (qs) {
-        qs.classList.add("show");
-        qs.innerHTML =
-          '<span class="gh-queue-icon">⬇️</span> ' +
-          t("downloadQueue.preparingTotal", { n: tasks.length });
-      }
-
-      // P2 修复（审核）：新批次入队时同步重置控制器侧高水位——enqueueDownloads 已把
-      // STATE._lastDoneSeq 归零，但本闭包的 _prevLastDoneSeq 若残留上批次的 N，
-      // 新批次前 N 个 file-done 会因 seq > prev 判假被静默丢弃（勾选不复位/localMap
-      // 不更新/头像不提取）。同一控制器实例内连续两批下载即触发。
-      _prevLastDoneSeq = 0;
-      // P1 修复：新批次入队前复位收口互斥标志，允许本批次正常触发 onAllDone
-      progressGuard.resetCompletionMutex();
-      await enqueueDownloads(tasks);
-    } catch (e) {
-      // Go 入队失败（含 getApp/GetRepoRoot reject）：恢复状态与 UI，防止按钮/进度条卡死（陷阱 #3）
-      STATE.status = "idle";
-      notify();
-      bus.emit("toast:show", {
-        msg: `❌ ${t("workshop.enqueueFailed")}: ` + (safeErrorMessage(e)),
-        duration: 4000,
-        type: "error",
-      });
-      cleanupProgressUI();
-    }
-  }
-
-  async function cancel(): Promise<void> {
-    await cancelDownloads();
-  }
-
   return {
-    enqueue,
-    cancel,
+    enqueue: (tasks) => cmDqEnqueue(ctx, tasks),
+    cancel: cmDqCancel,
     isDownloading: () => isActiveStatus(STATE),
-    /** 组件销毁时取消订阅并清理全部定时器（P2 修复：原仅 unsub——视图销毁后
-     * `_dotTimer` interval（400ms 菊花动画）无限自旋、3s `completeTimer` 在死视图上
-     * 触发 cleanupProgressUI/onAllDone 副作用；stuckGuardReset 集中清 _stuckTimer/
-     * _dotTimer/completeTimer） */
     destroy: () => {
-      progressGuard.stuckGuardReset();
+      ctx.progressGuard.stuckGuardReset();
       unsub();
     },
   };
