@@ -69,7 +69,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-content/init-workshop.ts` | 119 |
+| `frontend/src/views/app-content/init-workshop.ts` | 132 |
 
 ### `batch:disable`
 

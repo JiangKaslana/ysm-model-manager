@@ -5,9 +5,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const binds = vi.hoisted(() => ({
-  bindBrowseEvents: vi.fn((_state: unknown) => vi.fn()),
-  bindEditEvents: vi.fn((_state: unknown) => vi.fn()),
-  bindDragEvents: vi.fn((_state: unknown) => vi.fn()),
+  bindBrowseEvents: vi.fn((_state: unknown, _refresh: () => void) => vi.fn()),
+  bindEditEvents: vi.fn((_state: unknown, _refresh: () => void) => vi.fn()),
+  bindDragEvents: vi.fn((_state: unknown, _refresh: () => void) => vi.fn()),
 }));
 
 vi.mock("./site/events.ts", () => ({ bindBrowseEvents: binds.bindBrowseEvents }));
@@ -46,6 +46,7 @@ function makeCtx(over: Partial<RenderSiteViewCtx> = {}): {
     browseMode: "external",
     activeTag: "",
     searchKw: "",
+    reRender: vi.fn(),
     ...over,
   };
   document.body.appendChild(searchResults);
@@ -133,5 +134,15 @@ describe("renderSiteView 编排壳", () => {
       creators: LocalCreatorLike[];
     };
     expect(received.creators.map((c) => c.name)).toEqual(["高产甲", "低产乙"]);
+  });
+
+  it("9. refreshView 经 ctx.reRender 路由（cleanup 跟踪修复）", () => {
+    const { ctx } = makeCtx();
+    renderSiteView(site, ctx);
+    // 捕获传给 bindEditEvents 的 refreshView 并调用 → 应触发 ctx.reRender
+    // （调用方 wrapper：先跑旧 cleanup 再存新 cleanup），而非直接调 renderSiteView 丢弃 cleanup
+    const refreshView = binds.bindEditEvents.mock.calls[0][1];
+    refreshView();
+    expect(ctx.reRender).toHaveBeenCalledTimes(1);
   });
 });

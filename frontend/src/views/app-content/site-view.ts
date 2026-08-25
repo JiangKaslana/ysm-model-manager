@@ -32,6 +32,8 @@ export interface RenderSiteViewCtx {
   activeTag: string;
   /** 创作者搜索关键词（localStorage 持久化） */
   searchKw: string;
+  /** 重渲染入口：由调用方（init-workshop）提供，先跑旧 cleanup 再存新 cleanup */
+  reRender: () => void;
 }
 
 /** 本地创作者（绑定 + 运行时附加字段） */
@@ -93,8 +95,10 @@ export function renderSiteView(site: WorkshopSite, ctx: RenderSiteViewCtx): Clea
   searchResults.innerHTML = html;
 
   // 主入口编排：构造共享状态 → 调各块事件绑定 → 聚合 cleanup
+  // 重渲染经 ctx.reRender（调用方 wrapper：先跑旧 cleanup 再存新 cleanup），
+  // 不直接调 renderSiteView——否则返回的 cleanup 被丢弃，切站点时清理不到最新监听。
   const refreshView = (): void => {
-    renderSiteView(site, ctx);
+    ctx.reRender();
   };
   const state: SiteViewState = {
     esc, searchResults, creatorView, allSites, allCreators, repoAuthors,

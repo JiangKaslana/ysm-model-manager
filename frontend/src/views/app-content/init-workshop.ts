@@ -65,13 +65,20 @@ export function initWorkshopPage(host: AppContentHost): void {
   // 站点视图切换（先定义，再注册给 tabs）
   // 保存上一次渲染的 cleanup 函数，切站点时先清理旧监听再渲染新视图
   let _prevSiteViewCleanup: (() => void) | null = null;
-  const showSiteView = (site: WorkshopSite | null): void => {
-    if (!site) return;
-    // 清理旧站点视图的监听器，防止切页时事件泄漏
+  // 统一清理入口：所有 renderSiteView 调用（首次渲染 + refreshView 重渲染）先跑旧
+  // cleanup 再存新 cleanup——确保切站点清理的是**最新**视图的监听，且旧渲染 DOM 不被
+  // 闭包链保留（此前 refreshView 直接调 renderSiteView 丢弃 cleanup，_prevSiteViewCleanup
+  // 永远只持有首次渲染的 cleanup，首次渲染 DOM 保留到下次切站点）。
+  const runPrevSiteViewCleanup = (): void => {
     if (_prevSiteViewCleanup) {
       _prevSiteViewCleanup();
       _prevSiteViewCleanup = null;
     }
+  };
+  const showSiteView = (site: WorkshopSite | null): void => {
+    if (!site) return;
+    // 清理旧站点视图的监听器，防止切页时事件泄漏
+    runPrevSiteViewCleanup();
     const openUrl = (url: string): void => {
       openSite(host, site, browseMode);
     };
@@ -105,6 +112,12 @@ export function initWorkshopPage(host: AppContentHost): void {
       searchKw: safeGet("ysm-ws-search-kw") || "",
       backToSite: () => {
         if (host._currentSite) showSiteView(host._currentSite);
+      },
+      // 重渲染（编辑切换/保存/拖拽/搜索等）经同一 wrapper：先跑旧 cleanup 再存新
+      // cleanup（见 runPrevSiteViewCleanup 注释），供 site-view 的 refreshView 调用。
+      reRender: () => {
+        runPrevSiteViewCleanup();
+        _prevSiteViewCleanup = renderSiteView(site, ctx);
       },
     };
     _prevSiteViewCleanup = renderSiteView(site, ctx);
