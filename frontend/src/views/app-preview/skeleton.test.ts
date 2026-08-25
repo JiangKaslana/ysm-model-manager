@@ -493,12 +493,14 @@ describe("fill3DPanel", () => {
     expect(panel.textContent).toContain("2 根");
     expect(panel.textContent).toContain("5 个");
     expect(panel.textContent).toContain("64×32");
-    // 纹理列表：名 + 尺寸（第二张无 userData → 0×0）
+    // 纹理列表：声明/加载分离——声明=模型声明 64×32；texArr[1] 无 userData → 加载 ?
     expect(panel.textContent).toContain("纹理 (2)");
     expect(panel.textContent).toContain("skin");
     expect(panel.textContent).toContain("tail");
-    expect(panel.textContent).toContain("64×32");
-    expect(panel.textContent).toContain("0×0");
+    expect(panel.textContent).toContain("声明尺寸");
+    expect(panel.textContent).toContain("声明 64×32");
+    expect(panel.textContent).toContain("加载 64×32");
+    expect(panel.textContent).toContain("加载 ?");
     // 多组件：选择器显示 + all 选项 + 2 个组件
     expect(modelSel.style.display).not.toBe("none");
     expect(modelSel.options.length).toBe(3);

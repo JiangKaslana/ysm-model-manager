@@ -71,14 +71,20 @@ export function fill3DPanel(
     }
     statsBox.appendChild(iRow("骨骼", bones + " 根"));
     statsBox.appendChild(iRow("立方体", cubes + " 个"));
-    statsBox.appendChild(iRow("纹理尺寸", tw + "×" + th));
+    // 声明尺寸 = spec.models[i].textureWidth/Height（模型声明值，非实际加载位图尺寸）
+    statsBox.appendChild(iRow("声明尺寸", tw + "×" + th));
 
     // ── 纹理（只显示当前组件的绑定） ──
     const eff = rawIdx < 0 ? 0 : rawIdx;
     const mg = spec.models?.[eff] as
-      | { name?: string; id?: string; meshGroups?: Array<{ texIdx?: number }> }
+      | { name?: string; id?: string; textureWidth?: number; textureHeight?: number; meshGroups?: Array<{ texIdx?: number }> }
       | undefined;
     const compName = mg?.name || mg?.id || "main";
+    // 当前组件声明尺寸（组件专属/全局共享都可引用；专属组件是独立 model，此字段即其声明）
+    const decl =
+      typeof mg?.textureWidth === "number" && typeof mg?.textureHeight === "number"
+        ? mg.textureWidth + "×" + mg.textureHeight
+        : "?";
     texBox.innerHTML = "";
 
     // 当前组件绑定摘要行
@@ -95,7 +101,7 @@ export function fill3DPanel(
       secEl.dataset.testid = "tex-section";
       texBox.appendChild(secEl);
       ex.forEach((_uri, k) => {
-        texBox.appendChild(texRow(compName + (ex.length > 1 ? " #" + (k + 1) : ""), k, null, { ex: true }));
+        texBox.appendChild(texRow(compName + (ex.length > 1 ? " #" + (k + 1) : ""), k, null, { ex: true, decl }));
       });
       return;
     }
@@ -118,7 +124,7 @@ export function fill3DPanel(
       const tex = texArr[s];
       const name = model.textureNames?.[s] || model.textures?.[s]?.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") || "纹理 " + (s + 1);
       const cat = model.textureCategories?.[s] || "";
-      texBox.appendChild(texRow(name, s, tex ?? null, { cat }));
+      texBox.appendChild(texRow(name, s, tex ?? null, { cat, decl }));
     }
   };
 
@@ -260,12 +266,14 @@ function iRow(k: string, v: string): HTMLDivElement {
   d.innerHTML = `<span>${k}</span><span style="color:rgba(255,255,255,0.9)">${v}</span>`;
   return d;
 }
-// 纹理归一行：左侧名称（截断），右侧 = 尺寸（tex 已加载）+ 分类 / 组件专属徽标
+// 纹理归一行：左侧名称（截断）；右侧区分「声明尺寸」与「加载尺寸」/
+// 组件专属徽标。声明 = spec.models[i].textureWidth/Height（opt.decl），
+// 加载 = tex.userData.imgWidth/imgHeight（实际位图；专属纹理无加载对象时只显示声明）。
 function texRow(
   name: string,
   _slot: number,
   tex: import("three").Texture | null,
-  opt: { cat?: string; ex?: boolean } = {},
+  opt: { cat?: string; ex?: boolean; decl?: string } = {},
 ): HTMLDivElement {
   const d = document.createElement("div");
   d.dataset.testid = "tex-row";
@@ -276,15 +284,17 @@ function texRow(
   d.appendChild(left);
   const right = document.createElement("span");
   right.style.cssText = "flex-shrink:0;color:rgba(255,255,255,0.5)";
+  const declT = opt.decl ?? "?";
   if (opt.ex) {
-    right.textContent = "专属";
+    // 专属纹理无单独加载位图句柄 → 只给声明尺寸，避免「专属」看不出大小
+    right.textContent = "专属 · 声明 " + declT;
   } else {
     const ud = (tex as unknown as { userData?: { imgWidth?: unknown; imgHeight?: unknown } })?.userData;
     const w = typeof ud?.imgWidth === "number" ? ud.imgWidth : null;
     const h = typeof ud?.imgHeight === "number" ? ud.imgHeight : null;
-    const size = w !== null && h !== null ? w + "×" + h : "0×0";
-    const loaded = tex?.image ? "已加载" : "未加载";
-    right.textContent = (opt.cat ? opt.cat + " · " : "") + size + (loaded ? " · " + loaded : "");
+    const size = w !== null && h !== null ? w + "×" + h : "?";
+    const catPart = opt.cat ? opt.cat + " · " : "";
+    right.textContent = `${catPart}声明 ${declT} · 加载 ${size}`;
   }
   d.appendChild(right);
   return d;

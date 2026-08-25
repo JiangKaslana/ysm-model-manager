@@ -1577,7 +1577,7 @@
 | `loadMcTints()` | `frontend/src/utils/3d/mc-tints:29` | 预载 vendored tints 表（幂等；失败抛错由调用方降级兜底）。 |
 | `getTintColorSync()` | `frontend/src/utils/3d/mc-tints:51` | 取某染色类别在某 biome 下的颜色（默认 plains）。 |
 | `bakeMeshFragments()` | `frontend/src/utils/3d/mesh-baker:10` | Bake fragments once, then batch by animated bone, texture, and alpha mode. |
-| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:28` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
+| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:31` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
 | `compKey()` | `frontend/src/utils/3d/mesh:17` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
 | `disposeMaterial()` | `frontend/src/utils/3d/mesh:35` | 释放材质（含所有位图贴图），null/undefined 安全。 |
 | `buildSceneMesh()` | `frontend/src/utils/3d/mesh:53` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
