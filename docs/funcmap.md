@@ -1398,7 +1398,7 @@
 | `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:583` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
 | `nodeToDef()` | `frontend/src/utils/3d/adapters/preview-menu:598` | 逆向映射：PreviewMenuNode → PreviewMenuItemDef（供 setAdapterItems 转换适配器节点为内部 def） |
 | `previewItemToNode()` | `frontend/src/utils/3d/adapters/preview-menu:628` | — |
-| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:657` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
+| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:693` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
@@ -2206,14 +2206,14 @@
 | `loadEntries()` | `frontend/src/views/app-tree/loader:67` | 从 Go 后端加载仓库文件列表，返回格式化的 entries 扁平化架构下每个 MMD 子类型为独立顶级类型，直接用 subdir 作为类型 ID 查表 |
 | `TreeRow()` | `frontend/src/views/app-tree/render:22` | 扁平化行（虚拟滚动数据单元） |
 | `TreeNode()` | `frontend/src/views/app-tree/render:32` | buildTree 嵌套节点（文件夹 = 子节点对象，文件 = { _e: entry }） |
-| `RenderMode()` | `frontend/src/views/app-tree/render:38` | 渲染模式 |
-| `getRenderMode()` | `frontend/src/views/app-tree/render:44` | Get render mode from localStorage, default to 'grid' |
-| `setRenderMode()` | `frontend/src/views/app-tree/render:49` | Set render mode to localStorage |
-| `buildTree()` | `frontend/src/views/app-tree/render:54` | — |
-| `flattenVisible()` | `frontend/src/views/app-tree/render:116` | — |
-| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:267` | 断开虚拟滚动相关监听 |
-| `renderTree()` | `frontend/src/views/app-tree/render:276` | — |
-| `updateStat()` | `frontend/src/views/app-tree/render:343` | — |
+| `RenderMode()` | `frontend/src/views/app-tree/render:40` | 渲染模式 |
+| `getRenderMode()` | `frontend/src/views/app-tree/render:46` | Get render mode from localStorage, default to 'grid' |
+| `setRenderMode()` | `frontend/src/views/app-tree/render:51` | Set render mode to localStorage |
+| `buildTree()` | `frontend/src/views/app-tree/render:85` | — |
+| `flattenVisible()` | `frontend/src/views/app-tree/render:147` | — |
+| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:298` | 断开虚拟滚动相关监听 |
+| `renderTree()` | `frontend/src/views/app-tree/render:307` | — |
+| `updateStat()` | `frontend/src/views/app-tree/render:375` | — |
 | `fileRowCommon()` | `frontend/src/views/app-tree/row-common:11` | 文件行公共计算：path 转义、开关状态、禁用 class、类型图标、缩进 |
 | `folderRowCommon()` | `frontend/src/views/app-tree/row-common:34` | 文件夹行公共计算：图标、颜色、箭头、开关 class、显示名、缩进 |
 | `listFileRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:8` | 文件行 HTML（紧凑列表模式：icon + name + size，无 hover actions、无 date、无 tag dot） |

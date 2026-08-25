@@ -646,6 +646,42 @@ export function previewItemToNode(d: PreviewMenuItemDef): PreviewMenuNode {
 }
 
 /**
+ * 幂等注入 renderMenu 用的 CSS 类规则（仅注入一次，重复调用 no-op）。
+ * 把内联 style.cssText 抽成类，避免 renderMenu 分支里重复硬编码样式串。
+ */
+let _menuStylesInjected = false;
+function ensureMenuStyles(): void {
+  if (_menuStylesInjected) return;
+  const style = document.createElement("style");
+  style.textContent = `
+.cap-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  min-height: 32px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cap-section-arrow {
+  font-size: 10px;
+  display: inline-block;
+}
+.menu-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 6px 10px;
+}
+`;
+  document.head.appendChild(style);
+  _menuStylesInjected = true;
+}
+
+/**
  * 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。
  *  - folder → 可折叠 section（testid = node.id，body testid = node.id + "-body"，兼容既有 e2e 选择器）
  *  - panel / action → 行（经 makeRow + navigate / run）
@@ -663,6 +699,7 @@ export function renderMenu(
     menu: SlideMenuHandle;
   },
 ): void {
+  ensureMenuStyles();
   for (const node of nodes) {
     if (node.visibleWhen && !node.visibleWhen()) continue;
     // folder：可折叠 section（kind==="folder" 或有 children）
@@ -673,12 +710,10 @@ export function renderMenu(
       section.dataset.testid = node.id;
       const header = document.createElement("div");
       header.className = "cap-section-header";
-      header.style.cssText =
-        "display:flex;align-items:center;gap:6px;padding:8px 10px;min-height:32px;cursor:pointer;user-select:none;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
       const collapsed = node.defaultOpen === false;
       const arrow = document.createElement("span");
       arrow.textContent = collapsed ? "▸" : "▾";
-      arrow.style.cssText = "font-size:10px;display:inline-block";
+      arrow.className = "cap-section-arrow";
       const title = document.createElement("span");
       title.textContent = node.labelKey ? tr(node.labelKey, node.fallback ?? node.id) : node.id;
       header.append(arrow, title);
@@ -740,7 +775,7 @@ export function renderMenu(
     if (node.kind === "divider") {
       const hr = document.createElement("div");
       hr.dataset.testid = node.id;
-      hr.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
+      hr.className = "menu-divider";
       container.appendChild(hr);
       continue;
     }
