@@ -94,33 +94,37 @@ export class GroundCapability implements SceneCapability {
     this.scene = opts.scene;
     this.params = { ...DEFAULT_GROUND_PARAMS, ...(opts.params ?? {}) };
     this.enabled = opts.enabled ?? true;
-    this.grid = new THREE.GridHelper(
+    this.waterTime = { value: 0 };
+    this.grid = this.createGridHelper();
+    this.water = this.createWaterMesh();
+    this.surface = this.createSurfaceMesh();
+  }
+
+  private createGridHelper(): THREE.GridHelper {
+    const grid = new THREE.GridHelper(
       this.params.size,
       this.params.divisions,
       this.params.colorCenter,
       this.params.colorGrid,
     );
-    this.grid.visible = this.params.visible;
-    this.grid.name = "ysm-ground";
+    grid.visible = this.params.visible;
+    grid.name = "ysm-ground";
+    return grid;
+  }
 
-    // 半透明水面：PlaneGeometry 旋转到水平，MeshStandardMaterial 半透明
+  private createWaterMesh(): THREE.Mesh {
     const waterGeo = new THREE.PlaneGeometry(this.params.size, this.params.size, 32, 32);
     const waterMat = new THREE.MeshStandardMaterial({
       color: this.params.waterColor,
       transparent: true,
       opacity: this.params.waterOpacity * this.params.wetness,
-      roughness: 0.2, // 湿润表面低粗糙度 → 高反射
+      roughness: 0.2,
       metalness: 0.3,
-      depthWrite: false, // 不遮挡网格
+      depthWrite: false,
     });
 
-    // ── 水面波纹动画 ──
-    // onBeforeCompile 注入 time uniform + vertex shader 波动函数；
-    // update(dt) 推进 time uniform，render loop 调用。
-    this.waterTime = { value: 0 };
     waterMat.onBeforeCompile = (shader: THREE.WebGLProgramParametersWithUniforms): void => {
       shader.uniforms["uTime"] = this.waterTime;
-      // vertex shader：注入 time uniform + 波动函数，扰动 position.z（水面 local Y）
       shader.vertexShader = shader.vertexShader.replace(
         "#include <common>",
         `#include <common>
@@ -132,8 +136,6 @@ export class GroundCapability implements SceneCapability {
       shader.vertexShader = shader.vertexShader.replace(
         "#include <begin_vertex>",
         `#include <begin_vertex>
-         // PlaneGeometry 顶点在 local XY 平面，rotation.x=-π/2 后 local Y→world Z
-         // 扰动 transformed.z 模拟水面波动
          vec2 wpos = transformed.xy;
          float h = 0.0;
          h += wave(wpos, normalize(vec2(1.0, 0.3)), 0.8, 1.2, 0.08);
@@ -144,26 +146,27 @@ export class GroundCapability implements SceneCapability {
     };
     waterMat.needsUpdate = true;
 
-    // 程序化法线贴图：让水面 PBR 光照/反射随波浪变化更真实
     const normalMap = this.generateNormalMap(256);
     waterMat.normalMap = normalMap;
     waterMat.normalScale = new THREE.Vector2(this.params.normalStrength, this.params.normalStrength);
     waterMat.needsUpdate = true;
 
-    this.water = new THREE.Mesh(waterGeo, waterMat);
-    this.water.rotation.x = -Math.PI / 2; // 水平
-    this.water.position.y = 0.01; // 略高于网格避免 z-fighting
-    this.water.name = "ysm-ground-water";
-    this.water.visible = this.params.wetness > 0;
+    const water = new THREE.Mesh(waterGeo, waterMat);
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = 0.01;
+    water.name = "ysm-ground-water";
+    water.visible = this.params.wetness > 0;
+    return water;
+  }
 
-    // 表面材质层：介于网格（y=0）与水面（y=0.01）之间；
-    // 材质/纹理由 refreshSurface() 按 spec 创建（初始 matSource=none → 隐藏占位）
+  private createSurfaceMesh(): THREE.Mesh {
     const surfaceGeo = new THREE.PlaneGeometry(this.params.size, this.params.size);
-    this.surface = new THREE.Mesh(surfaceGeo);
-    this.surface.rotation.x = -Math.PI / 2;
-    this.surface.position.y = 0.005;
-    this.surface.name = "ysm-ground-surface";
+    const surface = new THREE.Mesh(surfaceGeo);
+    surface.rotation.x = -Math.PI / 2;
+    surface.position.y = 0.005;
+    surface.name = "ysm-ground-surface";
     this.refreshSurface();
+    return surface;
   }
 
   /** 推进水面波纹动画（render loop 调用） */
@@ -463,182 +466,7 @@ export class GroundCapability implements SceneCapability {
 
   /** 返回菜单控件定义（框架自动渲染） */
   getMenuControls(): MenuControlDef[] {
-    return [
-      // 顶部主控件：地面显隐
-      {
-        id: "ground-visible",
-        kind: "toggle",
-        labelKey: "preview.ground",
-        fallback: "地面",
-        getValue: () => this.getVisible(),
-        setValue: (v) => this.setVisible(v as boolean),
-      },
-      // 水面参数组（湿润表面模式）
-      {
-        id: "ground-wetness",
-        kind: "slider",
-        labelKey: "preview.groundWetness",
-        fallback: "湿润度",
-        group: "preview.groundGroupWater",
-        slider: { min: 0, max: 1, step: 0.05 },
-        getValue: () => this.getWetness(),
-        setValue: (v) => this.setWetness(v as number),
-      },
-      {
-        id: "ground-water-color",
-        kind: "color",
-        labelKey: "preview.groundWaterColor",
-        fallback: "水色",
-        group: "preview.groundGroupWater",
-        getValue: () => this.getWaterColor(),
-        setValue: (v) => this.setWaterColor(v as number),
-      },
-      {
-        id: "ground-water-opacity",
-        kind: "slider",
-        labelKey: "preview.groundWaterOpacity",
-        fallback: "不透明度",
-        group: "preview.groundGroupWater",
-        slider: { min: 0, max: 1, step: 0.05 },
-        getValue: () => this.getWaterOpacity(),
-        setValue: (v) => this.setWaterOpacity(v as number),
-      },
-      {
-        id: "ground-normal-strength",
-        kind: "slider",
-        labelKey: "preview.groundNormalStrength",
-        fallback: "法线强度",
-        group: "preview.groundGroupWater",
-        slider: { min: 0, max: 1, step: 0.05 },
-        getValue: () => this.getNormalStrength(),
-        setValue: (v) => this.setNormalStrength(v as number),
-      },
-      // ── 表面材质组（spec 单源：structural 走重建，appearance 走原地）──
-      {
-        id: "ground-mat-source",
-        kind: "select",
-        labelKey: "preview.groundMatSource",
-        fallback: "表面材质",
-        group: "preview.groundGroupMaterial",
-        select: [
-          { value: "none", label: "无" },
-          { value: "solid", label: "纯色" },
-          { value: "plain", label: "素面" },
-          { value: "grid", label: "网格" },
-          { value: "checker", label: "棋盘" },
-          { value: "texture", label: "自定义贴图" },
-        ],
-        getValue: () => this.getMatSource(),
-        setValue: (v) => this.setMatSource(v as GroundSurfaceMode),
-      },
-      {
-        id: "ground-mat-color",
-        kind: "color",
-        labelKey: "preview.groundMatColor",
-        fallback: "底色",
-        group: "preview.groundGroupMaterial",
-        getValue: () => this.params.matColor,
-        setValue: (v) => this.setMatColor(v as number),
-      },
-      {
-        id: "ground-mat-line-color",
-        kind: "color",
-        labelKey: "preview.groundMatLineColor",
-        fallback: "线色",
-        group: "preview.groundGroupMaterial",
-        getValue: () => this.params.matLineColor,
-        setValue: (v) => this.setMatLineColor(v as number),
-      },
-      {
-        id: "ground-mat-grid-size",
-        kind: "slider",
-        labelKey: "preview.groundMatGridSize",
-        fallback: "格数",
-        group: "preview.groundGroupMaterial",
-        slider: { min: 2, max: 32, step: 1 },
-        getValue: () => this.params.matGridSize,
-        setValue: (v) => this.setMatGridSize(Math.round(v as number)),
-      },
-      {
-        id: "ground-mat-texture",
-        kind: "button",
-        labelKey: "preview.groundMatPick",
-        fallback: "选择贴图",
-        group: "preview.groundGroupMaterial",
-        button: {
-          textKey: "preview.groundMatPick",
-          getHint: () => this.customTexName || "",
-          variant: "primary",
-          action: () => this.openTexturePicker(),
-        },
-        getValue: () => null,
-        setValue: () => {},
-      },
-      {
-        id: "ground-mat-clear",
-        kind: "button",
-        labelKey: "preview.groundMatClear",
-        fallback: "清除贴图",
-        group: "preview.groundGroupMaterial",
-        button: {
-          textKey: "preview.groundMatClear",
-          variant: "ghost",
-          action: () => this.clearCustomTexture(),
-        },
-        getValue: () => null,
-        setValue: () => {},
-      },
-      {
-        id: "ground-mat-opacity",
-        kind: "slider",
-        labelKey: "preview.groundMatOpacity",
-        fallback: "表面不透明度",
-        group: "preview.groundGroupMaterial",
-        slider: { min: 0, max: 1, step: 0.05 },
-        getValue: () => this.getMatOpacity(),
-        setValue: (v) => this.setMatOpacity(v as number),
-      },
-      {
-        id: "ground-mat-scale",
-        kind: "slider",
-        labelKey: "preview.groundMatScale",
-        fallback: "纹理缩放",
-        group: "preview.groundGroupMaterial",
-        slider: { min: 0.25, max: 8, step: 0.25 },
-        getValue: () => this.getMatScale(),
-        setValue: (v) => this.setMatScale(v as number),
-      },
-      {
-        id: "ground-mat-rotation",
-        kind: "slider",
-        labelKey: "preview.groundMatRotation",
-        fallback: "纹理旋转",
-        group: "preview.groundGroupMaterial",
-        slider: { min: 0, max: 360, step: 5, unit: "°" },
-        getValue: () => this.getMatRotation(),
-        setValue: (v) => this.setMatRotation(v as number),
-      },
-      {
-        id: "ground-mat-roughness",
-        kind: "slider",
-        labelKey: "preview.groundMatRoughness",
-        fallback: "粗糙度",
-        group: "preview.groundGroupMaterial",
-        slider: { min: 0, max: 1, step: 0.05 },
-        getValue: () => this.getMatRoughness(),
-        setValue: (v) => this.setMatRoughness(v as number),
-      },
-      {
-        id: "ground-mat-metalness",
-        kind: "slider",
-        labelKey: "preview.groundMatMetalness",
-        fallback: "金属度",
-        group: "preview.groundGroupMaterial",
-        slider: { min: 0, max: 1, step: 0.05 },
-        getValue: () => this.getMatMetalness(),
-        setValue: (v) => this.setMatMetalness(v as number),
-      },
-    ];
+    return [...gcBuildMain(this), ...gcBuildWaterGroup(this), ...gcBuildMaterialGroup(this)];
   }
 
   /** 保存状态到 localStorage（mat 字段纯数据可持久化；texture 二进制不存） */
@@ -721,4 +549,195 @@ export class GroundCapability implements SceneCapability {
       this.customTex = null;
     }
   }
+}
+
+function gcBuildMain(cap: GroundCapability): MenuControlDef[] {
+  return [
+    {
+      id: "ground-visible",
+      kind: "toggle",
+      labelKey: "preview.ground",
+      fallback: "地面",
+      getValue: () => cap.getVisible(),
+      setValue: (v) => cap.setVisible(v as boolean),
+    },
+  ];
+}
+
+function gcBuildWaterGroup(cap: GroundCapability): MenuControlDef[] {
+  return [
+    {
+      id: "ground-wetness",
+      kind: "slider",
+      labelKey: "preview.groundWetness",
+      fallback: "湿润度",
+      group: "preview.groundGroupWater",
+      slider: { min: 0, max: 1, step: 0.05 },
+      getValue: () => cap.getWetness(),
+      setValue: (v) => cap.setWetness(v as number),
+    },
+    {
+      id: "ground-water-color",
+      kind: "color",
+      labelKey: "preview.groundWaterColor",
+      fallback: "水色",
+      group: "preview.groundGroupWater",
+      getValue: () => cap.getWaterColor(),
+      setValue: (v) => cap.setWaterColor(v as number),
+    },
+    {
+      id: "ground-water-opacity",
+      kind: "slider",
+      labelKey: "preview.groundWaterOpacity",
+      fallback: "不透明度",
+      group: "preview.groundGroupWater",
+      slider: { min: 0, max: 1, step: 0.05 },
+      getValue: () => cap.getWaterOpacity(),
+      setValue: (v) => cap.setWaterOpacity(v as number),
+    },
+    {
+      id: "ground-normal-strength",
+      kind: "slider",
+      labelKey: "preview.groundNormalStrength",
+      fallback: "法线强度",
+      group: "preview.groundGroupWater",
+      slider: { min: 0, max: 1, step: 0.05 },
+      getValue: () => cap.getNormalStrength(),
+      setValue: (v) => cap.setNormalStrength(v as number),
+    },
+  ];
+}
+
+function gcBuildMaterialGroup(cap: GroundCapability): MenuControlDef[] {
+  const self = cap as unknown as {
+    params: { matColor: number; matLineColor: number; matGridSize: number };
+    customTexName: string;
+    openTexturePicker(): void;
+  };
+  return [
+    {
+      id: "ground-mat-source",
+      kind: "select",
+      labelKey: "preview.groundMatSource",
+      fallback: "表面材质",
+      group: "preview.groundGroupMaterial",
+      select: [
+        { value: "none", label: "无" },
+        { value: "solid", label: "纯色" },
+        { value: "plain", label: "素面" },
+        { value: "grid", label: "网格" },
+        { value: "checker", label: "棋盘" },
+        { value: "texture", label: "自定义贴图" },
+      ],
+      getValue: () => cap.getMatSource(),
+      setValue: (v) => cap.setMatSource(v as GroundSurfaceMode),
+    },
+    {
+      id: "ground-mat-color",
+      kind: "color",
+      labelKey: "preview.groundMatColor",
+      fallback: "底色",
+      group: "preview.groundGroupMaterial",
+      getValue: () => self.params.matColor,
+      setValue: (v) => cap.setMatColor(v as number),
+    },
+    {
+      id: "ground-mat-line-color",
+      kind: "color",
+      labelKey: "preview.groundMatLineColor",
+      fallback: "线色",
+      group: "preview.groundGroupMaterial",
+      getValue: () => self.params.matLineColor,
+      setValue: (v) => cap.setMatLineColor(v as number),
+    },
+    {
+      id: "ground-mat-grid-size",
+      kind: "slider",
+      labelKey: "preview.groundMatGridSize",
+      fallback: "格数",
+      group: "preview.groundGroupMaterial",
+      slider: { min: 2, max: 32, step: 1 },
+      getValue: () => self.params.matGridSize,
+      setValue: (v) => cap.setMatGridSize(Math.round(v as number)),
+    },
+    {
+      id: "ground-mat-texture",
+      kind: "button",
+      labelKey: "preview.groundMatPick",
+      fallback: "选择贴图",
+      group: "preview.groundGroupMaterial",
+      button: {
+        textKey: "preview.groundMatPick",
+        getHint: () => self.customTexName || "",
+        variant: "primary",
+        action: () => self.openTexturePicker(),
+      },
+      getValue: () => null,
+      setValue: () => {},
+    },
+    {
+      id: "ground-mat-clear",
+      kind: "button",
+      labelKey: "preview.groundMatClear",
+      fallback: "清除贴图",
+      group: "preview.groundGroupMaterial",
+      button: {
+        textKey: "preview.groundMatClear",
+        variant: "ghost",
+        action: () => cap.clearCustomTexture(),
+      },
+      getValue: () => null,
+      setValue: () => {},
+    },
+    {
+      id: "ground-mat-opacity",
+      kind: "slider",
+      labelKey: "preview.groundMatOpacity",
+      fallback: "表面不透明度",
+      group: "preview.groundGroupMaterial",
+      slider: { min: 0, max: 1, step: 0.05 },
+      getValue: () => cap.getMatOpacity(),
+      setValue: (v) => cap.setMatOpacity(v as number),
+    },
+    {
+      id: "ground-mat-scale",
+      kind: "slider",
+      labelKey: "preview.groundMatScale",
+      fallback: "纹理缩放",
+      group: "preview.groundGroupMaterial",
+      slider: { min: 0.25, max: 8, step: 0.25 },
+      getValue: () => cap.getMatScale(),
+      setValue: (v) => cap.setMatScale(v as number),
+    },
+    {
+      id: "ground-mat-rotation",
+      kind: "slider",
+      labelKey: "preview.groundMatRotation",
+      fallback: "纹理旋转",
+      group: "preview.groundGroupMaterial",
+      slider: { min: 0, max: 360, step: 5, unit: "°" },
+      getValue: () => cap.getMatRotation(),
+      setValue: (v) => cap.setMatRotation(v as number),
+    },
+    {
+      id: "ground-mat-roughness",
+      kind: "slider",
+      labelKey: "preview.groundMatRoughness",
+      fallback: "粗糙度",
+      group: "preview.groundGroupMaterial",
+      slider: { min: 0, max: 1, step: 0.05 },
+      getValue: () => cap.getMatRoughness(),
+      setValue: (v) => cap.setMatRoughness(v as number),
+    },
+    {
+      id: "ground-mat-metalness",
+      kind: "slider",
+      labelKey: "preview.groundMatMetalness",
+      fallback: "金属度",
+      group: "preview.groundGroupMaterial",
+      slider: { min: 0, max: 1, step: 0.05 },
+      getValue: () => cap.getMatMetalness(),
+      setValue: (v) => cap.setMatMetalness(v as number),
+    },
+  ];
 }
