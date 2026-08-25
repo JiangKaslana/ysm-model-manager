@@ -33,27 +33,6 @@ func readFileLimited(path string) []byte {
 	return fsutil.ReadLimitedEntry(f, maxReadSize)
 }
 
-// isArmModelName 判断模型文件是否为第一人称手持视角的独立手臂几何
-// （arm.json / arm.geo.json）。
-//
-// 权威来源（ModernYSM MainModelData）：main 和 arm 是 models 列表里的两个
-// 独立 GeoModel（get(0)=main, get(1)=arm），两者共用同一套 textureMap
-// （files.player.texture），通过 textureIndex 选皮肤。arm 的几何与 main 的
-// 手臂几何不同（pivot/位置不同），用于游戏内第一人称手持物品视角
-// （RenderFirstPlayerBackground 用 renderPartMask=3 渲染 armModel）。
-//
-// 合并版（FindGeometryInExtractedYSM）在全身第三人称预览中不需要 arm 的
-// 第一人称手臂几何，剔除避免错位；组件版（FindComponentsInExtractedYSM）
-// 保留 arm 作为独立组件，供多组件切换查看。
-func isArmModelName(name string) bool {
-	base := strings.ToLower(name)
-	if idx := strings.LastIndexAny(base, "/\\"); idx >= 0 {
-		base = base[idx+1:]
-	}
-	base = strings.TrimSuffix(base, ".json")
-	return base == "arm" || base == "arm.geo"
-}
-
 // declTexInfo 载具/投射物声明的纹理（相对 ysm.json 目录路径 + 小写 basename）。
 type declTexInfo struct {
 	relPath string // 相对 ysm.json 目录的纹理路径（如 textures/skin.png）
@@ -304,7 +283,7 @@ func applyCubeTextures(gj *types.BedrockModel, texSlot int) {
 
 // sortMapModelNames 从 player.model map 构造有序模型路径列表：
 //   - main 键强制首位；其余键按字符串稳定排序（消除 Go map 遍历随机性）
-//   - excludeArm=true 时排除 isArmModelName 命中的项（FindGeometry 全身合并版剔除手臂，
+//   - excludeArm=true 时排除 geometry.IsArmModelName 命中的项（FindGeometry 全身合并版剔除手臂，
 //     避免 pivot 与 main 手臂错位；FindComponents 多组件版保留为独立组件）
 func sortMapModelNames(modelMapOrig map[string]string, excludeArm bool) []string {
 	var ordered []string
@@ -316,7 +295,7 @@ func sortMapModelNames(modelMapOrig map[string]string, excludeArm bool) []string
 		if k == "main" {
 			continue
 		}
-		if excludeArm && isArmModelName(v) {
+		if excludeArm && geometry.IsArmModelName(v) {
 			continue
 		}
 		others = append(others, k)
@@ -327,6 +306,10 @@ func sortMapModelNames(modelMapOrig map[string]string, excludeArm bool) []string
 	}
 	return ordered
 }
+
+// maxFallbackGeoProbes 兜底 3（resolveBedrockGeometryFallback WalkDir）最多尝试解析的
+// .json 候选数：畸形大目录防逐个 readFileLimited+Parse 的宽度 DoS，超限即 SkipAll 停扫。
+const maxFallbackGeoProbes = 20
 
 // resolveBedrockGeometryFallback 封装 4 条兜底解析链（逐字节保留原行为）：
 //  1. 用 ysm.json 自身直接 Parse（可能含 format_version + minecraft:geometry 标准段）
@@ -354,9 +337,11 @@ func resolveBedrockGeometryFallback(data []byte, ysmPath, dir string) *types.Bed
 			return gj
 		}
 	}
-	// 兜底 3：WalkDir 子目录递归扫 10 层（排除 animations/controller/avatar）
+	// 兜底 3：WalkDir 子目录递归扫 10 层（排除 animations/controller/avatar），
+	// .json 解析候选数封顶 maxFallbackGeoProbes（畸形大目录防逐个 readFile+Parse DoS）
 	excludeDirs := map[string]bool{"animations": true, "controller": true, "avatar": true}
 	var found *types.BedrockModel
+	probes := 0
 	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			log.Printf("[ysm] WalkDir 错误 (忽略): %v", err)
@@ -379,6 +364,11 @@ func resolveBedrockGeometryFallback(data []byte, ysmPath, dir string) *types.Bed
 			return nil
 		}
 		if strings.HasSuffix(strings.ToLower(path), ".json") {
+			probes++
+			if probes > maxFallbackGeoProbes {
+				log.Printf("[ysm] 兜底扫描候选超 %d 个, 停止: %s", maxFallbackGeoProbes, dir)
+				return filepath.SkipAll
+			}
 			geoData := readFileLimited(path)
 			if geoData != nil {
 				if gj := geometry.ParseBedrockGeometry(geoData); gj != nil {
@@ -504,7 +494,7 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 		orderedNames = sortMapModelNames(modelMapOrig, true) // excludeArm: 全身合并版去手臂
 	} else {
 		for _, n := range modelNames {
-			if !isArmModelName(n) {
+			if !geometry.IsArmModelName(n) {
 				orderedNames = append(orderedNames, n)
 			}
 		}
@@ -682,19 +672,20 @@ type componentSlotInfo struct {
 //   - 已声明在声明序范围内 → texSlot=j、texName=texOrderNames[j]、onDeclTex=true
 //   - 已声明但超范围（模型多于纹理声明）→ 钳到最后一张声明纹理
 //   - 未声明（补扫 / 无纹理声明）→ texSlot=len(texOrderNames)+undeclSeq、按名段
-//   - undeclSeq 通过指针原地递增（返回值已使用新序号前自增语义）
-func computeTexSlotForComponent(mn, base string, declPos map[string]int, texOrderNames []string, undeclSeq *int) componentSlotInfo {
-	isArm := isArmModelName(mn)
+//
+// undeclSeq 值传递进出（返回新序号）取代 *int 原地递增——「使用后自增」契约显式化。
+func computeTexSlotForComponent(mn, base string, declPos map[string]int, texOrderNames []string, undeclSeq int) (componentSlotInfo, int) {
+	isArm := geometry.IsArmModelName(mn)
 	tn := strings.ToLower(base)
 	info := componentSlotInfo{
-		texSlot:   len(texOrderNames) + *undeclSeq,
+		texSlot:   len(texOrderNames) + undeclSeq,
 		texName:   tn,
 		onDeclTex: false,
 	}
 	if isArm {
 		info.texSlot = 0
 		info.texName = ""
-		return info
+		return info, undeclSeq
 	}
 	if j, declared := declPos[mn]; declared && len(texOrderNames) > 0 {
 		info.onDeclTex = j < len(texOrderNames)
@@ -704,40 +695,48 @@ func computeTexSlotForComponent(mn, base string, declPos map[string]int, texOrde
 			info.texSlot = len(texOrderNames) - 1
 		}
 	} else {
-		*undeclSeq++
+		undeclSeq++
 	}
 	if info.texSlot < len(texOrderNames) && texOrderNames[info.texSlot] != "" {
 		info.texName = texOrderNames[info.texSlot]
 	}
-	return info
+	return info, undeclSeq
 }
 
-// applyComponentPerComponentTex 尝试 perComponent 两条绑定（载具声明纹理→组件同名纹理）：
-// 命中时填 ComponentTextures + applyCubeTextures(0) + 空 texName，追加 comps 并返回 true；
-// 未命中返回 false，交由调用方走全局 texSlot 绑定。两条分支各自独立封装 40 行巨块的 2/3。
-func applyComponentPerComponentTex(
-	gj *types.BedrockModel, candidate, dir, cleanDir, base, texName string,
-	declaredTexByModel map[string]declTexInfo, pngNameMap map[string]string,
-	comps *[]types.BedrockModel, texNames *[]string,
-) bool {
+// componentBindCtx FindComponentsInExtractedYSM 的轮级共享上下文：dir/cleanDir/
+// declaredTexByModel/pngNameMap 整轮恒定；comps/texNames 双切片统一在此收口追加，
+// 取代原 11 参函数的双指针出参（2026-08-26 审查收敛，对齐 instance.rtypeCtx 先例）。
+type componentBindCtx struct {
+	dir                string
+	cleanDir           string
+	declaredTexByModel map[string]declTexInfo
+	pngNameMap         map[string]string
+	comps              []types.BedrockModel
+	texNames           []string
+}
+
+// bindPerComponentTex 尝试 perComponent 两条绑定（载具声明纹理→组件同名纹理）：
+// 命中时填 ComponentTextures + applyCubeTextures(0) + 空 texName，追加 comps/texNames 并返回 true；
+// 未命中返回 false，交由调用方走全局 texSlot 绑定。取代原 11 参自由函数（2026-08-26 审查收敛）。
+func (c *componentBindCtx) bindPerComponentTex(gj *types.BedrockModel, candidate, base, texName string) bool {
 	// 分支 A：载具/投射物声明纹理（含共享 player skin）——plane 共享皮肤的关键分支
 	// （wine_fox 17_mini 根因：此前落全局 texArr 越界贴到 gui 背景）。
-	if di, ok := declaredTexByModel[strings.ToLower(base)]; ok && di.relPath != "" {
+	if di, ok := c.declaredTexByModel[strings.ToLower(base)]; ok && di.relPath != "" {
 		var cand string
 		if filepath.IsAbs(di.relPath) {
 			cand = filepath.Clean(di.relPath)
 		} else {
-			cand = filepath.Clean(filepath.Join(dir, di.relPath))
+			cand = filepath.Clean(filepath.Join(c.dir, di.relPath))
 		}
-		if strings.HasPrefix(cand, cleanDir+string(filepath.Separator)) || cand == cleanDir {
+		if strings.HasPrefix(cand, c.cleanDir+string(filepath.Separator)) || cand == c.cleanDir {
 			if pngData := readFileLimited(cand); pngData != nil {
 				if uri := textureDataURI(cand, pngData); uri != "" {
 					gj.ComponentTextures = map[string][]string{base: {uri}}
-					*texNames = append(*texNames, "")
 					gj.SourceName = base
 					applyCubeTextures(gj, 0)
 					log.Printf("[ysm] 加载模型组件 %q (声明纹理 texIdx=0, texture=%q)", candidate, di.texBase)
-					*comps = append(*comps, *gj)
+					c.texNames = append(c.texNames, "")
+					c.comps = append(c.comps, *gj)
 					return true
 				}
 			}
@@ -750,15 +749,15 @@ func applyComponentPerComponentTex(
 	// （模型多于纹理声明）钳到最后一张声明纹理名（共享默认皮肤，02_new_year 回归语义），
 	// 对真正未声明组件 = 组件 basename——两种情况都精确复刻原行为，不得改用 base
 	// 否则超范围声明组件会错误绑定自己的同名纹理。
-	if pngPath, ok := pngNameMap[texName]; ok {
+	if pngPath, ok := c.pngNameMap[texName]; ok {
 		if pngData := readFileLimited(pngPath); pngData != nil {
 			if uri := textureDataURI(pngPath, pngData); uri != "" {
 				gj.ComponentTextures = map[string][]string{base: {uri}}
-				*texNames = append(*texNames, "")
 				gj.SourceName = base
 				applyCubeTextures(gj, 0)
 				log.Printf("[ysm] 加载模型组件 %q (组件专属 texIdx=%d, texture=%q)", candidate, 0, filepath.Base(pngPath))
-				*comps = append(*comps, *gj)
+				c.texNames = append(c.texNames, "")
+				c.comps = append(c.comps, *gj)
 				return true
 			}
 		}
@@ -826,8 +825,13 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 	//   - computeTexSlotForComponent：拆分 texSlot 三分支（arm/声明/未声明）巨块
 	//   - applyComponentPerComponentTex：拆分 perComponent 两子分支（声明纹理/同名）巨块
 	//   - 其余走全局 texSlot 绑定：applyCubeTextures 消除 5 份循环复制
-	var comps []types.BedrockModel
-	texNames := make([]string, 0, len(orderedNames))
+	ctx := &componentBindCtx{
+		dir:                dir,
+		cleanDir:           cleanDir,
+		declaredTexByModel: declaredTexByModel,
+		pngNameMap:         pngNameMap,
+		texNames:           make([]string, 0, len(orderedNames)), // 保持原预分配：非 nil 空切片 JSON 出 [] 而非 null
+	}
 	undeclSeq := 0
 	for _, mn := range orderedNames {
 		candidate, ok := safeJoinModelPath(dir, mn)
@@ -847,27 +851,28 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 			base = base[idx+1:]
 		}
 		base = strings.TrimSuffix(strings.TrimSuffix(base, ".geo.json"), ".json")
-		isArm := isArmModelName(mn)
-		info := computeTexSlotForComponent(mn, base, declPos, texOrderNames, &undeclSeq)
+		isArm := geometry.IsArmModelName(mn)
+		var info componentSlotInfo
+		info, undeclSeq = computeTexSlotForComponent(mn, base, declPos, texOrderNames, undeclSeq)
 
 		// perComponent 分支：未声明 + 非 arm → 先试声明纹理→再试同名；命中即 append+continue
 		if !info.onDeclTex && !isArm {
-			if applyComponentPerComponentTex(gj, candidate, dir, cleanDir, base, info.texName, declaredTexByModel, pngNameMap, &comps, &texNames) {
+			if ctx.bindPerComponentTex(gj, candidate, base, info.texName) {
 				continue
 			}
 		}
 		// 全局 texSlot 分支：arm / 已声明 / perComponent 兜底落空
 		if isArm {
-			texNames = append(texNames, "") // arm：前端 R1 校验跳过，走全局 texArr[0]
+			ctx.texNames = append(ctx.texNames, "") // arm：前端 R1 校验跳过，走全局 texArr[0]
 		} else {
-			texNames = append(texNames, info.texName)
+			ctx.texNames = append(ctx.texNames, info.texName)
 		}
 		gj.SourceName = strings.TrimSuffix(strings.TrimSuffix(base, ".geo.json"), ".json")
 		applyCubeTextures(gj, info.texSlot)
 		log.Printf("[ysm] 加载模型组件 %q (texIdx=%d, name=%q)", candidate, info.texSlot, gj.SourceName)
-		comps = append(comps, *gj)
+		ctx.comps = append(ctx.comps, *gj)
 	}
-	return comps, texNames
+	return ctx.comps, ctx.texNames
 }
 
 // looksLikeGeometry 判断字节流是否疑似裸几何元素（含 Bedrock geometry 特征键）。

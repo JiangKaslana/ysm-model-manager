@@ -54,7 +54,7 @@ func loadTestdataZip(t *testing.T) []byte {
 //
 // arm 纹理绑定变更（ModernYSM 权威）：arm 是第一人称手持视角的独立手臂几何，
 // 与 main 共用同一套 player.texture 皮肤。arm 不填 ComponentTextures、
-// texNames 置空、TexSlot=0（贴 texArr[0] 默认皮肤）。详见 isArmModelName 注释。
+// texNames 置空、TexSlot=0（贴 texArr[0] 默认皮肤）。详见 IsArmModelName 注释。
 func TestComponentsFromRealSample(t *testing.T) {
 	data := loadTestdataZip(t)
 	comps, texNames, err := ParseComponentsFromZip(data, int64(len(data)))

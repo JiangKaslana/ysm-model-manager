@@ -187,7 +187,7 @@ func TestParseLegacyMetadata_EmptyPlaceholder_Continues(t *testing.T) {
 	}
 }
 
-// isLegacyGeometryName 的 .geo 变体识别（code review P3：与 IsMainModelName/isArmModelName 同口径）
+// isLegacyGeometryName 的 .geo 变体识别（code review P3：与 IsMainModelName/IsArmModelName 同口径）
 func TestIsLegacyGeometryName(t *testing.T) {
 	cases := []struct {
 		path string

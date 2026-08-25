@@ -7,10 +7,13 @@
 package ysm
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"ysm-model-manager/go/geometry"
 )
 
 // writeExtractedFixture 在 t.TempDir 下按 rel 路径写文件（自动建父目录），
@@ -367,8 +370,9 @@ func TestFindGeometryInExtractedYSM_WalkDirDepthLimit(t *testing.T) {
 	}
 }
 
-// isArmModelName 直测：arm.json / arm.geo.json（含路径前缀、大写变体）→ true，
-// 其余（main.json、army.json 等）→ false（extracted.go:38-45）
+// geometry.IsArmModelName 直测（2026-08-26 跨包收敛：本地副本删除，单一实现在
+// go/geometry/archive.go，此处锁 ysm 消费方口径与权威注释一致）：arm.json /
+// arm.geo.json（含路径前缀、大写变体）→ true，其余（main.json、army.json 等）→ false
 func TestIsArmModelName(t *testing.T) {
 	cases := []struct {
 		name string
@@ -386,8 +390,8 @@ func TestIsArmModelName(t *testing.T) {
 		{"", false},
 	}
 	for _, tc := range cases {
-		if got := isArmModelName(tc.name); got != tc.want {
-			t.Errorf("isArmModelName(%q) = %v, want %v", tc.name, got, tc.want)
+		if got := geometry.IsArmModelName(tc.name); got != tc.want {
+			t.Errorf("geometry.IsArmModelName(%q) = %v, want %v", tc.name, got, tc.want)
 		}
 	}
 }
@@ -451,5 +455,37 @@ func TestFindComponentsInExtractedYSM_StringModelPlusModelsDir(t *testing.T) {
 	ct, ok := comps[2].ComponentTextures["arrow"]
 	if !ok || len(ct) != 1 || !strings.HasPrefix(ct[0], "data:image/png;base64,") {
 		t.Errorf("组件 arrow 应有 perComponent 纹理 [1 张 data URI], got %v", comps[2].ComponentTextures)
+	}
+}
+
+// ===== 兜底 3 WalkDir 候选预算（2026-08-26 审查修复：畸形大目录防逐个试解析 DoS）=====
+
+func TestResolveBedrockGeometryFallback_ProbeBudgetExhausted(t *testing.T) {
+	// maxFallbackGeoProbes 个垃圾 json 先耗尽预算（字典序在 sub/ 前），
+	// 预算外合法 geo 不再尝试 → 兜底 3 落空、兜底 4 也不命中 → nil
+	data := []byte(`{"load":{"name":"x"}}`) // 兜底 1/2/4 全 miss 的 ysm.json
+	files := map[string]string{"ysm.json": string(data)}
+	for i := 0; i < maxFallbackGeoProbes; i++ {
+		files[fmt.Sprintf("garbage_%02d.json", i)] = fmt.Sprintf(`{"junk":%d}`, i)
+	}
+	files["sub/real.geo.json"] = geometryJSON("real")
+	dir := filepath.Dir(writeExtractedFixture(t, files))
+	if m := resolveBedrockGeometryFallback(data, filepath.Join(dir, "ysm.json"), dir); m != nil {
+		t.Errorf("候选预算耗尽后应停止扫描返回 nil, 得到骨骼 %v", m.Bones)
+	}
+}
+
+func TestResolveBedrockGeometryFallback_ProbeBudgetWithinLimit(t *testing.T) {
+	// 预算内：5 个垃圾 + 合法 geo → 正常命中
+	data := []byte(`{"load":{"name":"x"}}`)
+	files := map[string]string{"ysm.json": string(data)}
+	for i := 0; i < 5; i++ {
+		files[fmt.Sprintf("garbage_%02d.json", i)] = fmt.Sprintf(`{"junk":%d}`, i)
+	}
+	files["zz.geo.json"] = geometryJSON("hit")
+	dir := filepath.Dir(writeExtractedFixture(t, files))
+	m := resolveBedrockGeometryFallback(data, filepath.Join(dir, "ysm.json"), dir)
+	if m == nil || len(m.Bones) == 0 || m.Bones[0].Name != "hit" {
+		t.Fatalf("预算内应命中合法 geo, 得到 %v", m)
 	}
 }

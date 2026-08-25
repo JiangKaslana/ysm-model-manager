@@ -19,7 +19,7 @@ import (
 // 共享 types.MaxReadLimit（索引 6.7+5.2，与 fileops/ysm 的 50MB 上限单点）
 const maxExtractSize = types.MaxReadLimit
 
-// isArmModelName 判断模型文件是否为第一人称手持视角的独立手臂几何
+// IsArmModelName 判断模型文件是否为第一人称手持视角的独立手臂几何
 // （arm.json / arm.geo.json）。
 //
 // 权威来源（ModernYSM MainModelData）：main 和 arm 是 models 列表里的两个
@@ -31,7 +31,10 @@ const maxExtractSize = types.MaxReadLimit
 // 合并版（ParseFromZip）在全身第三人称预览中不需要 arm 的第一人称手臂几何，
 // 剔除避免错位；组件版（ParseComponentsFromZip / FindComponentsInExtractedYSM）
 // 保留 arm 作为独立组件，供多组件切换查看。
-func isArmModelName(name string) bool {
+//
+// 导出单点（2026-08-26 审查收敛）：go/ysm 解压目录路径原有一份逐字节相同副本
+// （连本注释都各抄一份），跨包复制靠注释同步必漂移——统一引此处。
+func IsArmModelName(name string) bool {
 	base := strings.ToLower(name)
 	if idx := strings.LastIndexAny(base, "/\\"); idx >= 0 {
 		base = base[idx+1:]
@@ -45,11 +48,11 @@ func isArmModelName(name string) bool {
 // 合并版（ParseFromZip）把所有模型骨骼合并成一个 BedrockModel 渲染，
 // arm.json 的第一人称手臂几何在此场景下不需要，且其 pivot 与 main 的
 // 手臂不同会导致错位，因此剔除。组件版不走此过滤——arm 作为独立组件保留
-// （见 isArmModelName 注释的权威来源）。
+// （见 IsArmModelName 注释的权威来源）。
 func filterArmModels(order []string) []string {
 	out := make([]string, 0, len(order))
 	for _, p := range order {
-		if !isArmModelName(p) {
+		if !IsArmModelName(p) {
 			out = append(out, p)
 		}
 	}
@@ -180,7 +183,7 @@ func classifyFileInventory(entries []container.Entry) *types.FileInventory {
 }
 
 // legacyGeometryNames 旧格式几何文件基名（无 ysm.json 场景）。含 .geo 变体：
-// 与 IsMainModelName/isArmModelName 同口径（code review P3：main.geo.json 等
+// 与 IsMainModelName/IsArmModelName 同口径（code review P3：main.geo.json 等
 // 会被当 geometry 解析但此前漏分类）；package-level 避免 per-entry 重建分配（P3）。
 var legacyGeometryNames = []string{"main", "main.geo", "arm", "arm.geo", "arrow", "info"}
 
@@ -744,7 +747,7 @@ func l0ResolveTexture(item maidManifestItem, maidNs, nsBase, logPrefix string,
 
 // applyL0ManifestItem 把单条 manifest 的解析结果（modelAbs/texAbs）落实到 res
 // 数组：两段 Open→Read→append 对称代码原在主循环内联各写一份，现在合并。
-// 行为逐字节保持原循环：Open 失败静默跳、buf 为空跳、ARM 模型被 isArmModelName
+// 行为逐字节保持原循环：Open 失败静默跳、buf 为空跳、ARM 模型被 IsArmModelName
 // 排除、纹理 pngNames 取 LastIndex("/") 后缀、texNameByItem 小写——一处不动。
 func applyL0ManifestItem(res *l0Resolved, i int, maidNs string,
 	entryByPath map[string]container.Entry, modelAbs, texAbs string) {
@@ -752,7 +755,7 @@ func applyL0ManifestItem(res *l0Resolved, i int, maidNs string,
 		if e, ok := entryByPath[modelAbs]; ok {
 			if rc, err := e.Open(); err == nil {
 				buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-				if len(buf) > 0 && !isArmModelName(e.Name()) {
+				if len(buf) > 0 && !IsArmModelName(e.Name()) {
 					res.geoFiles = append(res.geoFiles, geoEntry{name: e.Name(), data: buf})
 					res.modelOrder = append(res.modelOrder, modelAbs[len(maidNs):])
 					res.resolvedPathByItem[i] = modelAbs
@@ -835,7 +838,7 @@ func resolveL0(entries []container.Entry, maidNs string, manifest []maidManifest
 //     同口径）——被拒条目不 Open（无 reader 泄漏）+ 外来命名空间的动画/控制器 JSON 一并跳过。
 //   - 动画/控制器 JSON 走 fsutil.ReadLimitedEntry（+1 探测，超限返回 nil；ADR-033
 //     陷阱：原 io.ReadAll(io.LimitReader) 无 +1 探测，恰好 50MB 被截断后静默下发）。
-//   - isArmModelName 检查发生在 Open+Read 之后（保持原序，勿"顺手优化"成先判断再读）。
+//   - IsArmModelName 检查发生在 Open+Read 之后（保持原序，勿"顺手优化"成先判断再读）。
 func collectMergedFiles(entries []container.Entry, maidNs string) (geoFiles []geoEntry, animJSONs []string, pngs [][]byte, pngNames []string) {
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
@@ -864,7 +867,7 @@ func collectMergedFiles(entries []container.Entry, maidNs string) (geoFiles []ge
 				continue
 			}
 			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-			if isArmModelName(e.Name()) {
+			if IsArmModelName(e.Name()) {
 				continue // 排除第一人称手臂模型 arm.json（与 main 手臂重叠 → 双手臂）
 			}
 			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
@@ -1449,7 +1452,7 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 			continue
 		}
 		compName := extractCompName(gf.name)
-		isArm := isArmModelName(gf.name)
+		isArm := IsArmModelName(gf.name)
 
 		// 查组件声明的纹理名：按 basename 直接查 modelTexName 映射，不再依赖 modelOrder 索引。
 		// 修复 wine_fox 根因：texOrder 去重后长度 < modelOrder，按索引查表会错位。

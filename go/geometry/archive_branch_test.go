@@ -291,7 +291,7 @@ func TestParseFromZip_BackslashEntryNames(t *testing.T) {
 func TestParseFromZip_UndeclaredGeoAndPng(t *testing.T) {
 	// 未声明几何（排序 return oki 分支）与未声明纹理（return hasI 分支）：
 	// 声明项在前、未声明项稳定落尾；纹理名与 pngs 同序
-	// 注：声明文件不能用 arm（合并路径按 isArmModelName 排除），用 declared.geo.json
+	// 注：声明文件不能用 arm（合并路径按 IsArmModelName 排除），用 declared.geo.json
 	ysm := `{"files":{"player":{"model":["declared.geo.json"],"texture":["tex1.png"]}}}`
 	declaredGeo := `{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"declared","texture_width":32,"texture_height":32},"bones":[{"name":"declared","cubes":[{"origin":[0,0,0],"size":[4,4,4],"uv":[0,0]}]}]}]}`
 	bigGeo := `{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"big","texture_width":128,"texture_height":128},"bones":[{"name":"big","cubes":[{"origin":[0,0,0],"size":[2,2,2],"uv":[0,0]}]}]}]}`
