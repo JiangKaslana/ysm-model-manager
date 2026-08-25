@@ -41,12 +41,14 @@ ${r.out.slice(-800)}`);
 
 // 查找产物：Unix 用 .a，Windows MSVC 用 .lib（统一复制为 .a 供 Go -l: 使用）
 const targetDir = targetArg ? path.join(RUST_DIR, 'target', targetArg, 'release') : path.join(RUST_DIR, 'target', 'release');
+// .rlib 是 Rust 静态库（Go CGO 可直链）；.a 是 Unix ar 归档；.lib 是 MSVC import lib（太大、不可直链）
 const candidateFiles = [
+  path.join(targetDir, 'libysm_model_manager_wails_bridge.rlib'),
   path.join(targetDir, 'libysm_model_manager_wails_bridge.a'),
-  path.join(targetDir, 'ysm_model_manager_wails_bridge.lib'),
 ];
 const libFile = candidateFiles.find(f => fs.existsSync(f));
 if (!libFile) fail(`静态库未找到，已搜索: \n  [REDACTED]`);
-const outName = libFile.endsWith('.lib') ? 'libysm_model_manager_wails_bridge.a' : path.basename(libFile);
+// 统一输出为 libysm_model_manager_wails_bridge.a（Go -l: 期望的命名）
+const outName = 'libysm_model_manager_wails_bridge.a';
 fs.copyFileSync(libFile, path.join(OUTPUT_DIR, outName));
-console.log(`[compile-rust-static] ✅ ${path.join(OUTPUT_DIR, outName)}（源: ${path.basename(libFile)}）`);
+console.log(`[compile-rust-static] ✅ ${path.join(OUTPUT_DIR, outName)}（源: ${path.basename(libFile)}，${(fs.statSync(libFile).size / 1024 / 1024).toFixed(1)} MB）`);
