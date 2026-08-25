@@ -193,7 +193,6 @@ func appendOneItem(
 	status types.SyncStatus,
 	defaultStatus types.SyncStatus,
 	metaIcon string,
-	groupGlobalDir string,
 ) {
 	if metaIcon == "" {
 		metaIcon = rIcon
@@ -206,7 +205,7 @@ func appendOneItem(
 			rel := strings.TrimPrefix(p, globalDir)
 			instPath = filepath.Join(instDir, rel)
 		}
-		children = buildDirLevelChildren(p, instPath, rtype, rIcon, groupGlobalDir)
+		children = buildDirLevelChildren(p, instPath, rtype, rIcon, globalDir)
 		// diverged 提升规则（code review P2）：仅当「原 status 就是 synced（未被
 		// disabled/legacy 覆盖）+ 子项有非 synced 差异」才升；missing/optional 夹
 		// 保持自身状态，避免「整体缺失」误标成「部分差异」。
@@ -275,7 +274,7 @@ func processOneResourceType(
 		if !valid {
 			return
 		}
-		appendOneItem(&typeItems, p, rt.ID, rt.Icon, globalDir, instDir, isDirLevel, isDirEntry, status, defaultStatus, icon, globalDir)
+		appendOneItem(&typeItems, p, rt.ID, rt.Icon, globalDir, instDir, isDirLevel, isDirEntry, status, defaultStatus, icon)
 	}
 
 	for _, p := range result.Synced {
