@@ -977,29 +977,33 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
   return out;
 }
 
-// ===== §15 导入分组（expandZipFiles + 粗/细分组 + stem helpers）=====
-export async function importWebFiles(
-  files: File[],
-  type: string,
-): Promise<{ imported: number; failed: number }> {
-  // M1（web-edition.md）：网页版暂不支持 .7z 解压——明确过滤并提示（不入库，
-  // 替代"看起来能用、点开报错"；7z-wasm 列为远期评估）
+// ===================================================================
+// importWebFiles — 子函数类型与工具
+// ===================================================================
+
+/** 已写入 key + 先前是否存在（P3 回滚精度护栏） */
+type WrittenKey = { key: string; preExisted: boolean };
+
+/**
+ * [子函数 1/6] .7z 过滤：网页版不支持 7z 解压，剔除并提示。
+ * 返回过滤后的 File[]（不改入参 files）。
+ */
+function filterSevenZ(files: File[]): File[] {
   const sevenZCount = files.filter((f) => f.name.toLowerCase().endsWith(".7z")).length;
   if (sevenZCount > 0) {
     console.warn(`[web-fs] ${sevenZCount} 个 .7z 文件已跳过（网页版暂不支持 .7z 解压）`);
-    files = files.filter((f) => !f.name.toLowerCase().endsWith(".7z"));
+    return files.filter((f) => !f.name.toLowerCase().endsWith(".7z"));
   }
-  let imported = 0;
-  let failed = 0;
-  // R2 导入增强：先把 .zip 解压展平成目录文件（.ysm 保持整体，WASM 解码器处理）。
-  // extractZip 解出的 entries 带相对路径（含子目录），转成带 webkitRelativePath 的 File[]，
-  // 与文件夹拖入语义一致——解压失败（非标准 zip）则保留原 zip 单个文件，不阻断。
-  const expanded = await expandZipFiles(files);
-  // 单模型分组（两阶段，P-A 目录树）：
-  // 阶段1 粗分组按 webkitRelativePath 首段（或去扩展名 basename），隔离跨目录干扰；
-  // 阶段2 组内按「主文件所在目录」收敛为最终组名（模型目录 = 含主文件的目录，可多段），
-  // 子目录辅助文件（如 tex/face.png）归属到包含它的主文件目录，rel 保留子目录层级。
+  return files;
+}
+
+/**
+ * [子函数 2/6] 阶段1 粗分组：按 roughStemOf（首段目录或去扩展名 basename）聚堆。
+ * 返回 { rough, failed }：无有效 stem / 抛异常的文件计入 failed。
+ */
+function buildRoughGroups(expanded: File[]): { rough: Map<string, File[]>; failed: number } {
   const rough = new Map<string, File[]>();
+  let failed = 0;
   for (const f of expanded) {
     try {
       const key = roughStemOf(f);
@@ -1014,9 +1018,17 @@ export async function importWebFiles(
       failed++;
     }
   }
+  return { rough, failed };
+}
+
+/**
+ * [子函数 3/6] 阶段2 细分组：粗组 → 主文件目录集合 → 按 assignMainDir 归属精分组。
+ * 无目录主文件时回退「basenameStem 单文件分组」。
+ */
+function buildFinalGroups(rough: Map<string, File[]>): Map<string, File[]> {
   const groups = new Map<string, File[]>();
   for (const [, rg] of rough) {
-    // 主文件目录集合（rank>=JSON 且未超限，超限主文件不参与定组）
+    // 主文件目录集合（rank>=TYPE 且未超限，超限主文件不参与定组）
     const mainDirs = new Set<string>();
     for (const f of rg) {
       if (mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE && f.size <= MAX_IMPORT_BYTES) {
@@ -1025,7 +1037,7 @@ export async function importWebFiles(
       }
     }
     if (mainDirs.size === 0) {
-      // 无目录主文件（纯 basename 拖入 / 顶层文件）：退化单文件分组，组名 = 去扩展名 basename
+      // 无目录主文件（纯 basename 拖入 / 顶层文件）：退化单文件分组
       for (const f of rg) {
         const stem = basenameStem(f);
         const arr = groups.get(stem);
@@ -1035,7 +1047,6 @@ export async function importWebFiles(
       continue;
     }
     for (const f of rg) {
-      // 归属：文件所在目录包含于某主文件目录 → 归该组（最长者胜）；否则回退首段粗组名
       const d = assignMainDir(f, mainDirs);
       const stem = d ?? roughStemOf(f);
       const arr = groups.get(stem);
@@ -1043,84 +1054,131 @@ export async function importWebFiles(
       else groups.set(stem, [f]);
     }
   }
-  for (const [stem, group] of groups) {
-    // P2 修复（子代理审计）：组级回滚——原实现中途 idbSet 失败时整组计 failed，
-    // 但已写入的文件条目无 dirKey 引用 → 孤儿数据残留（scanWebModels 扫不到、
-    // 占空间且永不清理）。写入前记录已写 key，失败时逐条删除（best-effort 回滚）
-    // P3 修复（code review）：回滚只删「本次新建」的 key——重导入同一 stem（更新
-    // 覆盖）时 fileKey/dirKey 确定性命中先前成功导入的条目，若中途失败无差别回滚
-    // 会删掉旧模型的主文件 → 模型从浏览器库中整个消失（数据可见性回归）。
-    // 写入前记录 preExisted，回滚跳过既有 key，保留先前成功导入的数据。
-    const writtenKeys: Array<{ key: string; preExisted: boolean }> = [];
+  return groups;
+}
+
+/**
+ * [子函数 4/6] 组有效性前置校验：
+ *   - 组内存在任一主文件（散杂物→整组失败）
+ *   - 至少有 1 个主文件未超限（全部超限→不写任何东西，防新旧混合）
+ * 通过返回 true；失败时调用方负责把 group.length 计入 failed。
+ */
+function validateGroupHasUsableMain(group: File[]): boolean {
+  let hasMain = false;
+  for (const f of group) {
+    if (mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE) {
+      hasMain = true;
+      break;
+    }
+  }
+  if (!hasMain) return false;
+  return group.some(
+    (f) => mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE && f.size <= MAX_IMPORT_BYTES,
+  );
+}
+
+/**
+ * [子函数 5/6] 组写入主流程：遍历文件落 IDB → 写 dirKey 目录条目。
+ * 返回 { success, fileFails, writtenKeys }。success=false 表示无任何文件写入。
+ */
+async function writeGroupFiles(
+  group: File[],
+  type: string,
+  stem: string
+): Promise<{ success: boolean; fileFails: number; writtenKeys: WrittenKey[] }> {
+  const writtenKeys: WrittenKey[] = [];
+  let wrote = false;
+  let fileFails = 0;
+
+  for (const f of group) {
+    if (f.size > MAX_IMPORT_BYTES) {
+      fileFails++;
+      continue;
+    }
+    const data = await f.arrayBuffer();
+    const k = fileKey(type, stem, relOf(f, stem));
+    const preExisted = (await idbGet("files", k)) !== undefined;
+    await idbSet("files", k, {
+      data,
+      size: data.byteLength,
+      mime: f.type || "application/octet-stream",
+    });
+    writtenKeys.push({ key: k, preExisted });
+    wrote = true;
+  }
+
+  if (!wrote) return { success: false, fileFails, writtenKeys };
+
+  const dk = dirKey(type, stem);
+  const dkPreExisted = (await idbGet("files", dk)) !== undefined;
+  await idbSet("files", dk, { name: stem, addedAt: Date.now() });
+  writtenKeys.push({ key: dk, preExisted: dkPreExisted });
+
+  return { success: true, fileFails, writtenKeys };
+}
+
+/**
+ * [子函数 6/6] 组失败回滚（P2/P3 精度护栏）：
+ * 仅删 preExisted=false 的本次新建 key；回滚失败静默——已处于失败路径，不改变结局。
+ */
+async function rollbackWrittenKeys(writtenKeys: WrittenKey[]): Promise<void> {
+  for (const { key, preExisted } of writtenKeys) {
+    if (preExisted) continue;
     try {
-      // 组内须存在主文件（.ysm / .zip / ysm.json），否则整组失败
-      // （散落 .txt/.png/任意 .json 无主文件 → failed，防杂物独立成模型）
-      let hasMain = false;
-      for (const f of group) {
-        if (mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE) {
-          hasMain = true;
-          break;
-        }
-      }
-      if (!hasMain) {
-        failed += group.length;
-        continue;
-      }
-      // 主文件前置校验：存在主文件但全部超限 → 整组失败且不写任何文件
-      // （防孤儿辅助文件残留 + 防重导入时部分覆盖既有模型 → 新旧混合状态）
-      const mainUsable = group.some(
-        (f) => mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE && f.size <= MAX_IMPORT_BYTES,
-      );
-      if (!mainUsable) {
-        failed += group.length;
-        continue;
-      }
-      let wrote = false;
-      let fileFails = 0;
-      for (const f of group) {
-        // 大小上限 100MB（对齐 import-dnd 桌面 oversize 过滤）；辅助文件超限跳过不影响组成功
-        if (f.size > MAX_IMPORT_BYTES) {
-          fileFails++;
-          continue;
-        }
-        const data = await f.arrayBuffer();
-        // rel 保留子目录层级（webkitRelativePath 相对模型目录的路径），
-        // 嵌套导入不再拍平为 basename——P-A 文件层级读取的基础（对齐 MikuMikuAR dir:<stem>:<rel>）
-        const k = fileKey(type, stem, relOf(f, stem));
-        const preExisted = (await idbGet("files", k)) !== undefined;
-        await idbSet("files", k, {
-          data,
-          size: data.byteLength,
-          mime: f.type || "application/octet-stream",
-        });
-        writtenKeys.push({ key: k, preExisted });
-        wrote = true;
-      }
-      if (!wrote) {
-        // 全部文件超限/写失败 → 整组失败（按文件数计，避免与 fileFails 重复）
-        failed += group.length;
-        continue;
-      }
-      const dk = dirKey(type, stem);
-      const dkPreExisted = (await idbGet("files", dk)) !== undefined;
-      await idbSet("files", dk, { name: stem, addedAt: Date.now() });
-      writtenKeys.push({ key: dk, preExisted: dkPreExisted });
-      imported++;
-      failed += fileFails;
+      await idbDel("files", key);
     } catch {
-      // P2 修复：回滚已写条目，防孤儿数据（dir/file 依赖关系破坏）；
-      // P3 修复（code review）：跳过 preExisted 的 key（重导入失败不删旧数据）
-      for (const { key, preExisted } of writtenKeys) {
-        if (preExisted) continue;
-        try {
-          await idbDel("files", key);
-        } catch {
-          // best-effort：回滚失败静默（已处于失败路径，删除失败不改变结果）
-        }
+      /* best-effort */
+    }
+  }
+}
+
+// ===================================================================
+// importWebFiles — 主函数
+// ===================================================================
+
+// ===== §15 导入分组（expandZipFiles + 粗/细分组 + stem helpers）=====
+export async function importWebFiles(
+  files: File[],
+  type: string,
+): Promise<{ imported: number; failed: number }> {
+  // 阶段1：.7z 过滤（网页版不支持）+ ZIP 展平为目录文件数组
+  const cleanFiles = filterSevenZ(files);
+  let imported = 0;
+  let failed = 0;
+  const expanded = await expandZipFiles(cleanFiles);
+
+  // 阶段2：粗分组（按 top-dir / basename 首段）
+  const { rough, failed: roughFailed } = buildRoughGroups(expanded);
+  failed += roughFailed;
+
+  // 阶段3：细分组（按主文件目录收敛，最长匹配胜）
+  const groups = buildFinalGroups(rough);
+
+  // 阶段4-6：逐组 校验 → 写入 → 回滚
+  for (const [stem, group] of groups) {
+    if (!validateGroupHasUsableMain(group)) {
+      failed += group.length;
+      continue;
+    }
+    // writtenKeys 提到 try 外层，确保 catch 回滚时能拿到「已成功写入」的部分
+    // （写半中间崩了也要把已落盘的本次新建 key 清掉）
+    let writtenKeys: WrittenKey[] = [];
+    try {
+      const result = await writeGroupFiles(group, type, stem);
+      writtenKeys = result.writtenKeys;
+      if (!result.success) {
+        failed += group.length;
+        continue;
       }
+      imported++;
+      failed += result.fileFails;
+    } catch {
+      // P2/P3 护栏：回滚 writtenKeys 中「本次新建」的条目，保留旧数据不被误删
+      await rollbackWrittenKeys(writtenKeys);
       failed += group.length;
     }
   }
+
   return { imported, failed };
 }
 

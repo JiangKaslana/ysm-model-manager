@@ -1727,12 +1727,12 @@
 | `AnimationClip()` | `frontend/src/utils/animation/animation:45` | — |
 | `BoneTransform()` | `frontend/src/utils/animation/animation:56` | 骨骼变换（evaluateClip 结果值） |
 | `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:66` | 骨骼层级节点 |
-| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:302` | 解析完整的基岩版动画 JSON 字符串 |
-| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:481` | 在指定时间 t 对一组关键帧求值 |
-| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:526` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
-| `executeTimeline()` | `frontend/src/utils/animation/animation:603` | 执行 timeline 事件：找出 [prevTime, currentTime] 区间内触发的事件并执行。 |
-| `evaluateClip()` | `frontend/src/utils/animation/animation:635` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
-| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:768` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
+| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:473` | 解析完整的基岩版动画 JSON 字符串 |
+| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:549` | 在指定时间 t 对一组关键帧求值 |
+| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:594` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
+| `executeTimeline()` | `frontend/src/utils/animation/animation:671` | 执行 timeline 事件：找出 [prevTime, currentTime] 区间内触发的事件并执行。 |
+| `evaluateClip()` | `frontend/src/utils/animation/animation:703` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:836` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
 | `Easings()` | `frontend/src/utils/animation/molang-lib/easing:2` | — |
 | `Molang()` | `frontend/src/utils/animation/molang-lib/molang:11` | — |
 | `MolangFn()` | `frontend/src/utils/animation/molang:18` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |

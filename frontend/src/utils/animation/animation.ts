@@ -294,6 +294,177 @@ function hasMolangInChannelData(data: unknown): boolean {
   return false;
 }
 
+// ===================================================================
+// parseBedrockAnimationJSON — 子函数
+// ===================================================================
+
+/** 动画 JSON 原始根形态（仅做类型收窄，不做校验） */
+type RawAnimRoot = { animations?: Record<string, unknown> };
+
+/** 单条动画条目原始形态（bones/timeline 为 unknown，待下游收窄） */
+type RawAnimEntry = {
+  loop?: boolean | string;
+  animation_length?: number;
+  bones?: Record<string, unknown>;
+  timeline?: Record<string, unknown>;
+};
+
+/**
+ * [子函数 1/5] 解析并校验 JSON 根：非法 JSON / 缺失 animations 字段立即报错返回。
+ * 成功时返回窄化后的 animations 映射表（非空）。
+ */
+function parseAndValidateAnimRoot(jsonStr: string): {
+  anims: Record<string, unknown> | null;
+  errors: string[];
+} {
+  try {
+    const root = JSON.parse(jsonStr) as RawAnimRoot;
+    const anims = root?.animations;
+    if (!anims || typeof anims !== "object") {
+      return { anims: null, errors: ["缺少 animations 字段"] };
+    }
+    return { anims, errors: [] };
+  } catch (e) {
+    return { anims: null, errors: [`JSON 解析失败: ${(e as Error).message}`] };
+  }
+}
+
+/**
+ * [子函数 2/5] 构造 Clip 基础骨架（name / loop / length / 空 bones），并判定是否可继续解析。
+ * 返回 { clip, hasTimeline, bones }：可继续 = bones 存在为对象 或 timeline 存在。
+ */
+function buildAnimClipSkeleton(
+  name: string,
+  animObj: RawAnimEntry
+): { clip: AnimationClip; bones: Record<string, unknown> | null; hasTimeline: boolean } | null {
+  const bones = animObj.bones && typeof animObj.bones === "object" ? (animObj.bones as Record<string, unknown>) : null;
+  const hasTimeline = !!animObj.timeline && typeof animObj.timeline === "object";
+  if (!bones && !hasTimeline) return null;
+
+  const clip: AnimationClip = {
+    name,
+    loop: animObj.loop === true || animObj.loop === "true",
+    length: animObj.animation_length || 0,
+    bones: {},
+    hasMolang: false, // 下游 Bone/Timeline 阶段发现 Molang 再置位
+  };
+  return { clip, bones, hasTimeline };
+}
+
+/**
+ * [子函数 3/5] 解析单 Clip 的全部 Bone 通道：写入 clip.bones，必要时标记 clip.hasMolang。
+ * 旋转通道出口统一换算（度→弧度 + X/Y 取负），下游全弧度域。
+ */
+function parseClipBones(
+  clip: AnimationClip,
+  bones: Record<string, unknown> | null
+): void {
+  if (!bones) return;
+  for (const [boneName, boneData] of Object.entries(bones)) {
+    if (!boneData || typeof boneData !== "object") continue;
+    const boneObj = boneData as Record<string, unknown>;
+
+    // 检测 Molang：原始数据中是否含字符串值（非数字）
+    if (!clip.hasMolang) {
+      for (const ch of BONE_CHANNELS) {
+        if (hasMolangInChannelData(boneObj[ch])) {
+          clip.hasMolang = true;
+          break;
+        }
+      }
+    }
+
+    const channels: BoneChannels = {};
+    for (const ch of BONE_CHANNELS) {
+      const kfs = parseChannel(boneObj[ch]);
+      if (kfs.length > 0) {
+        channels[ch] = ch === "rotation" ? convertRotationKeyframes(kfs) : kfs;
+      }
+    }
+
+    if (Object.keys(channels).length > 0) {
+      clip.bones[boneName] = channels;
+    }
+  }
+}
+
+/**
+ * [子函数 4/5] 解析 timeline 事件：时间戳 → Molang 表达式收集 → 编译 → 排序。
+ * 发现任一合法事件时写入 clip.timeline 并标记 clip.hasMolang。
+ */
+function parseClipTimeline(
+  clip: AnimationClip,
+  hasTimeline: boolean,
+  animObj: RawAnimEntry
+): void {
+  if (!hasTimeline || !animObj.timeline) return;
+  const timeline = animObj.timeline as Record<string, unknown>;
+  const events: TimelineEvent[] = [];
+
+  for (const [timeStr, actionRaw] of Object.entries(timeline)) {
+    const t = Number(timeStr);
+    if (!Number.isFinite(t)) continue;
+
+    // 收集 Molang 表达式（字符串或字符串数组）
+    const exprs: string[] = [];
+    if (typeof actionRaw === "string") {
+      exprs.push(actionRaw);
+    } else if (Array.isArray(actionRaw)) {
+      for (const item of actionRaw) {
+        if (typeof item === "string") exprs.push(item);
+      }
+    }
+    if (exprs.length === 0) continue;
+
+    // 编译所有表达式（编译失败的静默跳过，对齐 Molang 零占位降级口径）
+    const actions: MolangFn[] = [];
+    for (const expr of exprs) {
+      const fn = compileMolang(expr);
+      if (fn) actions.push(fn);
+    }
+    if (actions.length > 0) {
+      events.push({ time: t, actions, raw: exprs });
+      clip.hasMolang = true;
+    }
+  }
+
+  if (events.length > 0) {
+    events.sort((a, b) => a.time - b.time);
+    clip.timeline = events;
+  }
+}
+
+/**
+ * [子函数 5/5] 最终入队判定：有骨骼通道或有 timeline 才加入 clips。
+ * 自动用最大关键帧时间补全 length（若 metadata 未提供长度）。
+ */
+function finalizeClipLengthAndEnqueue(clip: AnimationClip, clips: AnimationClip[]): void {
+  if (Object.keys(clip.bones).length === 0 && !clip.timeline) return;
+
+  // 计算实际长度（取最大关键帧时间 / timeline 时间）
+  let maxT = 0;
+  for (const chs of Object.values(clip.bones)) {
+    for (const ch of BONE_CHANNELS) {
+      const kfs = chs[ch];
+      if (kfs?.length) {
+        const last = kfs[kfs.length - 1];
+        if (last.time > maxT) maxT = last.time;
+      }
+    }
+  }
+  if (clip.timeline?.length) {
+    const lastEvent = clip.timeline[clip.timeline.length - 1];
+    if (lastEvent.time > maxT) maxT = lastEvent.time;
+  }
+  if (!clip.length) clip.length = maxT || 1;
+
+  clips.push(clip);
+}
+
+// ===================================================================
+// parseBedrockAnimationJSON — 主函数
+// ===================================================================
+
 /**
  * 解析完整的基岩版动画 JSON 字符串
  * @param jsonStr .animation.json 文件内容
@@ -303,132 +474,29 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
   clips: AnimationClip[];
   errors: string[];
 } {
-  const errors: string[] = [];
-  let root: { animations?: Record<string, unknown> };
-  try {
-    root = JSON.parse(jsonStr);
-  } catch (e) {
-    return {
-      clips: [],
-      errors: [`JSON 解析失败: ${(e as Error).message}`],
-    };
-  }
-
-  const anims = root?.animations;
-  if (!anims || typeof anims !== "object") {
-    return { clips: [], errors: ["缺少 animations 字段"] };
-  }
+  // 阶段1：JSON 解析+根校验（失败直接带错误返回）
+  const { anims, errors } = parseAndValidateAnimRoot(jsonStr);
+  if (!anims) return { clips: [], errors };
 
   const clips: AnimationClip[] = [];
 
   for (const [name, anim] of Object.entries(anims)) {
     if (!anim || typeof anim !== "object") continue;
-    const animObj = anim as {
-      loop?: boolean | string;
-      animation_length?: number;
-      bones?: Record<string, unknown>;
-      timeline?: Record<string, unknown>;
-    };
+    const animObj = anim as RawAnimEntry;
 
-    // 跳过无效动画（无 bones 也无 timeline）
-    const bones = animObj.bones;
-    const hasTimeline = animObj.timeline && typeof animObj.timeline === "object";
-    if ((!bones || typeof bones !== "object") && !hasTimeline) continue;
+    // 阶段2：Clip 骨架构造 + 有效性预检（无 bones 也无 timeline 则跳过）
+    const ctx = buildAnimClipSkeleton(name, animObj);
+    if (!ctx) continue;
+    const { clip, bones, hasTimeline } = ctx;
 
-    const clip: AnimationClip = {
-      name,
-      loop: animObj.loop === true || animObj.loop === "true",
-      length: animObj.animation_length || 0,
-      bones: {},
-      hasMolang: false, // 若任一关键帧含 Molang 则标记
-    };
+    // 阶段3：Bone 通道解析（含 Molang 探测）
+    parseClipBones(clip, bones);
 
-    for (const [boneName, boneData] of Object.entries(bones ?? {})) {
-      if (!boneData || typeof boneData !== "object") continue;
-      const boneObj = boneData as Record<string, unknown>;
+    // 阶段4：Timeline 事件解析（Molang 表达式编译+排序）
+    parseClipTimeline(clip, hasTimeline, animObj);
 
-      // 检测 Molang：原始数据中是否含字符串值（非数字）
-      if (!clip.hasMolang) {
-        for (const ch of BONE_CHANNELS) {
-          if (hasMolangInChannelData(boneObj[ch])) {
-            clip.hasMolang = true;
-            break;
-          }
-        }
-      }
-
-      const channels: BoneChannels = {};
-      for (const ch of BONE_CHANNELS) {
-        const kfs = parseChannel(boneObj[ch]);
-        if (kfs.length > 0) {
-          // 旋转通道出口统一换算（度→弧度 + X/Y 取负），下游全弧度域
-          channels[ch] = ch === "rotation" ? convertRotationKeyframes(kfs) : kfs;
-        }
-      }
-
-      if (Object.keys(channels).length > 0) {
-        clip.bones[boneName] = channels;
-      }
-    }
-
-    // 解析 timeline 事件（时间戳 → Molang 动作列表）
-    if (hasTimeline) {
-      const timeline = animObj.timeline!;
-      const events: TimelineEvent[] = [];
-      for (const [timeStr, actionRaw] of Object.entries(timeline)) {
-        const t = Number(timeStr);
-        if (!Number.isFinite(t)) continue;
-
-        // 收集 Molang 表达式（字符串或字符串数组）
-        const exprs: string[] = [];
-        if (typeof actionRaw === "string") {
-          exprs.push(actionRaw);
-        } else if (Array.isArray(actionRaw)) {
-          for (const item of actionRaw) {
-            if (typeof item === "string") exprs.push(item);
-          }
-        }
-        if (exprs.length === 0) continue;
-
-        // 编译所有表达式（编译失败的静默跳过，对齐 Molang 零占位降级口径）
-        const actions: MolangFn[] = [];
-        for (const expr of exprs) {
-          const fn = compileMolang(expr);
-          if (fn) actions.push(fn);
-        }
-        if (actions.length > 0) {
-          events.push({ time: t, actions, raw: exprs });
-          clip.hasMolang = true;
-        }
-      }
-      if (events.length > 0) {
-        // 按时间排序
-        events.sort((a, b) => a.time - b.time);
-        clip.timeline = events;
-      }
-    }
-
-    // 如果有骨骼动画数据或 timeline 事件才加入
-    if (Object.keys(clip.bones).length > 0 || clip.timeline) {
-      // 计算实际长度（取最大关键帧时间 / timeline 时间）
-      let maxT = 0;
-      for (const chs of Object.values(clip.bones)) {
-        for (const ch of BONE_CHANNELS) {
-          const kfs = chs[ch];
-          if (kfs?.length) {
-            const last = kfs[kfs.length - 1];
-            if (last.time > maxT) maxT = last.time;
-          }
-        }
-      }
-      if (clip.timeline?.length) {
-        const lastEvent = clip.timeline[clip.timeline.length - 1];
-        if (lastEvent.time > maxT) maxT = lastEvent.time;
-      }
-      if (!clip.length) clip.length = maxT || 1;
-
-      clips.push(clip);
-    }
+    // 阶段5：长度补算 + 入队判定
+    finalizeClipLengthAndEnqueue(clip, clips);
   }
 
   return { clips, errors };
