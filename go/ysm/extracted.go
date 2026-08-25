@@ -562,49 +562,13 @@ func isDir(path string) bool {
 	return err == nil && fi.IsDir()
 }
 
-// FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件，
-// **不合并 bones、不排除 arm**（arm/载具为独立组件）；main 优先排序 + 补扫 models/ 目录
-// （projectiles/vehicles 等 player.model 未列出的 geometry 也作为组件）；
-// TexSlot = 全局组件序（对齐 WASM 路径 decodeYSMComponentsViaNodeJS）。
-// 供 GetModel3DSpec → threejs.BuildMulti 生成多组件 spec。
-// 注：ysm.json player.model 解析逻辑与 FindGeometryInExtractedYSM 同源；
-// v1 内联复制避免大重构，后续可抽公共解析函数。
-func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []string) {
-	data := readFileLimited(ysmJsonPath)
-	if data == nil {
-		return nil, nil
-	}
+// ===== extracted.go 第 4 刀子函数（FindComponentsInExtractedYSM 拆分，2026-08-25）=====
 
-	// 解析 ysm.json 找 model 文件名 + 纹理声明序（parsePlayerModel 统一解析，消灭
-	// 与 FindGeometryInExtractedYSM 的重复解析）。model 抛回 basename 序、texture
-	// 抛回原始声明——裁剪规范化留在本消费方，复刻现状口径：切 '/\\' + 去 .png/.jpg/
-	// 小写（去扩展名喂前端 R1 校验，与 Geometry 带扩展名 orderMap 口径天然不同）。
-	var modelNames []string
-	var modelMapOrig map[string]string
-	var texOrderNames []string // player.texture 声明序（R1 契约：组件序纹理名）
-	// filesObj 提升到函数作用域：下方载具/投射物声明纹理段（declaredTexByModel）
-	// 在 parsePlayerModel 块外也要读 projectiles/vehicles 段（plane 共享皮肤关键分支）。
-	var filesObj map[string]json.RawMessage
-	if pm := parsePlayerModel(data); pm != nil {
-		modelNames = pm.names
-		modelMapOrig = pm.mapOrig
-		filesObj = pm.filesObj
-		for _, d := range pm.texDecl {
-			tn := d.value
-			if idx := strings.LastIndexAny(tn, "/\\"); idx >= 0 {
-				tn = tn[idx+1:]
-			}
-			tn = strings.TrimSuffix(strings.ToLower(tn), ".png")
-			tn = strings.TrimSuffix(tn, ".jpg")
-			texOrderNames = append(texOrderNames, tn)
-		}
-	}
-
-	// files.projectiles / files.vehicles 段：载具/投射物声明纹理（含共享 player skin）。
-	// 此前目录组件版不读此段——plane 等共享皮肤载具被当未声明组件，无同名纹理时落全局
-	// texArr 越界贴错（wine_fox 17_mini plane→background 根因；与归档路径 buildComponents
-	// 的 modelTexName 口径对齐，双路径一致）。
-	declaredTexByModel := map[string]declTexInfo{}
+// collectDeclaredTexByModel 解析 files.projectiles / files.vehicles 段：载具/投射物声
+// 明纹理（含共享 player skin）。键为 model basename（小写去扩展名）。
+// 原 FindComponents L603-642 内联 39 行；升格后若新增声明段（如 attachable）统一扩展。
+func collectDeclaredTexByModel(filesObj map[string]json.RawMessage) map[string]declTexInfo {
+	out := map[string]declTexInfo{}
 	for _, seg := range []string{"projectiles", "vehicles"} {
 		segRaw, ok := filesObj[seg]
 		if !ok {
@@ -634,236 +598,270 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 			if mbase == "" {
 				continue
 			}
-			declaredTexByModel[mbase] = declTexInfo{
+			out[mbase] = declTexInfo{
 				relPath: filepath.ToSlash(texPath),
 				texBase: texBaseNoExt(texPath),
 			}
 		}
 	}
+	return out
+}
 
-	dir := filepath.Dir(ysmJsonPath)
-	// 组件顺序：main 优先 + 其余键排序（含 arm/载具，不排除；多组件下 arm 为独立组件）
-	var orderedNames []string
-	if modelMapOrig != nil {
-		if mainPath, ok := modelMapOrig["main"]; ok {
-			orderedNames = append(orderedNames, mainPath)
-		}
-		var otherKeys []string
-		for k := range modelMapOrig {
-			if k != "main" {
-				otherKeys = append(otherKeys, k)
-			}
-		}
-		sort.Strings(otherKeys)
-		for _, k := range otherKeys {
-			orderedNames = append(orderedNames, modelMapOrig[k])
-		}
-	} else {
-		// 先拷贝再排序——原 `orderedNames = modelNames` 共享
-		// 底层数组，sort.SliceStable 原地重排后 modelNames 也被排序，下方 declPos 记录的
-		// 是排序后位置而非声明序位置（main 不在首位时 texSlot 错位，zip/解压两路径
-		// 纹理结果不一致）。拷贝后排序不影响 modelNames 的声明序。
-		orderedNames = append([]string(nil), modelNames...)
-		// 数组/字符串形声明也要 main 优先（对齐 map 分支与 zip/WASM 路径，
-		// 否则 arm 声明在前时 TexSlot=组件序会让 arm 占 0、main 纹理错位，P2）：
-		// 稳定排序保持非 main 组件相对声明顺序。
-		sort.SliceStable(orderedNames, func(i, j int) bool {
-			mi := geometry.IsMainModelName(orderedNames[i])
-			mj := geometry.IsMainModelName(orderedNames[j])
-			return mi && !mj
-		})
-	}
+// sortArrayModelNamesMainFirst 对 array/字符串形 modelNames 做 main 优先稳定排序：
+// 拷贝一份（不污染原数组——declPos 依赖原声明序），main 命中的前置，其余保持相对声明顺序。
+// map 分支已由 sortMapModelNames(excludeArm=false) 覆盖；两分支合并口径后，
+// FindComponents 不再有「array 声明在前→main 不得首位→texSlot 错位」的历史 bug。
+func sortArrayModelNamesMainFirst(modelNames []string) []string {
+	out := append([]string(nil), modelNames...)
+	sort.SliceStable(out, func(i, j int) bool {
+		mi := geometry.IsMainModelName(out[i])
+		mj := geometry.IsMainModelName(out[j])
+		return mi && !mj
+	})
+	return out
+}
 
-	// 补扫 models/ 目录：player.model 未列出的 geometry（projectiles/vehicles 等
-	// 游戏实体组件如 arrow/boat/foxcar）也作为独立组件收集，与 WASM 解码路径对齐
-	// （decodeYSMComponentsViaNodeJS 收 models/ 全部）；按文件名排序（确定性）
+// augmentWithModelsDir 补扫 models/ 目录：player.model 未列出的 geometry（投射物/载具
+// 等 game entity 组件如 arrow/boat/foxcar）追加到 orderedNames。
+// 去重基于小写文件名（避免声明 models/main.json 与 main:main.json 双重录入）；
+// 按文件名排序（确定性，与 WASM 解码路径对齐）。
+func augmentWithModelsDir(dir string, orderedNames []string) []string {
 	seen := make(map[string]bool, len(orderedNames))
 	for _, n := range orderedNames {
 		seen[strings.ToLower(filepath.Base(n))] = true
 	}
-	if modelsDir := filepath.Join(dir, "models"); isDir(modelsDir) {
-		var extra []string
-		if entries, err := os.ReadDir(modelsDir); err == nil {
-			for _, e := range entries {
-				if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".json") {
-					continue
+	modelsDir := filepath.Join(dir, "models")
+	if !isDir(modelsDir) {
+		return orderedNames
+	}
+	entries, err := os.ReadDir(modelsDir)
+	if err != nil {
+		return orderedNames
+	}
+	var extra []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".json") {
+			continue
+		}
+		if seen[strings.ToLower(e.Name())] {
+			continue
+		}
+		extra = append(extra, filepath.Join("models", e.Name()))
+	}
+	sort.Strings(extra)
+	return append(orderedNames, extra...)
+}
+
+// buildPngNameMap 构造 textures/ 同名纹理索引（小写去扩展名 → 文件路径）。
+// 未声明组件按 ADR-114 perComponent 语义用**同名纹理**：此前解压目录路径缺这层，
+// arrow 等投射物前端 texArr 越界被静默兜底贴错皮肤（wine_fox 根因）。
+// 收集复用 collectTextureFiles：递归子目录 + 排除 gui/ + 收 .png/.jpg/.tga
+// （扩展名口径与 Geometry 消费方对齐，此前单层 .png 扫描漏子目录同名与 .tga）。
+func buildPngNameMap(dir string) map[string]string {
+	out := make(map[string]string)
+	for _, tf := range collectTextureFiles(filepath.Join(dir, "textures")) {
+		key := strings.TrimSuffix(tf.name, filepath.Ext(tf.name))
+		if _, exists := out[key]; !exists {
+			out[key] = tf.path
+		}
+	}
+	return out
+}
+
+// componentSlotInfo 组件→纹理绑定决策产物：texSlot（全局槽）、texName（前端 R1 校验
+// 用名，空=跳过）、onDeclTex（是否命中声明序纹理——决定是否走 perComponent 分支）。
+type componentSlotInfo struct {
+	texSlot   int
+	texName   string
+	onDeclTex bool
+}
+
+// computeTexSlotForComponent 计算单组件的 texSlot / texName / onDeclTex 三要素。
+// 规则（与原 L709-772 逐字节一致）：
+//   - arm → texSlot=0、texName=""（共用全局 texArr[0]，R1 跳过）
+//   - 已声明在声明序范围内 → texSlot=j、texName=texOrderNames[j]、onDeclTex=true
+//   - 已声明但超范围（模型多于纹理声明）→ 钳到最后一张声明纹理
+//   - 未声明（补扫 / 无纹理声明）→ texSlot=len(texOrderNames)+undeclSeq、按名段
+//   - undeclSeq 通过指针原地递增（返回值已使用新序号前自增语义）
+func computeTexSlotForComponent(mn, base string, declPos map[string]int, texOrderNames []string, undeclSeq *int) componentSlotInfo {
+	isArm := isArmModelName(mn)
+	tn := strings.ToLower(base)
+	info := componentSlotInfo{
+		texSlot:   len(texOrderNames) + *undeclSeq,
+		texName:   tn,
+		onDeclTex: false,
+	}
+	if isArm {
+		info.texSlot = 0
+		info.texName = ""
+		return info
+	}
+	if j, declared := declPos[mn]; declared && len(texOrderNames) > 0 {
+		info.onDeclTex = j < len(texOrderNames)
+		if info.onDeclTex {
+			info.texSlot = j
+		} else {
+			info.texSlot = len(texOrderNames) - 1
+		}
+	} else {
+		*undeclSeq++
+	}
+	if info.texSlot < len(texOrderNames) && texOrderNames[info.texSlot] != "" {
+		info.texName = texOrderNames[info.texSlot]
+	}
+	return info
+}
+
+// applyComponentPerComponentTex 尝试 perComponent 两条绑定（载具声明纹理→组件同名纹理）：
+// 命中时填 ComponentTextures + applyCubeTextures(0) + 空 texName，追加 comps 并返回 true；
+// 未命中返回 false，交由调用方走全局 texSlot 绑定。两条分支各自独立封装 40 行巨块的 2/3。
+func applyComponentPerComponentTex(
+	gj *types.BedrockModel, candidate, dir, cleanDir, base string,
+	declaredTexByModel map[string]declTexInfo, pngNameMap map[string]string,
+	comps *[]types.BedrockModel, texNames *[]string,
+) bool {
+	// 分支 A：载具/投射物声明纹理（含共享 player skin）——plane 共享皮肤的关键分支
+	// （wine_fox 17_mini 根因：此前落全局 texArr 越界贴到 gui 背景）。
+	if di, ok := declaredTexByModel[strings.ToLower(base)]; ok && di.relPath != "" {
+		var cand string
+		if filepath.IsAbs(di.relPath) {
+			cand = filepath.Clean(di.relPath)
+		} else {
+			cand = filepath.Clean(filepath.Join(dir, di.relPath))
+		}
+		if strings.HasPrefix(cand, cleanDir+string(filepath.Separator)) || cand == cleanDir {
+			if pngData := readFileLimited(cand); pngData != nil {
+				if uri := textureDataURI(cand, pngData); uri != "" {
+					gj.ComponentTextures = map[string][]string{base: {uri}}
+					*texNames = append(*texNames, "")
+					gj.SourceName = base
+					applyCubeTextures(gj, 0)
+					log.Printf("[ysm] 加载模型组件 %q (声明纹理 texIdx=0, texture=%q)", candidate, di.texBase)
+					*comps = append(*comps, *gj)
+					return true
 				}
-				if seen[strings.ToLower(e.Name())] {
-					continue
-				}
-				extra = append(extra, filepath.Join("models", e.Name()))
 			}
-			sort.Strings(extra)
-			orderedNames = append(orderedNames, extra...)
+		}
+	}
+	// 分支 B：组件专属同名纹理兜底（ADR-114 perComponent）
+	// texSlot=0 对齐 zip 路径 buildComponents：perComponent 组件用本地 0 槽，
+	// 不打虚拟全局槽位 len(texOrderNames)+undeclSeq（否则 arrow 呈 texIdx=6 越界幻觉）。
+	if pngPath, ok := pngNameMap[strings.ToLower(base)]; ok {
+		if pngData := readFileLimited(pngPath); pngData != nil {
+			if uri := textureDataURI(pngPath, pngData); uri != "" {
+				gj.ComponentTextures = map[string][]string{base: {uri}}
+				*texNames = append(*texNames, "")
+				gj.SourceName = base
+				applyCubeTextures(gj, 0)
+				log.Printf("[ysm] 加载模型组件 %q (组件专属 texIdx=%d, texture=%q)", candidate, 0, filepath.Base(pngPath))
+				*comps = append(*comps, *gj)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件，
+// **不合并 bones、不排除 arm**（arm/载具为独立组件）；main 优先排序 + 补扫 models/ 目录
+// （projectiles/vehicles 等 player.model 未列出的 geometry 也作为组件）；
+// TexSlot = 全局组件序（对齐 WASM 路径 decodeYSMComponentsViaNodeJS）。
+// 供 GetModel3DSpec → threejs.BuildMulti 生成多组件 spec。
+func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []string) {
+	data := readFileLimited(ysmJsonPath)
+	if data == nil {
+		return nil, nil
+	}
+	dir := filepath.Dir(ysmJsonPath)
+	cleanDir := filepath.Clean(dir)
+
+	// 阶段 ①：parsePlayerModel 统一解析 ysm.json；消费方各自切纹理路径（复刻现状口径：
+	// 切 '/\\' + 去 .png/.jpg + 小写——去扩展名喂前端 R1 校验，与 Geometry 带扩展名
+	// orderMap 口径天然不同）。filesObj 供 collectDeclaredTexByModel 读 projectiles/vehicles。
+	var modelNames []string
+	var modelMapOrig map[string]string
+	var texOrderNames []string
+	var filesObj map[string]json.RawMessage
+	if pm := parsePlayerModel(data); pm != nil {
+		modelNames = pm.names
+		modelMapOrig = pm.mapOrig
+		filesObj = pm.filesObj
+		for _, d := range pm.texDecl {
+			tn := d.value
+			if idx := strings.LastIndexAny(tn, "/\\"); idx >= 0 {
+				tn = tn[idx+1:]
+			}
+			tn = strings.TrimSuffix(strings.ToLower(tn), ".png")
+			tn = strings.TrimSuffix(tn, ".jpg")
+			texOrderNames = append(texOrderNames, tn)
 		}
 	}
 
-	// 声明序位置（R1 契约）：modelNames 保序解析（map 写入序 / 数组索引），
-	// 补扫组件不在其中 → fallback basename。
+	// 阶段 ②：载具/投射物声明纹理段（39行→collectDeclaredTexByModel 升格）
+	declaredTexByModel := collectDeclaredTexByModel(filesObj)
+
+	// 阶段 ③：构造 orderedNames（map→sortMapModelNames；array→sortArrayModelNamesMainFirst）
+	var orderedNames []string
+	if modelMapOrig != nil {
+		orderedNames = sortMapModelNames(modelMapOrig, false) // excludeArm=false：多组件版保留手臂
+	} else {
+		orderedNames = sortArrayModelNamesMainFirst(modelNames)
+	}
+
+	// 阶段 ④：补扫 models/ 目录（22行→augmentWithModelsDir 升格）
+	orderedNames = augmentWithModelsDir(dir, orderedNames)
+
+	// 阶段 ⑤：声明序位置（R1 契约）+ textures/ 同名索引（buildPngNameMap 升格）
 	declPos := make(map[string]int, len(modelNames))
 	for i, n := range modelNames {
 		declPos[n] = i
 	}
+	pngNameMap := buildPngNameMap(dir)
 
+	// 阶段 ⑥：逐组件路径探测 → texSlot 决策 → 绑定 → 追加
+	//   - computeTexSlotForComponent：拆分 texSlot 三分支（arm/声明/未声明）巨块
+	//   - applyComponentPerComponentTex：拆分 perComponent 两子分支（声明纹理/同名）巨块
+	//   - 其余走全局 texSlot 绑定：applyCubeTextures 消除 5 份循环复制
 	var comps []types.BedrockModel
-	// texSlot = 纹理槽：组件贴 texArr[texSlot]（texArr = 全量纹理清单，序 = 声明序 + 未声明按名）。
-	// 已声明组件用**声明序位置 j**；j >= len(texOrderNames)（模型多于纹理声明）时**钳到最后一张
-	// 声明纹理**（同实体共享默认纹理，如 player 多模型 arm 共享 skin——P2：之前掉入按名段会
-	// 贴到 arrow.png）；无纹理声明（len==0）走按名段。未声明组件（补扫）=
-	// len(texOrderNames) + 按名段序号（补扫段按名排序与 texArr 按名段一致）。
-	// texNames[i] = 组件实际贴图名（texSlot 指向声明序则用声明名，否则组件 basename）——
-	// 前端 R1 存在性校验：期望名必须存在于 texArr 实际清单（共享槽位不再误报）。
 	texNames := make([]string, 0, len(orderedNames))
-	// textures/ 同名纹理索引（小写去扩展名 basename → 文件路径）：未声明组件按 YSM
-	// 游戏语义用**同名纹理**（ADR-114 perComponent，前端按组件名取图）——此前解压目录
-	// 路径缺这层关联，arrow 等投射物在前端 texArr 越界被静默兜底贴错皮肤（wine_fox 根因）。
-	// 收集复用公共 collectTextureFiles：**递归**子目录 + 排除 gui/ + 收 .png/.jpg/.tga
-	// （扩展名口径与 Geometry 消费方对齐，此前只认单层 .png，子目录同名与 .tga 落空）。
-	pngNameMap := make(map[string]string)
-	for _, tf := range collectTextureFiles(filepath.Join(dir, "textures")) {
-		key := strings.TrimSuffix(tf.name, filepath.Ext(tf.name))
-		if _, exists := pngNameMap[key]; !exists {
-			pngNameMap[key] = tf.path
-		}
-	}
 	undeclSeq := 0
 	for _, mn := range orderedNames {
+		candidate, ok := safeJoinModelPath(dir, mn)
+		if !ok {
+			continue
+		}
+		geoData := readFileLimited(candidate)
+		if geoData == nil {
+			continue
+		}
+		gj := geometry.ParseBedrockGeometry(geoData)
+		if gj == nil {
+			continue
+		}
 		base := mn
 		if idx := strings.LastIndexAny(base, "/\\"); idx >= 0 {
 			base = base[idx+1:]
 		}
 		base = strings.TrimSuffix(strings.TrimSuffix(base, ".geo.json"), ".json")
-		tn := strings.ToLower(base)
-		for _, sub := range []string{"", "models/", "models\\"} {
-			candidate := filepath.Join(dir, sub, mn)
-			// 路径穿越防护：确保 candidate 仍在 ysm.json 所在目录内
-			candidate = filepath.Clean(candidate)
-			cleanDir := filepath.Clean(dir)
-			if !strings.HasPrefix(candidate, cleanDir+string(filepath.Separator)) && candidate != cleanDir {
-				log.Printf("[ysm] 拒绝路径越界模型文件: %q (期望在 %q 内)", candidate, cleanDir)
+		isArm := isArmModelName(mn)
+		info := computeTexSlotForComponent(mn, base, declPos, texOrderNames, &undeclSeq)
+
+		// perComponent 分支：未声明 + 非 arm → 先试声明纹理→再试同名；命中即 append+continue
+		if !info.onDeclTex && !isArm {
+			if applyComponentPerComponentTex(gj, candidate, dir, cleanDir, base, declaredTexByModel, pngNameMap, &comps, &texNames) {
 				continue
 			}
-			if _, err := os.Stat(candidate); err == nil {
-				geoData := readFileLimited(candidate)
-				if geoData != nil {
-					gj := geometry.ParseBedrockGeometry(geoData)
-					if gj != nil {
-						// arm 是第一人称手持视角的独立手臂几何（见 isArmModelName
-						// 注释的权威来源），与 main 共用同一套 player.texture 皮肤。
-						// arm 不填 ComponentTextures、texSlot=0（贴 texArr[0] 默认皮肤）、
-						// texNames 置空（前端 R1 校验跳过空值）——与 buildComponents 口径一致。
-						isArm := isArmModelName(mn)
-						onDeclTex := false
-						texSlot := len(texOrderNames) + undeclSeq
-						if isArm {
-							texSlot = 0
-						} else if j, declared := declPos[mn]; declared && len(texOrderNames) > 0 {
-							onDeclTex = j < len(texOrderNames)
-							if onDeclTex {
-								texSlot = j // 已声明且在纹理声明范围内：贴 texArr[j]
-							} else {
-								texSlot = len(texOrderNames) - 1 // 模型多于纹理声明：钳到最后一张声明纹理
-							}
-						} else {
-							undeclSeq++ // 未声明（补扫）或无纹理声明：按名段
-						}
-						if texSlot < len(texOrderNames) && texOrderNames[texSlot] != "" {
-							tn = texOrderNames[texSlot]
-						}
-						// 未声明组件（按名段）同名纹理兜底（perComponent）：命中挂
-						// ComponentTextures、texNames 置空（前端 R1 校验跳过空值）；
-						// 已声明组件不填——保留全局 texArr[texSlot] 多皮肤切换语义。
-						// arm 不走此分支（isArm 时 onDeclTex 保持 false 但 texSlot 已强制 0，
-						// 且 arm 不应填 ComponentTextures——与 main 共用全局 texArr[0]）。
-						if !onDeclTex && !isArm {
-							// 载具/投射物声明纹理（含共享 player skin，textures/skin.png 等）。
-							// 无同名纹理时也命中——plane 共享皮肤的关键分支（wine_fox 17_mini
-							// 根因：此前落全局 texArr 越界贴到 gui 背景）。
-							// 键由 modelBaseNoExt 小写生成，此处 base 未小写，须显式 ToLower
-							// 否则混合大小写模型名（models/Plane.json）查不到键、退回旧错绑路径。
-							if di, ok := declaredTexByModel[strings.ToLower(base)]; ok && di.relPath != "" {
-								var cand string
-								if filepath.IsAbs(di.relPath) {
-									cand = filepath.Clean(di.relPath)
-								} else {
-									cand = filepath.Clean(filepath.Join(dir, di.relPath))
-								}
-								if strings.HasPrefix(cand, cleanDir+string(filepath.Separator)) || cand == cleanDir {
-									if pngData := readFileLimited(cand); pngData != nil {
-										// 按实际扩展名派生 MIME；.tga 非 Web 格式 → 空串跳过 data-URI 分支，
-										// 落回全局 texArr 路径（避免产出不可解码的 data:image/png;base64,<TGA 字节>）。
-										if uri := textureDataURI(cand, pngData); uri != "" {
-											gj.ComponentTextures = map[string][]string{
-												base: {uri},
-											}
-											texNames = append(texNames, "")
-											gj.SourceName = base
-											for bi := range gj.Bones {
-												for ci := range gj.Bones[bi].Cubes {
-													gj.Bones[bi].Cubes[ci].TexSlot = 0
-													gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
-													gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
-												}
-											}
-											log.Printf("[ysm] 加载模型组件 %q (声明纹理 texIdx=0, texture=%q)", candidate, di.texBase)
-											comps = append(comps, *gj)
-											break
-										}
-									}
-								}
-							}
-							if pngPath, ok := pngNameMap[tn]; ok {
-								if pngData := readFileLimited(pngPath); pngData != nil {
-									// 按实际扩展名派生 MIME；.tga 非 Web 格式 → 空串跳过 data-URI 分支，
-									// 落回全局 texArr 路径（避免产出不可解码的 data:image/png;base64,<TGA 字节>）。
-									if uri := textureDataURI(pngPath, pngData); uri != "" {
-										gj.ComponentTextures = map[string][]string{
-											base: {uri},
-										}
-										texNames = append(texNames, "")
-										gj.SourceName = base
-										for bi := range gj.Bones {
-											for ci := range gj.Bones[bi].Cubes {
-												// TexSlot=0 对齐 zip 路径 buildComponents 口径：
-												// perComponent 组件用自己的第 0 张，全局槽位不再消费
-												gj.Bones[bi].Cubes[ci].TexSlot = 0
-												gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
-												gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
-											}
-										}
-										// 组件专属同名纹理兜底（ADR-114 perComponent）：cube TexSlot 已在上面复位为
-										// 0（本地 0 槽）。不打虚拟全局槽位 len(texOrderNames)+undeclSeq——那会让
-										// arrow 显示成 texIdx=6 的越界幻觉。打实际绑定的纹理文件揭示来源。
-										log.Printf("[ysm] 加载模型组件 %q (组件专属 texIdx=%d, texture=%q)", candidate, 0, filepath.Base(pngPath))
-										comps = append(comps, *gj)
-										break
-									}
-								}
-							}
-						}
-						// arm 的 texNames 置空（前端 R1 校验跳过，arm 走全局 texArr[0]）
-						if isArm {
-							texNames = append(texNames, "")
-						} else {
-							texNames = append(texNames, tn)
-						}
-						// SourceName = 组件源模型文件名（去扩展名，如 main/arm/arrow），UI 组件名用
-						gj.SourceName = strings.TrimSuffix(strings.TrimSuffix(base, ".geo.json"), ".json")
-						// TexSlot = 声明序位置（texArr 全局索引；未声明=按名段；arm=0 共用 main 皮肤）
-						for bi := range gj.Bones {
-							for ci := range gj.Bones[bi].Cubes {
-								gj.Bones[bi].Cubes[ci].TexSlot = texSlot
-								gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
-								gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
-							}
-						}
-						log.Printf("[ysm] 加载模型组件 %q (texIdx=%d, name=%q)", candidate, texSlot, gj.SourceName)
-						comps = append(comps, *gj)
-					}
-				}
-				break
-			}
 		}
+		// 全局 texSlot 分支：arm / 已声明 / perComponent 兜底落空
+		if isArm {
+			texNames = append(texNames, "") // arm：前端 R1 校验跳过，走全局 texArr[0]
+		} else {
+			texNames = append(texNames, info.texName)
+		}
+		gj.SourceName = strings.TrimSuffix(strings.TrimSuffix(base, ".geo.json"), ".json")
+		applyCubeTextures(gj, info.texSlot)
+		log.Printf("[ysm] 加载模型组件 %q (texIdx=%d, name=%q)", candidate, info.texSlot, gj.SourceName)
+		comps = append(comps, *gj)
 	}
 	return comps, texNames
 }
