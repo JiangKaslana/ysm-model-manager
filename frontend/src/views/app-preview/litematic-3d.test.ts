@@ -249,15 +249,10 @@ vi.mock("three/addons/controls/OrbitControls.js", () => ({
 }));
 
 vi.mock("../../backend/app.ts", () => ({ getApp: vi.fn() }));
-// litematic 无角色系统：mock CORE_MENU_ITEMS 去掉 roles 项，
-// 使 dock-model 点击走"单 panel 快捷直达"路径打开 slice 面板（否则 roles CORE 项优先）
-vi.mock("../../utils/3d/adapters/preview-menu-defs.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../utils/3d/adapters/preview-menu-defs.ts")>();
-  return {
-    ...actual,
-    CORE_MENU_ITEMS: actual.CORE_MENU_ITEMS.filter((d) => d.id !== "roles"),
-  };
-});
+// 注：不再 mock 掉 CORE_MENU_ITEMS 的 roles 项。旧「dock-model 单 panel 直达」捷径已随
+// 2026-08-22 收口删除（恒进 roles 列表 → 点角色名 → roleDetailView），openSlicePanel
+// 走生产三跳导航；mock 反而使 model 组 fall through 到快捷直达、slice 以面板内容打开，
+// 永远产生不了 litematic-slice-entry row。
 // ADR-073 天空能力（sky-capability）依赖 PMREMGenerator 需真实 WebGL context，
 // 本测试 three 全 stub 无 WebGL——mock SkyCapability 为 no-op，隔离体素渲染逻辑。
 // 方法面同步 mount-preview-core 的 shared 初始化路径（setPreset/apply/getTimeOfDay 即时调用；
@@ -818,18 +813,18 @@ function unmountOverlay(overlay: HTMLElement): void {
   if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
 }
 
-/** Phase 3 收编辅助：打开 litematic 分层切片面板
- * 声明式根菜单范式（ADR-076 v3）：分层控件（slice 项，dockGroup:"model"）经
- * adapter.menuItems 注入场景注册表活跃条目。dock-model 点击因 active.menuItems 存在，
- * 走 roleDetailView 捷径（按 dockGroup 渲染 model/motion section），需在 model section
- * 内再点 slice row（legacyTestId = litematic-slice-entry）下钻打开 slice 面板。 */
+/** Phase 3 收编辅助：打开 litematic 分层切片控件
+ * 声明式根菜单范式（ADR-076 v3）+ 2026-08-22 收口后导航：dock-model 恒进 roles
+ * 角色列表 → 点角色名行下钻 roleDetailView。litematic 仅一个 model panel 项（slice）
+ * → 作为 primary 经 renderCustom 直渲进详情主体（roleDetailView :746），控件直接可达，
+ * 不再有中间 slice row（legacyTestId 仅存于 groupView/detailView 多项场景）。 */
 function openSlicePanel(overlay: HTMLElement): void {
   const modelBtn = overlay.querySelector('[data-testid="dock-model"]') as HTMLElement;
   if (!modelBtn) throw new Error("dock-model button not found");
   modelBtn.click();
-  // roleDetailView → model section → slice row（legacyTestId 精确命中）
-  const sliceRow = overlay.querySelector("#litematic-slice-entry") as HTMLElement;
-  if (!sliceRow) throw new Error("litematic-slice-entry row not found (roleDetailView model section)");
-  sliceRow.click();
-  // slice 面板已 navigate 渲染，控件（selects）挂在 popup 内
+  // 🧍 模型组恒进 roles 列表 → 点角色名行进详情（preview-menu.ts fillRoles 契约）
+  const roleRow = overlay.querySelector('[data-testid="preview-role-name"]') as HTMLElement;
+  if (!roleRow) throw new Error("preview-role-name row not found (roles list)");
+  roleRow.click();
+  // roleDetailView 已把 slice 控件（axis/layerMode/滑块）直渲进详情主体
 }

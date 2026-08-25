@@ -113,7 +113,7 @@ function makeCtx() {
 }
 
 /** 最近一次 setAdapterItems 收到的适配器项 */
-function registeredItems(built: { menuItems?: Array<{ id: string; kind: string; render?: (list: HTMLElement, close: () => void) => void }> }): Array<{
+function registeredItems(built: { menuItems?: Array<{ id: string; kind: string; render?: (list: HTMLElement, close: () => void) => void }> | null }): Array<{
   id: string;
   kind: string;
   render?: (list: HTMLElement, close: () => void) => void;
