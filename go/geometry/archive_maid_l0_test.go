@@ -493,11 +493,10 @@ func TestL0_StripNsPrefix_AllBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("filepath.Abs 失败: %v", err)
 	}
-	platformAbs := cwd[:1] + `:\platform\abs.json` // 占位，稍后用 IsAbs 动态校验
-	// 如果当前平台不是 volume-absolute 形式（C:\），退回到 Unix 绝对路径。
-	if !filepath.IsAbs(platformAbs) {
-		platformAbs = "/platform/abs.json"
-	}
+	// 用真实目录拼接出干净的平台原生绝对路径（Unix: /…/platform/abs.json，
+	// Windows: C:\…\platform\abs.json）。此前 cwd[:1]+":\platform\abs.json" 在 Unix
+	// 会拼出垃圾路径 /:\platform\abs.json，且 IsAbs fallback 在所有平台都不可达。
+	platformAbs := filepath.Join(filepath.Dir(cwd), "platform", "abs.json")
 	platformAbsValue := "mypack:" + platformAbs
 	wantPlatformAbs := platformAbsValue // 绝对路径后缀，不剥
 
