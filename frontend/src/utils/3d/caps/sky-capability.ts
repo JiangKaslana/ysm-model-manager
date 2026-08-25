@@ -78,6 +78,89 @@ export const MODEL_SKY_PRESETS: Record<string, Partial<SkyParams>> = {
   litematic: { turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, mieDirectionalG: 0.8, exposure: 0.5 },
 };
 
+function skcBuildTime(cap: SkyCapability): MenuControlDef[] {
+  return [
+    {
+      id: "sky-timeline",
+      kind: "timeline",
+      labelKey: "preview.skyTimeline",
+      fallback: "光影时间轴",
+      getValue: () => cap.getTimeOfDay(),
+      setValue: (v) => cap.setTime(v as number),
+    },
+    {
+      id: "sky-time",
+      kind: "slider",
+      labelKey: "preview.timeOfDay",
+      fallback: "时间",
+      slider: { min: 0, max: 24, step: 0.5, unit: "h" },
+      getValue: () => cap.getTimeOfDay(),
+      setValue: (v) => cap.setTime(v as number),
+    },
+  ];
+}
+
+function skcBuildSun(cap: SkyCapability): MenuControlDef[] {
+  return [];
+}
+
+function skcBuildScattering(cap: SkyCapability): MenuControlDef[] {
+  return [
+    {
+      id: "sky-cloud",
+      kind: "slider",
+      labelKey: "preview.cloudCoverage",
+      fallback: "云量",
+      group: "preview.skyGroupAdvanced",
+      slider: { min: 0, max: 1, step: 0.05, unit: "%" },
+      getValue: () => cap.getCloudCoverage(),
+      setValue: (v) => cap.setCloudCoverage(v as number, true),
+    },
+    {
+      id: "sky-env",
+      kind: "toggle",
+      labelKey: "preview.environmentMapping",
+      fallback: "环境贴图",
+      group: "preview.skyGroupAdvanced",
+      getValue: () => cap.isEnvironmentEnabled(),
+      setValue: (v) => cap.setEnvironmentEnabled(v as boolean),
+    },
+  ];
+}
+
+function skcBuildAutoRotate(cap: SkyCapability): MenuControlDef[] {
+  return [
+    {
+      id: "sky-auto-rotate",
+      kind: "toggle",
+      labelKey: "preview.skyAutoRotate",
+      fallback: "昼夜循环",
+      hintKey: "preview.skyAutoRotateHint",
+      group: "preview.skyGroupAdvanced",
+      getValue: () => cap.isAutoRotating(),
+      setValue: (v) => {
+        if (v) cap.startAutoRotate();
+        else cap.stopAutoRotate();
+      },
+    },
+  ];
+}
+
+function skcBuildAtmosphereFX(cap: SkyCapability): MenuControlDef[] {
+  return [
+    {
+      id: "sky-godrays",
+      kind: "toggle",
+      labelKey: "preview.skyGodRays",
+      fallback: "体积光束",
+      hintKey: "preview.skyGodRaysHint",
+      group: "preview.skyGroupAdvanced",
+      getValue: () => cap.isGodRaysEnabled(),
+      setValue: (v) => cap.setGodRaysEnabled(v as boolean),
+    },
+  ];
+}
+
 export class SkyCapability implements SceneCapability {
   readonly id = "sky";
   readonly labelKey = "preview.sky";
@@ -403,24 +486,14 @@ export class SkyCapability implements SceneCapability {
     }
   }
 
-  /** 创建体积光束 geometry + material */
-  private createGodRays(): void {
-    const scale = this.params.scale;
-    const width = scale * 0.3;
-    const height = scale * 0.4;
-
-    // 两个交叉 PlaneGeometry 模拟体积光束
-    const geo1 = new THREE.PlaneGeometry(width, height, 1, 1);
-    const geo2 = new THREE.PlaneGeometry(width, height, 1, 1);
-
-    // 自定义 shader material
+  private createConeShaderMaterial(): THREE.ShaderMaterial {
     const uniforms = {
-      uColor: { value: new THREE.Color(1.0, 0.7, 0.3) }, // 默认日出日落暖橙
+      uColor: { value: new THREE.Color(1.0, 0.7, 0.3) },
       uIntensity: { value: 0 },
       uTime: this.godRaysTime,
     };
 
-    const material = new THREE.ShaderMaterial({
+    return new THREE.ShaderMaterial({
       uniforms,
       vertexShader: `
         #include <common>
@@ -438,13 +511,10 @@ export class SkyCapability implements SceneCapability {
         uniform float uTime;
 
         void main() {
-          // 垂直衰减：底部（vUv.y=0）最亮，顶部（vUv.y=1）衰减到 0
           float verticalFade = 1.0 - vUv.y;
           verticalFade = pow(verticalFade, 1.5);
-          // 径向衰减：中心最亮，边缘透明
-          float radialDist = abs(vUv.x - 0.5) * 2.0; // 0=中心, 1=边缘
+          float radialDist = abs(vUv.x - 0.5) * 2.0;
           float radialFade = 1.0 - radialDist * radialDist;
-          // 微动画：time 驱动轻微偏移
           float shimmer = sin(uTime * 2.0 + vUv.y * 6.28) * 0.05 + 1.0;
           float alpha = uIntensity * verticalFade * radialFade * shimmer;
           if (alpha < 0.01) discard;
@@ -456,19 +526,44 @@ export class SkyCapability implements SceneCapability {
       depthWrite: false,
       side: THREE.DoubleSide,
     });
+  }
+
+  private createConePlanes(): THREE.Group {
+    const scale = this.params.scale;
+    const width = scale * 0.3;
+    const height = scale * 0.4;
+
+    const geo1 = new THREE.PlaneGeometry(width, height, 1, 1);
+    const geo2 = new THREE.PlaneGeometry(width, height, 1, 1);
+    const material = this.createConeShaderMaterial();
 
     const mesh1 = new THREE.Mesh(geo1, material);
     const mesh2 = new THREE.Mesh(geo2, material);
-    mesh2.rotation.z = Math.PI / 2; // 第二个 plane 旋转 90 度
+    mesh2.rotation.z = Math.PI / 2;
 
-    // 放置于场景中心上方，朝向下方
     mesh1.position.y = height * 0.5;
     mesh2.position.y = height * 0.5;
 
-    this.godRays = new THREE.Group();
-    this.godRays.add(mesh1);
-    this.godRays.add(mesh2);
-    this.godRays.visible = false;
+    const group = new THREE.Group();
+    group.add(mesh1);
+    group.add(mesh2);
+    group.visible = false;
+    return group;
+  }
+
+  /** 创建体积光束 geometry + material */
+  private createGodRays(): void {
+    if (this.godRays) {
+      this.godRays.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          const mat = child.material;
+          if (mat instanceof THREE.ShaderMaterial) mat.dispose();
+        }
+      });
+      this.godRays = null;
+    }
+    this.godRays = this.createConePlanes();
   }
 
   /** 获取 god rays 太阳色（跟随 sunset 预设的 sunColor） */
@@ -543,70 +638,7 @@ export class SkyCapability implements SceneCapability {
 
   /** 返回菜单控件定义（框架自动渲染） */
   getMenuControls(): MenuControlDef[] {
-    return [
-      // 可视化时间轴：昼夜色带 + 太阳位置标记，拖动调 timeOfDay
-      {
-        id: "sky-timeline",
-        kind: "timeline",
-        labelKey: "preview.skyTimeline",
-        fallback: "光影时间轴",
-        getValue: () => this.getTimeOfDay(),
-        setValue: (v) => this.setTime(v as number),
-      },
-      // 第一层主控件：time 无 group，直接挂面板顶部
-      {
-        id: "sky-time",
-        kind: "slider",
-        labelKey: "preview.timeOfDay",
-        fallback: "时间",
-        slider: { min: 0, max: 24, step: 0.5, unit: "h" },
-        getValue: () => this.getTimeOfDay(),
-        setValue: (v) => this.setTime(v as number),
-      },
-      // 高级组：云量 + 环境贴图
-      {
-        id: "sky-cloud",
-        kind: "slider",
-        labelKey: "preview.cloudCoverage",
-        fallback: "云量",
-        group: "preview.skyGroupAdvanced",
-        slider: { min: 0, max: 1, step: 0.05, unit: "%" },
-        getValue: () => this.getCloudCoverage(),
-        setValue: (v) => this.setCloudCoverage(v as number, true),
-      },
-      {
-        id: "sky-env",
-        kind: "toggle",
-        labelKey: "preview.environmentMapping",
-        fallback: "环境贴图",
-        group: "preview.skyGroupAdvanced",
-        getValue: () => this.isEnvironmentEnabled(),
-        setValue: (v) => this.setEnvironmentEnabled(v as boolean),
-      },
-      {
-        id: "sky-auto-rotate",
-        kind: "toggle",
-        labelKey: "preview.skyAutoRotate",
-        fallback: "昼夜循环",
-        hintKey: "preview.skyAutoRotateHint",
-        group: "preview.skyGroupAdvanced",
-        getValue: () => this.isAutoRotating(),
-        setValue: (v) => {
-          if (v) this.startAutoRotate();
-          else this.stopAutoRotate();
-        },
-      },
-      {
-        id: "sky-godrays",
-        kind: "toggle",
-        labelKey: "preview.skyGodRays",
-        fallback: "体积光束",
-        hintKey: "preview.skyGodRaysHint",
-        group: "preview.skyGroupAdvanced",
-        getValue: () => this.isGodRaysEnabled(),
-        setValue: (v) => this.setGodRaysEnabled(v as boolean),
-      },
-    ];
+    return [...skcBuildTime(this), ...skcBuildSun(this), ...skcBuildScattering(this), ...skcBuildAutoRotate(this), ...skcBuildAtmosphereFX(this)];
   }
 
   /** 保存状态到 localStorage */

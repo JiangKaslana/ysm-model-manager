@@ -226,6 +226,120 @@ interface VolumetricConeUniforms {
 
 /* ============ LightCapability ============ */
 
+function lcBuildMain(cap: LightCapability): MenuControlDef[] {
+  return [
+    {
+      id: "light-key",
+      kind: "toggle",
+      labelKey: "preview.keyLight",
+      fallback: "主灯",
+      getValue: () => cap.getParams().key.enabled,
+      setValue: (v) => cap.setParams({ key: { enabled: v as boolean } }),
+    },
+  ];
+}
+
+function lcBuildSpotlight(cap: LightCapability): MenuControlDef[] {
+  return [
+    {
+      id: "light-fill",
+      kind: "toggle",
+      labelKey: "preview.fillLight",
+      fallback: "补灯",
+      group: "preview.lightGroupParams",
+      getValue: () => cap.getParams().fill.enabled,
+      setValue: (v) => cap.setParams({ fill: { enabled: v as boolean } }),
+    },
+    {
+      id: "light-rim",
+      kind: "toggle",
+      labelKey: "preview.rimLight",
+      fallback: "轮廓灯",
+      group: "preview.lightGroupParams",
+      getValue: () => cap.getParams().rim.enabled,
+      setValue: (v) => cap.setParams({ rim: { enabled: v as boolean } }),
+    },
+    {
+      id: "light-ambient",
+      kind: "slider",
+      labelKey: "preview.ambientIntensity",
+      fallback: "环境光",
+      group: "preview.lightGroupParams",
+      slider: { min: 0, max: 2, step: 0.1 },
+      getValue: () => cap.getParams().ambient.intensity,
+      setValue: (v) => cap.setParams({ ambient: { intensity: v as number } }),
+    },
+    {
+      id: "light-spotlight",
+      kind: "toggle",
+      labelKey: "preview.spotlight",
+      fallback: "聚光灯",
+      group: "preview.lightGroupParams",
+      getValue: () => cap.getParams().spotlight.enabled,
+      setValue: (v) => cap.setSpotlight({ enabled: v as boolean }),
+    },
+  ];
+}
+
+function lcBuildVolumetric(cap: LightCapability): MenuControlDef[] {
+  return [
+    {
+      id: "light-volumetric",
+      kind: "toggle",
+      labelKey: "preview.volumetric",
+      fallback: "体积光",
+      group: "preview.lightGroupParams",
+      getValue: () => cap.getParams().volumetric.enabled,
+      setValue: (v) => cap.setVolumetric({ enabled: v as boolean }),
+    },
+    {
+      id: "light-engine",
+      kind: "select",
+      labelKey: "preview.volumetricEngine",
+      fallback: "锥引擎",
+      group: "preview.lightGroupParams",
+      select: [
+        { value: "cone", label: "锥形" },
+        { value: "postprocess", label: "后处理" },
+      ],
+      getValue: () => cap.getVolumetricEngine(),
+      setValue: (v) => cap.setVolumetricEngine(v as "cone" | "postprocess"),
+    },
+    {
+      id: "light-cone-angle",
+      kind: "slider",
+      labelKey: "preview.coneAngle",
+      fallback: "锥角",
+      group: "preview.lightGroupParams",
+      slider: { min: 10, max: 60, step: 1, unit: "°" },
+      getValue: () => cap.getParams().spotlight.angle,
+      setValue: (v) => cap.setSpotlight({ angle: v as number }),
+    },
+  ];
+}
+
+function lcBuildThreePoint(cap: LightCapability): MenuControlDef[] {
+  return [
+    {
+      id: "light-preset",
+      kind: "select",
+      labelKey: "preview.lightPreset",
+      fallback: "灯光预设",
+      group: "preview.lightGroupParams",
+      select: [
+        { value: "default", label: "默认" },
+        { value: RESOURCE_TYPES.YSM, label: "YSM方块" },
+        { value: "vrm", label: "VRM角色" },
+        { value: "mmd", label: "MMD角色" },
+        { value: "litematic", label: "体素" },
+        { value: "resourcepack", label: "MC块包" },
+      ],
+      getValue: () => cap.getCurrentPreset(),
+      setValue: (v) => cap.setPreset(v as string),
+    },
+  ];
+}
+
 export class LightCapability implements SceneCapability {
   readonly id = "light";
   readonly labelKey = "preview.lighting";
@@ -329,24 +443,10 @@ export class LightCapability implements SceneCapability {
 
   /* ----- 体积光锥 ----- */
 
-  /** 根据当前参数重建体积光锥几何 + 材质 */
-  private rebuildCone(): void {
-    this.disposeCone();
-
+  private createVolumetricMaterial(height: number, baseRadius: number): THREE.ShaderMaterial {
     const sp = this.params.spotlight;
     const vm = this.params.volumetric;
-    if (!sp.enabled || !vm.enabled) return;
 
-    // 锥高 = 从聚光灯到对象中心的距离（= targetHeight）
-    const height = this.targetHeight;
-    // 锥底半径 = 锥高 * tan(半角)
-    const halfAngle = degToRad(sp.angle);
-    const baseRadius = height * Math.tan(halfAngle) * (1.0 + sp.penumbra * 0.5);
-
-    this.coneHeight = height;
-    this.coneRadius = baseRadius;
-
-    // 材质
     const uniforms: VolumetricConeUniforms = {
       uColor: { value: new THREE.Color(sp.color) },
       uMaxAlpha: { value: vm.opacity },
@@ -369,24 +469,45 @@ export class LightCapability implements SceneCapability {
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
     });
+    return this.coneMaterial;
+  }
 
-    // 两交叉 PlaneGeometry：一个沿 XZ 平面，一个垂直
+  private buildConeGroup(mat: THREE.ShaderMaterial, height: number, baseRadius: number): THREE.Group {
     const halfWidth = baseRadius;
     const geom = new THREE.PlaneGeometry(halfWidth * 2, height);
 
-    const plane1 = new THREE.Mesh(geom, this.coneMaterial);
-    const plane2 = new THREE.Mesh(geom, this.coneMaterial);
+    const plane1 = new THREE.Mesh(geom, mat);
+    const plane2 = new THREE.Mesh(geom, mat);
     plane2.rotation.y = Math.PI / 2;
 
-    this.coneGroup = new THREE.Group();
-    this.coneGroup.name = "ysm-light-volumetric-cone";
-    this.coneGroup.add(plane1);
-    this.coneGroup.add(plane2);
+    const group = new THREE.Group();
+    group.name = "ysm-light-volumetric-cone";
+    group.add(plane1);
+    group.add(plane2);
 
-    // 锥组位置：尖端在聚光灯位置，底部在对象中心
-    // PlaneGeometry 默认 Y=0 中心 → 需整体上移 height/2 使尖端在顶部
-    this.coneGroup.position.copy(this.spotlight.position);
-    this.coneGroup.position.y -= height / 2; // 让锥底在 target 高度，锥尖在 spotlight 高度
+    group.position.copy(this.spotlight.position);
+    group.position.y -= height / 2;
+    return group;
+  }
+
+  /** 根据当前参数重建体积光锥几何 + 材质 */
+  private rebuildCone(): void {
+    this.disposeCone();
+
+    const sp = this.params.spotlight;
+    const vm = this.params.volumetric;
+    if (!sp.enabled || !vm.enabled) return;
+
+    const height = this.targetHeight;
+    const halfAngle = degToRad(sp.angle);
+    const baseRadius = height * Math.tan(halfAngle) * (1.0 + sp.penumbra * 0.5);
+
+    this.coneHeight = height;
+    this.coneRadius = baseRadius;
+
+    const mat = this.createVolumetricMaterial(height, baseRadius);
+    this.updateConeUniforms();
+    this.coneGroup = this.buildConeGroup(mat, height, baseRadius);
   }
 
   private disposeCone(): void {
@@ -583,102 +704,7 @@ export class LightCapability implements SceneCapability {
 
   /** 返回菜单控件定义（框架自动渲染） */
   getMenuControls(): MenuControlDef[] {
-    return [
-      {
-        id: "light-key",
-        kind: "toggle",
-        labelKey: "preview.keyLight",
-        fallback: "主灯",
-        getValue: () => this.params.key.enabled,
-        setValue: (v) => { this.params.key.enabled = v as boolean; this.syncLightsFromParams(); },
-      },
-      {
-        id: "light-fill",
-        kind: "toggle",
-        labelKey: "preview.fillLight",
-        fallback: "补灯",
-        group: "preview.lightGroupParams",
-        getValue: () => this.params.fill.enabled,
-        setValue: (v) => { this.params.fill.enabled = v as boolean; this.syncLightsFromParams(); },
-      },
-      {
-        id: "light-rim",
-        kind: "toggle",
-        labelKey: "preview.rimLight",
-        fallback: "轮廓灯",
-        group: "preview.lightGroupParams",
-        getValue: () => this.params.rim.enabled,
-        setValue: (v) => { this.params.rim.enabled = v as boolean; this.syncLightsFromParams(); },
-      },
-      {
-        id: "light-ambient",
-        kind: "slider",
-        labelKey: "preview.ambientIntensity",
-        fallback: "环境光",
-        group: "preview.lightGroupParams",
-        slider: { min: 0, max: 2, step: 0.1 },
-        getValue: () => this.params.ambient.intensity,
-        setValue: (v) => { this.params.ambient.intensity = v as number; this.syncLightsFromParams(); },
-      },
-      {
-        id: "light-spotlight",
-        kind: "toggle",
-        labelKey: "preview.spotlight",
-        fallback: "聚光灯",
-        group: "preview.lightGroupParams",
-        getValue: () => this.params.spotlight.enabled,
-        setValue: (v) => this.setSpotlight({ enabled: v as boolean }),
-      },
-      {
-        id: "light-volumetric",
-        kind: "toggle",
-        labelKey: "preview.volumetric",
-        fallback: "体积光",
-        group: "preview.lightGroupParams",
-        getValue: () => this.params.volumetric.enabled,
-        setValue: (v) => this.setVolumetric({ enabled: v as boolean }),
-      },
-      {
-        id: "light-engine",
-        kind: "select",
-        labelKey: "preview.volumetricEngine",
-        fallback: "锥引擎",
-        group: "preview.lightGroupParams",
-        select: [
-          { value: "cone", label: "锥形" },
-          { value: "postprocess", label: "后处理" },
-        ],
-        getValue: () => this.volumetricEngine,
-        setValue: (v) => this.setVolumetricEngine(v as "cone" | "postprocess"),
-      },
-      {
-        id: "light-cone-angle",
-        kind: "slider",
-        labelKey: "preview.coneAngle",
-        fallback: "锥角",
-        group: "preview.lightGroupParams",
-        slider: { min: 10, max: 60, step: 1, unit: "°" },
-        getValue: () => this.params.spotlight.angle,
-        setValue: (v) => this.setSpotlight({ angle: v as number }),
-      },
-      {
-        id: "light-preset",
-        kind: "select",
-        labelKey: "preview.lightPreset",
-        fallback: "灯光预设",
-        group: "preview.lightGroupParams",
-        select: [
-          { value: "default", label: "默认" },
-          { value: RESOURCE_TYPES.YSM, label: "YSM方块" },
-          { value: "vrm", label: "VRM角色" },
-          { value: "mmd", label: "MMD角色" },
-          { value: "litematic", label: "体素" },
-          { value: "resourcepack", label: "MC块包" },
-        ],
-        getValue: () => this.currentPreset,
-        setValue: (v) => this.setPreset(v as string),
-      },
-    ];
+    return [...lcBuildMain(this), ...lcBuildSpotlight(this), ...lcBuildVolumetric(this), ...lcBuildThreePoint(this)];
   }
 
   /** 保存状态到 localStorage */
