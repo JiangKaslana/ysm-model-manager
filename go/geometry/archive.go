@@ -315,7 +315,7 @@ func buildTexOrderFromPlayerTexs(playerTexs []playerTex) []string {
 				tn = tn[idx+1:]
 			}
 		}
-		tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
+		tn = trimTexExt(strings.ToLower(tn))
 		texOrder = append(texOrder, tn)
 	}
 	return texOrder
@@ -344,20 +344,13 @@ func appendUniqueProjTexs(texOrder []string, projModels []projEntry) []string {
 	return texOrder
 }
 
-// detectMaidNs 扫描首个 maid_model.json 所在目录作为命名空间前缀（含尾部 /）。
-// 与 parseModelFromEntries 同口径；无匹配时返回空串。
+// detectMaidNs 组件版命名空间选择：与合并版 collectMaidManifest 同口径
+// （"最长清单即主包"，selectBestMaidCandidate）——多命名空间包组件视图与
+// 合并预览选中的 ns 不再分叉（2026-08-26 审查统一；此前取条目序首个，
+// zip 内多清单时两条路径口径分叉）。无 maid_model.json 时返回空串。
 func detectMaidNs(entries []container.Entry) string {
-	for _, e := range entries {
-		low := strings.ToLower(e.Name())
-		if strings.HasSuffix(low, "/maid_model.json") {
-			parts := strings.Split(low, "/")
-			if len(parts) >= 3 {
-				return strings.Join(parts[:len(parts)-1], "/") + "/"
-			}
-			break
-		}
-	}
-	return ""
+	ns, _ := collectMaidManifest(entries, "")
+	return ns
 }
 
 // collectGeoAnimEntries 遍历 entries，收集 geometry JSON（geoFiles）和
@@ -403,6 +396,38 @@ func collectGeoAnimEntries(entries []container.Entry, maidNs string) ([]geoEntry
 	return geoFiles, animJSONs
 }
 
+// collectAnimEntriesOnly 仅收集动画/控制器 JSON 字符串（geo/png 不物化）。
+// L0 命中路径专用：清单生效时 geoFiles/pngs 全部由清单派生，全量物化纯属
+// 浪费，只有 animJSONs 仍来自遍历收集（l0Resolved 无此字段）。过滤口径与
+// collectGeoAnimEntries 动画分支逐字节一致（ns 过滤置 Open 之前，无 reader 泄漏）。
+func collectAnimEntriesOnly(entries []container.Entry, maidNs string) []string {
+	var animJSONs []string
+	for _, e := range entries {
+		low := strings.ToLower(e.Name())
+		if !strings.HasSuffix(low, ".json") || e.IsDir() {
+			continue
+		}
+		if types.IsYsmEntryJSON(filepath.Base(e.Name())) {
+			continue
+		}
+		if maidNs != "" && (!strings.HasPrefix(low, maidNs) || strings.HasSuffix(low, "maid_model.json") || strings.HasSuffix(low, "maid_chair.json") || strings.HasSuffix(low, "maid_sound.json")) {
+			continue
+		}
+		if !strings.Contains(low, "animation") && !strings.Contains(low, "controller") {
+			continue
+		}
+		rc, err := e.Open()
+		if err != nil {
+			continue
+		}
+		buf := fsutil.ReadLimitedEntry(rc, maxExtractSize)
+		if len(buf) > 10 {
+			animJSONs = append(animJSONs, string(buf))
+		}
+	}
+	return animJSONs
+}
+
 // collectPngEntries 遍历 entries，收集非 avatar/ 非 gui/ 的 png/jpg 纹理。
 // 输出按 pngs[idx] ↔ pngNames[idx] 对齐；文件名已 basename 化并去扩展名。
 func collectPngEntries(entries []container.Entry, maidNs string) ([][]byte, []string) {
@@ -434,7 +459,7 @@ func collectPngEntries(entries []container.Entry, maidNs string) ([][]byte, []st
 		if idx := strings.LastIndex(name, "\\"); idx >= 0 {
 			name = name[idx+1:]
 		}
-		name = strings.TrimSuffix(strings.TrimSuffix(name, ".png"), ".jpg")
+		name = trimTexExt(name)
 		pngNames = append(pngNames, name)
 		pngs = append(pngs, pngData)
 	}
@@ -495,8 +520,10 @@ func collectMaidManifest(entries []container.Entry, logPrefix string) (string, [
 		best := selectBestMaidCandidate(candidates)
 		maidNs = best.ns
 		maidManifest = best.manifest
-		log.Printf("%s maid-model 命名空间: %s（L0 清单 %d 条 / 候选共 %d 个）",
-			logPrefix, maidNs, len(maidManifest), len(candidates))
+		if logPrefix != "" {
+			log.Printf("%s maid-model 命名空间: %s（L0 清单 %d 条 / 候选共 %d 个）",
+				logPrefix, maidNs, len(maidManifest), len(candidates))
+		}
 	}
 	return maidNs, maidManifest
 }
@@ -862,9 +889,7 @@ func collectMergedFiles(entries []container.Entry, maidNs string) (geoFiles []ge
 				if idx := strings.LastIndex(name, "\\"); idx >= 0 {
 					name = name[idx+1:]
 				}
-				name = strings.TrimSuffix(name, ".png")
-				name = strings.TrimSuffix(name, ".jpg")
-				pngNames = append(pngNames, name)
+				pngNames = append(pngNames, trimTexExt(name))
 				pngs = append(pngs, pngData)
 			}
 		}
@@ -907,9 +932,7 @@ func sortByTexOrder(texOrder []string, pngs [][]byte, pngNames []string) map[str
 		return orderMap
 	}
 	for i, n := range texOrder {
-		bn := strings.TrimSuffix(n, ".png")
-		bn = strings.TrimSuffix(bn, ".jpg")
-		orderMap[bn] = i
+		orderMap[trimTexExt(n)] = i
 	}
 	sort.SliceStable(pngs, func(i, j int) bool {
 		oi, hasI := orderMap[strings.ToLower(pngNames[i])]
@@ -1199,19 +1222,24 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 	var geoFiles []geoEntry
 
-	// 遍历收集 geo/动画/纹理（模型版口径；排 arm）已收编 collectMergedFiles
-	geoFiles, animJSONs, pngs, pngNames = collectMergedFiles(entries, maidNs)
-
-	// ===== 1.5 L0 清单过滤：收编 resolveL0（L0 生效时 geoFiles/pngs/modelOrder/texOrder 派生自清单）=====
-	// 覆盖判定保持现状不对称：geoFiles 等看 l0.hit，SubModels 分支仍按 len(maidManifest)>0 走。
+	// ===== 1.5 L0 清单先行判定（2026-08-26 审查重构）=====
+	// 此前顺序是「collectMergedFiles 全量物化 geo+png → resolveL0 判定」，L0 包
+	// 白付一次全量 IO+内存后整套丢弃、applyL0ManifestItem 再把清单引用文件重读
+	// 一遍。现改为先探清单：hit 只补收动画字符串（轻量，geo/png 不物化），miss
+	// 才走全量遍历——geoFiles/pngs/pngNames/modelOrder/texOrder/texCategories
+	// 的最终来源与覆盖判定完全不变。
 	l0 := resolveL0(entries, maidNs, maidManifest, logPrefix)
 	if l0.hit {
+		animJSONs = collectAnimEntriesOnly(entries, maidNs)
 		geoFiles = l0.geoFiles
 		pngs = l0.pngs
 		pngNames = l0.pngNames
 		modelOrder = l0.modelOrder
 		texOrder = l0.texOrder
 		texCategories = l0.texCategories
+	} else {
+		// 遍历收集 geo/动画/纹理（模型版口径；排 arm）已收编 collectMergedFiles
+		geoFiles, animJSONs, pngs, pngNames = collectMergedFiles(entries, maidNs)
 	}
 	resolvedPathByItem = l0.resolvedPathByItem
 	texNameByItem = l0.texNameByItem
@@ -1240,8 +1268,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 				// 大小写不敏感（同函数 958/966 行排序比较器均已 ToLower，此处保持口径一致）。
 				lowPn := strings.ToLower(pn)
 				for j, tn := range texOrder {
-					bn := strings.TrimSuffix(tn, ".png")
-					bn = strings.TrimSuffix(bn, ".jpg")
+					bn := trimTexExt(tn)
 					if bn == lowPn || strings.ToLower(tn) == lowPn {
 						if j < len(texCategories) {
 							ordered[i] = texCategories[j]
@@ -1390,10 +1417,7 @@ func parseComponentsFromArchive(data []byte, size int64, sevenZip bool) ([]types
 	}
 	defer r.Close()
 	collected := collectArchiveFiles(r.Entries())
-	models, texNames, err := buildComponents(collected.geoFiles, collected.modelOrder, collected.texOrder, collected.pngs, collected.pngNames, collected.modelTexName)
-	if err != nil {
-		return nil, nil, err
-	}
+	models, texNames := buildComponents(collected.geoFiles, collected.modelOrder, collected.texOrder, collected.pngs, collected.pngNames, collected.modelTexName)
 	// 文件归属清单（只识别不解析）：每个组件挂同一容器清单，前端取任一组件即可得
 	inv := classifyFileInventory(r.Entries())
 	for i := range models {
@@ -1405,7 +1429,7 @@ func parseComponentsFromArchive(data []byte, size int64, sevenZip bool) ([]types
 // buildComponents 组件化收集：每组件独立纹理（ADR-114 perComponent）。
 // cube.TexSlot = 0（每组件用自己的第 0 张），不再全局 texOrder 位置分配。
 // ComponentTextures[componentName] = [declaredTexBase64]，前端按组件名查纹理。
-func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs [][]byte, pngNames []string, modelTexName map[string]string) ([]types.BedrockModel, []string, error) {
+func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs [][]byte, pngNames []string, modelTexName map[string]string) ([]types.BedrockModel, []string) {
 	orderMap, pngNameMap := buildOrderAndPngIndex(modelOrder, pngNames)
 	sortGeoFilesMainFirst(geoFiles, orderMap, modelOrder)
 
@@ -1456,16 +1480,18 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 		texNames = append(texNames, tn)
 		comps = append(comps, *g)
 	}
-	return comps, texNames, nil
+	return comps, texNames
 }
 
 // buildOrderAndPngIndex 构建 modelOrder 排序索引和 pngNames 名称索引。
-// orderMap：model 的 slash 路径 → 在 modelOrder 中的序号（用于稳定排序）
+// orderMap：model 的 slash 路径 → 在 modelOrder 中的序号（用于稳定排序）；
+// 键统一小写（对齐合并版 sortByModelOrder 双侧 ToLower 口径）：Windows 工具
+// 产出的混合大小写条目名未归一化会让声明序静默失效退化为字典序（2026-08-26 审查修复）。
 // pngNameMap：纹理名（小写 basename 去扩展名）→ pngs 数组索引
 func buildOrderAndPngIndex(modelOrder, pngNames []string) (map[string]int, map[string]int) {
 	orderMap := make(map[string]int, len(modelOrder))
 	for i, p := range modelOrder {
-		orderMap[filepath.ToSlash(p)] = i
+		orderMap[strings.ToLower(filepath.ToSlash(p))] = i
 	}
 	pngNameMap := make(map[string]int, len(pngNames))
 	for i, n := range pngNames {
@@ -1485,8 +1511,8 @@ func sortGeoFilesMainFirst(geoFiles []geoEntry, orderMap map[string]int, modelOr
 			return mi
 		}
 		if len(modelOrder) > 0 {
-			ai, oki := orderMap[filepath.ToSlash(geoFiles[i].name)]
-			aj, okj := orderMap[filepath.ToSlash(geoFiles[j].name)]
+			ai, oki := orderMap[strings.ToLower(filepath.ToSlash(geoFiles[i].name))]
+			aj, okj := orderMap[strings.ToLower(filepath.ToSlash(geoFiles[j].name))]
 			if oki && okj {
 				return ai < aj
 			}
@@ -1496,6 +1522,12 @@ func sortGeoFilesMainFirst(geoFiles []geoEntry, orderMap map[string]int, modelOr
 		}
 		return geoFiles[i].name < geoFiles[j].name
 	})
+}
+
+// trimTexExt 去纹理扩展名（.png/.jpg，区分大小写后缀原样剥离）。
+// 全文多处「basename 化 + 去扩展」链的公共尾原子；是否 ToLower/basename 由调用点自定。
+func trimTexExt(s string) string {
+	return strings.TrimSuffix(strings.TrimSuffix(s, ".png"), ".jpg")
 }
 
 // extractCompName 从 geoEntry 路径提取组件名（去目录、去 .geo.json/.json 扩展名）。
@@ -1537,12 +1569,19 @@ func resolveComponentTexName(compName, entryName string, modelTexName map[string
 		return compName
 	}
 	// 前缀匹配兜底：maid_model 多合一女仆包纹理名带 _1/_2/_3 后缀
-	// （asuma_toki → asuma_toki_1），取首张前缀命中的纹理
+	// （asuma_toki → asuma_toki_1）。候选收集后按字典序取最小——map 迭代序
+	// 随机，直接 for-range 首个命中会让同一输入不同运行绑到不同纹理
+	// （确定性修复，与 parse.go geometry.* 键选取同口径）
 	compLower := strings.ToLower(compName)
+	var hits []string
 	for pn := range pngNameMap {
 		if strings.HasPrefix(pn, compLower+"_") || strings.HasPrefix(pn, compLower+"-") {
-			return pn
+			hits = append(hits, pn)
 		}
+	}
+	if len(hits) > 0 {
+		sort.Strings(hits)
+		return hits[0]
 	}
 	return ""
 }
@@ -1604,7 +1643,8 @@ func archiveLogTag(sevenZip bool) string {
 }
 
 // parseModelFromArchive 单模型合并解析统一实现（zip/7z）：open + parseModelFromEntries。
-// ParseFromZip 返回 anims（= pngNames），ParseFrom7z 丢弃——本收敛只消 open 双写，签名各自不变。
+// 返回 (geo, pngs, animJSONs, 过滤后 geoFiles)；ParseFromZip 消费前三者，
+// ParseFromZipEntry 复用第 4 位 geoFiles 做 subPath 匹配——签名各自不变。
 func parseModelFromArchive(data []byte, size int64, sevenZip bool) (*types.BedrockModel, [][]byte, []string, []geoEntry) {
 	r, err := openArchiveBytes(data, size, sevenZip)
 	if err != nil {
