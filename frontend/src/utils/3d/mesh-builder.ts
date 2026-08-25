@@ -101,6 +101,50 @@ export function addMeshToBoneGroup(
           ...MATERIAL_OPTS,
         });
 
+  // 方案 E：blend 双 pass——BackSide 写深度 + FrontSide alpha 混合。
+  // 根除"部分方块不可见"：blend mesh 正背面排序错误导致帧间闪烁。
+  // 双 pass 利用深度缓冲自动处理正背面遮挡：
+  //   Pass 1 (renderOrder=1)：BackSide + depthWrite=true，背面写入深度
+  //   Pass 2 (renderOrder=2)：FrontSide + depthWrite=false，正面混合
+  //   正面 pass 的深度测试自动剔除被背面遮挡的像素 → 正背面排序正确
+  // opaque/cutout 保持单 mesh（depthWrite=true，深度测试自动处理遮挡）。
+  if (alphaMode === "blend" && mt) {
+    // Pass 1: BackSide depth pre-pass
+    const depthGeo = geo.clone();
+    const depthMat = new THREE.MeshBasicMaterial({
+      map: mt,
+      side: THREE.BackSide,
+      transparent: true,
+      depthWrite: true,
+      alphaTest: 0,
+    });
+    const depthMesh = new THREE.Mesh(depthGeo, depthMat);
+    depthMesh.frustumCulled = false;
+    depthMesh.renderOrder = 1;
+    depthMesh.position.set(
+      md.localPosition?.[0] ?? 0,
+      md.localPosition?.[1] ?? 0,
+      md.localPosition?.[2] ?? 0,
+    );
+    applyRotationIfNonIdentity(depthMesh, md.localRotation);
+    bg.add(depthMesh);
+
+    // Pass 2: FrontSide blend pass（原 mat 已设 depthWrite=false）
+    const blendMat = mat.clone();
+    blendMat.side = THREE.FrontSide;
+    const blendMesh = new THREE.Mesh(geo, blendMat);
+    blendMesh.frustumCulled = false;
+    blendMesh.renderOrder = 2;
+    blendMesh.position.set(
+      md.localPosition?.[0] ?? 0,
+      md.localPosition?.[1] ?? 0,
+      md.localPosition?.[2] ?? 0,
+    );
+    applyRotationIfNonIdentity(blendMesh, md.localRotation);
+    bg.add(blendMesh);
+    return;
+  }
+
   const mesh = new THREE.Mesh(geo, mat);
   // ADR-098 副作用修正：Three.js 默认 mesh 级 `frustumCulled` 常开且我们的
   // `ysm_3d_frustumCull` 开关关不到它。骨骼旋转时脸部等扁平小包围球被内置

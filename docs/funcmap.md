@@ -14,7 +14,7 @@
 | Go·下载 | 1 | 17 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 14 |
-| Go·文件系统 | 10 | 18 |
+| Go·文件系统 | 10 | 19 |
 | Go·几何 | 2 | 10 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 10 |
@@ -48,7 +48,7 @@
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **471** | **2028** |
+| **合计** | **471** | **2029** |
 
 ## Go·头像
 
@@ -221,8 +221,9 @@
 | `CleanEmptyDirs()` | `go/fsutil/walk:96` | CleanEmptyDirs 递归删除空子目录，返回删除数 |
 | `IsRecycleDir()` | `go/fsutil/walk:112` | IsRecycleDir 判断路径是否指向 .recycle 回收站目录（大小写不敏感，ADR-044 策略 A 统一口径）—— dedup / scanner / sync 的回 |
 | `IsResourcePackFolder()` | `go/fsutil/walk:120` | IsResourcePackFolder 检查目录是否为资源包文件夹（内含 pack.mcmeta）。 |
-| `ReadLimitedEntry()` | `go/fsutil/write:58` | ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）—— 原 `io.ReadAll( |
-| `WriteFileAtomic()` | `go/fsutil/write:78` | WriteFileAtomic 临时文件 + rename 原子落地目标文件。 |
+| `ReadLimitedEntry()` | `go/fsutil/write:59` | ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）—— 原 `io.ReadAll( |
+| `WriteFileAtomic()` | `go/fsutil/write:79` | WriteFileAtomic 临时文件 + rename 原子落地目标文件。 |
+| `SHA256File()` | `go/fsutil/write:121` | SHA256File 计算文件内容的 SHA256 哈希，返回十六进制字符串。 |
 
 ## Go·几何
 
