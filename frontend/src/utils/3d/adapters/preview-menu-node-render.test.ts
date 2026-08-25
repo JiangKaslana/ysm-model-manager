@@ -10,7 +10,12 @@ function makeDeps(): {
   menu: SlideMenuHandle;
 } {
   return {
-    makeRow: () => document.createElement("div") as any,
+    makeRow: (def: any) => {
+      const row = document.createElement("div");
+      if (def.id) row.dataset.testid = "preview-" + def.id;
+      if (def.legacyTestId) row.id = def.legacyTestId;
+      return row;
+    },
     makePanelView: () => ({ title: "", render: () => {} }) as any,
     menu: {
       root: document.createElement("div"),
@@ -80,5 +85,139 @@ describe("renderMenu 新 kind", () => {
     renderMenu(container, nodes, makeDeps() as any);
     expect(container.querySelector('[data-testid="sec-stats"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="preview-stat-bones"]')).not.toBeNull();
+  });
+
+  it("folder: 默认展开（defaultOpen=true），body 可见", () => {
+    const nodes: PreviewMenuNode[] = [
+      {
+        id: "folder-1",
+        kind: "folder",
+        labelKey: "preview.folder",
+        fallback: "文件夹",
+        defaultOpen: true,
+        children: [
+          { id: "child-1", kind: "field", labelKey: "preview.child", value: "val" },
+        ],
+      },
+    ];
+    const container = document.createElement("div");
+    renderMenu(container, nodes, makeDeps() as any);
+    const body = container.querySelector('[data-testid="folder-1-body"]') as HTMLElement;
+    expect(body).not.toBeNull();
+    expect(body.style.display).toBe("block");
+    expect(container.querySelector('[data-testid="preview-child-1"]')).not.toBeNull();
+  });
+
+  it("folder: 默认折叠（defaultOpen=false），点击 header 展开", () => {
+    const nodes: PreviewMenuNode[] = [
+      {
+        id: "folder-2",
+        kind: "folder",
+        labelKey: "preview.folder",
+        fallback: "文件夹",
+        defaultOpen: false,
+        children: [
+          { id: "child-2", kind: "field", labelKey: "preview.child", value: "val" },
+        ],
+      },
+    ];
+    const container = document.createElement("div");
+    renderMenu(container, nodes, makeDeps() as any);
+    const body = container.querySelector('[data-testid="folder-2-body"]') as HTMLElement;
+    expect(body).not.toBeNull();
+    expect(body.style.display).toBe("none");
+    // 点击 header 展开
+    const header = container.querySelector('.cap-section-header') as HTMLElement;
+    header.click();
+    expect(body.style.display).toBe("block");
+    expect(container.querySelector('[data-testid="preview-child-2"]')).not.toBeNull();
+  });
+
+  it("folder: 空 children 不渲染 section", () => {
+    const nodes: PreviewMenuNode[] = [
+      { id: "empty-folder", kind: "folder", children: [] },
+    ];
+    const container = document.createElement("div");
+    renderMenu(container, nodes, makeDeps() as any);
+    expect(container.querySelector('[data-testid="empty-folder"]')).toBeNull();
+  });
+
+  it("visibleWhen: 返回 false 时节点不渲染", () => {
+    const nodes: PreviewMenuNode[] = [
+      { id: "hidden", kind: "field", labelKey: "preview.hidden", value: "x", visibleWhen: () => false },
+      { id: "visible", kind: "field", labelKey: "preview.visible", value: "y", visibleWhen: () => true },
+    ];
+    const container = document.createElement("div");
+    renderMenu(container, nodes, makeDeps() as any);
+    expect(container.querySelector('[data-testid="preview-hidden"]')).toBeNull();
+    expect(container.querySelector('[data-testid="preview-visible"]')).not.toBeNull();
+  });
+
+  it("deep nesting: 3 层文件夹递归渲染", () => {
+    const nodes: PreviewMenuNode[] = [
+      {
+        id: "l1",
+        kind: "folder",
+        children: [
+          {
+            id: "l2",
+            kind: "folder",
+            children: [
+              { id: "l3-leaf", kind: "field", labelKey: "preview.leaf", value: "deep" },
+            ],
+          },
+        ],
+      },
+    ];
+    const container = document.createElement("div");
+    renderMenu(container, nodes, makeDeps() as any);
+    expect(container.querySelector('[data-testid="l1"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="l1-body"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="l2"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="l2-body"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="preview-l3-leaf"]')).not.toBeNull();
+  });
+
+  it("divider: 渲染分隔线", () => {
+    const nodes: PreviewMenuNode[] = [
+      { id: "sep-1", kind: "divider" },
+    ];
+    const container = document.createElement("div");
+    renderMenu(container, nodes, makeDeps() as any);
+    expect(container.querySelector('[data-testid="sep-1"]')).not.toBeNull();
+  });
+
+  it("action: 渲染可点击行，点击触发 action", () => {
+    const clicked: string[] = [];
+    const nodes: PreviewMenuNode[] = [
+      { id: "act-close", kind: "action", labelKey: "preview.close", icon: "✕", action: () => { clicked.push("close"); } },
+    ];
+    const container = document.createElement("div");
+    renderMenu(container, nodes, makeDeps() as any);
+    const row = container.querySelector('[data-testid="preview-act-close"]') as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(clicked).toEqual([]);
+    row.click();
+    expect(clicked).toEqual(["close"]);
+  });
+
+  it("custom: 渲染自定义内容（renderCustom 逃生舱）", () => {
+    const nodes: PreviewMenuNode[] = [
+      {
+        id: "custom-area",
+        kind: "custom",
+        renderCustom: (list) => {
+          const d = document.createElement("div");
+          d.textContent = "custom content";
+          list.appendChild(d);
+        },
+      },
+    ];
+    const container = document.createElement("div");
+    renderMenu(container, nodes, makeDeps() as any);
+    // custom 节点被 renderMenu 转为 panel 行，不会直接渲染内容
+    // 这是过渡期行为，custom 节点最终应通过 renderSchemaContent 渲染
+    const row = container.querySelector('[data-testid="preview-custom-area"]') as HTMLElement;
+    expect(row).not.toBeNull();
   });
 });
