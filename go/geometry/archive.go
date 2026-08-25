@@ -272,16 +272,40 @@ type collectedArchive struct {
 }
 
 func collectArchiveFiles(entries []container.Entry) collectedArchive {
-	var modelOrder, texOrder []string
-	var geoFiles []geoEntry
-	var pngs [][]byte
-	var pngNames, animJSONs []string
 	// ysm.json 统一解析（结构解码共享；口径后处理留在本函数，清单版：player.texture 去扩展名）
 	md := parseYsmArchive(entries, "[geometry]")
 
-	// texOrder：player.texture 先、projectiles/vehicles/arrow 后。
-	// uv 对象剥反斜杠、裸字符串不剥（复刻原内联不对称）；先小写再去 .png/.jpg 扩展名。
-	for _, t := range md.PlayerTexs {
+	texOrder := buildTexOrderFromPlayerTexs(md.PlayerTexs)
+	texOrder = appendUniqueProjTexs(texOrder, md.ProjModels)
+
+	// modelOrder：player 模型先、投射物模型后（与 texOrder 同序，texIdxMap 位置绑定不错位）
+	modelOrder := append([]string(nil), md.ModelOrder...)
+	for _, pm := range md.ProjModels {
+		if pm.model != "" {
+			modelOrder = append(modelOrder, pm.model)
+		}
+	}
+
+	maidNs := detectMaidNs(entries)
+	geoFiles, animJSONs := collectGeoAnimEntries(entries, maidNs)
+	pngs, pngNames := collectPngEntries(entries, maidNs)
+
+	return collectedArchive{
+		modelOrder:   modelOrder,
+		texOrder:     texOrder,
+		geoFiles:     geoFiles,
+		pngs:         pngs,
+		pngNames:     pngNames,
+		animJSONs:    animJSONs,
+		modelTexName: md.ModelTexName,
+	}
+}
+
+// buildTexOrderFromPlayerTexs 从 player.texture 声明构建 texOrder 前段。
+// uv 对象剥反斜杠、裸字符串不剥（复刻原内联不对称）；先小写再去 .png/.jpg 扩展名。
+func buildTexOrderFromPlayerTexs(playerTexs []playerTex) []string {
+	texOrder := make([]string, 0, len(playerTexs))
+	for _, t := range playerTexs {
 		tn := t.path
 		if idx := strings.LastIndex(tn, "/"); idx >= 0 {
 			tn = tn[idx+1:]
@@ -294,13 +318,18 @@ func collectArchiveFiles(entries []container.Entry) collectedArchive {
 		tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
 		texOrder = append(texOrder, tn)
 	}
-	for _, pm := range md.ProjModels {
+	return texOrder
+}
+
+// appendUniqueProjTexs 把投射物/载具声明的纹理去重追加到 texOrder。
+// 去重原因：vehicles 段 horse+mule 都指向 foxcar.png，重复追加会导致后续
+// 纹理 texSlot 偏移（minecart 采样到 boat.png）。
+func appendUniqueProjTexs(texOrder []string, projModels []projEntry) []string {
+	for _, pm := range projModels {
 		if pm.texName == "" {
 			continue
 		}
 		tn := texBasenameNoExt(pm.texName)
-		// 去重：vehicles 段 horse+mule 都指向 foxcar.png，
-		// 重复追加会导致后续纹理 texSlot 偏移（minecart 采样到 boat.png）
 		alreadyIn := false
 		for _, ex := range texOrder {
 			if ex == tn {
@@ -312,100 +341,104 @@ func collectArchiveFiles(entries []container.Entry) collectedArchive {
 			texOrder = append(texOrder, tn)
 		}
 	}
+	return texOrder
+}
 
-	// modelOrder：player 模型先、投射物模型后（与 texOrder 同序，texIdxMap 位置绑定不错位）
-	modelOrder = append(modelOrder, md.ModelOrder...)
-	for _, pm := range md.ProjModels {
-		if pm.model != "" {
-			modelOrder = append(modelOrder, pm.model)
-		}
-	}
-
-	// maid-model 命名空间检测（与 parseModelFromEntries 同口径）
-	var maidNs string
+// detectMaidNs 扫描首个 maid_model.json 所在目录作为命名空间前缀（含尾部 /）。
+// 与 parseModelFromEntries 同口径；无匹配时返回空串。
+func detectMaidNs(entries []container.Entry) string {
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, "/maid_model.json") {
 			parts := strings.Split(low, "/")
 			if len(parts) >= 3 {
-				maidNs = strings.Join(parts[:len(parts)-1], "/") + "/"
+				return strings.Join(parts[:len(parts)-1], "/") + "/"
 			}
 			break
 		}
 	}
+	return ""
+}
 
+// collectGeoAnimEntries 遍历 entries，收集 geometry JSON（geoFiles）和
+// animation/controller JSON（animJSONs）。排除 ysm.json 入口、非 maidNs 的文件、
+// maid_model/chair/sound 配置 JSON。
+func collectGeoAnimEntries(entries []container.Entry, maidNs string) ([]geoEntry, []string) {
+	var geoFiles []geoEntry
+	var animJSONs []string
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
-		if strings.HasSuffix(low, ".json") && !e.IsDir() {
-			if types.IsYsmEntryJSON(filepath.Base(e.Name())) {
+		if !strings.HasSuffix(low, ".json") || e.IsDir() {
+			continue
+		}
+		if types.IsYsmEntryJSON(filepath.Base(e.Name())) {
+			continue
+		}
+		// maid-model 命名空间过滤：只处理首个 namespace 的 entity JSON
+		if maidNs != "" {
+			if !strings.HasPrefix(low, maidNs) || strings.HasSuffix(low, "maid_model.json") || strings.HasSuffix(low, "maid_chair.json") || strings.HasSuffix(low, "maid_sound.json") {
 				continue
 			}
-			// maid-model 命名空间过滤：只处理首个 namespace 的 entity JSON
-			if maidNs != "" {
-				if !strings.HasPrefix(low, maidNs) || strings.HasSuffix(low, "maid_model.json") || strings.HasSuffix(low, "maid_chair.json") || strings.HasSuffix(low, "maid_sound.json") {
-					continue
-				}
-			}
-			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
-				rc, err := e.Open()
-				if err != nil {
-					continue
-				}
-				// 原 io.ReadAll(io.LimitReader(rc, maxExtractSize))
-				// 无 +1 探测、丢弃错误——恰 50MB 的动画 JSON 被截断后静默下发（ADR-033
-				// 陷阱在动画路径存活，与文件头注释 24-28 行声称已修复矛盾）；改走
-				// fsutil.ReadLimitedEntry（+1 探测，超限返回 nil）
-				// ReadLimitedEntry 内部已 Close，删调用侧多余 rc.Close()
-				buf := fsutil.ReadLimitedEntry(rc, maxExtractSize)
-				if len(buf) > 10 {
-					animJSONs = append(animJSONs, string(buf))
-				}
-				continue
-			}
+		}
+		if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
 			rc, err := e.Open()
 			if err != nil {
 				continue
 			}
-			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-			// 注意：不排除 arm（组件版需要；合并版由调用方 filterArmModels 过滤）
-			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
+			// ReadLimitedEntry 内部已 Close；+1 探测，超限返回 nil（ADR-033）
+			buf := fsutil.ReadLimitedEntry(rc, maxExtractSize)
+			if len(buf) > 10 {
+				animJSONs = append(animJSONs, string(buf))
+			}
+			continue
 		}
-		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") && !strings.Contains(low, "gui/") {
-			// maid-model 命名空间过滤：只收集首个 namespace 的纹理
-			if maidNs != "" && !strings.HasPrefix(low, maidNs) {
-				continue
-			}
-			rc, err := e.Open()
-			if err != nil {
-				continue
-			}
-			pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-			// 与 .ysm 解压路径口径对齐：不按尺寸过滤小纹理（64×64 合法贴图可 <4KB），
-			// 头像/预览图仅由 avatar/ 路径与基名前缀排除
-			if len(pngData) > 0 {
-				name := e.Name()
-				if idx := strings.LastIndex(name, "/"); idx >= 0 {
-					name = name[idx+1:]
-				}
-				if idx := strings.LastIndex(name, "\\"); idx >= 0 {
-					name = name[idx+1:]
-				}
-				name = strings.TrimSuffix(name, ".png")
-				name = strings.TrimSuffix(name, ".jpg")
-				pngNames = append(pngNames, name)
-				pngs = append(pngs, pngData)
-			}
+		rc, err := e.Open()
+		if err != nil {
+			continue
 		}
+		buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
+		// 不排除 arm（组件版需要；合并版由调用方 filterArmModels 过滤）
+		geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
 	}
-	return collectedArchive{
-		modelOrder:   modelOrder,
-		texOrder:     texOrder,
-		geoFiles:     geoFiles,
-		pngs:         pngs,
-		pngNames:     pngNames,
-		animJSONs:    animJSONs,
-		modelTexName: md.ModelTexName,
+	return geoFiles, animJSONs
+}
+
+// collectPngEntries 遍历 entries，收集非 avatar/ 非 gui/ 的 png/jpg 纹理。
+// 输出按 pngs[idx] ↔ pngNames[idx] 对齐；文件名已 basename 化并去扩展名。
+func collectPngEntries(entries []container.Entry, maidNs string) ([][]byte, []string) {
+	var pngs [][]byte
+	var pngNames []string
+	for _, e := range entries {
+		low := strings.ToLower(e.Name())
+		if !((strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") && !strings.Contains(low, "gui/")) {
+			continue
+		}
+		// maid-model 命名空间过滤：只收集首个 namespace 的纹理
+		if maidNs != "" && !strings.HasPrefix(low, maidNs) {
+			continue
+		}
+		rc, err := e.Open()
+		if err != nil {
+			continue
+		}
+		pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
+		// 与 .ysm 解压路径口径对齐：不按尺寸过滤小纹理（64×64 合法贴图可 <4KB），
+		// 头像/预览图仅由 avatar/ 路径与基名前缀排除
+		if len(pngData) == 0 {
+			continue
+		}
+		name := e.Name()
+		if idx := strings.LastIndex(name, "/"); idx >= 0 {
+			name = name[idx+1:]
+		}
+		if idx := strings.LastIndex(name, "\\"); idx >= 0 {
+			name = name[idx+1:]
+		}
+		name = strings.TrimSuffix(strings.TrimSuffix(name, ".png"), ".jpg")
+		pngNames = append(pngNames, name)
+		pngs = append(pngs, pngData)
 	}
+	return pngs, pngNames
 }
 
 // maidManifestItem 对应 L0 maid_model.json model[] / model_list[] 的单条
@@ -419,91 +452,112 @@ type maidManifestItem struct {
 	ModelID string `json:"model_id"` // TLM 标准："namespace:name"（形式 B）
 }
 
+// maidNsCandidate 是单个 maid_model.json 解析后的候选结果
+type maidNsCandidate struct {
+	ns       string
+	manifest []maidManifestItem
+	count    int
+}
+
+// maidGroupWrapper 对应 maid_model.json 中 pack/chair/decor 分组的两种清单格式
+type maidGroupWrapper struct {
+	Model     []maidManifestItem `json:"model"`
+	ModelList []maidManifestItem `json:"model_list"`
+}
+
+// maidManifestRaw 是 maid_model.json 的完整解析结构
+// TLM 真实格式：{pack_name, pack:{model_list:[...]}, chair:{model_list:[...]}}
+// 自定义简化格式：{model:[...]} 或 {model_list:[...]}
+type maidManifestRaw struct {
+	Model     []maidManifestItem `json:"model"`
+	ModelList []maidManifestItem `json:"model_list"`
+	Pack      maidGroupWrapper   `json:"pack"`
+	Chair     maidGroupWrapper   `json:"chair"`
+	Decor     maidGroupWrapper   `json:"decor"`
+}
+
 // collectMaidManifest 遍历所有 maid_model.json，选"清单最长者"为真正的命名空间。
 // 从 parseModelFromEntries 的 L0 清单收集子域收编（只搬逻辑、不改行为），
 // 返回命名空间前缀（含尾部 /）与清单；无 maid_model.json 时 maidNs 为空、manifest 为 nil。
 func collectMaidManifest(entries []container.Entry, logPrefix string) (string, []maidManifestItem) {
-	// ===== 1. 遍历所有 maid_model.json，选"清单最长者"为真正的命名空间 =====
-	type maidNsCandidate struct {
-		ns       string
-		manifest []maidManifestItem
-		count    int
-	}
 	var candidates []maidNsCandidate
-
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, "/maid_model.json") {
-			parts := strings.Split(low, "/")
-			if len(parts) < 3 {
-				continue
+			if cand, ok := parseMaidModelJSON(e, low); ok {
+				candidates = append(candidates, cand)
 			}
-			ns := strings.Join(parts[:len(parts)-1], "/") + "/"
-			rc, err := e.Open()
-			if err != nil {
-				continue
-			}
-			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-			// 解析层级：顶层 / pack / chair / decor 四处都可能含 model/model_list，
-			// 分别收集、各自算条目数，取总和最大的那个作为此命名空间的清单来源。
-			//   TLM 真实格式：{pack_name, pack:{model_list:[...]}, chair:{model_list:[...]}}
-			//   自定义简化格式：{model:[...]} 或 {model_list:[...]}
-			type groupWrapper struct {
-				Model     []maidManifestItem `json:"model"`
-				ModelList []maidManifestItem `json:"model_list"`
-			}
-			var raw struct {
-				Model     []maidManifestItem `json:"model"`
-				ModelList []maidManifestItem `json:"model_list"`
-				Pack      groupWrapper       `json:"pack"`
-				Chair     groupWrapper       `json:"chair"`
-				Decor     groupWrapper       `json:"decor"`
-			}
-			if json.Unmarshal(buf, &raw) != nil {
-				continue
-			}
-			pick := func(g groupWrapper) []maidManifestItem {
-				if len(g.Model) >= len(g.ModelList) {
-					return g.Model
-				}
-				return g.ModelList
-			}
-			groups := [][]maidManifestItem{
-				pick(groupWrapper{Model: raw.Model, ModelList: raw.ModelList}),
-				pick(raw.Pack),
-				pick(raw.Chair),
-				pick(raw.Decor),
-			}
-			bestGroup := groups[0]
-			for _, g := range groups[1:] {
-				if len(g) > len(bestGroup) {
-					bestGroup = g
-				}
-			}
-			candidates = append(candidates, maidNsCandidate{
-				ns:       ns,
-				manifest: bestGroup,
-				count:    len(bestGroup),
-			})
 		}
 	}
-
 	var maidNs string
 	var maidManifest []maidManifestItem // 非 nil 且 len>0 表示 L0 生效
 	if len(candidates) > 0 {
-		// 启发式：条目数最长者 = 主包清单
-		best := candidates[0]
-		for _, c := range candidates[1:] {
-			if c.count > best.count {
-				best = c
-			}
-		}
+		best := selectBestMaidCandidate(candidates)
 		maidNs = best.ns
 		maidManifest = best.manifest
 		log.Printf("%s maid-model 命名空间: %s（L0 清单 %d 条 / 候选共 %d 个）",
 			logPrefix, maidNs, len(maidManifest), len(candidates))
 	}
 	return maidNs, maidManifest
+}
+
+// parseMaidModelJSON 解析单个 maid_model.json 条目为候选。
+// low 是已转小写的 e.Name()，用于拆路径取命名空间。
+// 解析层级：顶层 / pack / chair / decor 四处都可能含 model/model_list，
+// 分别收集，取条目数最大的那个作为此命名空间的清单来源。
+func parseMaidModelJSON(e container.Entry, low string) (maidNsCandidate, bool) {
+	parts := strings.Split(low, "/")
+	if len(parts) < 3 {
+		return maidNsCandidate{}, false
+	}
+	ns := strings.Join(parts[:len(parts)-1], "/") + "/"
+	rc, err := e.Open()
+	if err != nil {
+		return maidNsCandidate{}, false
+	}
+	buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
+	var raw maidManifestRaw
+	if json.Unmarshal(buf, &raw) != nil {
+		return maidNsCandidate{}, false
+	}
+	groups := [][]maidManifestItem{
+		pickBestMaidGroup(maidGroupWrapper{Model: raw.Model, ModelList: raw.ModelList}),
+		pickBestMaidGroup(raw.Pack),
+		pickBestMaidGroup(raw.Chair),
+		pickBestMaidGroup(raw.Decor),
+	}
+	bestGroup := groups[0]
+	for _, g := range groups[1:] {
+		if len(g) > len(bestGroup) {
+			bestGroup = g
+		}
+	}
+	return maidNsCandidate{
+		ns:       ns,
+		manifest: bestGroup,
+		count:    len(bestGroup),
+	}, true
+}
+
+// pickBestMaidGroup 在同一分组的 model[] 与 model_list[] 两种格式中选条目更多者。
+// 两字段都空时返回 nil。
+func pickBestMaidGroup(g maidGroupWrapper) []maidManifestItem {
+	if len(g.Model) >= len(g.ModelList) {
+		return g.Model
+	}
+	return g.ModelList
+}
+
+// selectBestMaidCandidate 从候选中选"清单最长者"（启发式：条目数最长 = 主包清单）。
+// 候选空时返回零值。
+func selectBestMaidCandidate(candidates []maidNsCandidate) maidNsCandidate {
+	best := candidates[0]
+	for _, c := range candidates[1:] {
+		if c.count > best.count {
+			best = c
+		}
+	}
+	return best
 }
 
 // l0Resolved 是 L0 清单驱动解析的产物。覆盖判定不对称是现状红线：
@@ -1348,53 +1402,18 @@ func parseComponentsFromArchive(data []byte, size int64, sevenZip bool) ([]types
 	return models, texNames, nil
 }
 
-// buildComponents 组件化收集：main 优先排序 + TexSlot 全局化 + 独立解析。
-// 与 ParseFromZip 合并逻辑同源（collectArchiveFiles 共享收集），仅解析阶段不合并 bones、
-// texSlot 不按 texOrder 钳制（texArr 含全部组件纹理，texSlot = 成功组件序，连续无空洞）。
-// 返回 texNames（组件序纹理名，R1 契约校验用）：直接按组件 basename 查 modelTexName 映射，
-// 不再依赖 modelOrder/texOrder 索引对齐——消除 texOrder 去重后索引漂移（wine_fox 根因）。
 // buildComponents 组件化收集：每组件独立纹理（ADR-114 perComponent）。
 // cube.TexSlot = 0（每组件用自己的第 0 张），不再全局 texOrder 位置分配。
 // ComponentTextures[componentName] = [declaredTexBase64]，前端按组件名查纹理。
 func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs [][]byte, pngNames []string, modelTexName map[string]string) ([]types.BedrockModel, []string, error) {
-	orderMap := make(map[string]int, len(modelOrder))
-	for i, p := range modelOrder {
-		orderMap[filepath.ToSlash(p)] = i
-	}
-	// pngNameMap：纹理名（小写 basename 去扩展名）→ pngs 索引
-	pngNameMap := make(map[string]int, len(pngNames))
-	for i, n := range pngNames {
-		pngNameMap[strings.ToLower(n)] = i
-	}
-	// 排序：main 优先 + modelOrder 相对序；modelOrder 为空（ysm.json 无 player.model
-	// 声明或解析失败）时回退 IsMainModelName 优先 + 路径字典序——与 WASM 路径同口径（P2）。
-	sort.SliceStable(geoFiles, func(i, j int) bool {
-		mi := IsMainModelName(geoFiles[i].name)
-		mj := IsMainModelName(geoFiles[j].name)
-		if mi != mj {
-			return mi
-		}
-		if len(modelOrder) > 0 {
-			ai, oki := orderMap[filepath.ToSlash(geoFiles[i].name)]
-			aj, okj := orderMap[filepath.ToSlash(geoFiles[j].name)]
-			if oki && okj {
-				return ai < aj
-			}
-			if oki != okj {
-				return oki
-			}
-		}
-		return geoFiles[i].name < geoFiles[j].name
-	})
+	orderMap, pngNameMap := buildOrderAndPngIndex(modelOrder, pngNames)
+	sortGeoFilesMainFirst(geoFiles, orderMap, modelOrder)
+
 	var comps []types.BedrockModel
 	// texNames = texArr **期望序**（契约校验：前端 texArr 来自元数据，序 = texOrderNames
 	// 优先 + 其余按名；texNames[i] = texArr 第 i 个的期望名 = texOrder[i]，越界用 basename）。
 	// 注意：texNames 索引是 texArr 连续索引（与组件解析跳过无关——texArr 来自元数据，
 	// 不因组件跳过而收缩）；长度 = 成功组件数，契约比对 Math.min 截断，未解析组件槽位不比对。
-	// texSlot = 纹理槽（组件贴 texArr[texSlot]）：已声明组件用**声明序位置 j**
-	// （texArr 声明段 = texOrderNames 序）；未声明组件 = len(texOrder) + 按名段序号
-	// （组件序尾部未声明段按路径排序，与 texArr 按名段一致）。——P2 修复：
-	// 之前 texSlot=组件序会让 main 非首位时贴错纹理（如 model:["arm","main"] 时 main 贴 arm）。
 	texNames := make([]string, 0, len(geoFiles))
 	// ADR-114 perComponent：每组件独立纹理，cube.TexSlot=0（用自己的第 0 张）。
 	// texOrder 仅用于查"组件声明的纹理名"，不再作为全局槽位索引。
@@ -1405,68 +1424,19 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 		if g == nil || g.BoneCount == 0 {
 			continue
 		}
-		// 组件源模型名（去扩展名）：main/arm/arrow/minecart/boat/foxcar/trident
-		geoName := filepath.ToSlash(gf.name)
-		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
-			geoName = geoName[idx+1:]
-		}
-		compName := strings.TrimSuffix(strings.TrimSuffix(geoName, ".geo.json"), ".json")
+		compName := extractCompName(gf.name)
+		isArm := isArmModelName(gf.name)
 
 		// 查组件声明的纹理名：按 basename 直接查 modelTexName 映射，不再依赖 modelOrder 索引。
 		// 修复 wine_fox 根因：texOrder 去重后长度 < modelOrder，按索引查表会错位。
-		declaredTexName := ""
-		// arm 是第一人称手持视角的独立手臂几何（见 isArmModelName 注释的权威来源），
-		// 与 main 共用同一套 player.texture 皮肤。arm 不填 ComponentTextures、不查
-		// 声明纹理——前端走全局 texArr[textureIndex]，与 main 一起切皮肤。
-		isArm := isArmModelName(gf.name)
-		if !isArm {
-			if modelTexName != nil {
-				declaredTexName = modelTexName[filepath.ToSlash(gf.name)]
-			}
-			// fallback：按 compName 查（path 前缀可能被 strip，如 "models/foxcar.json" → 查不到，
-			// 此时用 basename）
-			if declaredTexName == "" && modelTexName != nil {
-				declaredTexName = modelTexName[compName]
-			}
-			// 未声明纹理的组件：同名 basename 纹理兜底（arm → arm.png；对齐 YSMViewer
-			// 每组件独立纹理口径——Go 端识别组件同名纹理，前端不再 fallback 全局贴错/灰。
-			// 三叉戟灰根因修复：投射物/子组件未声明纹理时 compTex 曾无条目）
-			// 前缀匹配兜底：maid_model 多合一女仆包（如 zhi_ban）纹理名带 _1/_2/_3 后缀
-			// （asuma_toki → asuma_toki_1），精确匹配失败时取首张前缀命中的纹理。
-			if declaredTexName == "" {
-				if _, ok := pngNameMap[compName]; ok {
-					declaredTexName = compName
-				} else {
-					compLower := strings.ToLower(compName)
-					for pn := range pngNameMap {
-						if strings.HasPrefix(pn, compLower+"_") || strings.HasPrefix(pn, compLower+"-") {
-							declaredTexName = pn
-							break
-						}
-					}
-				}
-			}
-		}
-
-		// 按声明的纹理名查 pngNameMap → pngs[idx] → base64
-		var texBase64 string
-		if declaredTexName != "" {
-			if idx, ok := pngNameMap[declaredTexName]; ok && idx < len(pngs) {
-				texBase64 = "data:image/png;base64," + base64.StdEncoding.EncodeToString(pngs[idx])
-			}
-		}
+		declaredTexName := resolveComponentTexName(compName, gf.name, modelTexName, pngNameMap, isArm)
+		texBase64 := encodeTextureBase64(declaredTexName, pngNameMap, pngs)
 
 		// 每组件 cube.TexSlot=0（perComponent，用自己的第 0 张纹理）
-		for bi := range g.Bones {
-			for ci := range g.Bones[bi].Cubes {
-				g.Bones[bi].Cubes[ci].CubeTexW = g.TexWidth
-				g.Bones[bi].Cubes[ci].CubeTexH = g.TexHeight
-				g.Bones[bi].Cubes[ci].TexSlot = 0
-			}
-		}
+		applyPerComponentTexSlot(g)
 
 		// 填 ComponentTextures[compName] = [texBase64]
-		// arm 不填（与 main 共用全局 texArr[0] 皮肤，见上 isArm 分支）
+		// arm 不填（与 main 共用全局 texArr[0] 皮肤，见 isArm 分支注释）
 		compTex := make(map[string][]string)
 		if texBase64 != "" && !isArm {
 			compTex[compName] = []string{texBase64}
@@ -1487,6 +1457,119 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 		comps = append(comps, *g)
 	}
 	return comps, texNames, nil
+}
+
+// buildOrderAndPngIndex 构建 modelOrder 排序索引和 pngNames 名称索引。
+// orderMap：model 的 slash 路径 → 在 modelOrder 中的序号（用于稳定排序）
+// pngNameMap：纹理名（小写 basename 去扩展名）→ pngs 数组索引
+func buildOrderAndPngIndex(modelOrder, pngNames []string) (map[string]int, map[string]int) {
+	orderMap := make(map[string]int, len(modelOrder))
+	for i, p := range modelOrder {
+		orderMap[filepath.ToSlash(p)] = i
+	}
+	pngNameMap := make(map[string]int, len(pngNames))
+	for i, n := range pngNames {
+		pngNameMap[strings.ToLower(n)] = i
+	}
+	return orderMap, pngNameMap
+}
+
+// sortGeoFilesMainFirst 对 geoFiles 做稳定排序：main 优先 + modelOrder 相对序；
+// modelOrder 为空（ysm.json 无 player.model 声明或解析失败）时回退
+// IsMainModelName 优先 + 路径字典序——与 WASM 路径同口径（P2）。
+func sortGeoFilesMainFirst(geoFiles []geoEntry, orderMap map[string]int, modelOrder []string) {
+	sort.SliceStable(geoFiles, func(i, j int) bool {
+		mi := IsMainModelName(geoFiles[i].name)
+		mj := IsMainModelName(geoFiles[j].name)
+		if mi != mj {
+			return mi
+		}
+		if len(modelOrder) > 0 {
+			ai, oki := orderMap[filepath.ToSlash(geoFiles[i].name)]
+			aj, okj := orderMap[filepath.ToSlash(geoFiles[j].name)]
+			if oki && okj {
+				return ai < aj
+			}
+			if oki != okj {
+				return oki
+			}
+		}
+		return geoFiles[i].name < geoFiles[j].name
+	})
+}
+
+// extractCompName 从 geoEntry 路径提取组件名（去目录、去 .geo.json/.json 扩展名）。
+// 例：models/entity/foxcar.geo.json → foxcar；arm.json → arm
+func extractCompName(entryName string) string {
+	geoName := filepath.ToSlash(entryName)
+	if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
+		geoName = geoName[idx+1:]
+	}
+	return strings.TrimSuffix(strings.TrimSuffix(geoName, ".geo.json"), ".json")
+}
+
+// resolveComponentTexName 解析组件声明的纹理名，返回可直接查 pngNameMap 的 key。
+// 四级 fallback（按优先级）：
+//  1. modelTexName[完整 slash 路径] — ysm.json 精确声明
+//  2. modelTexName[compName] — 路径前缀被 strip 时按 basename 兜底
+//  3. pngNameMap[compName] — 未声明时同名纹理兜底（对齐 YSMViewer 每组件独立纹理）
+//  4. pngNameMap 前缀匹配（_ / - 分隔）— maid_model 多合一包后缀 _1/_2/_3
+//
+// arm 组件直接返回空串（与 main 共用全局 player.texture，不走 perComponent 纹理）。
+// 三叉戟灰根因修复：投射物/子组件未声明纹理时 compTex 曾无条目——本函数第 3 级兜底补上。
+func resolveComponentTexName(compName, entryName string, modelTexName map[string]string, pngNameMap map[string]int, isArm bool) string {
+	if isArm {
+		return ""
+	}
+	declaredTexName := ""
+	if modelTexName != nil {
+		declaredTexName = modelTexName[filepath.ToSlash(entryName)]
+	}
+	// fallback：按 compName 查（path 前缀可能被 strip，如 "models/foxcar.json" → 查不到）
+	if declaredTexName == "" && modelTexName != nil {
+		declaredTexName = modelTexName[compName]
+	}
+	if declaredTexName != "" {
+		return declaredTexName
+	}
+	// 未声明纹理的组件：同名 basename 纹理兜底
+	if _, ok := pngNameMap[compName]; ok {
+		return compName
+	}
+	// 前缀匹配兜底：maid_model 多合一女仆包纹理名带 _1/_2/_3 后缀
+	// （asuma_toki → asuma_toki_1），取首张前缀命中的纹理
+	compLower := strings.ToLower(compName)
+	for pn := range pngNameMap {
+		if strings.HasPrefix(pn, compLower+"_") || strings.HasPrefix(pn, compLower+"-") {
+			return pn
+		}
+	}
+	return ""
+}
+
+// encodeTextureBase64 按声明的纹理名查 pngNameMap，找到即编码为 data URL。
+// 未命中或 declaredTexName 为空时返回空串。
+func encodeTextureBase64(declaredTexName string, pngNameMap map[string]int, pngs [][]byte) string {
+	if declaredTexName == "" {
+		return ""
+	}
+	idx, ok := pngNameMap[declaredTexName]
+	if !ok || idx >= len(pngs) {
+		return ""
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(pngs[idx])
+}
+
+// applyPerComponentTexSlot 把模型内所有 cube 的 TexSlot 置 0（ADR-114 perComponent：
+// 每组件用自己的第 0 张纹理），同时把 CubeTexW/CubeTexH 对齐模型级尺寸。
+func applyPerComponentTexSlot(g *types.BedrockModel) {
+	for bi := range g.Bones {
+		for ci := range g.Bones[bi].Cubes {
+			g.Bones[bi].Cubes[ci].CubeTexW = g.TexWidth
+			g.Bones[bi].Cubes[ci].CubeTexH = g.TexHeight
+			g.Bones[bi].Cubes[ci].TexSlot = 0
+		}
+	}
 }
 
 // ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构，
