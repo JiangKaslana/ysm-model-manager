@@ -76,7 +76,7 @@ export { renderCapControls };
 /** 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（ADR-085 S3） */
 export interface PreviewMenuHandle {
   dispose(): void;
-  /** 适配器注入声明式节点（内部转换为 PreviewMenuItemDef 兼容渲染链） */
+  /** 适配器注入声明式节点（直接存 PreviewMenuNode[]，方案 A 已统一） */
   setAdapterItems(items: PreviewMenuNode[]): void;
   openPanel(id: string): void;
   refreshDock(): void;
@@ -972,30 +972,6 @@ function fillCapOrFallback(
     return;
   }
   renderCapControls(list, cap.getMenuControls());
-}
-
-/** 灯光面板（ADR-081 L1 + 统一注册表）：从 light cap 的 getMenuControls() 自动渲染 */
-function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
-  const lightFromReg = sceneCapabilityRegistry.getById("light") as import("../caps/light-capability.ts").LightCapability | null;
-  const lightCap = lightFromReg ?? (() => {
-    // 注册表为空时回退到 ctx getter（测试场景）
-    const fromCtx = ctx.getLightCap();
-    if (fromCtx && "getMenuControls" in fromCtx) return fromCtx as unknown as import("../caps/light-capability.ts").LightCapability;
-    return null;
-  })();
-  fillCapOrFallback(list, lightCap, "preview.noLightCap", "\u8FDB\u5165 3D \u540E\u518D\u6253\u5F00\u706F\u5149\u9762\u677F");
-}
-
-/** 阴影面板：从注册表 shadow cap 的 getMenuControls() 渲染 */
-function fillShadow(list: HTMLElement, _ctx: PreviewMenuCtx): void {
-  const fromReg = sceneCapabilityRegistry.getById("shadow") as import("../caps/shadow-capability.ts").ShadowCapability | null;
-  fillCapOrFallback(list, fromReg, "preview.noShadowCap", "进入 3D 后再打开阴影面板");
-}
-
-/** 后处理面板：从注册表 postprocessing cap 的 getMenuControls() 渲染 */
-function fillPostprocessing(list: HTMLElement, _ctx: PreviewMenuCtx): void {
-  const fromReg = sceneCapabilityRegistry.getById("postprocessing") as import("../caps/postprocessing-capability.ts").PostprocessingCapability | null;
-  fillCapOrFallback(list, fromReg, "preview.noPostprocCap", "进入 3D 后再打开后处理面板");
 }
 
 /**
