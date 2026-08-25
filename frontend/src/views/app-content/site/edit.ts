@@ -20,174 +20,168 @@ export function bindEditEvents(state: SiteViewState, refreshView: () => void): C
     wsEditModeRef, site, creators, bus: busRef, ctx,
   } = state;
   void _esc; // esc 目前编辑块未直接用，保留接口对称
-  // ===== 事件监听清理注册表 =====
-  // 所有 addEventListener 通过此注册表记录，cleanup 时批量移除，防止事件泄漏
-  const _listeners: Array<{ el: Element; type: string; handler: EventListenerOrEventListenerObject }> = [];
-  const _on = (el: Element | null, type: string, handler: EventListenerOrEventListenerObject): void => {
-    if (!el) return;
-    el.addEventListener(type, handler);
-    _listeners.push({ el, type, handler });
-  };
-
 
   // ===== 编辑入口 =====
-  _on(searchResults.querySelector(".cr-edit-btn"), "click", () => { wsEditModeRef.v = true; refreshView(); });
-
-
-
+  searchResults.querySelector(".cr-edit-btn")?.addEventListener("click", () => {
+    wsEditModeRef.v = true;
+    refreshView();
+  });
 
   // ===== 拉取社区索引（creators + sites + github 仓库 + 资源类型）=====
-  const _fetchBtn = searchResults.querySelector(".cr-fetch-btn");
-  _on(_fetchBtn, "click", async () => { const btn = searchResults.querySelector(".cr-fetch-btn") as HTMLButtonElement; btn.textContent = "⏳"; btn.disabled = true; try { const App = await getApp(); const results = await Promise.all([ m.fetchCommunityCreators(m.DEFAULT_COMMUNITY_URL), m.fetchCommunitySites(), App.LoadGitHubRepos().catch(function () { return []; }), App.LoadResourceTypes().catch(function () { return "{}"; }), ]); const community = results[0], sitesData = results[1], gitHubRepos = results[2], resourceTypesRaw = results[3]; const logs: string[] = []; let changed = false;  if (community && community.length) { const r1 = m.mergeCommunityCreators(allCreators, community); await App.SaveWorkshopCreators(allCreators); if (r1.added || r1.updated) { logs.push( "创作者: +" + r1.added + " 补" + r1.updated, ); changed = true; } } if (sitesData && sitesData.length) { const r2 = m.mergeCommunitySites(allSites, sitesData); if (r2.added > 0) { await App.SaveWorkshopSites(allSites); logs.push("站点: +" + r2.added); changed = true; } } if (gitHubRepos && gitHubRepos.length) { logs.push("GitHub: " + gitHubRepos.length + " 仓库"); changed = true; } // resourceTypesRaw 是 JSON 字符串，解析后取 resourceTypes 数组 let resourceTypes: unknown[] = []; try { const parsed = JSON.parse(resourceTypesRaw || "{}") as { resourceTypes?: unknown[] }; resourceTypes = parsed.resourceTypes || []; } catch (e) { console.warn("[site-edit] parse resourceTypes:", e); } if (resourceTypes.length) { logs.push("类型: " + resourceTypes.length + " 种"); changed = true; }  if (changed) { busRef.emit("toast:show", { msg: "🌐 " + logs.join(" · "), duration: 4000, type: "success", }); refreshView(); } else { busRef.emit("toast:show", { msg: "🌐 已是最新配置", duration: 3000, type: "success", }); } } catch (e) { const err = e as Error; const errMsg = err.message === "NetworkOffline" ? "🌐 无网络连接，请检查网络后重试" : err.message === "NoIndex" ? "📭 社区索引文件不存在" : err.message === "RateLimited" ? "⏱️ GitHub API 频率限制，请稍后重试" : "🌐 " + friendlyError(e, "拉取失败"); busRef.emit("toast:show", { msg: errMsg, duration: 5000, type: "error", }); } finally { btn.textContent = "🌐 更新配置"; btn.disabled = false; } });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  searchResults
+    .querySelector(".cr-fetch-btn")
+    ?.addEventListener("click", async () => {
+      const btn = searchResults.querySelector(".cr-fetch-btn") as HTMLButtonElement;
+      btn.textContent = "⏳";
+      btn.disabled = true;
+      try {
+        const App = await getApp();
+        const results = await Promise.all([
+          m.fetchCommunityCreators(m.DEFAULT_COMMUNITY_URL),
+          m.fetchCommunitySites(),
+          App.LoadGitHubRepos().catch(function () {
+            return [];
+          }),
+          App.LoadResourceTypes().catch(function () {
+            return "{}";
+          }),
+        ]);
+        const community = results[0],
+          sitesData = results[1],
+          gitHubRepos = results[2],
+          resourceTypesRaw = results[3];
+        const logs: string[] = [];
+        let changed = false;
+
+        if (community && community.length) {
+          const r1 = m.mergeCommunityCreators(allCreators, community);
+          await App.SaveWorkshopCreators(allCreators);
+          if (r1.added || r1.updated) {
+            logs.push(
+              "创作者: +" + r1.added + " 补" + r1.updated,
+            );
+            changed = true;
+          }
+        }
+        if (sitesData && sitesData.length) {
+          const r2 = m.mergeCommunitySites(allSites, sitesData);
+          if (r2.added > 0) {
+            await App.SaveWorkshopSites(allSites);
+            logs.push("站点: +" + r2.added);
+            changed = true;
+          }
+        }
+        if (gitHubRepos && gitHubRepos.length) {
+          logs.push("GitHub: " + gitHubRepos.length + " 仓库");
+          changed = true;
+        }
+        // resourceTypesRaw 是 JSON 字符串，解析后取 resourceTypes 数组
+        let resourceTypes: unknown[] = [];
+        try {
+          const parsed = JSON.parse(resourceTypesRaw || "{}") as { resourceTypes?: unknown[] };
+          resourceTypes = parsed.resourceTypes || [];
+        } catch (e) { console.warn("[site-edit] parse resourceTypes:", e); }
+        if (resourceTypes.length) {
+          logs.push("类型: " + resourceTypes.length + " 种");
+          changed = true;
+        }
+
+        if (changed) {
+          busRef.emit("toast:show", {
+            msg: "🌐 " + logs.join(" · "),
+            duration: 4000,
+            type: "success",
+          });
+          refreshView();
+        } else {
+          busRef.emit("toast:show", {
+            msg: "🌐 已是最新配置",
+            duration: 3000,
+            type: "success",
+          });
+        }
+      } catch (e) {
+        const err = e as Error;
+        const errMsg = err.message === "NetworkOffline"
+          ? "🌐 无网络连接，请检查网络后重试"
+          : err.message === "NoIndex"
+            ? "📭 社区索引文件不存在"
+            : err.message === "RateLimited"
+              ? "⏱️ GitHub API 频率限制，请稍后重试"
+              : "🌐 " + friendlyError(e, "拉取失败");
+        busRef.emit("toast:show", {
+          msg: errMsg,
+          duration: 5000,
+          type: "error",
+        });
+      } finally {
+        btn.textContent = "🌐 更新配置";
+        btn.disabled = false;
+      }
+    });
 
   // ===== 取消 =====
-  const _cancelBtn = searchResults.querySelector(".cr-cancel-btn");
-  _on(_cancelBtn, "click", () => { wsEditModeRef.v = false; refreshView(); });
-
-
-
+  searchResults
+    .querySelector(".cr-cancel-btn")
+    ?.addEventListener("click", () => {
+      wsEditModeRef.v = false;
+      refreshView();
+    });
 
   // ===== 保存（创作者 + 搜索词）=====
-  const _saveBtn = searchResults.querySelector(".cr-save-btn");
-  _on(_saveBtn, "click", async () => { try { // 校验数据完整性 if (!site || !site.id) { busRef.emit("toast:show", { msg: "❌ 站点信息丢失", duration: 3000, type: "error", }); return; }  // 保存搜索词 — 按站点原子保存 if (allSites && site) { const { SaveWorkshopPresetsBySite } = await getApp(); const newPresets: WorkshopPresetSearch[] = []; searchResults .querySelectorAll( ".cr-edit-card[data-edit='preset'] input[data-fld='label']", ) .forEach((inp) => { const val = (inp as HTMLInputElement).value.trim(); // 原 JS 仅传 {label}，q 字段 Go 端 JSON 缺省兼容——类型上 cast 补齐 if (val) newPresets.push({ label: val } as WorkshopPresetSearch); }); await SaveWorkshopPresetsBySite(site.id, newPresets); site.presetSearches = newPresets; } // 保存创作者：先收集输入框值 syncAllEditInputs(); // 按站点保存 — 只传当前站点的创作者 const siteCreators = creators.filter( (cr) => cr.type && cr.type.split(";").includes(site.id), ); const { SaveWorkshopCreatorsBySite } = await getApp(); await SaveWorkshopCreatorsBySite(site.id, siteCreators); wsEditModeRef.v = false; busRef.emit("toast:show", { msg: "✅ 已保存", duration: 2000, type: "success", }); refreshView(); } catch (e) { busRef.emit("toast:show", { msg: "❌ " + friendlyError(e, "保存失败"), duration: 4000, type: "error", }); } });
+  searchResults
+    .querySelector(".cr-save-btn")
+    ?.addEventListener("click", async () => {
+      try {
+        // 校验数据完整性
+        if (!site || !site.id) {
+          busRef.emit("toast:show", {
+            msg: "❌ 站点信息丢失",
+            duration: 3000,
+            type: "error",
+          });
+          return;
+        }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        // 保存搜索词 — 按站点原子保存
+        if (allSites && site) {
+          const { SaveWorkshopPresetsBySite } = await getApp();
+          const newPresets: WorkshopPresetSearch[] = [];
+          searchResults
+            .querySelectorAll(
+              ".cr-edit-card[data-edit='preset'] input[data-fld='label']",
+            )
+            .forEach((inp) => {
+              const val = (inp as HTMLInputElement).value.trim();
+              // 原 JS 仅传 {label}，q 字段 Go 端 JSON 缺省兼容——类型上 cast 补齐
+              if (val) newPresets.push({ label: val } as WorkshopPresetSearch);
+            });
+          await SaveWorkshopPresetsBySite(site.id, newPresets);
+          site.presetSearches = newPresets;
+        }
+        // 保存创作者：先收集输入框值
+        syncAllEditInputs();
+        // 按站点保存 — 只传当前站点的创作者
+        const siteCreators = creators.filter(
+          (cr) => cr.type && cr.type.split(";").includes(site.id),
+        );
+        const { SaveWorkshopCreatorsBySite } = await getApp();
+        await SaveWorkshopCreatorsBySite(site.id, siteCreators);
+        wsEditModeRef.v = false;
+        busRef.emit("toast:show", {
+          msg: "✅ 已保存",
+          duration: 2000,
+          type: "success",
+        });
+        refreshView();
+      } catch (e) {
+        busRef.emit("toast:show", {
+          msg: "❌ " + friendlyError(e, "保存失败"),
+          duration: 4000,
+          type: "error",
+        });
+      }
+    });
 
   // ===== 行内编辑 =====
   // P2 修复（code_review 复核）：排除预设搜索词卡片——data-edit 属性在父卡片
@@ -196,33 +190,33 @@ export function bindEditEvents(state: SiteViewState, refreshView: () => void): C
   searchResults
     .querySelectorAll(".cr-edit-card:not([data-edit='preset']) [data-idx][data-fld]")
     .forEach((inp) => {
-    _on(inp, "input", () => { const idx = parseInt((inp as HTMLElement).dataset.idx || "-1", 10); const fld = (inp as HTMLElement).dataset.fld || ""; if (creators[idx]) { if (inp.tagName === "SELECT") { creators[idx][fld] = Array.from((inp as HTMLSelectElement).selectedOptions) .map((o) => o.value) .filter(Boolean) .join(";"); } else { creators[idx][fld] = (inp as HTMLInputElement).value.trim(); } } });
-
-
-
-
-
-
-
-
-
-
-
-
-
+    inp.addEventListener("input", () => {
+      const idx = parseInt((inp as HTMLElement).dataset.idx || "-1", 10);
+      const fld = (inp as HTMLElement).dataset.fld || "";
+      if (creators[idx]) {
+        if (inp.tagName === "SELECT") {
+          creators[idx][fld] = Array.from((inp as HTMLSelectElement).selectedOptions)
+            .map((o) => o.value)
+            .filter(Boolean)
+            .join(";");
+        } else {
+          creators[idx][fld] = (inp as HTMLInputElement).value.trim();
+        }
+      }
+    });
   });
 
   // ===== 删除创作者 =====
   searchResults.querySelectorAll(".cr-del").forEach((btn) => {
-    _on(btn, "click", () => { syncAllEditInputs(); const idx = parseInt((btn as HTMLElement).dataset.idx || "-1", 10); if (creators[idx]) { const realIdx = allCreators.indexOf(creators[idx]); if (realIdx >= 0) allCreators.splice(realIdx, 1); refreshView(); } });
-
-
-
-
-
-
-
-
+    btn.addEventListener("click", () => {
+      syncAllEditInputs();
+      const idx = parseInt((btn as HTMLElement).dataset.idx || "-1", 10);
+      if (creators[idx]) {
+        const realIdx = allCreators.indexOf(creators[idx]);
+        if (realIdx >= 0) allCreators.splice(realIdx, 1);
+        refreshView();
+      }
+    });
   });
 
   // ===== 创作者拖拽排序 — 仅拖拽柄触发 =====
@@ -242,61 +236,61 @@ export function bindEditEvents(state: SiteViewState, refreshView: () => void): C
       const handle = card.querySelector(".cr-drag-handle");
       if (!handle) return;
       // 点拖拽柄时暂时让卡片可拖拽
-      _on(handle, "pointerdown", () => { (card as HTMLElement).draggable = true; });
-
-
-      _on(card, "dragstart", (e: Event) => { const de = e as DragEvent; (card as HTMLElement).draggable = false; dragSrcIdx = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10); card.classList.add("cr-dragging"); de.dataTransfer!.effectAllowed = "move"; de.dataTransfer!.setData("text/plain", ""); });
-
-
-
-
-
-
-
-      _on(card, "dragend", () => { (card as HTMLElement).draggable = false; clearDragState(); });
-
-
-
-      _on(card, "dragover", (e: Event) => { e.preventDefault(); (e as DragEvent).dataTransfer!.dropEffect = "move"; });
-
-
-
-      _on(card, "dragenter", (e) => { e.preventDefault(); card.classList.add("cr-drag-target"); if (dragSrcIdx >= 0) { const tgt = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10); if (dragSrcIdx < tgt) { card.classList.add("cr-drag-before"); } else if (dragSrcIdx > tgt) { card.classList.add("cr-drag-after"); } } });
-
-
-
-
-
-
-
-
-
-
-
-      _on(card, "dragleave", () => { card.classList.remove("cr-drag-target", "cr-drag-before", "cr-drag-after"); });
-
-
-      _on(card, "drop", (e) => { e.preventDefault(); card.classList.remove("cr-drag-target"); const targetIdx = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10); if (dragSrcIdx < 0 || dragSrcIdx === targetIdx) return; syncAllEditInputs(); // P2 修复：用 realIdx 在 allCreators 全量数组上重排（对齐删除路径）—— // 原实现 `allCreators.length=0; push(...creators)` 会用按 site.id 过滤的子集 // 一次性清空其他站点的创作者（共享内存态污染） const src = creators[dragSrcIdx]; const realSrc = allCreators.indexOf(src); const realTgt = allCreators.indexOf(creators[targetIdx]); if (realSrc < 0 || realTgt < 0) { dragSrcIdx = -1; return; } // P2 修复（共享内存态污染）保留：在 allCreators 全量数组上重排 moveItem(allCreators, realSrc, realTgt); dragSrcIdx = -1; refreshView(); });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      handle.addEventListener("pointerdown", () => {
+        (card as HTMLElement).draggable = true;
+      });
+      card.addEventListener("dragstart", (e: Event) => {
+        const de = e as DragEvent;
+        (card as HTMLElement).draggable = false;
+        dragSrcIdx = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10);
+        card.classList.add("cr-dragging");
+        de.dataTransfer!.effectAllowed = "move";
+        de.dataTransfer!.setData("text/plain", "");
+      });
+      card.addEventListener("dragend", () => {
+        (card as HTMLElement).draggable = false;
+        clearDragState();
+      });
+      card.addEventListener("dragover", (e: Event) => {
+        e.preventDefault();
+        (e as DragEvent).dataTransfer!.dropEffect = "move";
+      });
+      card.addEventListener("dragenter", (e) => {
+        e.preventDefault();
+        card.classList.add("cr-drag-target");
+        if (dragSrcIdx >= 0) {
+          const tgt = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10);
+          if (dragSrcIdx < tgt) {
+            card.classList.add("cr-drag-before");
+          } else if (dragSrcIdx > tgt) {
+            card.classList.add("cr-drag-after");
+          }
+        }
+      });
+      card.addEventListener("dragleave", () => {
+        card.classList.remove("cr-drag-target", "cr-drag-before", "cr-drag-after");
+      });
+      card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        card.classList.remove("cr-drag-target");
+        const targetIdx = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10);
+        if (dragSrcIdx < 0 || dragSrcIdx === targetIdx) return;
+        syncAllEditInputs();
+        // P2 修复：用 realIdx 在 allCreators 全量数组上重排（对齐删除路径）——
+        // 原实现 `allCreators.length=0; push(...creators)` 会用按 site.id 过滤的子集
+        // 一次性清空其他站点的创作者（共享内存态污染）
+        const src = creators[dragSrcIdx];
+        const realSrc = allCreators.indexOf(src);
+        const realTgt = allCreators.indexOf(creators[targetIdx]);
+        if (realSrc < 0 || realTgt < 0) {
+          dragSrcIdx = -1;
+          return;
+        }
+        // P2 修复（共享内存态污染）保留：在 allCreators 全量数组上重排
+        moveItem(allCreators, realSrc, realTgt);
+        dragSrcIdx = -1;
+        refreshView();
+      });
     });
 
   // ===== 搜索词拖拽排序 — 仅拖拽柄触发 =====
@@ -306,55 +300,55 @@ export function bindEditEvents(state: SiteViewState, refreshView: () => void): C
     .forEach((card) => {
       const handle = card.querySelector(".cr-drag-handle");
       if (!handle) return;
-      _on(handle, "pointerdown", () => { (card as HTMLElement).draggable = true; });
-
-
-      _on(card, "dragstart", (e: Event) => { const de = e as DragEvent; (card as HTMLElement).draggable = false; dragPresetSrcIdx = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10); card.classList.add("cr-dragging"); de.dataTransfer!.effectAllowed = "move"; de.dataTransfer!.setData("text/plain", ""); });
-
-
-
-
-
-
-
-      _on(card, "dragend", () => { (card as HTMLElement).draggable = false; clearDragState(); });
-
-
-
-      _on(card, "dragover", (e: Event) => { e.preventDefault(); (e as DragEvent).dataTransfer!.dropEffect = "move"; });
-
-
-
-      _on(card, "dragenter", (e) => { e.preventDefault(); card.classList.add("cr-drag-target"); if (dragPresetSrcIdx >= 0) { const tgt = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10); if (dragPresetSrcIdx < tgt) { card.classList.add("cr-drag-before"); } else if (dragPresetSrcIdx > tgt) { card.classList.add("cr-drag-after"); } } });
-
-
-
-
-
-
-
-
-
-
-
-      _on(card, "dragleave", () => { card.classList.remove("cr-drag-target", "cr-drag-before", "cr-drag-after"); });
-
-
-      _on(card, "drop", (e) => { e.preventDefault(); card.classList.remove("cr-drag-target"); const targetIdx = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10); if ( dragPresetSrcIdx < 0 || dragPresetSrcIdx === targetIdx || !site.presetSearches ) return; syncAllEditInputs(); moveItem(site.presetSearches, dragPresetSrcIdx, targetIdx); dragPresetSrcIdx = -1; refreshView(); });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      handle.addEventListener("pointerdown", () => {
+        (card as HTMLElement).draggable = true;
+      });
+      card.addEventListener("dragstart", (e: Event) => {
+        const de = e as DragEvent;
+        (card as HTMLElement).draggable = false;
+        dragPresetSrcIdx = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10);
+        card.classList.add("cr-dragging");
+        de.dataTransfer!.effectAllowed = "move";
+        de.dataTransfer!.setData("text/plain", "");
+      });
+      card.addEventListener("dragend", () => {
+        (card as HTMLElement).draggable = false;
+        clearDragState();
+      });
+      card.addEventListener("dragover", (e: Event) => {
+        e.preventDefault();
+        (e as DragEvent).dataTransfer!.dropEffect = "move";
+      });
+      card.addEventListener("dragenter", (e) => {
+        e.preventDefault();
+        card.classList.add("cr-drag-target");
+        if (dragPresetSrcIdx >= 0) {
+          const tgt = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10);
+          if (dragPresetSrcIdx < tgt) {
+            card.classList.add("cr-drag-before");
+          } else if (dragPresetSrcIdx > tgt) {
+            card.classList.add("cr-drag-after");
+          }
+        }
+      });
+      card.addEventListener("dragleave", () => {
+        card.classList.remove("cr-drag-target", "cr-drag-before", "cr-drag-after");
+      });
+      card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        card.classList.remove("cr-drag-target");
+        const targetIdx = parseInt((card as HTMLElement).dataset.editIdx || "-1", 10);
+        if (
+          dragPresetSrcIdx < 0 ||
+          dragPresetSrcIdx === targetIdx ||
+          !site.presetSearches
+        )
+          return;
+        syncAllEditInputs();
+        moveItem(site.presetSearches, dragPresetSrcIdx, targetIdx);
+        dragPresetSrcIdx = -1;
+        refreshView();
+      });
     });
 
   function syncAllEditInputs(): void {
@@ -392,56 +386,57 @@ export function bindEditEvents(state: SiteViewState, refreshView: () => void): C
 
   // ===== 删除搜索词 =====
   searchResults.querySelectorAll(".cr-del-preset").forEach((btn) => {
-    _on(btn, "click", () => { syncAllEditInputs(); const idx = parseInt((btn as HTMLElement).dataset.idx || "-1", 10); if (site.presetSearches && site.presetSearches[idx]) { site.presetSearches.splice(idx, 1); refreshView(); } });
-
-
-
-
-
-
-
+    btn.addEventListener("click", () => {
+      syncAllEditInputs();
+      const idx = parseInt((btn as HTMLElement).dataset.idx || "-1", 10);
+      if (site.presetSearches && site.presetSearches[idx]) {
+        site.presetSearches.splice(idx, 1);
+        refreshView();
+      }
+    });
   });
 
   // ===== 搜索词排序 =====
   searchResults.querySelectorAll(".cr-order-up").forEach((btn) => {
-    _on(btn, "click", () => { syncAllEditInputs(); const idx = parseInt((btn as HTMLElement).dataset.idx || "-1", 10); if (site.presetSearches && idx > 0) { const arr = site.presetSearches; [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]]; refreshView(); } });
-
-
-
-
-
-
-
-
+    btn.addEventListener("click", () => {
+      syncAllEditInputs();
+      const idx = parseInt((btn as HTMLElement).dataset.idx || "-1", 10);
+      if (site.presetSearches && idx > 0) {
+        const arr = site.presetSearches;
+        [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+        refreshView();
+      }
+    });
   });
   searchResults.querySelectorAll(".cr-order-down").forEach((btn) => {
-    _on(btn, "click", () => { syncAllEditInputs(); const idx = parseInt((btn as HTMLElement).dataset.idx || "-1", 10); if (site.presetSearches && idx < site.presetSearches.length - 1) { const arr = site.presetSearches; [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]]; refreshView(); } });
-
-
-
-
-
-
-
-
+    btn.addEventListener("click", () => {
+      syncAllEditInputs();
+      const idx = parseInt((btn as HTMLElement).dataset.idx || "-1", 10);
+      if (site.presetSearches && idx < site.presetSearches.length - 1) {
+        const arr = site.presetSearches;
+        [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+        refreshView();
+      }
+    });
   });
 
   // ===== 新增创作者 =====
-  _on(searchResults.querySelector(".cr-add"), "click", () => { syncAllEditInputs(); creators.push({ name: "新作者", desc: "描述", type: site.id, tag: "" } as LocalCreatorLike); allCreators.push(creators[creators.length - 1]); refreshView(); });
-
-
-
-
-
+  searchResults.querySelector(".cr-add")?.addEventListener("click", () => {
+    syncAllEditInputs();
+    creators.push({ name: "新作者", desc: "描述", type: site.id, tag: "" } as LocalCreatorLike);
+    allCreators.push(creators[creators.length - 1]);
+    refreshView();
+  });
 
   // ===== 新增搜索词 =====
-  const _addPresetBtn = searchResults.querySelector(".cr-add-preset");
-  _on(_addPresetBtn, "click", () => { syncAllEditInputs(); if (!site.presetSearches) site.presetSearches = []; site.presetSearches.push({ label: "", q: "" }); refreshView(); });
-
-
-
-
-
+  searchResults
+    .querySelector(".cr-add-preset")
+    ?.addEventListener("click", () => {
+      syncAllEditInputs();
+      if (!site.presetSearches) site.presetSearches = [];
+      site.presetSearches.push({ label: "", q: "" });
+      refreshView();
+    });
 
   // ===== 🔍 创作者搜索 + 标签过滤 =====
   let _activeTag = state.activeTag;
@@ -466,31 +461,27 @@ export function bindEditEvents(state: SiteViewState, refreshView: () => void): C
 
   const searchInput = searchResults.querySelector("#ws-cr-search") as HTMLInputElement | null;
   if (searchInput) {
-    _on(searchInput, "input", () => { safeSet("ysm-ws-search-kw", searchInput.value); applyFilters(); });
-
-
-
+    searchInput.addEventListener("input", () => {
+      safeSet("ysm-ws-search-kw", searchInput.value);
+      applyFilters();
+    });
   }
 
   // 标签筛选按钮
   searchResults.querySelectorAll(".cr-tag-filter-btn").forEach((btn) => {
-    _on(btn, "click", () => { _activeTag = (btn as HTMLElement).dataset.tag || ""; safeSet("ysm-ws-active-tag", _activeTag); searchResults .querySelectorAll(".cr-tag-filter-btn") .forEach((b) => b.classList.toggle("active", b === btn)); applyFilters(); });
-
-
-
-
-
-
-
+    btn.addEventListener("click", () => {
+      _activeTag = (btn as HTMLElement).dataset.tag || "";
+      safeSet("ysm-ws-active-tag", _activeTag);
+      searchResults
+        .querySelectorAll(".cr-tag-filter-btn")
+        .forEach((b) => b.classList.toggle("active", b === btn));
+      applyFilters();
+    });
   });
 
   // 初始加载：恢复持久化的搜索词/标签过滤（按钮 active 类已由 buildSiteHtml 渲染）
   applyFilters();
 
-  // 批量移除所有注册的事件监听，防止切页时事件泄漏
-  return () => {
-    _listeners.forEach(({ el, type, handler }) => {
-      el.removeEventListener(type, handler);
-    });
-  };
+  // 编辑块无全局监听需清理，返回空 cleanup（统一接口）
+  return () => {};
 }
