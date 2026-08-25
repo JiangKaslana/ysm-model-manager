@@ -181,70 +181,7 @@ export class FogCapability implements SceneCapability {
   /* -------- 菜单控件（声明式驱动）-------- */
 
   getMenuControls(): MenuControlDef[] {
-    return [
-      // 总开关：无 group，直接挂面板顶部
-      {
-        id: "fog-enabled",
-        kind: "toggle",
-        labelKey: "preview.fog",
-        fallback: "雾效",
-        getValue: () => this.isEnabled(),
-        setValue: (v) => this.setEnabled(v as boolean),
-      },
-      // 雾参数组
-      {
-        id: "fog-mode",
-        kind: "select",
-        labelKey: "preview.fogMode",
-        fallback: "雾型",
-        group: "preview.fogGroupParams",
-        select: [
-          { value: "linear", label: "线性" },
-          { value: "exp2", label: "指数" },
-        ],
-        getValue: () => this.getMode(),
-        setValue: (v) => this.setMode(v as FogMode),
-      },
-      {
-        id: "fog-near",
-        kind: "slider",
-        labelKey: "preview.fogNear",
-        fallback: "近距",
-        group: "preview.fogGroupParams",
-        slider: { min: 0, max: 500, step: 1, unit: "" },
-        getValue: () => this.params.near,
-        setValue: (v) => this.setLinearRange(v as number, undefined),
-      },
-      {
-        id: "fog-far",
-        kind: "slider",
-        labelKey: "preview.fogFar",
-        fallback: "远距",
-        group: "preview.fogGroupParams",
-        slider: { min: 10, max: 2000, step: 10, unit: "" },
-        getValue: () => this.params.far,
-        setValue: (v) => this.setLinearRange(undefined, v as number),
-      },
-      {
-        id: "fog-density",
-        kind: "slider",
-        labelKey: "preview.fogDensity",
-        fallback: "密度",
-        group: "preview.fogGroupParams",
-        slider: { min: 0.001, max: 0.1, step: 0.001 },
-        getValue: () => this.params.density,
-        setValue: (v) => this.setDensity(v as number),
-      },
-      {
-        id: "fog-color",
-        kind: "color",
-        labelKey: "preview.fogColor",
-        fallback: "雾色",
-        group: "preview.fogGroupParams",
-        getValue: () => this.getColor(),
-        setValue: (v) => this.setColor(v as number),
-      },
-    ];
+    return [...fcBuildMain(this), ...fcBuildLinearGroup(this)];
   }
 
   /* -------- 持久化 -------- */
@@ -279,4 +216,80 @@ export class FogCapability implements SceneCapability {
     this.scene.fog = this.prevFog;
     this.currentFog = null;
   }
+}
+
+function fcBuildMain(cap: FogCapability): MenuControlDef[] {
+  const self = cap as unknown as {
+    params: { density: number };
+  };
+  return [
+    {
+      id: "fog-enabled",
+      kind: "toggle",
+      labelKey: "preview.fog",
+      fallback: "雾效",
+      getValue: () => cap.isEnabled(),
+      setValue: (v) => cap.setEnabled(v as boolean),
+    },
+    {
+      id: "fog-color",
+      kind: "color",
+      labelKey: "preview.fogColor",
+      fallback: "雾色",
+      group: "preview.fogGroupParams",
+      getValue: () => cap.getColor(),
+      setValue: (v) => cap.setColor(v as number),
+    },
+    {
+      id: "fog-mode",
+      kind: "select",
+      labelKey: "preview.fogMode",
+      fallback: "雾型",
+      group: "preview.fogGroupParams",
+      select: [
+        { value: "linear", label: "线性" },
+        { value: "exp2", label: "指数" },
+      ],
+      getValue: () => cap.getMode(),
+      setValue: (v) => cap.setMode(v as FogMode),
+    },
+    {
+      id: "fog-density",
+      kind: "slider",
+      labelKey: "preview.fogDensity",
+      fallback: "密度",
+      group: "preview.fogGroupParams",
+      slider: { min: 0.001, max: 0.1, step: 0.001 },
+      getValue: () => self.params.density,
+      setValue: (v) => cap.setDensity(v as number),
+    },
+  ];
+}
+
+function fcBuildLinearGroup(cap: FogCapability): MenuControlDef[] {
+  const self = cap as unknown as {
+    params: { near: number; far: number };
+  };
+  return [
+    {
+      id: "fog-near",
+      kind: "slider",
+      labelKey: "preview.fogNear",
+      fallback: "近距",
+      group: "preview.fogGroupParams",
+      slider: { min: 0, max: 500, step: 1, unit: "" },
+      getValue: () => self.params.near,
+      setValue: (v) => cap.setLinearRange(v as number, undefined),
+    },
+    {
+      id: "fog-far",
+      kind: "slider",
+      labelKey: "preview.fogFar",
+      fallback: "远距",
+      group: "preview.fogGroupParams",
+      slider: { min: 10, max: 2000, step: 10, unit: "" },
+      getValue: () => self.params.far,
+      setValue: (v) => cap.setLinearRange(undefined, v as number),
+    },
+  ];
 }
