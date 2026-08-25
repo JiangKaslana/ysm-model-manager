@@ -30,16 +30,6 @@ import type { FogCapability } from "../caps/fog-capability.ts";
 import { isFrustumCullEnabled, setFrustumCullEnabled } from "../frustum-cull.ts";
 import { getMaxFps, invalidateMaxFpsCache, MAX_FPS_KEY, getMaxPixelRatio, MAX_PIXEL_RATIO_KEY } from "../render-budget.ts";
 
-/**
- * 空桩 action ctx：适配器动作目前拿不到真 ctx（PreviewMenuCtx 无 toast/setStatus/closeAllOverlays 字段）。
- * 收敛成单一常量避免五处调用点重复字面量漂移；接真 ctx 时只需改这一处。
- */
-const noopActionCtx: PreviewActionMenuCtx = {
-  toast: () => {},
-  setStatus: () => {},
-  closeAllOverlays: () => {},
-};
-
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
   selfMode: boolean;
@@ -67,6 +57,10 @@ export interface PreviewMenuCtx {
   switchExternal?: (path: string, siblings?: string[], options?: { keepInScene?: boolean }) => Promise<void> | void;
   /** 卸载已加载角色（mount3D 注入：移除 roots + dispose + 注册表注销 + 相机重算） */
   unloadRole?: (id: string) => void;
+  /** 动作节点真 ctx：mount3D 注入真实现，适配器动作可 toast/setStatus/closeAllOverlays */
+  toast: (message: string) => void;
+  setStatus: (message: string) => void;
+  closeAllOverlays: () => void;
 }
 
 /** i18n 安全取值：键缺失时回退，杜绝菜单项退化显示原始键名 */
@@ -118,6 +112,13 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     // 仅隐藏：display:none，DOM+导航栈保留（不调 menu.reset()）。
     // 这样「再点渲染器」能恢复【同一个面板】而非空白，且 ✕/← 语义不串。
     popup.style.display = "none";
+  };
+
+  // 真 action ctx：从 PreviewMenuCtx 取 toast/setStatus/closeAllOverlays
+  const actionCtx: PreviewActionMenuCtx = {
+    toast: ctx.toast,
+    setStatus: ctx.setStatus,
+    closeAllOverlays: ctx.closeAllOverlays,
   };
   // 根级 ✕（SlideMenu onClose）语义 = 关闭整个 3D 预览（对齐旧 close 菜单项）
   menu.setOnClose(() => {
@@ -231,7 +232,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       } else if (node.renderCustom) {
         node.renderCustom(list, () => hideMenu());
       } else if (node.action) {
-        node.action(noopActionCtx);
+        node.action(actionCtx);
       } else {
         fillers[node.id]?.(list, menu);
       }
@@ -263,7 +264,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
             menu.navigate(makePanelView(node));
           } else if (node.action) {
             hideMenu();
-            node.action(noopActionCtx);
+            node.action(actionCtx);
           }
         };
         list.appendChild(row);
@@ -315,6 +316,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
               makeRow,
               makePanelView,
               menu,
+              actionCtx,
               initialSection: "motion",
               onSwitchRole: () => {
                 if (rolesDef) showMenu(makePanelView(rolesDef));
@@ -647,6 +649,7 @@ export function renderMenu(
     makeRow: (node: PreviewMenuNode, opts?: { chevron?: boolean }) => HTMLElement;
     makePanelView: (node: PreviewMenuNode) => SlideMenuView;
     menu: SlideMenuHandle;
+    actionCtx: PreviewActionMenuCtx;
   },
 ): void {
   ensureMenuStyles();
@@ -701,7 +704,7 @@ export function renderMenu(
       const lb = document.createElement("span"); lb.className = "slide-label"; lb.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id; row.appendChild(lb);
       row.addEventListener("click", (ev: MouseEvent): void => {
         ev.stopPropagation();
-        void node.action?.(noopActionCtx);
+        void node.action?.(deps.actionCtx);
       });
       container.appendChild(row);
       continue;
@@ -716,7 +719,7 @@ export function renderMenu(
       if (node.value && typeof node.value === "string") { const meta = document.createElement("span"); meta.className = "slide-sublabel"; meta.textContent = node.value; row.appendChild(meta); }
       row.addEventListener("click", (ev: MouseEvent): void => {
         ev.stopPropagation();
-        void node.action?.(noopActionCtx);
+        void node.action?.(deps.actionCtx);
       });
       container.appendChild(row);
       continue;
@@ -745,7 +748,7 @@ export function renderMenu(
       if (node.kind === "panel") {
         deps.menu.navigate(deps.makePanelView(node));
       } else if (node.action) {
-        node.action(noopActionCtx);
+        node.action(deps.actionCtx);
       }
     };
     container.appendChild(row);
@@ -766,6 +769,7 @@ function roleDetailView(
     makeRow: (node: PreviewMenuNode, opts?: { chevron?: boolean }) => HTMLElement;
     makePanelView: (node: PreviewMenuNode) => SlideMenuView;
     menu: SlideMenuHandle;
+    actionCtx: PreviewActionMenuCtx;
     onSwitchRole?: () => void;
     initialSection?: "model" | "motion";
   },
@@ -851,6 +855,12 @@ function fillRoles(
   menu: SlideMenuHandle,
   setAdapterItems: (items: PreviewMenuNode[]) => void,
 ): void {
+  // 真 action ctx：从 PreviewMenuCtx 取 toast/setStatus/closeAllOverlays
+  const actionCtx: PreviewActionMenuCtx = {
+    toast: ctx.toast,
+    setStatus: ctx.setStatus,
+    closeAllOverlays: ctx.closeAllOverlays,
+  };
   list.innerHTML = "";
 
   // ---- 角色列表区（radio 焦点 + 名字详情 + ⚙ 工具）----
@@ -902,7 +912,7 @@ function fillRoles(
       name.title = e.path;
       name.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
       row.onclick = (): void => {
-        menu.navigate(roleDetailView(e, { makeRow, makePanelView, menu }));
+        menu.navigate(roleDetailView(e, { makeRow, makePanelView, menu, actionCtx }));
       };
       // 行尾 ⚙：工具面板（卸载角色等少用但重要操作）
       const tools = document.createElement("button");

@@ -382,6 +382,15 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         }
       : undefined,
     unloadRole,
+    toast: (msg: string): void => {
+      bus.emit("toast:show", { msg, duration: 3000 });
+    },
+    setStatus: (msg: string): void => {
+      bus.emit("toast:show", { msg, duration: 2000 });
+    },
+    closeAllOverlays: (): void => {
+      menuHandle.dispose();
+    },
   });
   // ADR-093 T5：注册表菜单 sink（selectModel 时按活跃模型换菜单项）
   sceneRegistry.setMenuSink({ setAdapterItems: (items) => menuHandle.setAdapterItems(items) });
