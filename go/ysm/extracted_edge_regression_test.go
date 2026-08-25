@@ -9,6 +9,7 @@
 package ysm
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -191,5 +192,72 @@ func TestFindComponents_JpgSameNameTex(t *testing.T) {
 	}
 	if !strings.HasPrefix(ct[0], "data:image/jpeg;base64,") {
 		t.Errorf(".jpg 同名纹理 data URI 应为 image/jpeg，实际前缀 %.40q", ct[0])
+	}
+}
+
+// TestFindComponents_DeclaredOutOfRangeSameNameTex 已声明但超范围组件（模型多于纹理声明）
+// 不得绑定自己的同名纹理，而应钳到最后一张声明纹理（共享默认皮肤）——02_new_year 回归语义。
+// 回归：重构把分支 B 查找键从 texName（钳到最后一张声明纹理名）改成 base（组件 basename），
+// 导致超范围声明组件错误绑定自身同名纹理。
+func TestFindComponents_DeclaredOutOfRangeSameNameTex(t *testing.T) {
+	dir := t.TempDir()
+	modelsDir := filepath.Join(dir, "models")
+	texDir := filepath.Join(dir, "textures")
+	for _, d := range []string{modelsDir, texDir} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// model 声明 2 个（main + extra），texture 只声明 1 张（skin）→ extra 已声明但超范围
+	ysmJSON := `{"files":{"player":{"model":{"main":"models/main.json","extra":"models/extra.json"},"texture":["textures/skin.png"]}}}`
+	if err := os.WriteFile(filepath.Join(dir, "ysm.json"), []byte(ysmJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelsDir, "main.json"), []byte(geoWithBone("mainBone")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelsDir, "extra.json"), []byte(geoWithBone("extraBone")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 共享默认皮肤 skin.png + extra 自己的同名纹理 extra.png（字节不同以便区分）
+	skinBytes := []byte{1, 2, 3}
+	extraBytes := []byte{9, 9, 9}
+	if err := os.WriteFile(filepath.Join(texDir, "skin.png"), skinBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(texDir, "extra.png"), extraBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	comps, _ := FindComponentsInExtractedYSM(filepath.Join(dir, "ysm.json"))
+	if len(comps) != 2 {
+		t.Fatalf("组件数 = %d, 期望 2（main + extra 声明）", len(comps))
+	}
+	var extra *types.BedrockModel
+	for i := range comps {
+		if comps[i].SourceName == "extra" {
+			extra = &comps[i]
+			break
+		}
+	}
+	if extra == nil {
+		t.Fatal("未找到声明组件 extra")
+	}
+	// extra 已声明但超范围：应钳到最后一张声明纹理 skin（共享默认皮肤），
+	// 而非绑定自己的 extra.png 同名纹理
+	ct, ok := extra.ComponentTextures["extra"]
+	if !ok || len(ct) != 1 {
+		t.Fatalf("超范围声明组件应命中共享默认纹理兜底，实际 ComponentTextures = %v", extra.ComponentTextures)
+	}
+	uri := ct[0]
+	if !strings.HasPrefix(uri, "data:image/png;base64,") {
+		t.Fatalf("data URI 应为 PNG，实际前缀 %.40q", uri)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(uri, "data:image/png;base64,"))
+	if err != nil {
+		t.Fatalf("data URI base64 解码失败: %v", err)
+	}
+	if string(decoded) != string(skinBytes) {
+		t.Errorf("超范围声明组件应绑定共享默认皮肤 skin.png（%v），实际绑定 %v（若为 extra.png 即回归）", skinBytes, decoded)
 	}
 }

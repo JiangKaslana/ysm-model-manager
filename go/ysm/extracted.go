@@ -716,7 +716,7 @@ func computeTexSlotForComponent(mn, base string, declPos map[string]int, texOrde
 // 命中时填 ComponentTextures + applyCubeTextures(0) + 空 texName，追加 comps 并返回 true；
 // 未命中返回 false，交由调用方走全局 texSlot 绑定。两条分支各自独立封装 40 行巨块的 2/3。
 func applyComponentPerComponentTex(
-	gj *types.BedrockModel, candidate, dir, cleanDir, base string,
+	gj *types.BedrockModel, candidate, dir, cleanDir, base, texName string,
 	declaredTexByModel map[string]declTexInfo, pngNameMap map[string]string,
 	comps *[]types.BedrockModel, texNames *[]string,
 ) bool {
@@ -746,7 +746,11 @@ func applyComponentPerComponentTex(
 	// 分支 B：组件专属同名纹理兜底（ADR-114 perComponent）
 	// texSlot=0 对齐 zip 路径 buildComponents：perComponent 组件用本地 0 槽，
 	// 不打虚拟全局槽位 len(texOrderNames)+undeclSeq（否则 arrow 呈 texIdx=6 越界幻觉）。
-	if pngPath, ok := pngNameMap[strings.ToLower(base)]; ok {
+	// 查找键用 computeTexSlotForComponent 算好的 texName：对**已声明但超范围**组件
+	// （模型多于纹理声明）钳到最后一张声明纹理名（共享默认皮肤，02_new_year 回归语义），
+	// 对真正未声明组件 = 组件 basename——两种情况都精确复刻原行为，不得改用 base
+	// 否则超范围声明组件会错误绑定自己的同名纹理。
+	if pngPath, ok := pngNameMap[texName]; ok {
 		if pngData := readFileLimited(pngPath); pngData != nil {
 			if uri := textureDataURI(pngPath, pngData); uri != "" {
 				gj.ComponentTextures = map[string][]string{base: {uri}}
@@ -848,7 +852,7 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 
 		// perComponent 分支：未声明 + 非 arm → 先试声明纹理→再试同名；命中即 append+continue
 		if !info.onDeclTex && !isArm {
-			if applyComponentPerComponentTex(gj, candidate, dir, cleanDir, base, declaredTexByModel, pngNameMap, &comps, &texNames) {
+			if applyComponentPerComponentTex(gj, candidate, dir, cleanDir, base, info.texName, declaredTexByModel, pngNameMap, &comps, &texNames) {
 				continue
 			}
 		}
