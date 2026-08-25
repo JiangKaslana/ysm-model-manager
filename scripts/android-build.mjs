@@ -12,9 +12,11 @@
  *   node scripts/android-build.mjs --arch amd64     # 只编 x86_64（模拟器）
  *   node scripts/android-build.mjs --arch all        # arm64 + amd64（fat APK）
  *   node scripts/android-build.mjs --production      # 生产版（-tags production,android）
+ *   node scripts/android-build.mjs --rust-backend          启用 Rust scanner bridge
  *   node scripts/android-build.mjs --skip-frontend   # 跳过前端构建（仅重编 Go + gradle）
  *   node scripts/android-build.mjs --version vX.Y.Z  # 注入版本到 go/version.Version（缺省读 git 最新 tag，无则 dev）
  *   node scripts/android-build.mjs --help
+ *   node scripts/android-build.mjs --rust-backend        启用 Rust scanner bridge（调试用）
  * 退出码：0 成功；1 环境缺失/构建失败（错误信息直通）。
  * 设计意图：一键构建 Android APK，补齐 android-install.mjs 的缺口（只做 installDebug，不重编 libwails.so）。
  */
@@ -147,23 +149,43 @@ if (!skipFrontend) {
   if (!fe.ok) fail(`前端构建失败：\n${fe.out.slice(-800)}`);
 }
 
+
+// ---- 1.5. Rust scanner bridge 交叉编译（staticlib，供 Go CGO 静态链接）----
+// 仅在 rust_backend tag 启用时构建（与 Windows 生产构建一致：-tags production,rust_backend）。
+// debug 模式下可选：GO_RUST_BACKEND=1 node scripts/android-build.mjs 触发。
+const rustBackend = argv.includes('--rust-backend') || production || process.env.GO_RUST_BACKEND === '1';
+if (rustBackend) {
+  console.log('[android-build] 编译 Rust scanner bridge（Android staticlib）…');
+  const rustScripts = run('node', ['scripts/compile-android-rust.mjs', '--arch', archArg], { cwd: ROOT, timeout: 0 });
+  if (!rustScripts.ok) fail(`Rust bridge 编译失败：
+${rustScripts.out.slice(-800)}`);
+  console.log('[android-build] ✅ Rust bridge 就绪');
+} else {
+  console.log('[android-build] Rust bridge 跳过（加 --rust-backend 或设 GO_RUST_BACKEND=1 启用）');
+}
+
 // ---- 2. Go 交叉编译 libwails.so（per ABI）----
 const toolchain = path.join(ndk, 'toolchains', 'llvm', 'prebuilt', hostTag());
 if (!fs.existsSync(toolchain)) fail(`NDK 工具链缺失: ${toolchain}`);
 const version = resolveVersion();
 const ldflag = `-X ysm-model-manager/go/version.Version=${version}`;
-const buildFlags = production
-  ? ['-tags', 'production,android', '-trimpath', '-buildvcs=false', `-ldflags=-w -s ${ldflag}`]
-  : ['-tags', 'android,debug', '-buildvcs=false', '-gcflags=all=-l', `-ldflags=${ldflag}`];
+const RUST_LIB_DIR = path.join(ROOT, 'go', 'rustbridge', 'android-lib');
+// ---- 2. Go 交叉编译 libwails.so（per ABI）----
 console.log(`[android-build] 版本注入: ${version}`);
 for (const arch of arches) {
   const a = ARCHES[arch];
-  const cc = path.join(toolchain, 'bin', a.ndkTarget + '-clang'); // NDK 26 Windows 为无后缀 PE，可直接 exec
+  const cc = path.join(toolchain, 'bin', a.ndkTarget + '-clang');
   if (!fs.existsSync(cc)) fail(`缺少编译器: ${cc}`);
   const out = path.join(JNI_BASE, a.abi, 'libwails.so');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   console.log(`[android-build] Go 交叉编译 ${arch}（${a.abi}）…`);
-  const r = run('go', ['build', '-buildmode=c-shared', `-overlay=${OVERLAY}`, ...buildFlags, '-o', out, '.'], {
+  const archFlags = rustBackend
+    ? [`-extldflags=-L${RUST_LIB_DIR} -l:libysm_model_manager_wails_bridge.a`]
+    : [];
+  const archBuildFlags = production
+    ? ['-tags', 'production,android', '-trimpath', '-buildvcs=false', `-ldflags=-w -s ${ldflag}`, ...archFlags]
+    : ['-tags', 'android,debug', '-buildvcs=false', '-gcflags=all=-l', `-ldflags=${ldflag}`, ...archFlags];
+  const r = run('go', ['build', '-buildmode=c-shared', `-overlay=${OVERLAY}`, ...archBuildFlags, '-o', out, '.'], {
     cwd: ROOT,
     timeout: 0,
     env: {
@@ -173,10 +195,10 @@ for (const arch of arches) {
       GOARCH: a.goarch,
     },
   });
-  if (!r.ok) fail(`Go 交叉编译 ${arch} 失败：\n${r.out.slice(-1000)}`);
+  if (!r.ok) fail(`Go 交叉编译 ${arch} 失败：
+${r.out.slice(-1000)}`);
   console.log(`[android-build] ✅ ${out}（${(fs.statSync(out).size / 1024 / 1024).toFixed(1)} MB）`);
 }
-
 // ---- 3. gradle assembleDebug/release ----
 const task = production ? 'assembleRelease' : 'assembleDebug';
 console.log(`[android-build] gradle ${task}…（首次可能下载 gradle 发行版，较慢）`);

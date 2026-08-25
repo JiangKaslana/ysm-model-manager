@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 102 张知识卡
+> 总计: 103 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -19,7 +19,7 @@
 
 - **resource-registry**（资源注册表 registry）：`resource_types.json` 是 YSM 资源类型定义的单一事实来源（Single Source of Truth）。所有资源类型、子目录、扩展名的定义均以此处为准。
 
-## core（13 张）
+## core（14 张）
 
 *核心基础设施（事件总线、页面状态、Wails 桥接）*
 
@@ -35,6 +35,7 @@
 | 🏗 model-stats | Web Worker 模型统计层 model-stats | architecture | cpu-bound, concurrent | 模型统计, 骨骼数, 立方体数, 纹理尺寸, SearchModels, 数值筛选, Web Worker, 批量统计 |
 | 🏗 page-store | 页面状态管理 page-store.ts | architecture | — | 页面, 当前页, 状态管理, page store, currentPage |
 | 🏗 pointer-events | Pointer Events 统一交互（触屏 + 桌面） | architecture | — | pointerdown, pointermove, pointerup, setPointerCapture, touch-action, 触屏, 拖拽, 旋转, hover, mouseenter, 全窗预览 |
+| 🏗 architecture | Rust Scanner Bridge 全平台支持 | architecture | — | Android, Linux, macOS, rust_backend, CGO |
 | 🍃 theme | 主题系统 theme | leaf | — | 主题, 换肤, 深色, 浅色, 跟随系统, 动画开关, 字号, 界面偏好 |
 | 🏗 wails-bridge | Wails 桥接 app.ts | architecture | — | Wails, 桥接, getApp, Go 调用, Binding, window.go.main.App, 网页版, browser adapter, 浏览器后端 |
 | 🏗 ysm-baked | YSM 烘焙与几何反推 | architecture | — | 烘焙, 几何反推, pivot, 骨骼错位, 模型错位, UV 对不上, 贴图错位, RawYsmModel, RawFace, YSM 导出, BlockBench |

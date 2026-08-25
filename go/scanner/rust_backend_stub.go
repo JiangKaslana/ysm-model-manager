@@ -1,4 +1,4 @@
-//go:build !windows || !rust_backend
+//go:build !rust_backend
 
 package scanner
 

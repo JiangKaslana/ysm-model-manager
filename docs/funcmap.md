@@ -26,7 +26,7 @@
 | Go·路径 | 1 | 6 |
 | Go·回收站 | 2 | 19 |
 | go/repoaudit | 1 | 9 |
-| go/rustbridge | 3 | 6 |
+| go/rustbridge | 5 | 10 |
 | go/scanner | 1 | 11 |
 | Go·同步 | 9 | 37 |
 | Go·标签 | 1 | 8 |
@@ -48,7 +48,7 @@
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **467** | **2011** |
+| **合计** | **469** | **2015** |
 
 ## Go·头像
 
@@ -384,12 +384,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Scan()` | `go/rustbridge/bridge_android:45` | — |
-| `ScanManifest()` | `go/rustbridge/bridge_android:85` | — |
+| `Scan()` | `go/rustbridge/bridge_android:44` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_android:84` | — |
+| `Scan()` | `go/rustbridge/bridge_darwin:42` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_darwin:80` | — |
+| `Scan()` | `go/rustbridge/bridge_linux:42` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_linux:80` | — |
 | `Scan()` | `go/rustbridge/bridge_windows:27` | — |
 | `ScanManifest()` | `go/rustbridge/bridge_windows:72` | ScanManifest 使用 Go 预枚举的文件清单调用 Rust，跳过 Rust 侧的文件系统发现（jwalk）。 |
-| `ScanError()` | `go/rustbridge/types_windows:7` | — |
-| `ScanResponse()` | `go/rustbridge/types_windows:12` | — |
+| `ScanError()` | `go/rustbridge/types:7` | — |
+| `ScanResponse()` | `go/rustbridge/types:12` | — |
 
 ## go/scanner
 

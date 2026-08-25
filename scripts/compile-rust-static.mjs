@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+/**
+ * 编译 Rust scanner bridge 为 staticlib（.a），供 Go CGO 静态链接。
+ * 由 build/linux/Taskfile.yml 的 compile:rust 任务调用。
+ *
+ * 用法：
+ *   node scripts/compile-rust-static.mjs              # 当前平台 native
+ *   node scripts/compile-rust-static.mjs --target x86_64-unknown-linux-gnu
+ *   node scripts/compile-rust-static.mjs --target aarch64-unknown-linux-gnu
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { getRoot } from './_lib/scan-files.mjs';
+import { run } from './_lib/proc.mjs';
+
+const ROOT = getRoot();
+const RUST_DIR = path.join(ROOT, 'rust-wails-bridge');
+const OUTPUT_DIR = process.argv.includes('--output')
+  ? process.argv[process.argv.indexOf('--output') + 1]
+  : path.join(ROOT, 'go', 'rustbridge', 'static-lib');
+
+const targetArg = process.argv.find(a => a.startsWith('--target='))?.split('=')[1]
+  ?? (process.argv.indexOf('--target') >= 0 ? process.argv[process.argv.indexOf('--target') + 1] : undefined);
+
+function fail(msg) {
+  console.error(`[compile-rust-static] ${msg}`);
+  process.exit(1);
+}
+
+fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+
+const cargoArgs = ['build', '--release', '--locked',
+  '--manifest-path', path.join(RUST_DIR, 'Cargo.toml'),
+  '--lib'];
+if (targetArg) cargoArgs.push('--target', targetArg);
+
+console.log(`[compile-rust-static] cargo build` + (targetArg ? ` --target=${targetArg}` : '') + ` → ${OUTPUT_DIR}`);
+const r = run('cargo', cargoArgs, { cwd: ROOT, timeout: 120_000 });
+if (!r.ok) fail(`cargo build 失败：
+${r.out.slice(-800)}`);
+
+// 查找产物 .a 文件
+const targetDir = targetArg ? path.join(RUST_DIR, 'target', targetArg, 'release') : path.join(RUST_DIR, 'target', 'release');
+const libFile = path.join(targetDir, 'libysm_model_manager_wails_bridge.a');
+if (!fs.existsSync(libFile)) fail(`静态库未找到: ${libFile}`);
+fs.copyFileSync(libFile, path.join(OUTPUT_DIR, 'libysm_model_manager_wails_bridge.a'));
+console.log(`[compile-rust-static] ✅ ${path.join(OUTPUT_DIR, 'libysm_model_manager_wails_bridge.a')}`);

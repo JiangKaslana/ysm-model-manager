@@ -1340,6 +1340,10 @@ export const autoSidebar = [
             "link": "/knowledge/pointer-events"
           },
           {
+            "text": "Rust Scanner Bridge 全平台支持",
+            "link": "/knowledge/rust-android-bridge"
+          },
+          {
             "text": "主题系统 theme",
             "link": "/knowledge/theme"
           },
