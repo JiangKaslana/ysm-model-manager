@@ -53,6 +53,52 @@ func TestParseFaceUV_ValidButNoFaces(t *testing.T) {
 	}
 }
 
+// TestParseFaceUV_QuadVertexOrder 锁定 b62f5913 修复（parseFaceUV 侧）：
+// parseFaceUV 写入的 [8]float64 四角顶点序必须是
+//
+//	[u0,v0, u1,v0, u0,v1, u1,v1]
+//
+// 而非对角重复 [u0,v0, u1,v1, u0,v0, u1,v1]——后者导致每面 UV
+// 退化为对角线性渐变（纹理被压成一条对角线）。
+//
+// 用例：east 面 uv=[0,8] uv_size=[8,8]，texW=texH=64。
+//
+//	期望四角（归一化后）：
+//	  [0]=u0=0/64=0       [1]=v0=8/64=0.125
+//	  [2]=u1=8/64=0.125    [3]=v0=0.125（与 [1] 同行）
+//	  [4]=u0=0             [5]=v1=16/64=0.25
+//	  [6]=u1=0.125         [7]=v1=0.25
+//	关键不变量：[1]==[3]（顶点 0、1 同 v0 行）且 [5]==[7]（顶点 2、3 同 v1 行）。
+//	对角重复 bug 下 [1]!=[3]（v0 vs v1）→ 此断言捕获回归。
+func TestParseFaceUV_QuadVertexOrder(t *testing.T) {
+	var faces [6][8]float64
+	uv := `{"east":{"uv":[0,8],"uv_size":[8,8]}}`
+	if !parseFaceUV(uv, &faces, 64, 64) {
+		t.Fatal("parseFaceUV 应返回 true")
+	}
+	east := faces[0]
+	want := [8]float64{0, 0.125, 0.125, 0.125, 0, 0.25, 0.125, 0.25}
+	for i := 0; i < 8; i++ {
+		if math.Abs(east[i]-want[i]) > 1e-9 {
+			t.Errorf("East face[%d] = %v, 期望 %v (四角顶点序 [u0,v0,u1,v0,u0,v1,u1,v1])", i, east[i], want[i])
+		}
+	}
+	// 不变量：顶点 0、1 同 v0 行；顶点 2、3 同 v1 行
+	if east[1] != east[3] {
+		t.Errorf("顶点 0、1 的 v 不同 (%v vs %v)——对角重复回归", east[1], east[3])
+	}
+	if east[5] != east[7] {
+		t.Errorf("顶点 2、3 的 v 不同 (%v vs %v)——对角重复回归", east[5], east[7])
+	}
+	// 顶点 0、2 同 u0 列；顶点 1、3 同 u1 列
+	if east[0] != east[4] {
+		t.Errorf("顶点 0、2 的 u 不同 (%v vs %v)——列对齐破坏", east[0], east[4])
+	}
+	if east[2] != east[6] {
+		t.Errorf("顶点 1、3 的 u 不同 (%v vs %v)——列对齐破坏", east[2], east[6])
+	}
+}
+
 // FaceUV 合法但无可识别面 + 存在 box UV → parseUV 回退 expandBoxUV（保留纹理，不全零）
 func TestParseUV_FaceUVNoFacesFallsBackToBoxUV(t *testing.T) {
 	var faces [6][8]float64

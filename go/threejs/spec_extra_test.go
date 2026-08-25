@@ -132,6 +132,57 @@ func TestExpandBoxUV_ZeroTexGuard(t *testing.T) {
 	}
 }
 
+// TestExpandBoxUV_QuadVertexOrder 锁定 b62f5913 修复：
+// expandBoxUV 输出的 [8]float64 四角顶点序必须是
+//
+//	[u0,v0, u1,v0, u0,v1, u1,v1]
+//
+// 而非对角重复 [u0,v0, u1,v1, u0,v0, u1,v1]——后者导致每面 UV
+// 退化为对角线性渐变（纹理被压成一条对角线）。
+//
+// 用例：cube 8×8×8 @ UV[0,0]，texW=texH=64。
+//
+//	East 面：fu=0, fv=8, fw=8, fh=8
+//	期望四角（归一化后）：
+//	  [0]=u0=0/64=0       [1]=v0=8/64=0.125
+//	  [2]=u1=8/64=0.125    [3]=v0=0.125（与 [1] 同行）
+//	  [4]=u0=0             [5]=v1=16/64=0.25
+//	  [6]=u1=0.125         [7]=v1=0.25
+//	关键不变量：[1]==[3]（顶点 0、1 同 v0 行）且 [5]==[7]（顶点 2、3 同 v1 行）。
+//	对角重复 bug 下 [1]!=[3]（v0 vs v1）→ 此断言捕获回归。
+func TestExpandBoxUV_QuadVertexOrder(t *testing.T) {
+	var faces [6][8]float64
+	ok := expandBoxUV([2]float64{0, 0}, 8, 8, 8, 64, 64, &faces)
+	if !ok {
+		t.Fatal("expandBoxUV 应返回 true")
+	}
+	// East 面四角显式断言
+	east := faces[0]
+	want := [8]float64{0, 0.125, 0.125, 0.125, 0, 0.25, 0.125, 0.25}
+	for i := 0; i < 8; i++ {
+		if math.Abs(east[i]-want[i]) > 1e-9 {
+			t.Errorf("East face[%d] = %v, 期望 %v (四角顶点序 [u0,v0,u1,v0,u0,v1,u1,v1])", i, east[i], want[i])
+		}
+	}
+	// 不变量：顶点 0、1 同 v0 行；顶点 2、3 同 v1 行
+	for fi := 0; fi < 6; fi++ {
+		f := faces[fi]
+		if f[1] != f[3] {
+			t.Errorf("face[%d] 顶点 0、1 的 v 不同 (%v vs %v)——对角重复回归", fi, f[1], f[3])
+		}
+		if f[5] != f[7] {
+			t.Errorf("face[%d] 顶点 2、3 的 v 不同 (%v vs %v)——对角重复回归", fi, f[5], f[7])
+		}
+		// 顶点 0、2 同 u0 列；顶点 1、3 同 u1 列
+		if f[0] != f[4] {
+			t.Errorf("face[%d] 顶点 0、2 的 u 不同 (%v vs %v)——列对齐破坏", fi, f[0], f[4])
+		}
+		if f[2] != f[6] {
+			t.Errorf("face[%d] 顶点 1、3 的 u 不同 (%v vs %v)——列对齐破坏", fi, f[2], f[6])
+		}
+	}
+}
+
 func TestHasBoneRotation(t *testing.T) {
 	// P3 补测（子代理审计）：360°/720° 整圈旋转原始角度非 0 但四元数为单位四元数——
 	// 统一判定口径后应视为无旋转（false），与骨骼循环 overwrite 决策一致
