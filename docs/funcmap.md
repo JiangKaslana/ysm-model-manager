@@ -172,11 +172,11 @@
 | `Downloader.WithRetry()` | `go/download/download:128` | WithRetry 返回开启重试的下载器副本（不改原实例）。 |
 | `New()` | `go/download/download:193` | New 创建 Downloader，默认 5 分钟超时（可被 AppConfig.DownloadTimeoutSec 覆盖，ADR-062）。 |
 | `NewWithClient()` | `go/download/download:198` | NewWithClient 使用指定 HTTP client。 |
-| `Downloader.File()` | `go/download/download:382` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
-| `Downloader.FileWithChecksum()` | `go/download/download:388` | FileWithChecksum 与 File 相同，额外校验下载内容 SHA256 与期望值一致。 |
-| `Downloader.FromGitHubAPI()` | `go/download/download:393` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
-| `Downloader.FromGitHubAPIWithChecksum()` | `go/download/download:398` | FromGitHubAPIWithChecksum 与 FromGitHubAPI 相同，额外校验 SHA256（P2 预留，语义同 FileWithChecksum）。 |
-| `ResolveSavePath()` | `go/download/download:422` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
+| `Downloader.File()` | `go/download/download:495` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
+| `Downloader.FileWithChecksum()` | `go/download/download:501` | FileWithChecksum 与 File 相同，额外校验下载内容 SHA256 与期望值一致。 |
+| `Downloader.FromGitHubAPI()` | `go/download/download:506` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
+| `Downloader.FromGitHubAPIWithChecksum()` | `go/download/download:511` | FromGitHubAPIWithChecksum 与 FromGitHubAPI 相同，额外校验 SHA256（P2 预留，语义同 FileWithChecksum）。 |
+| `ResolveSavePath()` | `go/download/download:535` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
 | `HTTPStatusError()` | `go/download/download:77` | HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值， 替代 strings.Contains(err.Error(), "4 |
 | `TruncationError()` | `go/download/download:84` | TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。 |
 | `ProgressFn()` | `go/download/download:98` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
