@@ -279,6 +279,12 @@ func Prune() (PruneResult, error) {
 	if dir == "" {
 		return res, nil // 平台配置根不可用：no-op
 	}
+	// 快照阈值：SetCacheLimits 在 pruneMu 下写，这里在 pruneMu 下读，
+	// 避免 concurrent SetCacheLimits + Prune 的数据竞争。
+	pruneMu.Lock()
+	maxBytes := maxCacheBytes
+	maxAge := maxEntryAge
+	pruneMu.Unlock()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -306,6 +312,7 @@ func Prune() (PruneResult, error) {
 		}
 		info, err := e.Info()
 		if err != nil {
+			log.Printf("texture_cache: 淘汰跳过无法 stat 的文件 %s: %v", filepath.Join(dir, name), err)
 			continue
 		}
 		files = append(files, entry{
@@ -338,8 +345,8 @@ func Prune() (PruneResult, error) {
 
 	// 1) TTL：超龄文件直接删（mtime 近似最后写入，LRU 语义）；.tmp 崩溃残留顺带清超龄。
 	//    删除失败的超龄文件留在 kept，Remaining 如实反映磁盘现状，下轮自愈。
-	if maxEntryAge > 0 {
-		cutoff := now.Add(-maxEntryAge)
+	if maxAge > 0 {
+		cutoff := now.Add(-maxAge)
 		kept := files[:0]
 		for _, f := range files {
 			if f.mod.Before(cutoff) && remove(f.path) {
@@ -352,7 +359,7 @@ func Prune() (PruneResult, error) {
 	}
 
 	// 2) 容量：.ktx2 总大小超上限，从最旧删到达标（.tmp 不占容量预算）
-	if maxCacheBytes > 0 {
+	if maxBytes > 0 {
 		var total int64
 		for _, f := range files {
 			if f.tmp {
@@ -364,7 +371,7 @@ func Prune() (PruneResult, error) {
 			if f.tmp {
 				continue
 			}
-			if total <= maxCacheBytes {
+			if total <= maxBytes {
 				break
 			}
 			if remove(f.path) {
