@@ -109,15 +109,15 @@ export function addMeshToBoneGroup(
   //   正面 pass 的深度测试自动剔除被背面遮挡的像素 → 正背面排序正确
   // opaque/cutout 保持单 mesh（depthWrite=true，深度测试自动处理遮挡）。
   if (alphaMode === "blend" && mt) {
-    // Pass 1: BackSide depth pre-pass
+    // Pass 1: BackSide depth pre-pass——从 mat 派生，继承 glow/emissive 等配置
+    // alphaTest: 0.01 丢弃全透明片元，不写幽灵深度遮挡身后透明物体
+    // colorWrite: false 让预 pass 不贡献颜色，避免 glow blend 背面发暗
     const depthGeo = geo.clone();
-    const depthMat = new THREE.MeshBasicMaterial({
-      map: mt,
-      side: THREE.BackSide,
-      transparent: true,
-      depthWrite: true,
-      alphaTest: 0,
-    });
+    const depthMat = mat.clone();
+    depthMat.side = THREE.BackSide;
+    depthMat.depthWrite = true;
+    depthMat.alphaTest = 0.01;
+    depthMat.colorWrite = false;
     const depthMesh = new THREE.Mesh(depthGeo, depthMat);
     depthMesh.frustumCulled = false;
     depthMesh.renderOrder = 1;
