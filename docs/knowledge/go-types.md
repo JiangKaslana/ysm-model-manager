@@ -90,6 +90,7 @@ invariant_anchors:
 - `RepoRoot` 为旧版字段（v1.6.4+ 弃用），仅用于配置迁移，新功能不得使用
 - 单一权威来源为仓库根 `resource_types.json`，编译期通过 `go:embed` 内嵌为内存镜像（替代历史 `resource_types_embed.go`），`zipEntries`/`detector` 双副本由 `resource_types_consistency_test.go` 逐字段强约束（ADR-067 S1 双文件同步的守卫）
 - 新增资源类型只改 `resource_types.json`，Go 端不手写 StorageSubDir/扩展名条目（治理红线：注册表优先）。`ShouldHashExt` 已改为注册表驱动（检查 `rt.Hashable` 字段），非 `blueprint`/`litematic` 等类型默认 `Hashable: false`（与 JSON 中 `hashable` 字段语义一致）。已有测试钉住清单（`TestShouldHashExt_FromRegistry`），新增类型只需在 JSON 中声明 `hashable: true/false`
+- **Rust-Go 契约**：`StripDisableSuffix` / `IsYsmEntryJSON` / `IsDisableSuffix` 是与 `rust-core` 对齐的谓词，行为由共享向量 `tests/parity/go-rust-predicates.json` 双端锁定（本包 `parity_test.go` ↔ `rust-core/src/tests.rs`），单一权威 = 本包（ADR-038 D2）；改口径必须改 fixture 且两端同绿。跨层契约与 scan_index 故意分歧详见 [rustbridge](./rustbridge.md)
 - **ADR-051 单一事实来源**：`AppError.Code` 类型是 `ErrorCode` 枚举（不是 `string`），强制所有错误码必须从 15 个常量中选取；前端 `friendlyError`（`utils/dom/errors.ts`）直接消费 Code 做 i18n 映射，不再维护独立正则分类表；前端 `CODE_KEYS` 表必须与本卡的 ErrorCode 表同步，任一新增/改名须两处同时更新
 
 ## 相关
