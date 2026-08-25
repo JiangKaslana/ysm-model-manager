@@ -107,154 +107,165 @@ export function slideRow(
     extra?: SlideRowExtra
 ): HTMLElement {
     const row = document.createElement('div');
-
-    // 稳定测试钩子：覆盖 headerToggle 与普通行两条分支（共用同一 row）。
-    if (extra?.testId) {
-        row.setAttribute('data-testid', extra.testId);
-    }
+    if (extra?.testId) row.setAttribute('data-testid', extra.testId);
 
     if (headerToggle) {
-        // 使用 addCollapsible 的 header 样式：图标 + label + toggle + 箭头
-        row.className = COLLAPSIBLE.headerClass;
-        row.tabIndex = 0;
-        row.role = ROLE.button;
-
-        const iconSpan = document.createElement('span');
-        iconSpan.className = 'collapsible-icon';
-        const iconEl = createIcon(icon);
-        if (iconEl) {
-            iconSpan.appendChild(iconEl);
-        } else {
-            const fb = document.createElement('span');
-            fb.className = 'cs-icon-fallback';
-            fb.textContent = label.charAt(0) || '?';
-            iconSpan.appendChild(fb);
-        }
-        row.appendChild(iconSpan);
-
-        const labelSpan = document.createElement('span');
-        labelSpan.className = 'collapsible-label';
-        labelSpan.textContent = label;
-        row.appendChild(labelSpan);
-
-        if (sublabel) {
-            const sub = document.createElement('span');
-            sub.className = 'slide-sublabel';
-            sub.textContent = sublabel;
-            row.appendChild(sub);
-        }
-
-        // Toggle
-        const toggle = createHeaderToggle({
-            value: headerToggle.value,
-            onChange: (v) => headerToggle.onChange(v),
-            bind: headerToggle.bind,
-            disabled: headerToggle.disabled,
-            onDisabledClick: headerToggle.onDisabledClick,
-        });
-        row.appendChild(toggle);
-
-        // Arrow
-        if (hasArrow) {
-            const arrowSpan = document.createElement('span');
-            arrowSpan.className = 'collapsible-arrow';
-            arrowSpan.textContent = '▾';
-            row.appendChild(arrowSpan);
-        }
-
-        row.addEventListener('click', () => {
-            if (window.getSelection()?.toString()) {
-                return;
-            }
-            onClick();
-        });
+        srBuildCollapsibleVariant(row, icon, label, sublabel, headerToggle, hasArrow);
     } else {
-        // 原始 slide-item 样式（无 toggle）
-        const variant = extra?.variant ?? 'default';
-        row.className = 'slide-item' + (focused ? ' slide-focused' : '');
-        row.tabIndex = 0;
-        row.role = ROLE.button;
-
-        // === 统一左侧行为区：leading 优先于纯展示 .slide-icon（互斥）===
-        // leading 存在时，左侧图标被渲染为可点击按钮（保持 radio 指示视觉），
-        // 点击 stopPropagation 后触发该动作（如切焦点），与整行 onClick 解耦。
-        if (extra?.leading) {
-            row.appendChild(createLeadingBtn(extra.leading));
-        } else if (!extra?.hideIcon) {
-            const iconSpan = document.createElement('span');
-            iconSpan.className = 'slide-icon';
-            if (extra?.iconFactory) {
-                const el = extra.iconFactory();
-                if (el) {
-                    iconSpan.appendChild(el);
-                }
-            } else {
-                const iconEl = createIcon(icon);
-                if (iconEl) {
-                    iconSpan.appendChild(iconEl);
-                } else {
-                    const fb = document.createElement('span');
-                    fb.className = 'cs-icon-fallback';
-                    fb.textContent = label.charAt(0) || '?';
-                    iconSpan.appendChild(fb);
-                }
-            }
-            row.appendChild(iconSpan);
-        }
-
-        // 右侧 label（key-value 布局）
-        if (extra?.rightLabel !== undefined) {
-            // 左侧 label（字段名）
-            const leftSpan = document.createElement('span');
-            leftSpan.className = 'slide-label field-label';
-            leftSpan.textContent = label;
-            row.appendChild(leftSpan);
-            // 右侧 label（字段值）
-            const rightSpan = document.createElement('span');
-            rightSpan.className = 'field-value';
-            rightSpan.textContent = extra.rightLabel;
-            row.appendChild(rightSpan);
-        } else {
-            const labelSpan = document.createElement('span');
-            let labelCls = 'slide-label';
-            if (variant === 'danger') {
-                labelCls += ' danger-text';
-            } else if (variant === 'accent') {
-                labelCls += ' accent-text';
-            }
-            if (extra?.wrapLabel) {
-                labelCls += ' wrap-2';
-            }
-            labelSpan.className = labelCls;
-            labelSpan.textContent = label;
-            row.appendChild(labelSpan);
-        }
-
-        if (sublabel) {
-            const sub = document.createElement('span');
-            sub.className = 'slide-sublabel' + (extra?.inlineSub ? ' slide-sublabel-inline' : '');
-            sub.textContent = sublabel;
-            row.appendChild(sub);
-        }
-
-        // === 统一尾部行为区：trailing 优先于装饰性 `>`（互斥，避免误渲染 `>`）===
-        if (extra?.trailing) {
-            row.appendChild(createTrailingBtn(extra.trailing));
-        } else if (hasArrow) {
-            const arrowSpan = document.createElement('span');
-            arrowSpan.className = 'slide-arrow';
-            arrowSpan.textContent = '>';
-            row.appendChild(arrowSpan);
-        }
-
-        row.addEventListener('click', () => {
-            if (window.getSelection()?.toString()) {
-                return;
-            }
-            onClick();
-        });
+        srBuildSlideItemVariant(row, icon, label, hasArrow, sublabel, tag, focused, extra);
     }
+    srBindRowClick(row, onClick);
 
     container.appendChild(row);
     return row;
+}
+
+function srBuildCollapsibleVariant(
+    row: HTMLDivElement,
+    icon: string,
+    label: string,
+    sublabel: string | undefined,
+    headerToggle: HeaderToggleConfig,
+    hasArrow: boolean
+): void {
+    // 使用 addCollapsible 的 header 样式：图标 + label + toggle + 箭头
+    row.className = COLLAPSIBLE.headerClass;
+    row.tabIndex = 0;
+    row.role = ROLE.button;
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'collapsible-icon';
+    iconSpan.appendChild(srResolveIcon(icon, label));
+    row.appendChild(iconSpan);
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'collapsible-label';
+    labelSpan.textContent = label;
+    row.appendChild(labelSpan);
+
+    if (sublabel) {
+        const sub = document.createElement('span');
+        sub.className = 'slide-sublabel';
+        sub.textContent = sublabel;
+        row.appendChild(sub);
+    }
+
+    const toggle = createHeaderToggle({
+        value: headerToggle.value,
+        onChange: (v) => headerToggle.onChange(v),
+        bind: headerToggle.bind,
+        disabled: headerToggle.disabled,
+        onDisabledClick: headerToggle.onDisabledClick,
+    });
+    row.appendChild(toggle);
+
+    if (hasArrow) {
+        const arrowSpan = document.createElement('span');
+        arrowSpan.className = 'collapsible-arrow';
+        arrowSpan.textContent = '▾';
+        row.appendChild(arrowSpan);
+    }
+}
+
+function srBuildSlideItemVariant(
+    row: HTMLDivElement,
+    icon: string,
+    label: string,
+    hasArrow: boolean,
+    sublabel: string | undefined,
+    _tag: string | undefined,
+    focused: boolean | undefined,
+    extra: SlideRowExtra | undefined
+): void {
+    const variant = extra?.variant ?? 'default';
+    row.className = 'slide-item' + (focused ? ' slide-focused' : '');
+    row.tabIndex = 0;
+    row.role = ROLE.button;
+
+    srAppendLeading(row, icon, label, extra);
+    srAppendLabels(row, label, sublabel, variant, extra);
+    srAppendTrailing(row, hasArrow, extra);
+}
+
+function srAppendLeading(row: HTMLDivElement, icon: string, label: string, extra: SlideRowExtra | undefined): void {
+    // === 统一左侧行为区：leading 优先于纯展示 .slide-icon（互斥）===
+    // leading 存在时，左侧图标被渲染为可点击按钮（保持 radio 指示视觉），
+    // 点击 stopPropagation 后触发该动作（如切焦点），与整行 onClick 解耦。
+    if (extra?.leading) {
+        row.appendChild(createLeadingBtn(extra.leading));
+    } else if (!extra?.hideIcon) {
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'slide-icon';
+        if (extra?.iconFactory) {
+            const el = extra.iconFactory();
+            if (el) iconSpan.appendChild(el);
+        } else {
+            iconSpan.appendChild(srResolveIcon(icon, label));
+        }
+        row.appendChild(iconSpan);
+    }
+}
+
+function srAppendLabels(
+    row: HTMLDivElement,
+    label: string,
+    sublabel: string | undefined,
+    variant: 'default' | 'danger' | 'accent',
+    extra: SlideRowExtra | undefined
+): void {
+    // 右侧 label（key-value 布局）：field-label + field-value 双段
+    if (extra?.rightLabel !== undefined) {
+        const leftSpan = document.createElement('span');
+        leftSpan.className = 'slide-label field-label';
+        leftSpan.textContent = label;
+        row.appendChild(leftSpan);
+        const rightSpan = document.createElement('span');
+        rightSpan.className = 'field-value';
+        rightSpan.textContent = extra.rightLabel;
+        row.appendChild(rightSpan);
+        return;
+    }
+    // 普通 label：variant（danger/accent）+ wrap-2
+    let labelCls = 'slide-label';
+    if (variant === 'danger') labelCls += ' danger-text';
+    else if (variant === 'accent') labelCls += ' accent-text';
+    if (extra?.wrapLabel) labelCls += ' wrap-2';
+    const labelSpan = document.createElement('span');
+    labelSpan.className = labelCls;
+    labelSpan.textContent = label;
+    row.appendChild(labelSpan);
+    if (sublabel) {
+        const sub = document.createElement('span');
+        sub.className = 'slide-sublabel' + (extra?.inlineSub ? ' slide-sublabel-inline' : '');
+        sub.textContent = sublabel;
+        row.appendChild(sub);
+    }
+}
+
+function srAppendTrailing(row: HTMLDivElement, hasArrow: boolean, extra: SlideRowExtra | undefined): void {
+    // === 统一尾部行为区：trailing 优先于装饰性 `>`（互斥，避免误渲染 `>`）===
+    if (extra?.trailing) {
+        row.appendChild(createTrailingBtn(extra.trailing));
+    } else if (hasArrow) {
+        const arrowSpan = document.createElement('span');
+        arrowSpan.className = 'slide-arrow';
+        arrowSpan.textContent = '>';
+        row.appendChild(arrowSpan);
+    }
+}
+
+function srResolveIcon(icon: string, label: string): Node {
+    const iconEl = createIcon(icon);
+    if (iconEl) return iconEl;
+    const fb = document.createElement('span');
+    fb.className = 'cs-icon-fallback';
+    fb.textContent = label.charAt(0) || '?';
+    return fb;
+}
+
+function srBindRowClick(row: HTMLDivElement, onClick: () => void): void {
+    row.addEventListener('click', () => {
+        if (window.getSelection()?.toString()) return;
+        onClick();
+    });
 }
