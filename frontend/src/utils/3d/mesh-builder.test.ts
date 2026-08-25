@@ -41,7 +41,8 @@ describe("YSM material alpha partition", () => {
     const bone = new THREE.Group();
     addMeshToBoneGroup(bone, meshData, [rgbaTexture(128)], 0, false);
 
-    const material = (bone.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+    // blend 双 pass：children[0]=BackSide depth, children[1]=FrontSide blend
+    const material = (bone.children[1] as THREE.Mesh).material as THREE.MeshBasicMaterial;
     expect(material.transparent).toBe(true);
     expect(material.depthWrite).toBe(false);
   });
@@ -105,9 +106,10 @@ describe("YSM material alpha partition", () => {
     const bone = new THREE.Group();
     addMeshToBoneGroup(bone, meshData, [rgbaTexture(255)], 0, false, [], "blend");
 
-    const material = (bone.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
-    expect(material.transparent).toBe(true);
-    expect(material.depthWrite).toBe(false);
+    // blend 双 pass：children[0]=BackSide depth, children[1]=FrontSide blend
+    const blendMat = (bone.children[1] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+    expect(blendMat.transparent).toBe(true);
+    expect(blendMat.depthWrite).toBe(false);
 
     const cutoutBone = new THREE.Group();
     addMeshToBoneGroup(cutoutBone, meshData, [rgbaTexture(128)], 0, false, [], "cutout");
@@ -116,5 +118,85 @@ describe("YSM material alpha partition", () => {
     expect(cutoutMat.transparent).toBe(false);
     expect(cutoutMat.alphaTest).toBe(0.1);
     expect(cutoutMat.depthWrite).toBe(true);
+  });
+});
+
+describe("blend 双 pass 渲染层契约（方案 E）", () => {
+  it("blend mode 创建 2 个 mesh：BackSide depth + FrontSide blend", () => {
+    const bone = new THREE.Group();
+    // alpha=128 → 真半透 → blend mode
+    addMeshToBoneGroup(bone, meshData, [rgbaTexture(128)], 0, false, [], "blend");
+
+    expect(bone.children).toHaveLength(2);
+  });
+
+  it("Pass 1: BackSide + depthWrite=true（写深度，挡背面）", () => {
+    const bone = new THREE.Group();
+    addMeshToBoneGroup(bone, meshData, [rgbaTexture(128)], 0, false, [], "blend");
+
+    const depthMesh = bone.children[0] as THREE.Mesh;
+    const depthMat = depthMesh.material as THREE.MeshBasicMaterial;
+    expect(depthMat.side).toBe(THREE.BackSide);
+    expect(depthMat.depthWrite).toBe(true);
+    expect(depthMat.transparent).toBe(true);
+    expect(depthMesh.renderOrder).toBe(1);
+  });
+
+  it("Pass 2: FrontSide + depthWrite=false（alpha 混合，不挡后续透明）", () => {
+    const bone = new THREE.Group();
+    addMeshToBoneGroup(bone, meshData, [rgbaTexture(128)], 0, false, [], "blend");
+
+    const blendMesh = bone.children[1] as THREE.Mesh;
+    const blendMat = blendMesh.material as THREE.MeshBasicMaterial;
+    expect(blendMat.side).toBe(THREE.FrontSide);
+    expect(blendMat.depthWrite).toBe(false);
+    expect(blendMesh.renderOrder).toBe(2);
+  });
+
+  it("双 pass renderOrder 保证 depth pass 先于 blend pass 绘制", () => {
+    const bone = new THREE.Group();
+    addMeshToBoneGroup(bone, meshData, [rgbaTexture(128)], 0, false, [], "blend");
+
+    const depthOrder = (bone.children[0] as THREE.Mesh).renderOrder;
+    const blendOrder = (bone.children[1] as THREE.Mesh).renderOrder;
+    expect(depthOrder).toBeLessThan(blendOrder);
+  });
+
+  it("opaque/cutout 保持单 mesh，不走双 pass", () => {
+    const opaqueBone = new THREE.Group();
+    addMeshToBoneGroup(opaqueBone, meshData, [rgbaTexture(255)], 0, false, [], "opaque");
+    expect(opaqueBone.children).toHaveLength(1);
+
+    const cutoutBone = new THREE.Group();
+    // alpha=0 → 完全透明 → cutout path（alphaTest 剔除）
+    const cutoutTex = new THREE.DataTexture(
+      new Uint8Array([255, 255, 255, 0]),
+      1,
+      1,
+      THREE.RGBAFormat,
+    );
+    cutoutTex.needsUpdate = true;
+    addMeshToBoneGroup(cutoutBone, meshData, [cutoutTex], 0, false, [], "cutout");
+    expect(cutoutBone.children).toHaveLength(1);
+  });
+
+  it("blend 双 pass 共享同一纹理（map 引用一致）", () => {
+    const bone = new THREE.Group();
+    const tex = rgbaTexture(128);
+    addMeshToBoneGroup(bone, meshData, [tex], 0, false, [], "blend");
+
+    const depthMat = (bone.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+    const blendMat = (bone.children[1] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+    expect(depthMat.map).toBe(tex);
+    expect(blendMat.map).toBe(tex);
+  });
+
+  it("blend 双 pass 几何位置一致（同 localPosition/Rotation）", () => {
+    const bone = new THREE.Group();
+    addMeshToBoneGroup(bone, meshData, [rgbaTexture(128)], 0, false, [], "blend");
+
+    const depthMesh = bone.children[0] as THREE.Mesh;
+    const blendMesh = bone.children[1] as THREE.Mesh;
+    expect(depthMesh.position).toEqual(blendMesh.position);
   });
 });
