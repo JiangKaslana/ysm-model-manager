@@ -715,6 +715,10 @@ export const autoSidebar = [
         "link": "/download-hardening-research-2026-08-17"
       },
       {
+        "text": "Bus 事件映射表",
+        "link": "/event-graph"
+      },
+      {
         "text": "最终审计总结报告",
         "link": "/final-audit-summary-2026-08-18"
       },

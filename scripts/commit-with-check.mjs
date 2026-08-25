@@ -112,6 +112,7 @@ if (docsMode || byDomain.docs?.length || byDomain.adr?.length) {
   const GEN_CMDS = [
     'gen-docs-index.mjs',
     'funcmap.mjs',
+    'event-graph.mjs',
     'gen-knowledge-index.mjs',
     'build-novel-index.mjs',
     'gen-project-map.mjs',

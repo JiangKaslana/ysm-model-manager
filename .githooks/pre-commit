@@ -62,6 +62,7 @@ snap_docs "$GEN_SNAP"
 echo "[pre-commit] 文档自动同步..."
 GEN_CMDS='gen-docs-index.mjs
 funcmap.mjs
+event-graph.mjs
 gen-knowledge-index.mjs
 build-novel-index.mjs
 gen-project-map.mjs
