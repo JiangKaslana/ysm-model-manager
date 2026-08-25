@@ -26,16 +26,17 @@ invariant_anchors:
 
 ## 核心职责
 
-- `container.go` — 容器抽象与打开入口：`Entry`（Name/IsDir/UncompressedSize64/Open）+ `Reader`（Entries/Close），zip/7z/目录三种实现，path/bytes 双入口分派
+- `container.go` — 容器抽象与打开入口：`Entry`（Name/IsDir/UncompressedSize64/Open）+ `Reader`（Entries/Close/**Incomplete**），zip/7z/目录三种实现，path/bytes 双入口分派；打开失败统一 `container:` 前缀包装
 
 ## 对外 API / 入口
 
 - `Open(path) (Reader, error)` — 按扩展名分派：`.zip` → zip、`.7z` → sevenzip、目录 → dir 直读；其他扩展名拒绝
 - `OpenZipPath(path)` / `OpenZipBytes(data, size)` — zip 容器的路径/内存双入口（内存版供 avatar/geometry 已持有 `[]byte` 的场景，避免多一次 syscall）
 - `Open7zPath(path)` / `Open7zBytes(data, size)` — 7z 容器双入口（`bodgit/sevenzip` 只读库，无 Writer）
-- `OpenDir(root)` — 目录容器（`filepath.WalkDir` 收集相对路径条目、正斜杠名），供已解压资源包/光影包分支迁移
+- `OpenDir(root)` — 目录容器（`filepath.WalkDir` 收集相对路径条目、正斜杠名），供已解压资源包/光影包分支迁移；根路径不存在直接报错（打开前预检）
 - `ZipMatchesEntries(path, match func(string) bool) bool` — 打开 zip 枚举条目名、任一命中 `match` 即 true；非 zip 路径 / 打开失败（含**损坏 zip**）一律返回 false。消费方：`types.IsTypeModelFile` 对 `zipentry` 检测器类型做 `.zip` 内含指纹校验（581c3ec8），使同步推送/拉取不再把纯打包物/坏包当模型搬运
-- `Entry` 接口方法：`Name()`（正斜杠名）、`IsDir()`、`UncompressedSize64()`（zip/7z 原值；目录版取 FileInfo.Size）、`Open() (io.ReadCloser, error)`
+- `Entry` 接口方法：`Name()`（正斜杠名）、`IsDir()`、`UncompressedSize64()`（zip/7z 原值；目录版取 FileInfo.Size **绝对值**，防负 Size 直转变天文数字）、`Open() (io.ReadCloser, error)`
+- `Reader.Incomplete() bool` — 目录容器遍历遇错（子树权限不足等）时 true，zip/7z 恒 false：打开成功 ≠ 条目全量，遍历中途错误记入首个 `walkErr` 不中断枚举，调用方可选查询提示
 
 ## 与其他子系统关系
 

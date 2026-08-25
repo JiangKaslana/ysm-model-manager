@@ -29,7 +29,7 @@ invariant_anchors:
 
 ## 对外 API / 入口
 
-- `BuildSyncItems(ins, rtypes, repoRoots)` — 构建实例的资源同步项（供同步管理界面展示）；dirLevel 类型（YSM/MMD/蓝图）走 `ysmsync.SyncResourcesDirLevelScan`（注入 `scanner.ScanEntriesWithHit` 复用刷新已缓存的组根扫描结果，消除重复全树 Walk），file-level 类型走 `ysmsync.SyncResources`（ADR-064 相对路径口径）；非 `CompareGlobalInstanceHashes`（知识卡旧文漂移已修正）。每个 dirLevel 文件夹的子条目通过 `DiffFolderContentsScan` 做内容级 diff（全局侧复用组根扫描反推，实例侧走 `collectFolderFiles`，已叠 30s 同步目录扫描缓存）。**2026-08-24 新增 30s 同步结果缓存**：`BuildSyncItems` 最终结果按 `实例名+VersionDir+subtype+roots+rtypes` 缓存 30s，`scanner.InvalidateCache/InvalidatePath` 经 `OnCacheInvalidated` 自动清理；`SyncModelToggleStatus`、Push/Pull、`SyncCustomToRepo`、`RelinkCustomDir` 等不走 scanner 失效的入口显式调 `InvalidateSyncItemsCache()`；**`ImportModelFile*` 落在 Go 侧 `ClearScanCache()` 统一收口**，不依赖前端事后失效。
+- `BuildSyncItems(ins, rtypes, repoRoots)` — 构建实例的资源同步项（供同步管理界面展示）；dirLevel 类型（YSM/MMD/蓝图）走 `ysmsync.SyncResourcesDirLevelScan`（注入 `scanner.ScanEntriesWithHit` 复用刷新已缓存的组根扫描结果，消除重复全树 Walk），file-level 类型走 `ysmsync.SyncResources`（ADR-064 相对路径口径）；非 `CompareGlobalInstanceHashes`（知识卡旧文漂移已修正）。每个 dirLevel 文件夹的子条目通过 `DiffFolderContentsScan` 做内容级 diff（全局侧复用组根扫描反推，实例侧走 `collectFolderFiles`，已叠 30s 同步目录扫描缓存）。**2026-08-24 新增 30s 同步结果缓存**：`BuildSyncItems` 最终结果按 `实例名+VersionDir+subtype+roots+rtypes` 缓存（TTL 跟随 `scanner.EffectiveCacheTTL()`，写入时刻求值，默认 30s），失效钩子由 app 层 ServiceStartup 显式调 `RegisterInvalidationHook()` 挂到 `scanner.OnCacheInvalidated`（2026-08-26 起不再隐式 `init()` 注册，内部 `sync.Once` 幂等）；`SyncModelToggleStatus`、Push/Pull、`SyncCustomToRepo`、`RelinkCustomDir` 等不走 scanner 失效的入口显式调 `InvalidateSyncItemsCache()`；**`ImportModelFile*` 落在 Go 侧 `ClearScanCache()` 统一收口**，不依赖前端事后失效。
 
 ## 与其他子系统关系
 
@@ -41,6 +41,7 @@ invariant_anchors:
 
 - 条目过滤统一走 `types.IsTypeModelFile`（ADR-064 阶段一收敛，原 `extMatch` 内联实现删除）；资源包文件夹（`pack.mcmeta`）在三分支放行（`fsutil.IsResourcePackFolder` 兜底，保持 SyncResources 判定的真实状态）
 - **兜底 Walk（IsScanInstance）已移除**（ADR-064 阶段二）：`SyncResources` 相对路径对比全树递归收集所有受支持文件（含嵌套），同名不同目录不再 map 去重丢失，原兜底已无新增条目可补，删除防重复列示——`TestBuildSyncItems_FallbackWalk` 语义由 SyncResources 的 Extra 覆盖后仍通过
+- 内部参数收敛（2026-08-26）：`resolveItemMeta` 返回 `itemMeta` 结构体（isDirEntry/status/defaultStatus/icon 四元组），`appendOneItem` 升格为 `rtypeCtx` 方法（rt/globalDir/instDir/isDirLevel 上下文），11 参收敛为接收者+路径+meta
 - **展示树镜像磁盘层级（仓库是权威源）**：`BuildSyncItems` 对 dirLevel 类型（`IsDirLevelSync`）用 `nestDirLevelTree` 把 `SyncResourcesDirLevel` 的扁平单元按相对路径段重建为嵌套容器树——中间目录（仅含子模型夹、自身非模型文件夹，如 `wine_fox_json`）自动成为可展开容器节点，模型夹/文件为叶子。仓库怎么来，整合包就怎么来。**容器节点必须填 `Type`**（`nestDirLevelTree`/`treeChildren` 接收 rtype）——前端 `applyFilter` 按 `i.type === 选中类型` 过滤，容器缺 Type(=空串)会被整体丢弃，导致整棵嵌套子树（嵌套1→嵌套2→动力臂.ysm）不显示
 - **文件夹图标 📁，扁平文件才用类型图标**（💎）；`isDirEntry` 时 icon 默认 `📁`，disabled/legacy 各自覆盖 ⛔/🔗，diverged 聚合夹用 🗂️
 - **missing 夹展开显仓库侧预览**：`buildChildrenForDir` 不再要求实例侧存在——仓库是绝对权威源，missing（仓库有整合包无）夹从仓库侧列内部文件清单（全标 missing）供预览待推内容

@@ -5,6 +5,10 @@ tier: architecture
 category: go
 source_files:
   - go/litematic/parser.go
+  - go/litematic/schematic.go
+  - go/litematic/structure.go
+  - go/litematic/bedrock.go
+  - go/litematic/palette.go
   - go/litematic/nbt.go
   - go/litematic/voxel.go
   - go/litematic/
@@ -29,7 +33,8 @@ invariant_anchors:
 
 ## 核心职责
 
-- `parser.go` — 元数据解析（名称/作者/尺寸/预览图 ARGB→PNG base64）、按 palette+BlockStates 聚合方块统计（数量降序）、`.schematic` / `.nbt` 摘要
+- `parser.go` — `.litematic` 元数据解析（名称/作者/尺寸/预览图 ARGB→PNG base64）、按 palette+BlockStates 聚合方块统计（数量降序）；`sortedStats` 是四格式 counts→stats→sort 的公共收尾
+- `schematic.go` / `structure.go` / `bedrock.go` — `.schematic` 摘要 / 原版+基岩结构摘要按格式拆分（基岩版逻辑在 bedrock.go）；palette 提取统一走 `palette.go` 的 `extractPaletteNames`（缺 Name 兜底空串）与 `paletteColorsFromNames`（空名→`#7F7F7F`）
 - `nbt.go` — go-mc/nbt 解码封装、类型安全取值助手、Litematica 小端 packed LongArray 位提取（含越界防护）
 - `voxel.go` — 三格式共用体素管线：`openGzRoot`（打开+gzip+NBT 解码）→ 各格式的方块生成器闭包 → `groupVoxelStream`（按颜色分组+超限截断）→ `finalizeVoxelData`（表面过滤+组装）；`buildRegionInfo` 负责 region 标准化（负 size 翻正、palette→颜色、bpe 计算）
 - 数据文件：`block_ids.go`/`block_ids_data.go`（1.12 数字 ID→注册名，`blocks_1_12.json` 经 `go generate` 生成）、`block_colors.go`（方块→颜色）、`zh_cn.json`（方块中文名）
@@ -38,7 +43,7 @@ invariant_anchors:
 
 - `ParseMeta(path string) (*types.LitematicMeta, error)` — `.litematic` 元数据（含 region 数、方块统计、预览图）
 - `ParseSchematic(path string) map[string]interface{}` — `.schematic` 摘要（尺寸/作者/方块统计，v1 数字 ID 经 `ResolveBlockName` 转注册名）
-- `ParseNbtStructure(path string) map[string]interface{}` — 原版结构 `.nbt` 摘要；**双格式支持**：Java 版（`size`/`blocks`/`palette` 顶层）+ 基岩版 1.21+（`origin`/`sub_levels` 多子结构，size 取全局包围盒、blockCount/paletteStats 跨子结构聚合，paletteStats 按 blocks.palette_id 引用 block_palette.Name 统计真实方块数）
+- `ParseNbtStructure(path string) map[string]interface{}` — 原版结构 `.nbt` 摘要（structure.go）；**双格式支持**：Java 版（`size`/`blocks`/`palette` 顶层）+ 基岩版 1.21+（bedrock.go，`origin`/`sub_levels` 多子结构，size 取全局包围盒、blockCount/paletteStats 跨子结构聚合，paletteStats 按 blocks.palette_id 引用 block_palette.Name 统计真实方块数）
 - `BuildVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, error)` — `.litematic` 体素数据（按颜色分组，只保留表面方块）；无 `Regions` 时返回只含 `Size` 的空结果而非报错
 - `BuildNbtVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, error)` / `BuildSchematicVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, error)` — `.nbt` / `.schematic` 的体素数据，与上者共用同一条管线
 - `ResolveBlockName(id int, data byte) string` — 旧版数字 ID→注册名
