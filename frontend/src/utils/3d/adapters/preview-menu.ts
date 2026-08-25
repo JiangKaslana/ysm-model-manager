@@ -83,15 +83,31 @@ export interface PreviewMenuHandle {
 }
 
 /** 挂载预览底部根菜单，返回句柄 */
-export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx): PreviewMenuHandle {
-  ensureFabStyles();
+// ===================================================================
+// mountPreviewRootMenu — 子函数（原 6 闭包升格 + 6 阶段拆 9 子）
+// ===================================================================
 
-  // ---- 底部 dock 容器 ----
+/** mount 状态壳：handle 在 dock 按钮 onclick 之后才赋值，fillRoles 回调经此壳读取，避免闭包前向捕获 */
+interface PreviewHandleShell {
+  handle: PreviewMenuHandle | null;
+}
+
+/** [子函数 1/9] 装配底部 dock + SlideMenu popup/menu 外壳，返回 show/hide 句柄 */
+function buildPreviewMenuShell(
+  overlay: HTMLElement,
+  ctx: PreviewMenuCtx,
+): {
+  dock: HTMLElement;
+  popup: HTMLElement;
+  menu: SlideMenuHandle;
+  showMenu: (view: SlideMenuView) => void;
+  hideMenu: () => void;
+} {
+  ensureFabStyles();
   const dock = document.createElement("div");
   dock.className = "preview-dock-nav";
   overlay.appendChild(dock);
 
-  // ---- SlideMenu 外壳（复用 MikuMikuAR 迁移组件）----
   const popup = document.createElement("div");
   popup.className = "ysm-preview-menu";
   popup.style.cssText =
@@ -101,7 +117,6 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   const menu = createSlideMenu({ title: "", closeIcon: "✕" });
   popup.appendChild(menu.root);
-  // 兼容既有 e2e 选择器：关闭按钮保留 preview-close-3d
   menu.root.querySelector<HTMLElement>(".slide-back")?.setAttribute("id", "preview-close-3d");
 
   const showMenu = (view: SlideMenuView): void => {
@@ -109,290 +124,430 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     popup.style.display = "flex";
   };
   const hideMenu = (): void => {
-    // 仅隐藏：display:none，DOM+导航栈保留（不调 menu.reset()）。
-    // 这样「再点渲染器」能恢复【同一个面板】而非空白，且 ✕/← 语义不串。
     popup.style.display = "none";
   };
-
-  // 真 action ctx：从 PreviewMenuCtx 取 toast/closeAllOverlays
-  const actionCtx: PreviewActionMenuCtx = {
-    toast: ctx.toast,
-    closeAllOverlays: ctx.closeAllOverlays,
-  };
-  // 根级 ✕（SlideMenu onClose）语义 = 关闭整个 3D 预览（对齐旧 close 菜单项）
+  // 根级 ✕ 语义 = 关闭整个 3D 预览
   menu.setOnClose(() => {
     hideMenu();
     ctx.close();
   });
+  return { dock, popup, menu, showMenu, hideMenu };
+}
 
-  // ---- 行/分隔线工厂 ----
-  const makeRow = (node: PreviewMenuNode, opts?: { chevron?: boolean }): HTMLElement => {
-    const row = document.createElement("div");
-    row.className = "ysm-preview-menu-row";
-    row.dataset.testid = "preview-" + node.id;
-    if (node.legacyTestId) row.id = node.legacyTestId;
-    row.style.cssText =
-      "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px";
-    if (node.danger) row.style.color = "#ff7b7b";
-    const ic = document.createElement("span");
-    ic.textContent = node.icon ?? "";
-    ic.style.cssText = "font-size:15px;width:18px;text-align:center";
-    const lb = document.createElement("span");
-    lb.textContent = tr(node.labelKey ?? node.id, node.fallback ?? node.id);
-    row.append(ic, lb);
-    // 可下钻面板 → 右侧装饰箭头（导航提示：点击进入下级菜单）
-    if (opts?.chevron) {
-      const chev = document.createElement("span");
-      chev.textContent = ">";
-      chev.dataset.testid = "row-chevron";
-      chev.style.cssText = "margin-left:auto;font-size:13px;font-weight:700;opacity:0.4;user-select:none";
-      row.append(chev);
+/** [子函数 2/9] 行工厂（原 makeRow 闭包升格）：可选 chevron 箭头导航提示 */
+function makePreviewMenuRow(node: PreviewMenuNode, opts?: { chevron?: boolean }): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "ysm-preview-menu-row";
+  row.dataset.testid = "preview-" + node.id;
+  if (node.legacyTestId) row.id = node.legacyTestId;
+  row.style.cssText =
+    "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px";
+  if (node.danger) row.style.color = "#ff7b7b";
+  const ic = document.createElement("span");
+  ic.textContent = node.icon ?? "";
+  ic.style.cssText = "font-size:15px;width:18px;text-align:center";
+  const lb = document.createElement("span");
+  lb.textContent = tr(node.labelKey ?? node.id, node.fallback ?? node.id);
+  row.append(ic, lb);
+  if (opts?.chevron) {
+    const chev = document.createElement("span");
+    chev.textContent = ">";
+    chev.dataset.testid = "row-chevron";
+    chev.style.cssText =
+      "margin-left:auto;font-size:13px;font-weight:700;opacity:0.4;user-select:none";
+    row.append(chev);
+  }
+  row.onmouseenter = (): void => {
+    row.style.background = "rgba(255,255,255,0.08)";
+  };
+  row.onmouseleave = (): void => {
+    row.style.background = "transparent";
+  };
+  return row;
+}
+
+/** [子函数 3/9] 声明式 Schema 面板内容渲染器（原 renderSchemaContent 闭包升格） */
+function renderPreviewSchemaContent(
+  list: HTMLElement,
+  nodes: PreviewMenuNode[],
+  hideMenu: () => void,
+): void {
+  for (const node of nodes) {
+    if (node.visibleWhen && !node.visibleWhen()) continue;
+    if (node.kind === "sectionTitle") {
+      const st = document.createElement("div");
+      st.className = "section-title";
+      st.dataset.testid = node.id;
+      st.textContent = node.labelKey
+        ? tr(node.labelKey, node.fallback ?? node.id)
+        : node.id;
+      list.appendChild(st);
+      continue;
     }
-    row.onmouseenter = (): void => {
-      row.style.background = "rgba(255,255,255,0.08)";
-    };
-    row.onmouseleave = (): void => {
-      row.style.background = "transparent";
-    };
-    return row;
-  };
-
-  // ---- core 填充器 ----
-  // environment 需要 menu 句柄实现两级下钻；其余 filler 仅 list 即可。
-  // menuHandleOut：roles 面板 radio 切换焦点后需清空 dock 适配器项，但 handle
-  // 在函数末尾才构造——先声明占位，fillRoles 点击回调经闭包取用（调用时已赋值）。
-  let menuHandleOut: PreviewMenuHandle | null = null;
-  // ---- 声明式 Schema 构建器（方案 A 迁移：面板 → PreviewMenuNode[]）----
-  // 优先用 schema 渲染，衰退到 fillers / def.render。
-  type SchemaBuilder = (menu?: SlideMenuHandle) => PreviewMenuNode[];
-  const schemaBuilders: Record<string, SchemaBuilder> = {
-    lighting: (_menu) => buildLightingSchema(ctx),
-    shadow: () => buildShadowSchema(ctx),
-    postproc: () => buildPostprocessingSchema(ctx),
-    settings: () => buildSettingsSchema(ctx),
-    camera: () => buildCameraSchema(ctx),
-  };
-
-  const fillers: Record<string, (list: HTMLElement, menu?: SlideMenuHandle) => void> = {
-    environment: (list, menu) => renderEnvLevel(list, ctx, menu),
-    roles: (list, menu) => fillRoles(list, ctx, hideMenu, makeRow, makePanelView, menu!, (items) => menuHandleOut?.setAdapterItems(items)),
-  };
-  const runners: Record<string, () => void> = {
-    close: () => ctx.close(),
-  };
-
-  // ---- 适配器注入项 ----
-  let adapterItems: PreviewMenuNode[] = [];
-
-  /** 渲染声明式节点数组为面板内容（不同于 renderMenu 的菜单行，这里是直接渲染内容） */
-  const renderSchemaContent = (list: HTMLElement, nodes: PreviewMenuNode[]): void => {
-    for (const node of nodes) {
-      if (node.visibleWhen && !node.visibleWhen()) continue;
-      if (node.kind === "sectionTitle") {
-        const st = document.createElement("div");
-        st.className = "section-title";
-        st.dataset.testid = node.id;
-        st.textContent = node.labelKey ? tr(node.labelKey, node.fallback ?? node.id) : node.id;
-        list.appendChild(st);
-        continue;
-      }
-      if (node.kind === "divider") {
-        const hr = document.createElement("div");
-        hr.dataset.testid = node.id;
-        hr.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
-        list.appendChild(hr);
-        continue;
-      }
-      if (node.kind === "field") {
-        const row = document.createElement("div");
-        row.className = "slide-item field-row";
-        row.dataset.testid = "preview-" + node.id;
-        const k = document.createElement("span"); k.className = "field-label"; k.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id;
-        const v = document.createElement("span"); v.className = "field-value"; v.textContent = String(node.value ?? (node.labelKey ? tr(node.labelKey, node.id) : node.id));
-        row.append(k, v);
-        list.appendChild(row);
-        continue;
-      }
-      // custom / 默认：renderCustom 逃生舱
-      const fn = node.renderCustom;
-      if (fn) {
-        fn(list, hideMenu);
-        continue;
-      }
+    if (node.kind === "divider") {
+      const hr = document.createElement("div");
+      hr.dataset.testid = node.id;
+      hr.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
+      list.appendChild(hr);
+      continue;
     }
-  };
-
-  const renderPanel = (list: HTMLElement, node: PreviewMenuNode): void => {
-    list.innerHTML = "";
-    try {
-      // 优先声明式 Schema；其次 renderCustom 逃生舱；最后 fillers 映射
-      if (schemaBuilders[node.id]) {
-        renderSchemaContent(list, schemaBuilders[node.id]!(menu));
-      } else if (node.renderCustom) {
-        node.renderCustom(list, () => hideMenu());
-      } else if (node.action) {
-        node.action(actionCtx);
-      } else {
-        fillers[node.id]?.(list, menu);
-      }
-    } catch (err) {
-      console.error("[preview-menu] renderPanel FAILED", node.id, err);
-      const errRow = document.createElement("div");
-      errRow.style.cssText = "padding:8px 10px;color:#ff7b7b;font-size:12px";
-      errRow.textContent = "面板渲染失败: " + safeErrorMessage(err);
-      list.appendChild(errRow);
+    if (node.kind === "field") {
+      const row = document.createElement("div");
+      row.className = "slide-item field-row";
+      row.dataset.testid = "preview-" + node.id;
+      const k = document.createElement("span");
+      k.className = "field-label";
+      k.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id;
+      const v = document.createElement("span");
+      v.className = "field-value";
+      v.textContent = String(
+        node.value ?? (node.labelKey ? tr(node.labelKey, node.id) : node.id),
+      );
+      row.append(k, v);
+      list.appendChild(row);
+      continue;
     }
-  };
+    const fn = node.renderCustom;
+    if (fn) {
+      fn(list, hideMenu);
+      continue;
+    }
+  }
+}
 
-  const makePanelView = (node: PreviewMenuNode): SlideMenuView => ({
+/** buildPreviewMenuRouters 返回类型：面板路由 + 声明式 schema 映射 */
+interface PreviewMenuRouters {
+  schemaBuilders: Record<string, (menu?: SlideMenuHandle) => PreviewMenuNode[]>;
+  fillers: Record<string, (list: HTMLElement, menu?: SlideMenuHandle) => void>;
+  runners: Record<string, () => void>;
+}
+
+/**
+ * [子函数 4/9] 构建 core 面板路由表（schema 声明式 → fillers 过程式 → runners 动作式，三级衰退链）。
+ *   roles 面板需要 setAdapterItems 回写 dock——handle 尚未构造时经 shell 延迟读取。
+ */
+function buildPreviewMenuRouters(
+  ctx: PreviewMenuCtx,
+  hideMenu: () => void,
+  menu: SlideMenuHandle,
+  actionCtx: PreviewActionMenuCtx,
+  shell: PreviewHandleShell,
+): PreviewMenuRouters {
+  const makeRow = makePreviewMenuRow;
+  const makePanelView = (node: PreviewMenuNode): SlideMenuView =>
+    previewMakePanelView(node, (l, n) =>
+      renderPreviewPanel(l, n, routers, menu, hideMenu, actionCtx),
+    );
+  // 先占位：makePanelView 上面的闭包会立即引用 routers，routers 下面立即赋值
+  const routers: PreviewMenuRouters = {
+    schemaBuilders: {
+      lighting: (_menu) => buildLightingSchema(ctx),
+      shadow: () => buildShadowSchema(ctx),
+      postproc: () => buildPostprocessingSchema(ctx),
+      settings: () => buildSettingsSchema(ctx),
+      camera: () => buildCameraSchema(ctx),
+    },
+    fillers: {
+      environment: (list, m) => renderEnvLevel(list, ctx, m),
+      roles: (list, m) =>
+        fillRoles(
+          list,
+          ctx,
+          hideMenu,
+          makeRow,
+          makePanelView,
+          m!,
+          (items) => shell.handle?.setAdapterItems(items),
+        ),
+    },
+    runners: {
+      close: () => ctx.close(),
+    },
+  };
+  return routers;
+}
+
+/** [子函数 5/9] 单面板渲染（原 renderPanel 闭包升格）：schema → renderCustom → action → fillers 四级衰退 + try-catch 错误边界 */
+function renderPreviewPanel(
+  list: HTMLElement,
+  node: PreviewMenuNode,
+  routers: PreviewMenuRouters,
+  menu: SlideMenuHandle,
+  hideMenu: () => void,
+  actionCtx: PreviewActionMenuCtx,
+): void {
+  list.innerHTML = "";
+  try {
+    if (routers.schemaBuilders[node.id]) {
+      renderPreviewSchemaContent(list, routers.schemaBuilders[node.id]!(menu), hideMenu);
+    } else if (node.renderCustom) {
+      node.renderCustom(list, () => hideMenu());
+    } else if (node.action) {
+      node.action(actionCtx);
+    } else {
+      routers.fillers[node.id]?.(list, menu);
+    }
+  } catch (err) {
+    console.error("[preview-menu] renderPanel FAILED", node.id, err);
+    const errRow = document.createElement("div");
+    errRow.style.cssText = "padding:8px 10px;color:#ff7b7b;font-size:12px";
+    errRow.textContent = "面板渲染失败: " + safeErrorMessage(err);
+    list.appendChild(errRow);
+  }
+}
+
+/** [子函数 6/9] SlideMenuView 工厂（原 makePanelView 闭包升格） */
+function previewMakePanelView(
+  node: PreviewMenuNode,
+  renderPanelFn: (list: HTMLElement, node: PreviewMenuNode) => void,
+): SlideMenuView {
+  return {
     title: tr(node.labelKey ?? node.id, node.fallback ?? node.id),
-    render: (list) => renderPanel(list, node),
-  });
+    render: (list) => renderPanelFn(list, node),
+  };
+}
 
-  /** 组根视图：列出组内项，点击 navigate 下钻面板 / action 直接执行 */
-  const makeGroupView = (g: PreviewMenuGroupDef, groupItems: PreviewMenuNode[]): SlideMenuView => ({
+/** [子函数 7/9] 组根视图：列出组内项，panel 型带箭头下钻 / action 型直接执行并关菜单 */
+function previewMakeGroupView(
+  g: PreviewMenuGroupDef,
+  groupItems: PreviewMenuNode[],
+  menu: SlideMenuHandle,
+  makeRowFn: (n: PreviewMenuNode, opts?: { chevron?: boolean }) => HTMLElement,
+  makePanelViewFn: (n: PreviewMenuNode) => SlideMenuView,
+  actionCtx: PreviewActionMenuCtx,
+  hideMenu: () => void,
+): SlideMenuView {
+  return {
     title: g.fallback,
     render: (list) => {
       list.innerHTML = "";
-      groupItems.forEach((node) => {
-        // panel 型 → 下钻导航，带 ">" 装饰箭头提示可进入
-        const row = makeRow(node, { chevron: node.kind === "panel" });
+      for (const node of groupItems) {
+        const row = makeRowFn(node, { chevron: node.kind === "panel" });
         row.onclick = (e: MouseEvent): void => {
           e.stopPropagation();
           if (node.kind === "panel") {
-            menu.navigate(makePanelView(node));
+            menu.navigate(makePanelViewFn(node));
           } else if (node.action) {
             hideMenu();
             node.action(actionCtx);
           }
         };
         list.appendChild(row);
-      });
+      }
     },
-  });
+  };
+}
 
-  // ---- 底部 dock 渲染（能力驱动）----
-  const renderDock = (): void => {
-    dock.innerHTML = "";
-    const allItems = [...CORE_MENU_ITEMS, ...adapterItems];
-    // 组内工具过滤链（model 特殊分支与通用分支共用，防两处漂移——审核 P3）
-    const groupItemsFor = (g: PreviewMenuGroupDef, allItems: PreviewMenuNode[]): PreviewMenuNode[] =>
-      allItems
-        .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
-        .filter((d) => !(d.sharedOnly && ctx.selfMode))
-        .filter((d) => !(d.hideInSelfMode && ctx.selfMode))
-        .filter((d) => !(d.requiresEnvironment && !sceneCapabilityRegistry.getById("sky") && !sceneCapabilityRegistry.getById("ground") && !ctx.getSkyCap() && !ctx.getGroundCap()));
-    PREVIEW_MENU_GROUPS.forEach((g) => {
-      const groupItems = groupItemsFor(g, allItems);
-      if (groupItems.length === 0) return;
+/** dock 组内工具过滤链（共用：model 捷径的 allItems.find 与通用分支同条件，防两处漂移） */
+function dockGroupItemsFor(
+  g: PreviewMenuGroupDef,
+  allItems: PreviewMenuNode[],
+  ctx: PreviewMenuCtx,
+): PreviewMenuNode[] {
+  const hasEnv =
+    !!sceneCapabilityRegistry.getById("sky") ||
+    !!sceneCapabilityRegistry.getById("ground") ||
+    !!ctx.getSkyCap() ||
+    !!ctx.getGroundCap();
+  return allItems
+    .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
+    .filter((d) => !(d.sharedOnly && ctx.selfMode))
+    .filter((d) => !(d.hideInSelfMode && ctx.selfMode))
+    .filter((d) => !(d.requiresEnvironment && !hasEnv));
+}
 
-      const btn = document.createElement("button");
-      btn.className = "preview-dock-navbtn";
-      btn.dataset.testid = "dock-" + g.id;
-      btn.innerHTML = `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
-      btn.onclick = (e: MouseEvent): void => {
-        e.stopPropagation();
-        // 🧍 模型组：恒进 roles 角色列表（加载/切换模型入口，新手流第一跳）。
-        // 点角色名 → 详情（模型信息面板本体 + 工具/动作 section）。
-        // 不做「直达活跃角色详情」——用户实测反馈：🧍 直接跳模型介绍反直觉，
-        // 切换模型被迫绕二级；列表点角色名同样 1 跳进详情，且切换不绕路。
-        const isModelShortcut = g.id === "model";
-        const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
-        if (isModelShortcut) {
-          if (rolesDef) {
-            showMenu(makePanelView(rolesDef));
-            return;
-          }
+/**
+ * [子函数 8/9] 底部 dock 渲染（原 renderDock 闭包升格）。
+ *   两大捷径分支：🧍 model 直达 roles；💃 motion 有活跃角色则直达详情的动作 section。
+ *   通用分支：组内仅 1 个 panel 项 → 直达面板；否则进组根视图。
+ */
+function renderPreviewDock(
+  dock: HTMLElement,
+  ctx: PreviewMenuCtx,
+  menu: SlideMenuHandle,
+  showMenu: (view: SlideMenuView) => void,
+  makeRowFn: (n: PreviewMenuNode, opts?: { chevron?: boolean }) => HTMLElement,
+  makePanelViewFn: (n: PreviewMenuNode) => SlideMenuView,
+  makeGroupViewFn: (g: PreviewMenuGroupDef, items: PreviewMenuNode[]) => SlideMenuView,
+  actionCtx: PreviewActionMenuCtx,
+  hideMenu: () => void,
+  adapterItemsRef: { v: PreviewMenuNode[] },
+): void {
+  dock.innerHTML = "";
+  const allItems = [...CORE_MENU_ITEMS, ...adapterItemsRef.v];
+  for (const g of PREVIEW_MENU_GROUPS) {
+    const groupItems = dockGroupItemsFor(g, allItems, ctx);
+    if (groupItems.length === 0) continue;
+
+    const btn = document.createElement("button");
+    btn.className = "preview-dock-navbtn";
+    btn.dataset.testid = "dock-" + g.id;
+    btn.innerHTML =
+      `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
+    btn.onclick = (e: MouseEvent): void => {
+      e.stopPropagation();
+      const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
+      // 🧍 模型组：直达 roles 角色列表（新手第一跳）
+      if (g.id === "model") {
+        if (rolesDef) {
+          showMenu(makePanelViewFn(rolesDef));
+          return;
         }
-        // 💃 动作组：存在活跃角色且有其技能（menuItems）→ 直达其详情聚焦动作 section（1 跳播放）；
-        // 否则回退组根。per-model 工具 + play/perception 统一收进角色详情。
-        if (g.id === "motion") {
-          const active = sceneRegistry.getActiveId()
-            ? sceneRegistry.getAll().find((x) => x.id === sceneRegistry.getActiveId())
-            : undefined;
-          if (active?.menuItems) {
-            showMenu(roleDetailView(active, {
-              makeRow,
-              makePanelView,
+      }
+      // 💃 动作组：有活跃角色+技能 → 直达详情聚焦动作 section
+      if (g.id === "motion") {
+        const activeId = sceneRegistry.getActiveId();
+        const active = activeId ? sceneRegistry.getAll().find((x) => x.id === activeId) : undefined;
+        if (active?.menuItems) {
+          showMenu(
+            roleDetailView(active, {
+              makeRow: makeRowFn,
+              makePanelView: makePanelViewFn,
               menu,
               actionCtx,
               initialSection: "motion",
-              onSwitchRole: () => {
-                if (rolesDef) showMenu(makePanelView(rolesDef));
-              },
-            }));
-            return;
-          }
+              onSwitchRole: rolesDef
+                ? () => showMenu(makePanelViewFn(rolesDef))
+                : undefined,
+            }),
+          );
+          return;
         }
-        const panels = groupItems.filter((d) => d.kind === "panel");
-        // 快捷直达：组内仅一个 panel 项
-        if (panels.length === 1 && groupItems.length === 1) {
-          showMenu(makePanelView(panels[0]));
-        } else {
-          showMenu(makeGroupView(g, groupItems));
-        }
-      };
-      dock.appendChild(btn);
-    });
-  };
+      }
+      const panels = groupItems.filter((d) => d.kind === "panel");
+      if (panels.length === 1 && groupItems.length === 1) {
+        showMenu(makePanelViewFn(panels[0]));
+      } else {
+        showMenu(makeGroupViewFn(g, groupItems));
+      }
+    };
+    dock.appendChild(btn);
+  }
+}
 
-  // ---- 渲染器点按：切换 chrome 可见性（隐藏↔恢复同一面板，非关闭浮窗）----
-  // 隐藏只切 display，DOM+导航栈保留 → 再点恢复的是同一个面板（不会变空白）。
-  // pointerdown/up + 位移/时长阈值区分「点按」与「拖拽旋转」，避免旋转误触切换。
-  const viewEl = ctx.getViewContainer();
+/**
+ * [子函数 9/9] 渲染器点按 vs 拖拽识别。
+ *   点按 = 位移≤5 且 时长≤400ms，此时切换 popup 显隐（仅切 display，DOM/栈保留）。
+ *   返回 abort 句柄供 dispose 解绑。
+ */
+function bindPreviewTapToggle(
+  viewEl: HTMLElement,
+  popup: HTMLElement,
+): () => void {
   const tapAbort = new AbortController();
-  let downX = 0, downY = 0, downT = 0;
-  viewEl.addEventListener("pointerdown", (e: PointerEvent): void => {
-    downX = e.clientX; downY = e.clientY; downT = performance.now();
-  }, { signal: tapAbort.signal });
-  viewEl.addEventListener("pointerup", (e: PointerEvent): void => {
-    const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
-    if (moved > 5 || performance.now() - downT > 400) return; // 拖拽/长按 → 交给 OrbitControls
-    const list = popup.querySelector<HTMLElement>(".slide-list");
-    if (popup.style.display !== "none") {
-      popup.style.display = "none";                  // 隐藏（栈/DOM/面板内容保留）
-    } else if (list && list.childElementCount > 0) {
-      popup.style.display = "flex";                  // 恢复同一面板（从未打开过则不显空白）
-    }
-  }, { signal: tapAbort.signal });
+  let downX = 0;
+  let downY = 0;
+  let downT = 0;
+  viewEl.addEventListener(
+    "pointerdown",
+    (e: PointerEvent): void => {
+      downX = e.clientX;
+      downY = e.clientY;
+      downT = performance.now();
+    },
+    { signal: tapAbort.signal },
+  );
+  viewEl.addEventListener(
+    "pointerup",
+    (e: PointerEvent): void => {
+      const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
+      if (moved > 5 || performance.now() - downT > 400) return;
+      const list = popup.querySelector<HTMLElement>(".slide-list");
+      if (popup.style.display !== "none") {
+        popup.style.display = "none";
+      } else if (list && list.childElementCount > 0) {
+        popup.style.display = "flex";
+      }
+    },
+    { signal: tapAbort.signal },
+  );
+  return (): void => tapAbort.abort();
+}
 
-  // ---- 句柄 ----
+/** setAdapterItems 的 id 冲突守卫（ADR-085 S1）：发现重复/冲突抛错阻断 */
+function validateAdapterItemIds(items: PreviewMenuNode[]): void {
+  const seen = new Set<string>();
+  for (const it of items) {
+    if (seen.has(it.id)) {
+      throw new Error(
+        `[preview-menu] setAdapterItems 重复 id: "${it.id}"（适配器项之间冲突）`,
+      );
+    }
+    if (CORE_MENU_ITEMS.some((c) => c.id === it.id)) {
+      throw new Error(
+        `[preview-menu] setAdapterItems id "${it.id}" 与 CORE_MENU_ITEMS 冲突`,
+      );
+    }
+    seen.add(it.id);
+  }
+}
+
+// ===================================================================
+// mountPreviewRootMenu — 主函数
+// ===================================================================
+
+export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx): PreviewMenuHandle {
+  // 阶段 1：dock + popup + SlideMenu 外壳装配（含 show/hide）
+  const { dock, popup, menu, showMenu, hideMenu } = buildPreviewMenuShell(overlay, ctx);
+  // 阶段 2：action ctx 与 handle 延迟壳（fillRoles 回调在 handle 构造前就能安全引用）
+  const actionCtx: PreviewActionMenuCtx = {
+    toast: ctx.toast,
+    closeAllOverlays: ctx.closeAllOverlays,
+  };
+  const shell: PreviewHandleShell = { handle: null };
+  const adapterItemsRef = { v: [] as PreviewMenuNode[] };
+  // 阶段 3：面板路由表（schema / fillers / runners 三级衰退链）
+  const routers = buildPreviewMenuRouters(ctx, hideMenu, menu, actionCtx, shell);
+  // 阶段 4：面板/组视图工厂（引用 routers 做渲染）
+  const renderPanelFn = (l: HTMLElement, n: PreviewMenuNode): void =>
+    renderPreviewPanel(l, n, routers, menu, hideMenu, actionCtx);
+  const makePanelViewFn = (n: PreviewMenuNode): SlideMenuView =>
+    previewMakePanelView(n, renderPanelFn);
+  const makeRowFn = makePreviewMenuRow;
+  const makeGroupViewFn = (g: PreviewMenuGroupDef, items: PreviewMenuNode[]): SlideMenuView =>
+    previewMakeGroupView(g, items, menu, makeRowFn, makePanelViewFn, actionCtx, hideMenu);
+  // 阶段 5：dock 渲染器（闭包捕获 adapterItemsRef，setAdapterItems 后自动刷新）
+  const refreshDock = (): void =>
+    renderPreviewDock(
+      dock,
+      ctx,
+      menu,
+      showMenu,
+      makeRowFn,
+      makePanelViewFn,
+      makeGroupViewFn,
+      actionCtx,
+      hideMenu,
+      adapterItemsRef,
+    );
+  // 阶段 6：tap 识别（点击渲染器区域显隐菜单，拖拽不响应）
+  const abortTap = bindPreviewTapToggle(ctx.getViewContainer(), popup);
+
+  // ---- 句柄方法 ----
   const setAdapterItems = (items: PreviewMenuNode[]): void => {
-    // ADR-085 S1：运行期 id 冲突守卫（抛错阻断，避免重复行静默渲染）
-    const seen = new Set<string>();
-    for (const it of items) {
-      if (seen.has(it.id)) {
-        throw new Error(`[preview-menu] setAdapterItems 重复 id: "${it.id}"（适配器项之间冲突）`);
-      }
-      if (CORE_MENU_ITEMS.some((c) => c.id === it.id)) {
-        throw new Error(`[preview-menu] setAdapterItems id "${it.id}" 与 CORE_MENU_ITEMS 冲突`);
-      }
-      seen.add(it.id);
-    }
-    adapterItems = items;
-    renderDock();
+    validateAdapterItemIds(items);
+    adapterItemsRef.v = items;
+    refreshDock();
   };
-
   const openPanel = (id: string): void => {
-    const node = [...CORE_MENU_ITEMS, ...adapterItems].find((d) => d.id === id);
+    const node = [...CORE_MENU_ITEMS, ...adapterItemsRef.v].find((d) => d.id === id);
     if (!node || node.kind !== "panel") return;
-    showMenu(makePanelView(node));
+    showMenu(makePanelViewFn(node));
   };
-
-  renderDock();
+  refreshDock();
 
   const handle: PreviewMenuHandle = {
     dispose: (): void => {
-      tapAbort.abort();
+      abortTap();
       menu.dispose();
       dock.remove();
       popup.remove();
     },
     setAdapterItems,
     openPanel,
-    refreshDock: renderDock, // ADR-085 S3：caps 创建后调用，修复 litematic/pack environment 项时序
+    refreshDock, // ADR-085 S3：caps 创建后调用，修复 litematic/pack environment 项时序
   };
-  menuHandleOut = handle;
+  shell.handle = handle;
   return handle;
 }
 
@@ -413,170 +568,217 @@ const PREVIEW_LAST_RTYPE_KEY = "ysm.preview.lastRtype";
  *  默认高亮优先级：① 用户手动记忆的类型（localStorage）② 当前模型自身类型（getCurrentRtype）
  *  ③ 第一个类型 tab。「当前目录」tab 已移除（记忆/当前类型生效后可少一个 tab）；
  *  rtypes 为空（无注册路由）时仍走 siblings 列表兜底，不空白。 */
-function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx): void {
-  const cur = ctx.getCurrentPath();
-  const rtypes = ctx.getTypeTabs?.() ?? [];
-  const curRtype = ctx.getCurrentRtype?.() ?? "";
-  // ADR-111 收口：tab 标签统一从 getPreviewableTypeTabs 派生（preview key → 类型中文标签，
-  // 如 "vrm"/"mmd" → "角色模型"），不再依赖 RESOURCE_TYPE_LABELS[key]（preview key 不在其中）。
-  const tabLabelOf = (key: string): string => {
-    const hit = getPreviewableTypeTabs().find((t) => t.key === key);
-    return hit?.label ?? RESOURCE_TYPE_LABELS[key] ?? key;
-  };
-  // 默认高亮：手动记忆优先；记忆无效（无/越界）则回退当前模型类型；再不行第一个类型（rtypes 空则 "" 走 siblings 兜底）
-  const remembered = safeGet(PREVIEW_LAST_RTYPE_KEY);
-  let activeTab: string;
-  if (remembered !== null && rtypes.includes(remembered)) {
-    activeTab = remembered;
-  } else if (curRtype && rtypes.includes(curRtype)) {
-    activeTab = curRtype;
-  } else {
-    activeTab = rtypes[0] ?? "";
-  }
+// ===================================================================
+// fillSwitch — 子函数（原 3 闭包升格：mkTab / draw / renderRows）
+// ===================================================================
 
-  // 类型 tab 行：各资源类型（点击懒加载），「当前目录」tab 已移除
+/** ADR-111：tab 标签统一从 getPreviewableTypeTabs 派生，preview key 兜底 RESOURCE_TYPE_LABELS */
+function switchTabLabelOf(key: string): string {
+  const hit = getPreviewableTypeTabs().find((t) => t.key === key);
+  return hit?.label ?? RESOURCE_TYPE_LABELS[key] ?? key;
+}
+
+/** 路径归一化：统一正斜杠 + 小写（跨平台分隔符比较一致，P2-5） */
+function switchNormPath(s: string): string {
+  return s.replace(/\\/g, "/").toLowerCase();
+}
+
+/** [子函数 1/6] 解析默认高亮 tab：手动记忆 → 当前模型类型 → 首项；兜底 ""（siblings） */
+function resolveSwitchActiveTab(rtypes: string[], curRtype: string): string {
+  const remembered = safeGet(PREVIEW_LAST_RTYPE_KEY);
+  if (remembered !== null && rtypes.includes(remembered)) return remembered;
+  if (curRtype && rtypes.includes(curRtype)) return curRtype;
+  return rtypes[0] ?? "";
+}
+
+/**
+ * [子函数 2/6] 构建 tabBar 容器并返回更新句柄。
+ *   mkTab 闭包升格为包级函数；点击时透传 onSwitchTab 回调刷新 activeTab + 高亮 + 重渲染。
+ */
+function buildSwitchTabBar(
+  rtypes: string[],
+  initialActive: string,
+  onSwitchTab: (key: string) => void,
+): HTMLElement {
   const tabBar = document.createElement("div");
   tabBar.style.cssText =
     "display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.12);flex-wrap:wrap;flex-shrink:0";
   tabBar.dataset.testid = "preview-switch-tabs";
-  const mkTab = (key: string, label: string): void => {
+  const highlightTab = (key: string): void => {
+    for (const tb of Array.from(tabBar.children)) {
+      (tb as HTMLElement).style.background =
+        (tb as HTMLElement).dataset.rtype === key ? "rgba(124,131,255,0.35)" : "transparent";
+    }
+  };
+  for (const r of rtypes) {
     const b = document.createElement("button");
     b.dataset.testid = "preview-switch-tab";
-    b.dataset.rtype = key;
-    b.textContent = label;
+    b.dataset.rtype = r;
+    b.textContent = switchTabLabelOf(r);
     b.style.cssText =
       "font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;color:rgba(255,255,255,0.7);background:transparent" +
-      (key === activeTab ? ";background:rgba(124,131,255,0.35);color:#fff" : "");
+      (r === initialActive ? ";background:rgba(124,131,255,0.35);color:#fff" : "");
     b.onclick = (): void => {
-      activeTab = key;
-      // 全局记忆：持久化本次选中类型（「当前目录」tab 不持久化——临时视图，
-      // 不污染跨会话类型记忆，code review P2）
-      if (key !== "") safeSet(PREVIEW_LAST_RTYPE_KEY, key);
-      // 高亮当前 tab
-      for (const tb of Array.from(tabBar.children)) {
-        (tb as HTMLElement).style.background = (tb as HTMLElement).dataset.rtype === key
-          ? "rgba(124,131,255,0.35)"
-          : "transparent";
-      }
-      renderRows();
+      // 持久化选中类型（「当前目录」空串不持久化——临时视图）
+      if (r !== "") safeSet(PREVIEW_LAST_RTYPE_KEY, r);
+      highlightTab(r);
+      onSwitchTab(r);
     };
     tabBar.appendChild(b);
-  };
-  for (const r of rtypes) mkTab(r, tabLabelOf(r));
+  }
+  return tabBar;
+}
 
-  const listBody = document.createElement("div");
-  listBody.style.cssText = "max-height:240px;overflow-y:auto";
+/**
+ * [子函数 3/6] sameType 同源判定。
+ *   sameType 仅用于行点击路由：同源 → switchTo 复用外壳替换，跨源 → switchExternal。
+ *   类型判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型（resolveTypeSafe 解析）。
+ *   候选类型无法可靠识别（歧义扩展名，resolveTypeSafe 返回 null）时保守判「不同源」。
+ */
+function switchSameTypeOf(
+  viaType: boolean,
+  activeTab: string,
+  candType: string | null,
+  curType: string,
+): boolean {
+  return viaType
+    ? activeTab === curType || (curType === "" && activeTab === candType)
+    : !!candType && (candType === curType || curType === "");
+}
 
-  // 请求代际守卫：快速切 tab 时丢弃过期异步结果（P1-3）
-  let reqGen = 0;
+/**
+ * [子函数 4/6] 执行点击行的替换/追加语义（原两段 10+ 行重复 inline onclick）。
+ *   keepInScene=true→追加；false→替换。失败已由 mount 层 catch(logWarn) 记录，此处吞 unhandled rejection。
+ */
+function applySwitchRowClick(
+  p: string,
+  sameType: boolean,
+  ctx: PreviewMenuCtx,
+  keepInScene: boolean,
+): void {
+  const opts = keepInScene ? { keepInScene: true } : undefined;
+  const r = !sameType && ctx.switchExternal
+    ? ctx.switchExternal(p, ctx.getSiblings(), opts)
+    : ctx.switchTo(p, opts);
+  if (r && typeof (r as Promise<void>).then === "function") void (r as Promise<void>).catch(() => {});
+}
 
-  /** 路径归一化：统一正斜杠 + 小写（跨平台分隔符比较一致，P2-5） */
-  const norm = (s: string): string => s.replace(/\\/g, "/").toLowerCase();
-
-  const renderRows = (): void => {
-    const gen = ++reqGen;
-    listBody.innerHTML = "";
-    const draw = (paths: string[], viaType: boolean): void => {
-      // 类型 tab 候选过滤当前项（避免点击自己整段重建，P3-4）；siblings 分支（activeTab===""）已由 getSiblings 过滤当前项
-      const shown = viaType ? paths.filter((p) => norm(p) !== norm(cur)) : paths;
-      if (shown.length === 0) {
-        const empty = document.createElement("div");
-        empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-        empty.textContent = viaType
-          ? tr("preview.noTypeModel", "（该类型暂无模型）")
-          : tr("preview.noOtherModel", "（无其他模型）");
-        listBody.appendChild(empty);
-        return;
-      }
-      shown.forEach((p) => {
-        const isCur = norm(p) === norm(cur);
-        // sameType 仅用于 row.onclick（行本体点击）路由：同源 → switchTo 复用外壳替换，
-        // 跨源 → switchExternal 跨适配器替换。与"追加"语义无关。
-        // 类型判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型（resolveTypeSafe 解析）。
-        // 候选类型无法可靠识别（歧义扩展名如 .vrm/.zip 经 resolveTypeSafe 返回 null）时，
-        // 保守判定为「不同源」——走 switchExternal 跨适配器替换，避免用当前适配器 build
-        // 认不得的类型导致加载失败。空 curType（未传 rtype）时判定层兜底为同源（见下）。
-        const candType = resolveTypeSafe(p);
-        const curType = ctx.getCurrentRtype?.() ?? "";
-        // sameType 判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型。
-        // 空 curType（空白页加载/未传 rtype）时：候选扩展名唯一归属可识别 → 视为同源
-        // （走 switchTo 复用外壳，避免误判跨源触发 switchExternal → cleanupPreview 整段销毁）。
-        // 候选类型无法可靠识别（歧义扩展名如 .vrm/.zip 经 resolveTypeSafe 返回 null）时
-        // 保守判「不同源」——走 switchExternal，避免用当前适配器 build 认不得的类型。
-        const sameType = viaType
-          ? activeTab === curType || (curType === "" && activeTab === candType)
-          : !!candType && (candType === curType || curType === "");
-        const row = document.createElement("div");
-        row.className = "ysm-preview-menu-row";
-        row.dataset.testid = "preview-switch-item";
-        row.style.cssText =
-          "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px" +
-          (isCur ? ";background:rgba(124,131,255,0.25)" : "");
-        const ic = document.createElement("span");
-        ic.textContent = isCur ? "✓" : "📦";
-        ic.style.cssText = "font-size:15px;width:18px;text-align:center";
-        const lb = document.createElement("span");
-        lb.textContent = p.split(/[/\\]/).pop() || p;
-        row.append(ic, lb);
-        // 行尾「➕ 追加」：keepInScene 多角色同框（角色面板内打通追加加载）。
-        // 同类型候选走 ctx.switchTo keepInScene（当前会话 adapter）；跨类型候选
-        // 走 ctx.switchExternal(keepInScene)——openModel3DFullscreen cooperate →
-        // switchPreview 主门按类型路由同台追加（ADR-093 T4），用目标类型 opener，
-        // 不喂给当前会话 adapter（避免走错适配器解析失败）。
-        // stopPropagation 防触发行本体替换语义。
-        if (!isCur) {
-          const append = document.createElement("button");
-          append.dataset.testid = "preview-switch-append";
-          append.textContent = "➕";
-          attachTooltip(append, () => tr("preview.appendModel", "追加到场景"));
-          append.style.cssText =
-            "width:22px;height:22px;flex-shrink:0;background:rgba(255,255,255,0.08);border:none;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;margin-left:auto";
-          append.onclick = (ev): void => {
-            ev.stopPropagation();
-            // 追加（keepInScene 同台）：不清场景、不关菜单
-            // 注意：不调 menu.refresh()——全量重建会清空列表滚动位置 + 详情面板状态。
-            // ✓ 高亮在下次打开面板时自动归位（getCurrentPath 已更新）。
-            // 跨类型 switchExternal 整段重建 overlay 时刷新也是 no-op，此处统一忽略。
-            const r = !sameType && ctx.switchExternal
-              ? ctx.switchExternal(p, ctx.getSiblings(), { keepInScene: true })
-              : ctx.switchTo(p, { keepInScene: true });
-            // 失败已由 mount 层 .catch(logWarn) 记录，吞掉避免 unhandled rejection
-            if (r && typeof (r as Promise<void>).then === "function") void (r as Promise<void>).catch(() => {});
-          };
-          row.appendChild(append);
-        }
-        row.onclick = (): void => {
-          // 替换：不关菜单、不清场景
-          // 注意：不调 menu.refresh()——全量重建会清空列表滚动位置 + 详情面板状态。
-          // ✓ 高亮在下次打开面板时自动归位（getCurrentPath 已更新）。
-          // 跨类型 switchExternal 整段重建 overlay 时刷新也是 no-op，此处统一忽略。
-          const r = !sameType && ctx.switchExternal
-            ? ctx.switchExternal(p, ctx.getSiblings())
-            : ctx.switchTo(p);
-          // 失败已由 mount 层 .catch(logWarn) 记录，吞掉避免 unhandled rejection
-          if (r && typeof (r as Promise<void>).then === "function") void (r as Promise<void>).catch(() => {});
-        };
-        listBody.appendChild(row);
-      });
+/** [子函数 5/6] 绘制单条候选行：图标 / 标签 / ➕追加按钮 / 替换行点击。 */
+function renderSwitchCandidateRow(
+  listBody: HTMLElement,
+  p: string,
+  ctx: PreviewMenuCtx,
+  curNorm: string,
+  activeTab: string,
+  viaType: boolean,
+): void {
+  const isCur = switchNormPath(p) === curNorm;
+  const candType = resolveTypeSafe(p);
+  const curType = ctx.getCurrentRtype?.() ?? "";
+  const sameType = switchSameTypeOf(viaType, activeTab, candType, curType);
+  const row = document.createElement("div");
+  row.className = "ysm-preview-menu-row";
+  row.dataset.testid = "preview-switch-item";
+  row.style.cssText =
+    "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px" +
+    (isCur ? ";background:rgba(124,131,255,0.25)" : "");
+  const ic = document.createElement("span");
+  ic.textContent = isCur ? "✓" : "📦";
+  ic.style.cssText = "font-size:15px;width:18px;text-align:center";
+  const lb = document.createElement("span");
+  lb.textContent = p.split(/[/\\]/).pop() || p;
+  row.append(ic, lb);
+  if (!isCur) {
+    const append = document.createElement("button");
+    append.dataset.testid = "preview-switch-append";
+    append.textContent = "➕";
+    attachTooltip(append, () => tr("preview.appendModel", "追加到场景"));
+    append.style.cssText =
+      "width:22px;height:22px;flex-shrink:0;background:rgba(255,255,255,0.08);border:none;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;margin-left:auto";
+    append.onclick = (ev): void => {
+      ev.stopPropagation();
+      applySwitchRowClick(p, sameType, ctx, true);
     };
-    if (activeTab === "") {
-      draw(ctx.getSiblings(), false);
-    } else {
-      void Promise.resolve(ctx.getModelsByType?.(activeTab, ctx.getCurrentSubtype?.()) ?? Promise.resolve([])).then((paths) => {
-        if (gen !== reqGen) return; // 过期请求丢弃（P1-3）
-        if (!listBody.parentNode) return; // 面板已关闭
-        draw(paths ?? [], true);
-      }).catch(() => {
-        // P3-3：扫描失败优雅降级为空列表（不产生 unhandled rejection、不卡加载态）
-        if (gen !== reqGen) return;
-        if (!listBody.parentNode) return;
-        draw([], true);
-      });
+    row.appendChild(append);
+  }
+  row.onclick = (): void => {
+    applySwitchRowClick(p, sameType, ctx, false);
+  };
+  listBody.appendChild(row);
+}
+
+/** [子函数 6/6] renderRows：代际守卫 + 异步扫描 + 空态 + 候选列表绘制。 */
+function runSwitchRenderRows(
+  listBody: HTMLElement,
+  ctx: PreviewMenuCtx,
+  getActiveTab: () => string,
+  reqGen: { v: number },
+): void {
+  const gen = ++reqGen.v;
+  listBody.innerHTML = "";
+  const curNorm = switchNormPath(ctx.getCurrentPath());
+
+  const draw = (paths: string[], viaType: boolean): void => {
+    // 类型 tab 过滤当前项（siblings 分支已由 getSiblings 去当前项）
+    const shown = viaType ? paths.filter((p) => switchNormPath(p) !== curNorm) : paths;
+    if (shown.length === 0) {
+      const empty = document.createElement("div");
+      empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+      empty.textContent = viaType
+        ? tr("preview.noTypeModel", "（该类型暂无模型）")
+        : tr("preview.noOtherModel", "（无其他模型）");
+      listBody.appendChild(empty);
+      return;
+    }
+    const activeTab = getActiveTab();
+    for (const p of shown) {
+      renderSwitchCandidateRow(listBody, p, ctx, curNorm, activeTab, viaType);
     }
   };
 
+  const activeTab = getActiveTab();
+  if (activeTab === "") {
+    draw(ctx.getSiblings(), false);
+    return;
+  }
+  void Promise.resolve(
+    ctx.getModelsByType?.(activeTab, ctx.getCurrentSubtype?.()) ?? Promise.resolve([]),
+  )
+    .then((paths) => {
+      if (gen !== reqGen.v) return; // 过期请求丢弃（P1-3）
+      if (!listBody.parentNode) return; // 面板已关闭
+      draw(paths ?? [], true);
+    })
+    .catch(() => {
+      // P3-3：扫描失败优雅降级为空列表
+      if (gen !== reqGen.v) return;
+      if (!listBody.parentNode) return;
+      draw([], true);
+    });
+}
+
+// ===================================================================
+// fillSwitch — 主函数
+// ===================================================================
+
+function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx): void {
+  const rtypes = ctx.getTypeTabs?.() ?? [];
+  const curRtype = ctx.getCurrentRtype?.() ?? "";
+  // 阶段 1：默认高亮 tab 解析（记忆 → 当前类型 → 首项）
+  let activeTab = resolveSwitchActiveTab(rtypes, curRtype);
+  // 阶段 2：tabBar + 高亮更新回写
+  const tabBar = buildSwitchTabBar(rtypes, activeTab, (key) => {
+    activeTab = key;
+    // runSwitchRenderRows 内部读 reqGen，直接触发重新拉取+绘制
+    runSwitchRenderRows(listBody, ctx, () => activeTab, reqGen);
+  });
+  // 阶段 3：列表容器 + 代际守卫 state
+  const listBody = document.createElement("div");
+  listBody.style.cssText = "max-height:240px;overflow-y:auto";
+  const reqGen = { v: 0 };
+  // 阶段 4：挂 DOM + 首调 renderRows
   list.append(tabBar, listBody);
-  renderRows();
+  runSwitchRenderRows(listBody, ctx, () => activeTab, reqGen);
 }
 
 /**
@@ -974,27 +1176,23 @@ function fillCapOrFallback(
   renderCapControls(list, cap.getMenuControls());
 }
 
-/**
- * 设置面板：3D 预览器的性能 / 画质总开关。
- *
- * 定位（2026-08-23 用户决策）：设置面板 = 性能/画质开关，
- * 与 🌍 环境面板（管环境能力参数）职责正交。
- *
- * 分组：
- * - ⚡ 性能：视锥裁剪开关（多模型同框省渲染）——关掉后镜头外模型仍渲染
- * - 🎨 画质：渲染分辨率上限（控制 pixelRatio cap）——降分辨率换帧率
- *
- * 后续可加：帧率上限、Bloom 总开关、PMREM 开关、能力检测降级等。
- * 每个开关都走 localStorage 持久化，用户调了即时生效。
- */
-function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
-  list.innerHTML = "";
+// ===================================================================
+// fillSettings — 子函数
+// ===================================================================
 
-  // ── ⚡ 性能分组 ──
-  const perfHeader = document.createElement("div");
-  perfHeader.style.cssText = "padding:8px 10px 4px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
-  perfHeader.textContent = tr("preview.settingsPerf", "性能");
-  list.appendChild(perfHeader);
+/** 设置分组标题样式（性能/画质两段共享，避免重复硬编码 cssText） */
+function appendSettingsHeader(list: HTMLElement, labelKey: string, fallback: string, extraPad = false): void {
+  const h = document.createElement("div");
+  h.style.cssText =
+    (extraPad ? "padding:12px 10px 4px;" : "padding:8px 10px 4px;") +
+    "font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+  h.textContent = tr(labelKey, fallback);
+  list.appendChild(h);
+}
+
+/** [子函数 1/4] 性能组：视锥裁剪 toggle + 帧率上限 select */
+function appendSettingsPerfGroup(list: HTMLElement): void {
+  appendSettingsHeader(list, "preview.settingsPerf", "性能");
 
   // 视锥裁剪开关
   const cullRow = document.createElement("div");
@@ -1007,7 +1205,8 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   cullLabel.textContent = tr("preview.settingsFrustumCull", "视锥裁剪");
   cullLabel.style.fontSize = "12px";
   const cullHint = document.createElement("span");
-  cullHint.style.cssText = "font-size:11px;color:rgba(255,255,255,0.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  cullHint.style.cssText =
+    "font-size:11px;color:rgba(255,255,255,0.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
   cullHint.textContent = tr("preview.settingsFrustumCullHint", "镜头外模型跳过渲染，省 GPU");
   cullLabelBox.append(cullLabel, cullHint);
   const cullToggle = createHeaderToggle({
@@ -1019,7 +1218,6 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   list.appendChild(cullRow);
 
   // 帧率上限 select（控制 render-budget 的 getFrameIntervalMs，30/60/120/不限）
-  // 仅控制 3D 渲染器的 rAF 循环节流，不影响弹窗 UI 响应（DOM 事件驱动）。
   const fpsRow = document.createElement("div");
   fpsRow.className = "slide-item";
   fpsRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
@@ -1045,22 +1243,16 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   fpsSel.value = String(getMaxFps());
   fpsSel.onchange = (): void => {
     safeSet(MAX_FPS_KEY, fpsSel.value);
-    invalidateMaxFpsCache(); // rAF 热路径缓存失效（render-budget 模块级）
+    invalidateMaxFpsCache();
   };
   fpsRow.append(fpsLabel, fpsSel);
   list.appendChild(fpsRow);
+}
 
-  // ── 🎨 画质分组（后续加渲染分辨率上限等，先占位）──
-  const qualHeader = document.createElement("div");
-  qualHeader.style.cssText = "padding:12px 10px 4px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
-  qualHeader.textContent = tr("preview.settingsQuality", "画质");
-  list.appendChild(qualHeader);
-
-  // 渲染分辨率上限 slider（控制 render-budget 的 pixelRatio cap，0.5–2.0）
-  // 持久化键 ysm_3d_maxPixelRatio 由 render-budget.ts 的 getMaxPixelRatio 读取；
-  // 写入用 safeSet（隐私模式安全）。改后需重新进入 3D 预览生效（renderer 创建时读）。
+/** [子函数 2/4] 画质组：渲染分辨率 slider */
+function appendSettingsQualityResCap(list: HTMLElement): void {
+  appendSettingsHeader(list, "preview.settingsQuality", "画质", true);
   const resCap = getMaxPixelRatio();
-
   const resRow = document.createElement("div");
   resRow.className = "slide-item";
   resRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
@@ -1086,63 +1278,92 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   };
   resRow.append(resHead, resSlider);
   list.appendChild(resRow);
+}
 
-  // ── 🎨 画质：Bloom 总开关（PostprocessingCapability.setEnabled）──
-  // Bloom 是后处理管线里最重的 pass，独立开关让用户精准降级。
-  // cap 不存在（未进 3D）→ 跳过，不渲染空控件。
-  const ppCap = sceneCapabilityRegistry.getById("postprocessing") as
-    | (import("../caps/postprocessing-capability.ts").PostprocessingCapability & {
-        setEnabled(v: boolean): void;
-        isEnabled(): boolean;
-      })
-    | undefined;
-  if (ppCap) {
-    const bloomRow = document.createElement("div");
-    bloomRow.className = "slide-item";
-    bloomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-    const bloomLabel = document.createElement("span");
-    bloomLabel.className = "slide-label";
-    bloomLabel.textContent = tr("preview.settingsBloom", "Bloom 辉光");
-    bloomLabel.style.cssText = "flex:1;font-size:12px";
-    const bloomToggle = createHeaderToggle({
-      value: ppCap.isEnabled(),
-      onChange: (v: boolean): void => ppCap.setEnabled(v),
-      bind: (): boolean => ppCap.isEnabled(),
+/** [子函数 3/4] 画质组：cap 条件开关（Bloom / PMREM）。cap 不存在不渲染控件。 */
+function appendSettingsQualityCapToggles(list: HTMLElement): void {
+  type CapToggle = { isEnabled(): boolean; setEnabled(v: boolean): void };
+  const candidates: Array<{
+    capId: string;
+    labelKey: string;
+    fallback: string;
+    importAssert: (_: unknown) => asserts _ is CapToggle;
+  }> = [
+    {
+      capId: "postprocessing",
+      labelKey: "preview.settingsBloom",
+      fallback: "Bloom 辉光",
+      importAssert: (_): asserts _ is CapToggle => {},
+    },
+    {
+      capId: "sky",
+      labelKey: "preview.settingsPmrem",
+      fallback: "PMREM 环境光",
+      importAssert: (_): asserts _ is CapToggle => {},
+    },
+  ];
+  for (const c of candidates) {
+    const raw = sceneCapabilityRegistry.getById(c.capId);
+    if (!raw) continue;
+    c.importAssert(raw); // no-op：下面直接鸭子类型读取
+    const cap = raw as CapToggle;
+    if (typeof cap.isEnabled !== "function" || typeof cap.setEnabled !== "function") continue;
+    const row = document.createElement("div");
+    row.className = "slide-item";
+    row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+    const label = document.createElement("span");
+    label.className = "slide-label";
+    label.textContent = tr(c.labelKey, c.fallback);
+    label.style.cssText = "flex:1;font-size:12px";
+    const toggle = createHeaderToggle({
+      value: cap.isEnabled(),
+      onChange: (v: boolean): void => cap.setEnabled(v),
+      bind: (): boolean => cap.isEnabled(),
     });
-    bloomRow.append(bloomLabel, bloomToggle);
-    list.appendChild(bloomRow);
+    row.append(label, toggle);
+    list.appendChild(row);
   }
+}
 
-  // ── 🎨 画质：PMREM 环境光开关（SkyCapability.setEnvironmentEnabled）──
-  // PMREM 有计算开销，低配可关掉省算力；cap 不存在 → 跳过。
-  const skyCap = sceneCapabilityRegistry.getById("sky") as
-    | (import("../caps/sky-capability.ts").SkyCapability & {
-        setEnvironmentEnabled(v: boolean): void;
-        isEnvironmentEnabled(): boolean;
-      })
-    | undefined;
-  if (skyCap) {
-    const pmremRow = document.createElement("div");
-    pmremRow.className = "slide-item";
-    pmremRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-    const pmremLabel = document.createElement("span");
-    pmremLabel.className = "slide-label";
-    pmremLabel.textContent = tr("preview.settingsPmrem", "PMREM 环境光");
-    pmremLabel.style.cssText = "flex:1;font-size:12px";
-    const pmremToggle = createHeaderToggle({
-      value: skyCap.isEnvironmentEnabled(),
-      onChange: (v: boolean): void => skyCap.setEnvironmentEnabled(v),
-      bind: (): boolean => skyCap.isEnvironmentEnabled(),
-    });
-    pmremRow.append(pmremLabel, pmremToggle);
-    list.appendChild(pmremRow);
-  }
-
-  // 说明文字：改动下次打开 3D 预览生效（pixelRatio 在 renderer 创建时读取）
+/** [子函数 4/4] 设置面板尾注（分辨率热更新说明） */
+function appendSettingsNote(list: HTMLElement): void {
   const note = document.createElement("div");
-  note.style.cssText = "padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5";
-  note.textContent = tr("preview.settingsNote", "分辨率上限需重新进入 3D 预览生效；其余开关即时生效。");
+  note.style.cssText =
+    "padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5";
+  note.textContent = tr(
+    "preview.settingsNote",
+    "分辨率上限需重新进入 3D 预览生效；其余开关即时生效。"
+  );
   list.appendChild(note);
+}
+
+// ===================================================================
+// fillSettings — 主函数
+// ===================================================================
+
+/**
+ * 设置面板：3D 预览器的性能 / 画质总开关。
+ *
+ * 定位（2026-08-23 用户决策）：设置面板 = 性能/画质开关，
+ * 与 🌍 环境面板（管环境能力参数）职责正交。
+ *
+ * 分组：
+ * - ⚡ 性能：视锥裁剪开关（多模型同框省渲染）——关掉后镜头外模型仍渲染
+ * - 🎨 画质：渲染分辨率上限（控制 pixelRatio cap）——降分辨率换帧率
+ *
+ * 后续可加：帧率上限、Bloom 总开关、PMREM 开关、能力检测降级等。
+ * 每个开关都走 localStorage 持久化，用户调了即时生效。
+ */
+function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
+  list.innerHTML = "";
+  // 阶段1：⚡ 性能组（视锥裁剪 + 帧率上限）
+  appendSettingsPerfGroup(list);
+  // 阶段2：🎨 画质组（分辨率上限 slider）
+  appendSettingsQualityResCap(list);
+  // 阶段3：🎨 画质条件开关（Bloom/PMREM，cap 不存在不渲染）
+  appendSettingsQualityCapToggles(list);
+  // 阶段4：尾注说明
+  appendSettingsNote(list);
 }
 
 // ── 声明式 Schema 构建器（供 schemaBuilders 映射调用）──
