@@ -5,7 +5,7 @@
 // 对角重复 [u0,v0, u1,v1, u0,v0, u1,v1] 会导致每面 UV 退化为对角线性渐变
 // （纹理被压成一条对角线）——此测试捕获该回归。
 //
-// 运行：node tests/test_cube_uv_quad_vertex.mjs
+// 运行：npx tsx tests/test_cube_uv_quad_vertex.mjs
 
 import { buildCubeMeshData } from "../frontend/src/utils/3d/cube-mesh.ts";
 

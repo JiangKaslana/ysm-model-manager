@@ -142,6 +142,8 @@ export function addMeshToBoneGroup(
     );
     applyRotationIfNonIdentity(blendMesh, md.localRotation);
     bg.add(blendMesh);
+    // clone 后原 mat 不再被任何 mesh 持有，显式 dispose 止 GPU 材质泄漏
+    mat.dispose();
     return;
   }
 
