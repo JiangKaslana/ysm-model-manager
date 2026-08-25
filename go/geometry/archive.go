@@ -715,6 +715,80 @@ func resolveL0(entries []container.Entry, maidNs string, manifest []maidManifest
 	return res
 }
 
+// collectMergedFiles 合并版遍历收集：从 entries 拾取 geo/model/动画/纹理（模型版口径）。
+// 与 collectArchiveFiles（清单版/组件版）口径分叉，勿并：
+//   - 本函数 geoFiles 排 arm（合并版 exclude）；collectArchiveFiles 不排（组件版要）。
+//   - 本函数仅收集、不做声明序；排序由调用方各阶段负责。
+//
+// 行为保持原内联循环逐字节不变（纯搬移，不改逻辑）：
+//   - maid-model 命名空间过滤置于 Open 之前 + 动画分支之前（与 collectArchiveFiles
+//     同口径）——被拒条目不 Open（无 reader 泄漏）+ 外来命名空间的动画/控制器 JSON 一并跳过。
+//   - 动画/控制器 JSON 走 fsutil.ReadLimitedEntry（+1 探测，超限返回 nil；ADR-033
+//     陷阱：原 io.ReadAll(io.LimitReader) 无 +1 探测，恰好 50MB 被截断后静默下发）。
+//   - isArmModelName 检查发生在 Open+Read 之后（保持原序，勿"顺手优化"成先判断再读）。
+func collectMergedFiles(entries []container.Entry, maidNs string) (geoFiles []geoEntry, animJSONs []string, pngs [][]byte, pngNames []string) {
+	for _, e := range entries {
+		low := strings.ToLower(e.Name())
+		if strings.HasSuffix(low, ".json") && !e.IsDir() {
+			if types.IsYsmEntryJSON(filepath.Base(e.Name())) {
+				continue
+			}
+			if maidNs != "" {
+				if !strings.HasPrefix(low, maidNs) || strings.HasSuffix(low, "maid_model.json") || strings.HasSuffix(low, "maid_chair.json") || strings.HasSuffix(low, "maid_sound.json") {
+					continue
+				}
+			}
+			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
+				rc, err := e.Open()
+				if err != nil {
+					continue
+				}
+				buf := fsutil.ReadLimitedEntry(rc, maxExtractSize)
+				if len(buf) > 10 {
+					animJSONs = append(animJSONs, string(buf))
+				}
+				continue
+			}
+			rc, err := e.Open()
+			if err != nil {
+				continue
+			}
+			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
+			if isArmModelName(e.Name()) {
+				continue // 排除第一人称手臂模型 arm.json（与 main 手臂重叠 → 双手臂）
+			}
+			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
+		}
+		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") && !strings.Contains(low, "gui/") {
+			// maid-model 命名空间过滤：只收集首个 namespace 的纹理
+			if maidNs != "" && !strings.HasPrefix(low, maidNs) {
+				continue
+			}
+			rc, err := e.Open()
+			if err != nil {
+				continue
+			}
+			pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
+			// 与 .ysm 解压路径口径对齐：不按尺寸过滤小纹理（64×64 合法贴图可 <4KB），
+			// 头像/预览图仅由 avatar/ 路径与基名前缀排除
+			if len(pngData) > 0 {
+				name := e.Name()
+				if idx := strings.LastIndex(name, "/"); idx >= 0 {
+					name = name[idx+1:]
+				}
+				if idx := strings.LastIndex(name, "\\"); idx >= 0 {
+					name = name[idx+1:]
+				}
+				name = strings.TrimSuffix(name, ".png")
+				name = strings.TrimSuffix(name, ".jpg")
+				pngNames = append(pngNames, name)
+				pngs = append(pngs, pngData)
+			}
+		}
+	}
+	return geoFiles, animJSONs, pngs, pngNames
+}
+
 // parseModelFromEntries 共享主体：ysm.json 解析 + model/texture 顺序 + geo/png/anim 收集，
 // 构建 BedrockModel。logTag 用于日志前缀（"zip" / "7z"）。
 //
@@ -816,73 +890,8 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 	var geoFiles []geoEntry
 
-	for _, e := range entries {
-		low := strings.ToLower(e.Name())
-		if strings.HasSuffix(low, ".json") && !e.IsDir() {
-			if types.IsYsmEntryJSON(filepath.Base(e.Name())) {
-				continue
-			}
-			// maid-model 命名空间过滤：置于 Open 之前 + 动画分支之前（与 collectArchiveFiles
-			// 同口径）——被拒条目不 Open（无 reader 泄漏，发现2）+ 外来命名空间的动画/控制器
-			// JSON 一并跳过（发现5，两条路径不再漂移）
-			if maidNs != "" {
-				if !strings.HasPrefix(low, maidNs) || strings.HasSuffix(low, "maid_model.json") || strings.HasSuffix(low, "maid_chair.json") || strings.HasSuffix(low, "maid_sound.json") {
-					continue
-				}
-			}
-			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
-				rc, err := e.Open()
-				if err != nil {
-					continue
-				}
-				// 原 io.ReadAll(io.LimitReader(rc, maxExtractSize))
-				// 无 +1 探测、丢弃错误——恰 50MB 的动画 JSON 被截断后静默下发（ADR-033
-				// 陷阱在动画路径存活，与文件头注释 24-28 行声称已修复矛盾）；改走
-				// fsutil.ReadLimitedEntry（+1 探测，超限返回 nil）
-				// ReadLimitedEntry 内部已 Close，删调用侧多余 rc.Close()
-				buf := fsutil.ReadLimitedEntry(rc, maxExtractSize)
-				if len(buf) > 10 {
-					animJSONs = append(animJSONs, string(buf))
-				}
-				continue
-			}
-			rc, err := e.Open()
-			if err != nil {
-				continue
-			}
-			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-			if isArmModelName(e.Name()) {
-				continue // 排除第一人称手臂模型 arm.json（与 main 手臂重叠 → 双手臂）
-			}
-			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
-		}
-		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") && !strings.Contains(low, "gui/") {
-			// maid-model 命名空间过滤：只收集首个 namespace 的纹理
-			if maidNs != "" && !strings.HasPrefix(low, maidNs) {
-				continue
-			}
-			rc, err := e.Open()
-			if err != nil {
-				continue
-			}
-			pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-			// 与 .ysm 解压路径口径对齐：不按尺寸过滤小纹理（64×64 合法贴图可 <4KB），
-			// 头像/预览图仅由 avatar/ 路径与基名前缀排除
-			if len(pngData) > 0 {
-				name := e.Name()
-				if idx := strings.LastIndex(name, "/"); idx >= 0 {
-					name = name[idx+1:]
-				}
-				if idx := strings.LastIndex(name, "\\"); idx >= 0 {
-					name = name[idx+1:]
-				}
-				name = strings.TrimSuffix(name, ".png")
-				name = strings.TrimSuffix(name, ".jpg")
-				pngNames = append(pngNames, name)
-				pngs = append(pngs, pngData)
-			}
-		}
-	}
+	// 遍历收集 geo/动画/纹理（模型版口径；排 arm）已收编 collectMergedFiles
+	geoFiles, animJSONs, pngs, pngNames = collectMergedFiles(entries, maidNs)
 
 	// ===== 1.5 L0 清单过滤：收编 resolveL0（L0 生效时 geoFiles/pngs/modelOrder/texOrder 派生自清单）=====
 	// 覆盖判定保持现状不对称：geoFiles 等看 l0.hit，SubModels 分支仍按 len(maidManifest)>0 走。
