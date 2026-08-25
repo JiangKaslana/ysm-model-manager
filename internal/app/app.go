@@ -12,8 +12,7 @@ import (
 	"sync"
 
 	"ysm-model-manager/go/avatar"
-	"ysm-model-manager/go/download"
-	"ysm-model-manager/go/fileops"
+	"ysm-model-manager/go/config"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/logs"
 	"ysm-model-manager/go/scanner"
@@ -113,11 +112,9 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	// 启动时自动加载配置
 	a.loadAppConfig()
 
-	// 运行阈值配置注入（ADR-062：各包 configFunc ← LoadAppConfig；字段 0=用包内默认常量）
-	scanner.SetConfigFunc(a.LoadAppConfig)
-	download.SetConfigFunc(a.LoadAppConfig)
-	logs.SetConfigFunc(a.LoadAppConfig)
-	fileops.SetConfigFunc(a.LoadAppConfig)
+	// 运行阈值配置注入（ADR-062 / ADR-091 D12：收敛到 go/config 单持有点，
+	// 取代 fileops/logs/download/scanner 各自 SetConfigFunc；字段 0=用包内默认常量）
+	config.Set(a.LoadAppConfig)
 
 	// 扫描错误注入环形日志面板（ADR-082 续：GUI 下 stdout 不可见，walk/文件信息/哈希
 	// 失败若只 log.Printf 用户无从察觉；经 AddOpLog 落 ImportLog，诊断页可回溯）

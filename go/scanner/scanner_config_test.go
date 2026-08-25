@@ -1,10 +1,11 @@
-// ===== scanner 包 0% 覆盖函数补测（SetErrorSink / SetConfigFunc / scanTTL）=====
+// ===== scanner 包 0% 覆盖函数补测（SetErrorSink / scanTTL / 配置源收敛 go/config）=====
 package scanner
 
 import (
 	"testing"
 	"time"
 
+	"ysm-model-manager/go/config"
 	"ysm-model-manager/go/types"
 )
 
@@ -37,22 +38,21 @@ func TestSetErrorSink(t *testing.T) {
 	}
 }
 
-func TestSetConfigFunc_NilFallback(t *testing.T) {
-	orig := configFunc
-	configFunc = nil
-	defer func() { configFunc = orig }()
+func TestScanTTL_NilFallback(t *testing.T) {
+	config.Set(nil)
+	defer config.Set(nil)
 
 	got := scanTTL()
 	if got != scanCacheTTL {
-		t.Errorf("configFunc=nil 时 scanTTL() = %v, 期望 %v", got, scanCacheTTL)
+		t.Errorf("config=nil 时 scanTTL() = %v, 期望 %v", got, scanCacheTTL)
 	}
 }
 
-func TestSetConfigFunc_Injected(t *testing.T) {
-	orig := configFunc
-	defer func() { configFunc = orig }()
+func TestScanTTL_Injected(t *testing.T) {
+	config.Set(nil)
+	defer config.Set(nil)
 
-	SetConfigFunc(func() types.AppConfig {
+	config.Set(func() types.AppConfig {
 		return types.AppConfig{ScanCacheTTLMs: 60000} // 60s
 	})
 
@@ -63,11 +63,11 @@ func TestSetConfigFunc_Injected(t *testing.T) {
 	}
 }
 
-func TestSetConfigFunc_ZeroValueFallback(t *testing.T) {
-	orig := configFunc
-	defer func() { configFunc = orig }()
+func TestScanTTL_ZeroValueFallback(t *testing.T) {
+	config.Set(nil)
+	defer config.Set(nil)
 
-	SetConfigFunc(func() types.AppConfig {
+	config.Set(func() types.AppConfig {
 		return types.AppConfig{ScanCacheTTLMs: 0}
 	})
 
@@ -77,18 +77,18 @@ func TestSetConfigFunc_ZeroValueFallback(t *testing.T) {
 	}
 }
 
-func TestSetConfigFunc_Override(t *testing.T) {
-	orig := configFunc
-	defer func() { configFunc = orig }()
+func TestScanTTL_Override(t *testing.T) {
+	config.Set(nil)
+	defer config.Set(nil)
 
-	SetConfigFunc(func() types.AppConfig {
+	config.Set(func() types.AppConfig {
 		return types.AppConfig{ScanCacheTTLMs: 1000}
 	})
 	if scanTTL() != time.Second {
 		t.Error("第一次注入未生效")
 	}
 
-	SetConfigFunc(func() types.AppConfig {
+	config.Set(func() types.AppConfig {
 		return types.AppConfig{ScanCacheTTLMs: 120000}
 	})
 	got := scanTTL()
@@ -97,17 +97,17 @@ func TestSetConfigFunc_Override(t *testing.T) {
 	}
 }
 
-func TestSetConfigFunc_NilAfterSet(t *testing.T) {
-	orig := configFunc
-	defer func() { configFunc = orig }()
+func TestScanTTL_NilAfterSet(t *testing.T) {
+	config.Set(nil)
+	defer config.Set(nil)
 
-	SetConfigFunc(func() types.AppConfig {
+	config.Set(func() types.AppConfig {
 		return types.AppConfig{ScanCacheTTLMs: 5000}
 	})
-	SetConfigFunc(nil)
+	config.Set(nil)
 
 	got := scanTTL()
 	if got != scanCacheTTL {
-		t.Errorf("SetConfigFunc(nil) 后应回退: got=%v, want=%v", got, scanCacheTTL)
+		t.Errorf("config.Set(nil) 后应回退: got=%v, want=%v", got, scanCacheTTL)
 	}
 }

@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"ysm-model-manager/go/config"
 	"ysm-model-manager/go/fsutil"
-	"ysm-model-manager/go/types"
 )
 
 // 下载参数常量
@@ -32,21 +32,11 @@ const (
 	defaultTimeout = 300 * time.Second
 )
 
-// configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
-// nil 或字段 0 时回退包级默认常量，行为零漂移）
-var configFunc func() types.AppConfig
-
-// SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用）
-func SetConfigFunc(fn func() types.AppConfig) {
-	configFunc = fn
-}
-
-// downloadTimeout 下载超时：AppConfig.DownloadTimeoutSec > 0 用之，否则默认 300s
+// downloadTimeout 下载超时：AppConfig.DownloadTimeoutSec > 0 用之，否则默认 300s。
+// 配置源收敛到 go/config 单持有点（ADR-091 D12），字段 0 = 回退包级默认。
 func downloadTimeout() time.Duration {
-	if configFunc != nil {
-		if sec := configFunc().DownloadTimeoutSec; sec > 0 {
-			return time.Duration(sec) * time.Second
-		}
+	if sec := config.Get().DownloadTimeoutSec; sec > 0 {
+		return time.Duration(sec) * time.Second
 	}
 	return defaultTimeout
 }

@@ -1,4 +1,4 @@
-// ===== download 包 0% 覆盖函数补测（SetConfigFunc / NewWithClient / FromGitHubAPIWithChecksum）=====
+// ===== download 包 0% 覆盖函数补测（downloadTimeout / 配置源收敛 go/config / NewWithClient / FromGitHubAPIWithChecksum）=====
 package download
 
 import (
@@ -9,13 +9,17 @@ import (
 	"os"
 	"testing"
 
+	"ysm-model-manager/go/config"
 	"ysm-model-manager/go/types"
 )
 
-func TestSetConfigFunc(t *testing.T) {
+func TestDownloadTimeout_Injected(t *testing.T) {
+	config.Set(nil)
+	defer config.Set(nil)
+
 	// 注入自定义配置
 	called := false
-	SetConfigFunc(func() types.AppConfig {
+	config.Set(func() types.AppConfig {
 		called = true
 		return types.AppConfig{DownloadTimeoutSec: 42}
 	})
@@ -25,27 +29,30 @@ func TestSetConfigFunc(t *testing.T) {
 		t.Errorf("downloadTimeout() = %v, 期望 42s", timeout)
 	}
 	if !called {
-		t.Error("注入的 configFunc 未被调用")
+		t.Error("注入的 provider 未被调用")
 	}
 
-	// 注入 nil 回退默认值
-	SetConfigFunc(nil)
+	// 复位为未注入回退默认值
+	config.Set(nil)
 	timeout = downloadTimeout()
 	if timeout != defaultTimeout {
-		t.Errorf("SetConfigFunc(nil) 后 downloadTimeout() = %v, 期望默认值 %v", timeout, defaultTimeout)
+		t.Errorf("config.Set(nil) 后 downloadTimeout() = %v, 期望默认值 %v", timeout, defaultTimeout)
 	}
 }
 
-func TestSetConfigFunc_ZeroValueFallback(t *testing.T) {
+func TestDownloadTimeout_ZeroValueFallback(t *testing.T) {
+	config.Set(nil)
+	defer config.Set(nil)
+
 	// 注入返回零值 AppConfig（DownloadTimeoutSec=0）→ 回退默认
-	SetConfigFunc(func() types.AppConfig {
+	config.Set(func() types.AppConfig {
 		return types.AppConfig{}
 	})
 	timeout := downloadTimeout()
 	if timeout != defaultTimeout {
 		t.Errorf("零值 AppConfig 应回退默认超时, got %v", timeout)
 	}
-	SetConfigFunc(nil)
+	config.Set(nil)
 }
 
 func TestNewWithClient(t *testing.T) {
@@ -63,7 +70,8 @@ func TestNewWithClient(t *testing.T) {
 
 func TestNew_DefaultTimeout(t *testing.T) {
 	// 确保无注入时 New() 使用默认超时
-	SetConfigFunc(nil)
+	config.Set(nil)
+	defer config.Set(nil)
 	d := New()
 	if d == nil {
 		t.Fatal("New 返回 nil")

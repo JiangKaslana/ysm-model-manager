@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"ysm-model-manager/go/config"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/paths"
 	"ysm-model-manager/go/types"
@@ -20,21 +21,11 @@ import (
 // 文件可致内存膨胀——共享 types.MaxReadLimit 与 geometry/ysm 的 50MB 口径，索引 6.7+5.2）
 const maxPreviewRead = types.MaxReadLimit
 
-// configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
-// nil 或字段 0 时回退包级默认常量，行为零漂移）
-var configFunc func() types.AppConfig
-
-// SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用）
-func SetConfigFunc(fn func() types.AppConfig) {
-	configFunc = fn
-}
-
-// previewReadLimit 预览整读上限：AppConfig.PreviewReadLimitMB > 0 用之，否则默认 50MB
+// previewReadLimit 预览整读上限：AppConfig.PreviewReadLimitMB > 0 用之，否则默认 50MB。
+// 配置源收敛到 go/config 单持有点（ADR-091 D12），字段 0 = 回退包级默认。
 func previewReadLimit() int64 {
-	if configFunc != nil {
-		if mb := configFunc().PreviewReadLimitMB; mb > 0 {
-			return int64(mb) << 20
-		}
+	if mb := config.Get().PreviewReadLimitMB; mb > 0 {
+		return int64(mb) << 20
 	}
 	return maxPreviewRead
 }

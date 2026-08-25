@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"ysm-model-manager/go/config"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
@@ -26,41 +27,27 @@ const corruptSuffix = ".corrupt"
 // corruptRetentionDays .corrupt 备份保留天数（启动 load 时清理更早的现场）
 const corruptRetentionDays = 7
 
-// configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
-// nil 或字段 0 时回退包级默认常量，行为零漂移）
-var configFunc func() types.AppConfig
-
-// SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用）
-func SetConfigFunc(fn func() types.AppConfig) {
-	configFunc = fn
-}
-
-// logMaxEntries 日志条数上限：AppConfig.LogMaxEntries > 0 用之，否则默认 500
+// logMaxEntries 日志条数上限：AppConfig.LogMaxEntries > 0 用之，否则默认 500。
+// 配置源收敛到 go/config 单持有点（ADR-091 D12），字段 0 = 回退包级默认。
 func logMaxEntries() int {
-	if configFunc != nil {
-		if n := configFunc().LogMaxEntries; n > 0 {
-			return n
-		}
+	if n := config.Get().LogMaxEntries; n > 0 {
+		return n
 	}
 	return maxLogEntries
 }
 
 // logMaxFieldLen 单字段长度上限：AppConfig.LogMaxFieldLen > 0 用之，否则默认 1024
 func logMaxFieldLen() int {
-	if configFunc != nil {
-		if n := configFunc().LogMaxFieldLen; n > 0 {
-			return n
-		}
+	if n := config.Get().LogMaxFieldLen; n > 0 {
+		return n
 	}
 	return maxFieldLen
 }
 
 // logCorruptRetentionDays .corrupt 保留天数：AppConfig.LogCorruptRetentionDays > 0 用之，否则默认 7
 func logCorruptRetentionDays() int {
-	if configFunc != nil {
-		if n := configFunc().LogCorruptRetentionDays; n > 0 {
-			return n
-		}
+	if n := config.Get().LogCorruptRetentionDays; n > 0 {
+		return n
 	}
 	return corruptRetentionDays
 }

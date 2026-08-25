@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"ysm-model-manager/go/config"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
@@ -68,10 +69,6 @@ type scanFlight struct {
 
 const scanCacheTTL = 30 * time.Second
 
-// configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
-// nil 或字段 0 时回退包级默认常量，行为零漂移）
-var configFunc func() types.AppConfig
-
 // errorSink 扫描错误回调（ADR-082 续：GUI 下 stdout 不可见，log.Printf 等于静默——
 // 薄壳注入 AddOpLog 让 walk/文件信息/哈希错误进环形日志面板，用户可查）
 var errorSink func(msg string)
@@ -119,17 +116,11 @@ func emitScanError(format string, args ...any) {
 	log.Printf("%s", msg)
 }
 
-// SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用）
-func SetConfigFunc(fn func() types.AppConfig) {
-	configFunc = fn
-}
-
-// scanTTL 扫描缓存 TTL：AppConfig.ScanCacheTTLMs > 0 用之，否则默认 30s
+// scanTTL 扫描缓存 TTL：AppConfig.ScanCacheTTLMs > 0 用之，否则默认 30s。
+// 配置源收敛到 go/config 单持有点（ADR-091 D12），字段 0 = 回退包级默认。
 func scanTTL() time.Duration {
-	if configFunc != nil {
-		if ms := configFunc().ScanCacheTTLMs; ms > 0 {
-			return time.Duration(ms) * time.Millisecond
-		}
+	if ms := config.Get().ScanCacheTTLMs; ms > 0 {
+		return time.Duration(ms) * time.Millisecond
 	}
 	return scanCacheTTL
 }
