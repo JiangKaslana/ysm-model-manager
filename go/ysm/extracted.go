@@ -105,6 +105,118 @@ func texBaseNoExt(p string) string {
 	return strings.ToLower(base)
 }
 
+// texDeclItem 表示 player.texture 声明数组中的一项；value 为原始纹理路径/名
+// （obj 取 .uv，裸取字符串原样），isStr 标记来源——Geometry 消费方据此复刻现状
+// 两分支不同裁剪（obj 切 '/\\'、裸仅切 '/'）。
+type texDeclItem struct {
+	value string
+	isStr bool // true = 裸字符串，false = {"uv":...} 对象
+}
+
+// playerModel 是 files.player 段解析结果的字段集合（parsePlayerModel 返回）。
+type playerModel struct {
+	names    []string
+	mapOrig  map[string]string
+	texDecl  []texDeclItem
+	filesObj map[string]json.RawMessage // projectiles/vehicles 段复用（Components 专属）
+}
+
+// playerModel 是 ysm.json files.player 段解析结果，供 FindGeometryInExtractedYSM/
+// FindComponentsInExtractedYSM 共用（消灭历史重复解析）。model 声明抛回 basename 序；
+// texture 声明抛回【原始值，不做裁剪/去扩展名/转小写】——规范化留在各消费方，因两个
+// 消费方口径天然不同（Geometry 带扩展名做 orderMap 键、Components 去扩展名喂前端 R1）。
+func parsePlayerModel(data []byte) *playerModel {
+	var ysmRoot struct {
+		Spec  int             `json:"spec"`
+		Files json.RawMessage `json:"files"`
+	}
+	if err := json.Unmarshal(data, &ysmRoot); err != nil {
+		return nil
+	}
+	var filesObj map[string]json.RawMessage
+	if err := json.Unmarshal(ysmRoot.Files, &filesObj); err != nil {
+		return nil
+	}
+	pm := &playerModel{filesObj: filesObj}
+	for key, val := range filesObj {
+		if key != "player" {
+			continue
+		}
+		var player struct {
+			Model   json.RawMessage `json:"model"`
+			Texture json.RawMessage `json:"texture"`
+		}
+		if err := json.Unmarshal(val, &player); err != nil {
+			log.Printf("[ysm] 解析 player 失败: %v", err)
+			continue
+		}
+		// model 三分支（原逻辑逐字搬迁，无行为差异）
+		if len(player.Model) > 0 {
+			modelRaw := string(player.Model)
+			trimmed := strings.TrimSpace(modelRaw)
+			if strings.HasPrefix(trimmed, `{`) {
+				// map 格式：JSON 对象**写入序**即 Bedrock 声明序（main 通常最先声明）。
+				// Go map 丢失写入序，必须 json.Decoder Token 流式保序遍历（P2 修复）。
+				mm := make(map[string]string)
+				dec := json.NewDecoder(bytes.NewReader(player.Model))
+				if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
+					for dec.More() {
+						keyTok, err := dec.Token()
+						if err != nil {
+							break
+						}
+						key, _ := keyTok.(string)
+						var val string
+						// 非字符串 value（数字/对象/数组）Decode 报错且已消费完该值；
+						// 若 break 则后续好键（main 等）全部丢失 → 跳过继续（declPos 保序）
+						if err := dec.Decode(&val); err != nil {
+							continue
+						}
+						if val != "" {
+							pm.names = append(pm.names, val)
+							mm[key] = val
+						}
+					}
+				}
+				pm.mapOrig = mm
+			} else if strings.HasPrefix(trimmed, `[`) {
+				var arr []string
+				if json.Unmarshal(player.Model, &arr) == nil {
+					pm.names = arr
+				}
+			} else {
+				pm.names = append(pm.names, strings.Trim(trimmed, `"`))
+			}
+		}
+		// texture 数组：抛回原始值（含来源标记），裁剪留各消费方
+		if len(player.Texture) > 0 {
+			texRaw := string(player.Texture)
+			if strings.HasPrefix(strings.TrimSpace(texRaw), `[`) {
+				var arr []json.RawMessage
+				if json.Unmarshal(player.Texture, &arr) == nil {
+					for _, item := range arr {
+						s := strings.TrimSpace(string(item))
+						if strings.HasPrefix(s, `{`) {
+							var obj struct {
+								Uv string `json:"uv"`
+							}
+							if json.Unmarshal(item, &obj) == nil && obj.Uv != "" {
+								pm.texDecl = append(pm.texDecl, texDeclItem{value: obj.Uv})
+							}
+						} else {
+							var sval string
+							if json.Unmarshal(item, &sval) == nil && sval != "" {
+								pm.texDecl = append(pm.texDecl, texDeclItem{value: sval, isStr: true})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return pm
+}
+
 // FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理
 // ysmJsonPath: ysm.json 的完整路径
 // 返回: 合并后的 BedrockModel（不含纹理 base64），纹理原始字节
@@ -114,105 +226,31 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 		return nil, nil
 	}
 
-	// 解析 ysm.json 找 model 文件名 + 纹理顺序
-	var ysmRoot struct {
-		Spec  int             `json:"spec"`
-		Files json.RawMessage `json:"files"`
-	}
+	// 解析 ysm.json 找 model 文件名 + 纹理顺序（parsePlayerModel 统一解析；
+	// 纹理裁剪规范化复刻现状口径：obj 切 '/\\'、裸字符串仅切 '/'——两消费方口径
+	// 不同，规范化留消费方，勿强改归一）
 	var modelNames []string
 	var modelMapOrig map[string]string
 	var texOrderNames []string // ysm.json 规定的纹理顺序（文件名）
-	if err := json.Unmarshal(data, &ysmRoot); err == nil {
-		var filesObj map[string]json.RawMessage
-		if json.Unmarshal(ysmRoot.Files, &filesObj) == nil {
-			for key, val := range filesObj {
-				if key != "player" {
-					continue
+	if pm := parsePlayerModel(data); pm != nil {
+		modelNames = pm.names
+		modelMapOrig = pm.mapOrig
+		for _, d := range pm.texDecl {
+			tn := d.value
+			if d.isStr {
+				// 裸字符串分支（现状仅切 '/'）
+				if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+					tn = tn[idx+1:]
 				}
-				var player struct {
-					Model   json.RawMessage `json:"model"`
-					Texture json.RawMessage `json:"texture"`
+			} else {
+				if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+					tn = tn[idx+1:]
 				}
-				if err := json.Unmarshal(val, &player); err != nil {
-					log.Printf("[ysm] 解析 player 失败: %v", err)
-					continue
-				}
-				// 解析 model
-				if len(player.Model) > 0 {
-					modelRaw := string(player.Model)
-					trimmed := strings.TrimSpace(modelRaw)
-					if strings.HasPrefix(trimmed, `{`) {
-						// map 格式：JSON 对象**写入序**即 Bedrock 声明序（main 通常最先声明）。
-						// Go map 丢失写入序，必须 json.Decoder Token 流式保序遍历（P2 修复）。
-						mm := make(map[string]string)
-						dec := json.NewDecoder(bytes.NewReader(player.Model))
-						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
-							for dec.More() {
-								keyTok, err := dec.Token()
-								if err != nil {
-									break
-								}
-								key, _ := keyTok.(string)
-								var val string
-								// 非字符串 value（数字/对象/数组）Decode 报错且已消费完该值；
-								// 若 break 则后续好键（main 等）全部丢失 → 跳过继续（declPos 保序）
-								if err := dec.Decode(&val); err != nil {
-									continue
-								}
-								if val != "" {
-									modelNames = append(modelNames, val)
-									mm[key] = val
-								}
-							}
-						}
-						modelMapOrig = mm
-					} else if strings.HasPrefix(trimmed, `[`) {
-						var arr []string
-						if json.Unmarshal(player.Model, &arr) == nil {
-							modelNames = arr
-						}
-					} else {
-						name := strings.Trim(trimmed, `"`)
-						modelNames = append(modelNames, name)
-					}
-				}
-				// 解析 texture 顺序
-				if len(player.Texture) > 0 {
-					texRaw := string(player.Texture)
-					if strings.HasPrefix(strings.TrimSpace(texRaw), `[`) {
-						var arr []json.RawMessage
-						if json.Unmarshal(player.Texture, &arr) == nil {
-							for _, item := range arr {
-								s := strings.TrimSpace(string(item))
-								if strings.HasPrefix(s, `{`) {
-									var obj struct {
-										Uv string `json:"uv"`
-									}
-									if json.Unmarshal(item, &obj) == nil && obj.Uv != "" {
-										tn := obj.Uv
-										if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										texOrderNames = append(texOrderNames, strings.ToLower(tn))
-									}
-								} else {
-									var sval string
-									if json.Unmarshal(item, &sval) == nil && sval != "" {
-										tn := sval
-										if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										texOrderNames = append(texOrderNames, strings.ToLower(tn))
-									}
-								}
-							}
-						}
-					}
+				if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+					tn = tn[idx+1:]
 				}
 			}
+			texOrderNames = append(texOrderNames, strings.ToLower(tn))
 		}
 	}
 
@@ -462,105 +500,28 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 		return nil, nil
 	}
 
-	// 解析 ysm.json 找 model 文件名（player.model）
-	var ysmRoot struct {
-		Spec  int             `json:"spec"`
-		Files json.RawMessage `json:"files"`
-	}
+	// 解析 ysm.json 找 model 文件名 + 纹理声明序（parsePlayerModel 统一解析，消灭
+	// 与 FindGeometryInExtractedYSM 的重复解析）。model 抛回 basename 序、texture
+	// 抛回原始声明——裁剪规范化留在本消费方，复刻现状口径：切 '/\\' + 去 .png/.jpg/
+	// 小写（去扩展名喂前端 R1 校验，与 Geometry 带扩展名 orderMap 口径天然不同）。
 	var modelNames []string
 	var modelMapOrig map[string]string
 	var texOrderNames []string // player.texture 声明序（R1 契约：组件序纹理名）
 	// filesObj 提升到函数作用域：下方载具/投射物声明纹理段（declaredTexByModel）
-	// 在 filesObj 块外也要读 projectiles/vehicles 段（plane 共享皮肤关键分支）。
+	// 在 parsePlayerModel 块外也要读 projectiles/vehicles 段（plane 共享皮肤关键分支）。
 	var filesObj map[string]json.RawMessage
-	if err := json.Unmarshal(data, &ysmRoot); err == nil {
-		if json.Unmarshal(ysmRoot.Files, &filesObj) == nil {
-			for key, val := range filesObj {
-				if key != "player" {
-					continue
-				}
-				var player struct {
-					Model   json.RawMessage `json:"model"`
-					Texture json.RawMessage `json:"texture"`
-				}
-				if err := json.Unmarshal(val, &player); err != nil {
-					log.Printf("[ysm] 解析 player 失败: %v", err)
-					continue
-				}
-				if len(player.Model) > 0 {
-					modelRaw := string(player.Model)
-					trimmed := strings.TrimSpace(modelRaw)
-					if strings.HasPrefix(trimmed, `{`) {
-						// map 格式：JSON 对象**写入序**即 Bedrock 声明序（main 通常最先声明）。
-						// Go map 丢失写入序，必须 json.Decoder Token 流式保序遍历（P2 修复）。
-						mm := make(map[string]string)
-						dec := json.NewDecoder(bytes.NewReader(player.Model))
-						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
-							for dec.More() {
-								keyTok, err := dec.Token()
-								if err != nil {
-									break
-								}
-								key, _ := keyTok.(string)
-								var val string
-								// 非字符串 value（数字/对象/数组）Decode 报错且已消费完该值；
-								// 若 break 则后续好键（main 等）全部丢失 → 跳过继续（declPos 保序）
-								if err := dec.Decode(&val); err != nil {
-									continue
-								}
-								if val != "" {
-									modelNames = append(modelNames, val)
-									mm[key] = val
-								}
-							}
-						}
-						modelMapOrig = mm
-					} else if strings.HasPrefix(trimmed, `[`) {
-						var arr []string
-						if json.Unmarshal(player.Model, &arr) == nil {
-							modelNames = arr
-						}
-					} else {
-						modelNames = append(modelNames, strings.Trim(trimmed, `"`))
-					}
-				}
-				// R1 契约：收集 player.texture 声明序（数组格式，去扩展名小写）
-				if len(player.Texture) > 0 {
-					if strings.HasPrefix(strings.TrimSpace(string(player.Texture)), `[`) {
-						var arr []json.RawMessage
-						if json.Unmarshal(player.Texture, &arr) == nil {
-							for _, item := range arr {
-								s := strings.TrimSpace(string(item))
-								if strings.HasPrefix(s, `{`) {
-									var obj struct {
-										Uv string `json:"uv"`
-									}
-									if json.Unmarshal(item, &obj) == nil && obj.Uv != "" {
-										tn := obj.Uv
-										if idx := strings.LastIndexAny(tn, "/\\"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										tn = strings.TrimSuffix(strings.ToLower(tn), ".png")
-										tn = strings.TrimSuffix(tn, ".jpg")
-										texOrderNames = append(texOrderNames, tn)
-									}
-								} else {
-									var sval string
-									if json.Unmarshal(item, &sval) == nil && sval != "" {
-										tn := sval
-										if idx := strings.LastIndexAny(tn, "/\\"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										tn = strings.TrimSuffix(strings.ToLower(tn), ".png")
-										tn = strings.TrimSuffix(tn, ".jpg")
-										texOrderNames = append(texOrderNames, tn)
-									}
-								}
-							}
-						}
-					}
-				}
+	if pm := parsePlayerModel(data); pm != nil {
+		modelNames = pm.names
+		modelMapOrig = pm.mapOrig
+		filesObj = pm.filesObj
+		for _, d := range pm.texDecl {
+			tn := d.value
+			if idx := strings.LastIndexAny(tn, "/\\"); idx >= 0 {
+				tn = tn[idx+1:]
 			}
+			tn = strings.TrimSuffix(strings.ToLower(tn), ".png")
+			tn = strings.TrimSuffix(tn, ".jpg")
+			texOrderNames = append(texOrderNames, tn)
 		}
 	}
 
