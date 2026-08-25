@@ -236,62 +236,32 @@ retry:
 	// P1 修复：keyVersions 值类型改为 *atomic.Uint64，用 Load() 读取原子值
 	kv, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
 	keyVersion := kv.(*atomic.Uint64).Load()
-	// 检查缓存
-	if v, ok := scanCache.Load(dir); ok {
-		entry := v.(scanCacheEntry)
-		if time.Now().Before(entry.expiresAt) {
-			// 命中路径克隆后返回，避免调用方（app_scan.go HasTags 填充）写回内部切片，
-			// 污染缓存后备数组 + 并发扫描数据竞争
-			// 空结果保持非 nil——`append([]types.ModelEntry(nil), ...)`
-			// 对空 entry 返回 nil，经 Wails 序列化为 JSON `null`，与首次扫描/空 key 的
-			// `[]` 不一致（前端若区分 null/[] 会出差异）；用空切片做基底保证一致性
-			cloned := append([]types.ModelEntry{}, entry.entries...)
-			return cloned, true
-		}
-		// 过期条目惰性淘汰——原实现过期条目仅在「同目录重扫」
-		// 或 InvalidateCache 时被替换/清除，长期运行扫描过大量目录后过期 entry（各含
-		// 一整个 []ModelEntry）持续滞留，内存增长；Load 命中过期时顺手 Delete
-		scanCache.Delete(dir)
+
+	if cloned, ok := lookupScanCache(dir); ok {
+		return cloned, true
 	}
+
 	// 在途合并：同目录并发扫描共享一次 walk/Rust 扫描——首个调用方注册航班成为
 	// owner，后续调用方并入航班等待，取克隆结果且 hit=true（薄壳不重复记扫描日志）。
 	// 置于 Rust 快路径之前：Windows（Rust handled=true）下并发请求同样并入航班去重
-	// （code review P3：Rust 分支原先在 merge 之前，Windows 全量绕过单飞行去重）
 	fl := &scanFlight{gen: gen, keyVersion: keyVersion}
 	fl.wg.Add(1)
-	if prev, loaded := inFlight.LoadOrStore(dir, fl); loaded {
-		other := prev.(*scanFlight)
-		flightJoins.Add(1)
-		other.wg.Wait()
-		// 等待方失效守卫（与 owner Store 前同口径）：航班期间缓存被失效
-		// （InvalidateCache/InvalidatePath 在 import/enable/disable 完成时触发）时，
-		// 不得吞下失效前的旧扫描结果——重比版本，变了就 retry 重来
-		// （重新捕获版本 → 查缓存（已清）→ 注册新航班/自己走盘，对齐无航班行为）
-		// code review P3：比较 **flight 启动时** 版本（other.gen/other.keyVersion），
-		// 而非 waiter 自身进入时捕获的版本——waiter 在失效后加入时自身捕获已是最新，
-		// 与当前值恒等、守卫失效，会吞下 owner 失效前读到的旧扫描结果
-		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
-		if cacheGen.Load() == other.gen && kvNow.(*atomic.Uint64).Load() == other.keyVersion {
-			return append([]types.ModelEntry{}, other.entries...), true
-		}
+	if cloned, ok, retryNow := joinInFlightWaiter(dir, fl); ok {
+		return cloned, true
+	} else if retryNow {
 		goto retry
 	}
+	// owner 身份：负责删除航班 + 放行等待方
 	defer func() {
 		inFlight.Delete(dir)
 		fl.wg.Done()
 	}()
-	// Keep the public Go/Wails contract stable while production Windows builds progressively move
-	// scanner internals to Rust. Unsupported platforms or bridge failures use the proven Go path.
+
 	// owner 身份已定（waiter 已并入航班）——Rust 结果同样记录到航班供 waiter 取。
-	if rustEntries, cacheable, handled := scanEntriesWithRust(dir); handled {
-		stored := append([]types.ModelEntry(nil), rustEntries...)
-		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
-		if cacheable && cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
-			scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanTTL())})
-		}
-		fl.entries = stored
-		return rustEntries, false
+	if entries, ok := tryRustScan(dir, gen, keyVersion, startTime, fl); ok {
+		return entries, false
 	}
+
 	walkCount.Add(1)
 	if walkStartHook != nil {
 		walkStartHook()
@@ -302,84 +272,17 @@ retry:
 	// 用户无法区分「目录真空」与「目录不可读」（失败结果被当成功缓存）
 	walkFailed := false
 	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			// 统一走错误回调（GUI 下 stdout 不可见，fmt.Printf 等于静默）——
-			// 薄壳注入后进环形日志面板（ADR-082 续）
-			emitScanError("[scanner] walk error: %s: %v", p, err)
-			if p == dir {
-				walkFailed = true // 根目录本身打不开：整目录失败
-			}
+		entry, walkRet, rootFailed := processScanDirEntry(p, d, err, dir)
+		if rootFailed {
+			walkFailed = true
 			return nil
 		}
-		if d.IsDir() {
-			// ADR-044 策略 A：回收站排除统一走 fsutil.IsRecycleDir（EqualFold 大小写不敏感、
-			// 精确匹配基名，避免子串误杀 foo.recycle.ysm 等合法文件——与 go/sync/dedup 同口径）
-			if fsutil.IsRecycleDir(p) {
-				return filepath.SkipDir
-			}
-			// .github 目录跳过——内嵌 CI 脚本（generateIndexWorkflow
-			// genindex.go:381 `strings.Contains(p, "/.github")`）显式跳过 .github，而
-			// GenerateRepoIndex 经 ScanEntries 扫描时未过滤：若 .github 内出现受支持
-			// 扩展名文件，Go 侧 index 与 CI 重生成的 index 会漂移；两处口径统一
-			if d.Name() == ".github" {
-				return filepath.SkipDir
-			}
-			// 目录级禁用（fileops.ToggleModelEnable 对文件夹模型整组禁用时
-			// 把父目录改名 modelA.disabled / modelA.ban，ADR-038 D3.7）不得被扫描为活跃条目——
-			// 原实现只过滤文件级禁用，目录级禁用模型会以活跃身份进入 sync 的
-			// repoHash/repoName，被 GetInstanceStatus 列为 Missing 或 SyncToggleStatus 重新启用
-			if types.IsDisableSuffix(d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
+		if walkRet != nil {
+			return walkRet
 		}
-		ext := strings.ToLower(filepath.Ext(p))
-		originalExt := ext
-		// 目录级 .ban 已在上方 SkipDir；文件级 .ban/.disabled 恢复原扩展名判断
-		// （stripDisableSuffix 与作者提取共用同口径）
-		restored := stripDisableSuffix(p)
-		if restored != p {
-			originalExt = strings.ToLower(filepath.Ext(restored))
+		if entry != nil {
+			entries = append(entries, *entry)
 		}
-		if !types.IsSupportedExt(originalExt) {
-			return nil
-		}
-		// .json 只允许 ysm.json（动作/动画文件不应单独扫描推送）
-		if originalExt == ".json" {
-			baseName := types.NormalizeResourceName(filepath.Base(p))
-			if !types.IsYsmEntryJSON(baseName) {
-				return nil
-			}
-		}
-		info, err := d.Info()
-		if err != nil {
-			// d.Info 失败跳过该文件——原实现 log 后仍以
-			// Size=0/ModTime=0 条目混入（前端展示大小 0 的幽灵文件，同步哈希基于
-			// 错误元数据）；权限/IO 错误下该文件不可读，跳过比假条目更诚实。
-			// 错误进环形日志面板（ADR-082 续），用户可查而非静默
-			emitScanError("[scanner] 获取文件信息失败 %s: %v，跳过该文件", p, err)
-			return nil
-		}
-		name := filepath.Base(p)
-		if types.IsYsmEntryJSON(name) {
-			name = filepath.Base(filepath.Dir(p))
-		}
-		e := types.ModelEntry{Name: name, Path: p, Ext: originalExt}
-		e.Size = info.Size()
-		e.ModTime = info.ModTime().UnixMilli()
-		// 计算 SHA256 供同步系统使用（GetInstanceStatus 依赖哈希匹配）
-		// 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢）
-		// 蓝图文件（.nbt/.schematic/.litematic）通常较小，计入哈希以支持同步对比
-		if types.ShouldHashExt(originalExt) {
-			e.Hash = ComputeFileHash(p)
-			// 哈希失败留痕——ComputeFileHash 返回空串可能
-			// 是读错误或超上限，静默置空会让同步把该文件当「无哈希」跳过（用户
-			// 不知为何不同步）；进环形日志面板（ADR-082 续）不阻断扫描
-			if e.Hash == "" {
-				emitScanError("[scanner] 哈希计算失败/跳过 %s（读错误或超 %d 字节上限）", p, types.MaxImportSize)
-			}
-		}
-		entries = append(entries, e)
 		return nil
 	})
 	// 克隆 slice 后 Store，避免 sync.Map.Load 读到 WalkDir 中途
@@ -387,17 +290,160 @@ retry:
 	stored := append([]types.ModelEntry(nil), entries...)
 	// 航班结果供等待方克隆取用（须在 wg.Done 前写入——defer 于函数返回时放行等待方）
 	fl.entries = stored
-	// 整目录失败（walkFailed）不写缓存——失败结果带 30s TTL 缓存会
-	// 让「目录不可读」持续显示为空（用户修好权限后 30s 内仍假空）；
-	// 仅缓存完整扫描结果
-	// Store 前比对 per-key 版本——InvalidatePath 递增本 key 版本后，
-	// 在途扫描（keyVersion 已过期）不得重新 Store（防止刚失效又被旧结果覆盖）
-	// P1 修复：keyVersions 值类型改为 *atomic.Uint64
+	tryStoreScanCache(dir, stored, startTime, gen, keyVersion, walkFailed)
+	return entries, false
+}
+
+// lookupScanCache 查 scanCache，命中新鲜条目返回 (克隆后的 entries, true)。
+// 过期条目惰性 Delete 后返回 (nil, false)，继续真扫。
+func lookupScanCache(dir string) ([]types.ModelEntry, bool) {
+	v, ok := scanCache.Load(dir)
+	if !ok {
+		return nil, false
+	}
+	entry := v.(scanCacheEntry)
+	if time.Now().Before(entry.expiresAt) {
+		// 命中路径克隆后返回，避免调用方写回内部切片污染缓存后备数组+并发竞争；
+		// 空结果用空切片做基底，保证序列化 [] 而非 null，与首次扫描口径一致
+		return append([]types.ModelEntry{}, entry.entries...), true
+	}
+	// 过期条目惰性淘汰——长期运行大量目录后过期 entry 滞留内存
+	scanCache.Delete(dir)
+	return nil, false
+}
+
+// joinInFlightWaiter 尝试在 inFlight 表注册/并入航班。
+// 返回值三态：
+//   - (entries, true, _)：waiter 成功等到合法（版本未变）航班结果，直接返回
+//   - (_, false, true)：waiter 等到但版本已变，调用方 goto retry 重来
+//   - (_, false, false)：本调用成为 owner，需自己真扫并把结果写入 fl.entries
+func joinInFlightWaiter(dir string, fl *scanFlight) ([]types.ModelEntry, bool, bool) {
+	prev, loaded := inFlight.LoadOrStore(dir, fl)
+	if !loaded {
+		return nil, false, false // owner
+	}
+	other := prev.(*scanFlight)
+	flightJoins.Add(1)
+	other.wg.Wait()
+	// 等待方失效守卫：比较 **flight 启动时** 版本（other.gen/other.keyVersion），
+	// 而非 waiter 自身进入时捕获的——waiter 在失效后加入时自身捕获已是最新，
+	// 与当前值恒等、守卫失效，会吞下 owner 失效前读到的旧扫描结果
 	kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
-	if !walkFailed && cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
+	if cacheGen.Load() == other.gen && kvNow.(*atomic.Uint64).Load() == other.keyVersion {
+		return append([]types.ModelEntry{}, other.entries...), true, false
+	}
+	return nil, false, true // retry
+}
+
+// tryRustScan 尝试 Rust scanner 快路径，成功时把可缓存结果写入 scanCache
+// （版本守卫通过时）并把结果写入航班 fl.entries 供 waiter 取。
+// 返回 (entries, true) 表示 Rust 已处理，调用方可直接返回；(nil, false) 走 Go 路径。
+func tryRustScan(dir string, gen, keyVersion uint64, startTime time.Time, fl *scanFlight) ([]types.ModelEntry, bool) {
+	rustEntries, cacheable, handled := scanEntriesWithRust(dir)
+	if !handled {
+		return nil, false
+	}
+	stored := append([]types.ModelEntry(nil), rustEntries...)
+	kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
+	if cacheable && cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
 		scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanTTL())})
 	}
-	return entries, false
+	fl.entries = stored
+	return rustEntries, true
+}
+
+// processScanDirEntry 处理 WalkDir 单个回调：错误上报、目录级 Skip 判定（recycle/.github/禁用后缀）、
+// 文件级扩展名过滤/禁用恢复/ysm.json 判定、文件信息读取、哈希计算，最后产出单个 *ModelEntry。
+// 返回值：
+//   - entry：非 nil 表示该文件应进入扫描结果
+//   - walkRet：WalkDir 回调应 return 的 error 值（nil 继续 / filepath.SkipDir 跳子树）
+//   - rootFailed：仅当 walk 根目录本身出错时返回 true，用于调用方标记 walkFailed
+//
+// 本函数是原 WalkDir 闭包内近 80 行逻辑的提纯升格，输入纯参数、无副作用（除错误回调和哈希）。
+func processScanDirEntry(p string, d os.DirEntry, err error, dir string) (entry *types.ModelEntry, walkRet error, rootFailed bool) {
+	if err != nil {
+		// 统一走错误回调（GUI 下 stdout 不可见，薄壳注入后进环形日志面板 ADR-082）
+		emitScanError("[scanner] walk error: %s: %v", p, err)
+		if p == dir {
+			return nil, nil, true // 根目录本身打不开：整目录失败
+		}
+		return nil, nil, false
+	}
+	if d.IsDir() {
+		// ADR-044 策略 A：回收站排除统一走 fsutil.IsRecycleDir（EqualFold 大小写不敏感、
+		// 精确匹配基名，避免子串误杀 foo.recycle.ysm 等合法文件——与 go/sync/dedup 同口径）
+		if fsutil.IsRecycleDir(p) {
+			return nil, filepath.SkipDir, false
+		}
+		// .github 目录跳过——GenerateRepoIndex 内嵌 CI 脚本显式跳过 .github，此处
+		// 口径统一，避免 .github 内合法扩展名进入 index，Go 侧与 CI 重生成索引漂移
+		if d.Name() == ".github" {
+			return nil, filepath.SkipDir, false
+		}
+		// 目录级禁用（ADR-038 D3.7）不得被扫描为活跃条目——原实现只过滤文件级禁用，
+		// 导致目录级禁用模型以活跃身份进入 sync，被 GetInstanceStatus 列为 Missing
+		if types.IsDisableSuffix(d.Name()) {
+			return nil, filepath.SkipDir, false
+		}
+		return nil, nil, false
+	}
+	ext := strings.ToLower(filepath.Ext(p))
+	originalExt := ext
+	// 目录级 .ban 已在上方 SkipDir；文件级 .ban/.disabled 恢复原扩展名判断
+	// （stripDisableSuffix 与作者提取共用同口径）
+	restored := stripDisableSuffix(p)
+	if restored != p {
+		originalExt = strings.ToLower(filepath.Ext(restored))
+	}
+	if !types.IsSupportedExt(originalExt) {
+		return nil, nil, false
+	}
+	// .json 只允许 ysm.json（动作/动画文件不应单独扫描推送）
+	if originalExt == ".json" {
+		baseName := types.NormalizeResourceName(filepath.Base(p))
+		if !types.IsYsmEntryJSON(baseName) {
+			return nil, nil, false
+		}
+	}
+	info, err := d.Info()
+	if err != nil {
+		// d.Info 失败跳过该文件——原实现 log 后仍以 Size=0/ModTime=0 混入，造成
+		// 前端展示大小 0 的幽灵文件，同步哈希基于错误元数据；跳过比假条目更诚实。
+		emitScanError("[scanner] 获取文件信息失败 %s: %v，跳过该文件", p, err)
+		return nil, nil, false
+	}
+	name := filepath.Base(p)
+	if types.IsYsmEntryJSON(name) {
+		name = filepath.Base(filepath.Dir(p))
+	}
+	e := types.ModelEntry{Name: name, Path: p, Ext: originalExt}
+	e.Size = info.Size()
+	e.ModTime = info.ModTime().UnixMilli()
+	// 计算 SHA256 供同步系统使用（GetInstanceStatus 依赖哈希匹配）
+	// 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢）
+	// 蓝图文件（.nbt/.schematic/.litematic）通常较小，计入哈希以支持同步对比
+	if types.ShouldHashExt(originalExt) {
+		e.Hash = ComputeFileHash(p)
+		// 哈希失败留痕——静默置空会让同步把该文件当「无哈希」跳过（用户不知为何不同步）
+		if e.Hash == "" {
+			emitScanError("[scanner] 哈希计算失败/跳过 %s（读错误或超 %d 字节上限）", p, types.MaxImportSize)
+		}
+	}
+	return &e, nil, false
+}
+
+// tryStoreScanCache 在版本守卫通过时写入扫描缓存。
+// walkFailed（整目录 walk 根级错误）不写缓存——失败结果带 30s TTL 缓存会
+// 让「目录不可读」持续显示为空（用户修好权限后 30s 内仍假空）。
+func tryStoreScanCache(dir string, stored []types.ModelEntry, startTime time.Time, gen, keyVersion uint64, walkFailed bool) {
+	if walkFailed {
+		return
+	}
+	kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
+	if cacheGen.Load() != gen || kvNow.(*atomic.Uint64).Load() != keyVersion {
+		return // 版本已变（在途扫描期间被失效），丢弃旧结果
+	}
+	scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanTTL())})
 }
 
 // ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配）
@@ -477,11 +523,7 @@ func ScanLocalAuthors(roots map[string]string) []types.WorkshopCreator {
 
 	// roots 为 map，迭代序随机会导致跨类型合并的 Type 拼接顺序不稳定
 	// （同输入不同输出，flaky 测试/缓存/UI 展示均受影响）——按 rtype 字典序遍历保证确定性
-	rtypes := make([]string, 0, len(roots))
-	for rtype := range roots {
-		rtypes = append(rtypes, rtype)
-	}
-	sort.Strings(rtypes)
+	rtypes := sortedRTypeKeys(roots)
 
 	for _, rtype := range rtypes {
 		root := roots[rtype]
@@ -494,56 +536,89 @@ func ScanLocalAuthors(roots map[string]string) []types.WorkshopCreator {
 			if author == "" {
 				continue
 			}
-			key := author + "@" + rtype
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-			// 合并已有的 type 标签
-			existing := -1
-			for i, cr := range result {
-				if cr.Name == author {
-					existing = i
-					break
-				}
-			}
-			if existing >= 0 {
-				// 追加类型标签（按 ";" 分段精确比较，防 rtype 子串关系误判，防御范式③）
-				merged := false
-				for _, seg := range strings.Split(result[existing].Type, ";") {
-					if seg == rtype {
-						merged = true
-						break
-					}
-				}
-				if !merged {
-					result[existing].Type += ";" + rtype
-				}
-			} else {
-				result = append(result, types.WorkshopCreator{
-					Name: author,
-					Desc: "来自本地仓库",
-					Type: rtype,
-				})
-			}
+			mergeOrAppendCreator(&result, author, rtype, seen)
 		}
 	}
 	return result
 }
 
+// sortedRTypeKeys 返回按字典序排序的 rtype 键列表，保证遍历确定性。
+// 空 roots 返回 nil（range 零步循环，不影响结果）。
+func sortedRTypeKeys(roots map[string]string) []string {
+	rtypes := make([]string, 0, len(roots))
+	for rtype := range roots {
+		rtypes = append(rtypes, rtype)
+	}
+	sort.Strings(rtypes)
+	return rtypes
+}
+
+// mergeOrAppendCreator 把 (author, rtype) 对合并进 result。seen 为 author@rtype 去重表，
+// 已见过直接跳过；未见过则在 result 中找同名 creator：找到则追加 rtype 标签（按 ";" 分段精确
+// 比较，防 rtype 子串关系误判），找不到则 append 新 WorkshopCreator。
+func mergeOrAppendCreator(result *[]types.WorkshopCreator, author, rtype string, seen map[string]bool) {
+	key := author + "@" + rtype
+	if seen[key] {
+		return
+	}
+	seen[key] = true
+	// 合并已有的 type 标签
+	existing := -1
+	for i, cr := range *result {
+		if cr.Name == author {
+			existing = i
+			break
+		}
+	}
+	if existing >= 0 {
+		// 追加类型标签（按 ";" 分段精确比较，防 rtype 子串关系误判，防御范式③）
+		for _, seg := range strings.Split((*result)[existing].Type, ";") {
+			if seg == rtype {
+				return
+			}
+		}
+		(*result)[existing].Type += ";" + rtype
+		return
+	}
+	*result = append(*result, types.WorkshopCreator{
+		Name: author,
+		Desc: "来自本地仓库",
+		Type: rtype,
+	})
+}
+
 // ========== 仓库索引 ==========
+
+// repoIndexEntry 是 index.json 的单条序列化格式（供 GitHub Actions/Linux 消费）
+type repoIndexEntry struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+	Hash string `json:"hash,omitempty"`
+}
 
 // GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径）
 func GenerateRepoIndex(repoPath string) (string, error) {
 	InvalidatePath(repoPath) // 索引必须最新：绕过 30s 扫描缓存
 	entries := ScanEntries(repoPath)
-	type indexEntry struct {
-		Name string `json:"name"`
-		Path string `json:"path"`
-		Size int64  `json:"size"`
-		Hash string `json:"hash,omitempty"`
+	list := buildRepoIndexEntries(entries, repoPath)
+	data, err := json.MarshalIndent(list, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("序列化 index 条目失败: %w", err)
 	}
-	var list []indexEntry
+	indexPath := filepath.Join(repoPath, "index.json")
+	if err := fsutil.WriteFileAtomic(indexPath, data); err != nil {
+		return "", fmt.Errorf("写入 index.json 失败: %w", err)
+	}
+	ensureRepoWorkflow(repoPath)
+	return indexPath, nil
+}
+
+// buildRepoIndexEntries 把扫描条目转为 index.json 的条目列表：
+// 把绝对路径换算成相对 repoPath 的路径（filepath.Rel 优先，失败时前缀兜底），
+// 并统一转为正斜杠（ADR-011：消费方为 GitHub Actions Linux）。
+func buildRepoIndexEntries(entries []types.ModelEntry, repoPath string) []repoIndexEntry {
+	list := make([]repoIndexEntry, 0, len(entries))
 	for _, e := range entries {
 		relPath := e.Path
 		// 用 filepath.Rel 替代大小写敏感的前缀裁剪，
@@ -554,34 +629,30 @@ func GenerateRepoIndex(repoPath string) (string, error) {
 			relPath = strings.TrimPrefix(relPath, repoPath)
 			relPath = strings.TrimLeft(relPath, `\/`)
 		}
-		// index.json 供 GitHub Actions（Linux）消费，路径统一正斜杠（ADR-011）
 		relPath = filepath.ToSlash(relPath)
-		list = append(list, indexEntry{Name: e.Name, Path: relPath, Size: e.Size, Hash: e.Hash})
+		list = append(list, repoIndexEntry{Name: e.Name, Path: relPath, Size: e.Size, Hash: e.Hash})
 	}
-	data, err := json.MarshalIndent(list, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("序列化 index 条目失败: %w", err)
-	}
-	indexPath := filepath.Join(repoPath, "index.json")
-	if err := fsutil.WriteFileAtomic(indexPath, data); err != nil {
-		return "", fmt.Errorf("写入 index.json 失败: %w", err)
-	}
+	return list
+}
 
+// ensureRepoWorkflow 确保 <repo>/.github/workflows/generate-index.yml 存在，
+// 不存在则写入内嵌的 generateIndexWorkflow（供 CI push 时自动重生成 index.json）。
+// 本函数不阻断主流程：任何失败都进错误回调留痕，调用方继续返回 indexPath。
+func ensureRepoWorkflow(repoPath string) {
 	workflowDir := filepath.Join(repoPath, ".github", "workflows")
 	if err := os.MkdirAll(workflowDir, fsutil.DirPerms); err != nil {
 		// index.json 已成功生成，workflow 属附带能力：失败留痕不阻断（排障盲区补齐）
 		emitScanError("[scanner] 创建 workflow 目录失败 %s: %v", workflowDir, err)
-	} else {
-		workflowPath := filepath.Join(workflowDir, "generate-index.yml")
-		if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-			if err := os.WriteFile(workflowPath, []byte(generateIndexWorkflow), fsutil.FilePerms); err != nil {
-				// 与同文件 151/208/223 行纪律一致：写入失败留痕（静默失败会让
-				// CI 自动重生成 index 静默失效，用户无感知）
-				emitScanError("[scanner] 写入 workflow %s 失败: %v", workflowPath, err)
-			}
-		}
+		return
 	}
-	return indexPath, nil
+	workflowPath := filepath.Join(workflowDir, "generate-index.yml")
+	if _, err := os.Stat(workflowPath); !os.IsNotExist(err) {
+		return // 已存在，不覆盖（用户自定义 workflow 保留）
+	}
+	if err := os.WriteFile(workflowPath, []byte(generateIndexWorkflow), fsutil.FilePerms); err != nil {
+		// 写入失败留痕——静默失败会让 CI 自动重生成 index 静默失效，用户无感知
+		emitScanError("[scanner] 写入 workflow %s 失败: %v", workflowPath, err)
+	}
 }
 
 const generateIndexWorkflow = `name: Generate index.json
