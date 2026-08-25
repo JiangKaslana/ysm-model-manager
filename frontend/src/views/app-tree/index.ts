@@ -180,34 +180,28 @@ export class AppTree extends WebComponentBase {
     if (name === "root") this._rootAttr = newVal || "";
     if (name === "subdir") this._subdirAttr = newVal || "";
     if (!this._ready || !this.isConnected) {
-      // P2 修复（审核，挂载时序）：_ready 前不吞掉变更——记 pending，connectedCallback
-      // 的 _load 完成后补加载最新 root（原直接 return → 新类型树永不渲染，停在 spinner）
       this._pendingRoot = true;
       return;
     }
     const gen = ++this._gen;
-    void (async () => {
-      try {
-        // P2 修复（审核，缓存一致性）：root 切换先清扫描缓存——原 _load() 命中 30s
-        // scanCache（watcher 只监听 ysmRoot/mcRoot，其他类型目录与 Web viewer 无监听），
-        // 切 root 后 30s 内拿到陈旧缓存；与 bus-handlers.reload() 链对齐
-        const App = await getApp();
-        if (App.ClearScanCache) await App.ClearScanCache();
-        await this._load();
-        // 期间 root 属性再次切换：丢弃本次过期加载的渲染，防旧类型数据覆盖新类型树
-        if (gen !== this._gen) return;
-        this._renderTree();
-      } catch (e) {
-        console.error("[Tree root change Error]", e);
-        // 防御范式①：async handler 最外层必有 catch 出口——root 切换失败时
-        // 树停在空/旧状态用户零反馈，转 toast（与 reload/_deleteSelected 同出口）
-        bus.emit("toast:show", {
-          msg: "❌ " + friendlyError(e),
-          duration: 4000,
-          type: "error",
-        });
-      }
-    })();
+    void this._attrChangeReloadAsync(gen);
+  }
+
+  private async _attrChangeReloadAsync(gen: number): Promise<void> {
+    try {
+      const App = await getApp();
+      if (App.ClearScanCache) await App.ClearScanCache();
+      await this._load();
+      if (gen !== this._gen) return;
+      this._renderTree();
+    } catch (e) {
+      console.error("[Tree root change Error]", e);
+      bus.emit("toast:show", {
+        msg: "❌ " + friendlyError(e),
+        duration: 4000,
+        type: "error",
+      });
+    }
   }
   disconnectedCallback(): void {
     this._unsubs?.forEach((fn) => fn?.());
@@ -310,115 +304,117 @@ export class AppTree extends WebComponentBase {
 
   // ========== 键盘快捷键 ==========
   private _initKeyboardShortcuts(): void {
-    this._keydownHandler = (async (e: KeyboardEvent): Promise<void> => {
-      // Ctrl+F / Cmd+F → 聚焦搜索框（允许输入框内响应）
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        e.preventDefault();
-        const srch = this._root.getElementById("srch") as HTMLInputElement | null;
-        if (srch) {
-          srch.focus();
-          srch.select();
-        }
-        return;
-      }
-
-      // Delete → 删除选中文件（输入框中不触发，避免误删）
-      const target = e.target as HTMLElement | null;
-      if (
-        (e.key === "Delete" || e.key === "Del") &&
-        target &&
-        target.tagName !== "INPUT" &&
-        target.tagName !== "TEXTAREA"
-      ) {
-        const paths = [...(selectState?.keys || [])];
-        if (!paths.length) {
-          bus.emit("toast:show", {
-            msg: t("tree.selectFilesFirst"),
-            duration: 2000,
-            type: "warn",
-          });
-          return;
-        }
-        // 能力门控：统一走 DeleteResourcePack（已按 rtype.isDir 决定语义）
-        if (!can("DeleteResourcePack")) {
-          bus.emit("toast:show", {
-            msg: "网页版不支持删除模型",
-            duration: 3000,
-            type: "warn",
-          });
-          return;
-        }
-        e.preventDefault();
-        if (!(await modalConfirm({
-          title: "批量删除",
-          icon: "🗑️",
-          message: `确定要删除选中的 ${paths.length} 个文件吗？`,
-          okText: "🗑️ 删除",
-          danger: true,
-        })))
-          return;
-        const rtype = this._rootAttr || RESOURCE_TYPES.YSM;
-        this._deleteSelected(paths, rtype);
-      }
-
-      // ArrowUp/Down — 方向键导航文件列表（不按住 Ctrl/Shift 时单选移动）
-      // 焦点范围守卫（codereview 批次3 P1）：必须限定在树自身内——document 级监听
-      // 会把全局方向键都劫持（3D 预览相机移动 / app-nav 导航 / 面板滚动都会误触发
-      // 换选 + model:select 重载）；非树内焦点直接放行
-      if (
-        (e.key === "ArrowDown" || e.key === "ArrowUp") &&
-        !e.ctrlKey && !e.metaKey && !e.altKey &&
-        target?.tagName !== "INPUT" && target?.tagName !== "TEXTAREA" &&
-        target && this._root.contains(target)
-      ) {
-        const container = this._root.getElementById("tree");
-        if (!container) return;
-        const fileRows = (container._vsRows || []).filter(r => r.type === "file");
-        if (!fileRows.length) return;
-        e.preventDefault();
-
-        const currentIdx = fileRows.findIndex(r => r.key === selectState.lastKey);
-        const nextIdx = e.key === "ArrowDown"
-          ? Math.min(currentIdx + 1, fileRows.length - 1)
-          : Math.max(currentIdx - 1, 0);
-
-        const nextKey = fileRows[nextIdx].key;
-        selectSingle(nextKey);
-
-        // P2 优化：精准更新 DOM selected class，避免全量 _renderTree 重建
-        if (selectState.lastKey) {
-          const oldEl = container.querySelector(`[data-fullpath="${CSS.escape(selectState.lastKey)}"]`);
-          if (oldEl) {
-            oldEl.classList.remove("selected");
-            oldEl.setAttribute("aria-selected", "false");
-          }
-        }
-        selectState.lastKey = nextKey;
-        const newEl = container.querySelector(`[data-fullpath="${CSS.escape(nextKey)}"]`);
-        if (newEl) {
-          newEl.classList.add("selected");
-          newEl.setAttribute("aria-selected", "true");
-        }
-
-        updateSelectCount(this._root);
-        bus.emit("model:select", { path: nextKey });
-        rememberModelPath(nextKey);
-
-        // 滚动到可见（虚拟滚动：按行高计算 scrollTop）
-        const allRows = container._vsRows || [];
-        const rowIdx = allRows.findIndex(r => r.key === nextKey);
-        if (rowIdx >= 0) {
-          const rowH = container._vsMode === "list" ? ROW_H_LIST : ROW_H_GRID;
-          const targetScroll = rowIdx * rowH;
-          // 只在目标行不在视口内时滚动
-          if (targetScroll < container.scrollTop || targetScroll + rowH > container.scrollTop + container.clientHeight) {
-            container.scrollTop = targetScroll;
-          }
-        }
-      }
+    this._keydownHandler = ((e: Event) => {
+      void this._onKeydown(e as KeyboardEvent);
     }) as unknown as EventListener;
-    // 只注册 document 级：shadow 内组合键事件会 composed 冒泡，双注册会导致 Delete 双触发
     document.addEventListener("keydown", this._keydownHandler as unknown as EventListener);
+  }
+
+  private async _onKeydown(e: KeyboardEvent): Promise<void> {
+    const target = e.target as HTMLElement | null;
+    if (this._onKeyFind(e)) return;
+    if (await this._onKeyDelete(e, target)) return;
+    this._onKeyArrowNav(e, target);
+  }
+
+  private _onKeyFind(e: KeyboardEvent): boolean {
+    if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+      e.preventDefault();
+      const srch = this._root.getElementById("srch") as HTMLInputElement | null;
+      if (srch) {
+        srch.focus();
+        srch.select();
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private async _onKeyDelete(e: KeyboardEvent, target: HTMLElement | null): Promise<boolean> {
+    if (
+      (e.key !== "Delete" && e.key !== "Del") ||
+      !target ||
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA"
+    ) return false;
+    const paths = [...(selectState?.keys || [])];
+    if (!paths.length) {
+      bus.emit("toast:show", {
+        msg: t("tree.selectFilesFirst"),
+        duration: 2000,
+        type: "warn",
+      });
+      return true;
+    }
+    if (!can("DeleteResourcePack")) {
+      bus.emit("toast:show", {
+        msg: "网页版不支持删除模型",
+        duration: 3000,
+        type: "warn",
+      });
+      return true;
+    }
+    e.preventDefault();
+    if (!(await modalConfirm({
+      title: "批量删除",
+      icon: "🗑️",
+      message: `确定要删除选中的 ${paths.length} 个文件吗？`,
+      okText: "🗑️ 删除",
+      danger: true,
+    })))
+      return true;
+    const rtype = this._rootAttr || RESOURCE_TYPES.YSM;
+    this._deleteSelected(paths, rtype);
+    return true;
+  }
+
+  private _onKeyArrowNav(e: KeyboardEvent, target: HTMLElement | null): void {
+    if (
+      (e.key !== "ArrowDown" && e.key !== "ArrowUp") ||
+      e.ctrlKey || e.metaKey || e.altKey ||
+      target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" ||
+      !target || !this._root.contains(target)
+    ) return;
+    const container = this._root.getElementById("tree");
+    if (!container) return;
+    const fileRows = (container._vsRows || []).filter(r => r.type === "file");
+    if (!fileRows.length) return;
+    e.preventDefault();
+
+    const currentIdx = fileRows.findIndex(r => r.key === selectState.lastKey);
+    const nextIdx = e.key === "ArrowDown"
+      ? Math.min(currentIdx + 1, fileRows.length - 1)
+      : Math.max(currentIdx - 1, 0);
+    const nextKey = fileRows[nextIdx].key;
+    selectSingle(nextKey);
+
+    if (selectState.lastKey) {
+      const oldEl = container.querySelector(`[data-fullpath="${CSS.escape(selectState.lastKey)}"]`);
+      if (oldEl) {
+        oldEl.classList.remove("selected");
+        oldEl.setAttribute("aria-selected", "false");
+      }
+    }
+    selectState.lastKey = nextKey;
+    const newEl = container.querySelector(`[data-fullpath="${CSS.escape(nextKey)}"]`);
+    if (newEl) {
+      newEl.classList.add("selected");
+      newEl.setAttribute("aria-selected", "true");
+    }
+
+    updateSelectCount(this._root);
+    bus.emit("model:select", { path: nextKey });
+    rememberModelPath(nextKey);
+
+    const allRows = container._vsRows || [];
+    const rowIdx = allRows.findIndex(r => r.key === nextKey);
+    if (rowIdx >= 0) {
+      const rowH = container._vsMode === "list" ? ROW_H_LIST : ROW_H_GRID;
+      const targetScroll = rowIdx * rowH;
+      if (targetScroll < container.scrollTop || targetScroll + rowH > container.scrollTop + container.clientHeight) {
+        container.scrollTop = targetScroll;
+      }
+    }
   }
 
   async _deleteSelected(paths: string[], rtype: string): Promise<void> {
