@@ -212,9 +212,11 @@ describe("frustum-cull", () => {
   });
 
   describe("视锥裁剪开关", () => {
-    it("默认开启（无存储值 → undefined → true，性能保留）", () => {
+    it("默认关闭（无存储值 → undefined → false）", () => {
+      // 单模型（单个 YSM/VRM rootGroup）本就走豁免分支、Group 级剔除空转零收益；
+      // 默认关免去多根场景误剔/闪烁风险，需多模型同框大场景时手动在设置面板开启。
       localStorage.removeItem("ysm_3d_frustumCull");
-      expect(isFrustumCullEnabled()).toBe(true);
+      expect(isFrustumCullEnabled()).toBe(false);
     });
 
     it("setFrustumCullEnabled 切换读写", () => {

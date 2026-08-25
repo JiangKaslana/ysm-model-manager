@@ -101,14 +101,16 @@ export function clearModelRoots(): void {
 }
 
 // ===== 视锥裁剪开关（localStorage 持久化，设置面板可关）=====
-// 默认开（多模型同框省渲染的性能收益）；剔除失误（误藏模型/闪烁）时用户可关，
-// 关闭后所有注册根恢复可见（视觉优先，牺牲一点多模型同框性能）。
+// 默认关：单模型（单个 YSM/VRM rootGroup）时 cullModelGroups 走 modelRoots.length
+// ===1 豁免分支，本剔除空转零收益，却承担多根场景的误剔/闪烁风险（用户观察
+// "不剔除更正常"即指此）。真正需要省渲染的是多模型同框（>1 根），由用户手动
+// 在设置面板开启。剔除失误（误藏模型/闪烁）时也可随时关闭恢复可见。
 const CULL_ENABLED_KEY = "ysm_3d_frustumCull";
 
-/** 视锥裁剪开关是否启用（undefined → 默认开；safeGet 隐私模式安全） */
+/** 视锥裁剪开关是否启用（undefined → 默认关；safeGet 隐私模式安全） */
 export function isFrustumCullEnabled(): boolean {
   const v = safeGet(CULL_ENABLED_KEY);
-  return v === null ? true : v !== "0";
+  return v === null ? false : v !== "0";
 }
 
 /** 设置视锥裁剪开关（设置面板开关调用） */
