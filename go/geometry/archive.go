@@ -1329,9 +1329,19 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 			// 未声明纹理的组件：同名 basename 纹理兜底（arm → arm.png；对齐 YSMViewer
 			// 每组件独立纹理口径——Go 端识别组件同名纹理，前端不再 fallback 全局贴错/灰。
 			// 三叉戟灰根因修复：投射物/子组件未声明纹理时 compTex 曾无条目）
+			// 前缀匹配兜底：maid_model 多合一女仆包（如 zhi_ban）纹理名带 _1/_2/_3 后缀
+			// （asuma_toki → asuma_toki_1），精确匹配失败时取首张前缀命中的纹理。
 			if declaredTexName == "" {
 				if _, ok := pngNameMap[compName]; ok {
 					declaredTexName = compName
+				} else {
+					compLower := strings.ToLower(compName)
+					for pn := range pngNameMap {
+						if strings.HasPrefix(pn, compLower+"_") || strings.HasPrefix(pn, compLower+"-") {
+							declaredTexName = pn
+							break
+						}
+					}
 				}
 			}
 		}

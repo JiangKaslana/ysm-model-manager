@@ -6,9 +6,12 @@ import { applyRotationIfNonIdentity } from "./quaternion.ts";
 import { getTextureAlphaMode } from "./texture-alpha.ts";
 import type { TextureAlphaMode } from "./texture-alpha.ts";
 
-/** ysmview 风格材质配置（索引 2.16 魔法数值收敛） */
+/** ysmview 风格材质配置（索引 2.16 魔法数值收敛）。
+ * side 用 DoubleSide：对齐 architecture.md 材质标准 + YSMViewer/Blockbench 双面渲染。
+ * YSMViewer 双面渲染 → 薄脸板从侧面/背面看也可见；此前漂移成 FrontSide 单面，
+ * 导致骨骼转动时脸部薄 cube 背面被剔除而"转头脸消失"（与视锥剔除无关）。 */
 const MATERIAL_OPTS = {
-  side: THREE.FrontSide,
+  side: THREE.DoubleSide,
 } as const;
 /** 无纹理时的占位灰 */
 const FALLBACK_COLOR_GRAY = 0xcccccc;
@@ -95,10 +98,15 @@ export function addMeshToBoneGroup(
         })
       : new THREE.MeshBasicMaterial({
           color: FALLBACK_COLOR_GRAY,
-          side: THREE.FrontSide,
+          ...MATERIAL_OPTS,
         });
 
   const mesh = new THREE.Mesh(geo, mat);
+  // ADR-098 副作用修正：Three.js 默认 mesh 级 `frustumCulled` 常开且我们的
+  // `ysm_3d_frustumCull` 开关关不到它。骨骼旋转时脸部等扁平小包围球被内置
+  // 视锥误判不可见而隐藏（转头脸消失），故关闭 mesh 级剔除，可见性交由外层
+  // `cullModelGroups`（Group 级，单模型场景本就豁免）统一管理，性能不裸奔。
+  mesh.frustumCulled = false;
   mesh.position.set(
     md.localPosition?.[0] ?? 0,
     md.localPosition?.[1] ?? 0,

@@ -31,7 +31,7 @@ export interface YsmContentHandle {
   getModelGroupCount(): number;
   setBoneVisible(name: string, visible: boolean): void;
   toggleBone(name: string): void;
-  getBoneList(): Array<{ id: string; name: string; parentId?: string | null }>;
+  getBoneList(modelIdx?: number): Array<{ id: string; name: string; parentId?: string | null }>;
   /** 骨骼拾取回调（由控件层设置，适配器转发到 raycast state） */
   onBoneSelect: ((info: BoneSelectInfo) => void) | null;
   /** 骨骼详情框（fill3DPanel 写入） */

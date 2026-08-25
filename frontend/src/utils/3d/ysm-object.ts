@@ -32,7 +32,7 @@ export interface YsmObjectHandle {
   getModelGroupCount(): number;
   setBoneVisible(name: string, visible: boolean): void;
   toggleBone(name: string): void;
-  getBoneList(): Array<{ id: string; name: string; parentId?: string | null }>;
+  getBoneList(modelIdx?: number): Array<{ id: string; name: string; parentId?: string | null }>;
   /** 从所在 scene 移除 rootGroup 并释放其几何/材质资源（不含 scene/camera/controls） */
   removeFromScene(scene: THREE.Scene): void;
 }
@@ -132,7 +132,7 @@ export function buildYsmObject(
     getModelGroupCount: () => spec.models?.length || 0,
     setBoneVisible: (name: string, visible: boolean) => setBoneVisible(boneGroupMap, name, visible),
     toggleBone: (name: string) => toggleBone(boneGroupMap, name),
-    getBoneList: () => getBoneList(spec),
+    getBoneList: (modelIdx?: number) => getBoneList(spec, modelIdx),
     removeFromScene(scene: THREE.Scene): void {
       scene.remove(rootGroup);
       disposeSceneMeshes(rootGroup, { disposeTextures: false });

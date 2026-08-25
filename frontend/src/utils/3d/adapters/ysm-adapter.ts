@@ -157,7 +157,7 @@ export async function buildYsmScene(
     getModelGroupCount: () => obj.getModelGroupCount(),
     setBoneVisible: (name: string, visible: boolean) => obj.setBoneVisible(name, visible),
     toggleBone: (name: string) => obj.toggleBone(name),
-    getBoneList: () => obj.getBoneList(),
+    getBoneList: (modelIdx?: number) => obj.getBoneList(modelIdx),
     onBoneSelect: null,
     _boneDetailEl: null,
   };
