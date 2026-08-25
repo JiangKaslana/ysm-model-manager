@@ -9,12 +9,12 @@ import { zhCN } from "../../../core/i18n/locales/zh-CN.ts";
 import {
   CORE_MENU_ITEMS,
   PREVIEW_MENU_GROUPS,
-  type PreviewMenuItemDef,
 } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import { ysmMenuItems, type YsmMenuItemsOpts } from "./ysm-adapter.ts";
 import { mmdMenuItems, type MmdMenuItemsOpts } from "./mmd-adapter.ts";
 import { vrmMenuItems, type VrmMenuItemsOpts } from "./vrm-adapter.ts";
-import { mountPreviewRootMenu, previewItemToNode, type PreviewMenuCtx } from "./preview-menu.ts";
+import { mountPreviewRootMenu, previewItemToNode, nodeToDef, type PreviewMenuCtx } from "./preview-menu.ts";
 import type { BoneTree } from "../bone-tools.ts";
 import {
   expectContainsAtLeast,
@@ -149,7 +149,7 @@ function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
   };
 }
 
-function mountWith(items: PreviewMenuItemDef[], ctxOverrides: Partial<PreviewMenuCtx> = {}) {
+function mountWith(items: PreviewMenuNode[], ctxOverrides: Partial<PreviewMenuCtx> = {}) {
   const overlay = document.createElement("div");
   document.body.appendChild(overlay);
   const handle = mountPreviewRootMenu(overlay, makeCtx(ctxOverrides));
@@ -186,9 +186,9 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
     const groupIds = PREVIEW_MENU_GROUPS.map((g) => g.id);
     allItems.forEach((d) => {
       if (d.kind === "divider") return;
-      expect(d.icon.length, `${d.id}.icon`).toBeGreaterThan(0);
-      expect(d.fallback.length, `${d.id}.fallback`).toBeGreaterThan(0);
-      expect(d.labelKey.length, `${d.id}.labelKey`).toBeGreaterThan(0);
+      expect(d.icon!.length, `${d.id}.icon`).toBeGreaterThan(0);
+      expect(d.fallback!.length, `${d.id}.fallback`).toBeGreaterThan(0);
+      expect(d.labelKey!.length, `${d.id}.labelKey`).toBeGreaterThan(0);
       expect(["panel", "action", "divider"]).toContain(d.kind);
       if (d.dockGroup) expect(groupIds, `${d.id}.dockGroup`).toContain(d.dockGroup);
     });
@@ -196,14 +196,14 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
 
   it("适配器注入项 panel 必有 render；action 必有 run（core 项走 fillers 映射，行为测试覆盖）", () => {
     [...ysmItems, ...mmdItems, ...vrmItems].forEach((d) => {
-      if (d.kind === "panel") expect(typeof d.render, `${d.id}.render`).toBe("function");
-      if (d.kind === "action") expect(typeof d.run, `${d.id}.run`).toBe("function");
+      if (d.kind === "panel") expect(typeof d.renderCustom, `${d.id}.renderCustom`).toBe("function");
+      if (d.kind === "action") expect(typeof d.action, `${d.id}.action`).toBe("function");
     });
   });
 
-  it("previewItemToNode 映射：flat 项 → 声明式节点，字段逐一对齐（方案 A 第 3 步）", () => {
+  it("nodeToDef 映射：声明式节点 → 内部 def，字段逐一对齐", () => {
     [...ysmItems, ...mmdItems, ...vrmItems].forEach((d) => {
-      const n = previewItemToNode(d);
+      const n = nodeToDef(d);
       expect(n.id, `${d.id}.id`).toBe(d.id);
       expect(n.kind, `${d.id}.kind`).toBe(d.kind === "action" ? "action" : "panel");
       expect(n.labelKey, `${d.id}.labelKey`).toBe(d.labelKey);
@@ -215,33 +215,33 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
       expect(n.requiresEnvironment, `${d.id}.requiresEnvironment`).toBe(d.requiresEnvironment);
       // panel → renderCustom 逃生舱（结构数据化，内容保留逃生舱）
       if (d.kind === "panel") {
-        expect(typeof n.renderCustom, `${d.id}.renderCustom`).toBe("function");
+        expect(typeof n.render, `${d.id}.render`).toBe("function");
       }
       if (d.kind === "action") {
-        expect(typeof n.action, `${d.id}.action`).toBe("function");
+        expect(typeof n.run, `${d.id}.run`).toBe("function");
       }
     });
   });
 
   it("previewItemToNode closePopup 兜底：renderCustom 可选 closePopup 传 noop，不抛（映射稳定性）", () => {
     // 纯 fake 项：避开真实适配器面板的 DOM/three 副作用
-    let gotClose: (() => void) | null = null;
-    const fake: PreviewMenuItemDef = {
+    let gotClose: (() => void) | undefined = undefined;
+    const fake: PreviewMenuNode = {
       id: "fake-panel",
       icon: "🧪",
       labelKey: "preview.modelInfo",
       fallback: "模型",
       kind: "panel",
       dockGroup: "model",
-      render: (list, closePopup): void => {
+      renderCustom: (list, closePopup): void => {
         gotClose = closePopup;
         list.textContent = "fake";
       },
     };
-    const n = previewItemToNode(fake);
+    const n = nodeToDef(fake);
     const list = document.createElement("div");
     // 显式传 undefined closePopup（renderMenu 经 node.renderCustom(list, undefined) 调用）
-    n.renderCustom?.(list, undefined);
+    n.render?.(list, () => {});
     expect(list.textContent).toBe("fake");
     // 兜底生效：closePopup 必为可调用函数（渲染时 hideMenu 注入；缺省 noop 防崩溃）
     expect(typeof gotClose).toBe("function");
@@ -249,7 +249,7 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
 
   it("labelKey 全部有翻译（zh-CN 有键；三语一致性由 locales-consistency.test 保证）", () => {
     allItems.forEach((d) => {
-      expect(d.labelKey in zhCN, `${d.id} labelKey=${d.labelKey} 缺 zh-CN 翻译`).toBe(true);
+      expect(d.labelKey! in zhCN, `${d.id} labelKey=${d.labelKey} 缺 zh-CN 翻译`).toBe(true);
     });
   });
 
@@ -533,7 +533,7 @@ describe("渲染失败兜底（render 抛错不崩）", () => {
           labelKey: "preview.modelInfo",
           fallback: "坏",
           kind: "panel",
-          render: boom,
+          renderCustom: boom,
         },
       ]);
       handle.openPanel("broken");

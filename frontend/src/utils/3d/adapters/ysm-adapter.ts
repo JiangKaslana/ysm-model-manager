@@ -22,7 +22,7 @@ import { rebuildDebug } from "../debug-render.ts";
 import { disposeDebugGroup } from "../cleanup-helper.ts";
 import { screenshotFromRenderer } from "../screenshot.ts";
 import type { YsmContentHandle, YsmControlsContext } from "../../../views/app-preview/ysm-controls.ts";
-import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import type { Spec3D, BoneSelectInfo, BoneMaps } from "../model3d.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
@@ -450,8 +450,8 @@ export interface YsmMenuItemsOpts {
  * dock 渲染（对齐 MikuMikuAR 声明式菜单测试范式），加菜单项只改这里。
  * model/截图/骨骼 归 🧍 模型组；play 归 💃 动作组（有 clip 才显示）。
  */
-export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
-  const items: PreviewMenuItemDef[] = [
+export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuNode[] {
+  const items: PreviewMenuNode[] = [
     {
       id: "model",
       icon: "🧍",
@@ -460,7 +460,7 @@ export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       dockGroup: "model",
       legacyTestId: "ysm-model-entry",
-      render: (list) => o.panels?.fillModelPanel?.(list, o.controlsCtx),
+      renderCustom:(list) => o.panels?.fillModelPanel?.(list, o.controlsCtx),
     },
     {
       id: "shot",
@@ -470,7 +470,7 @@ export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       dockGroup: "model",
       legacyTestId: "ysm-shot-entry",
-      render: (list) => o.panels?.fillShotPanel?.(list, o.controlsCtx),
+      renderCustom:(list) => o.panels?.fillShotPanel?.(list, o.controlsCtx),
     },
     {
       id: "bones",
@@ -480,7 +480,7 @@ export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       dockGroup: "model",
       legacyTestId: "ysm-bones-entry",
-      render: (list) => {
+      renderCustom:(list) => {
         // 通用骨骼面板（ADR-077）：渲染进根菜单面板；重入时先清理旧 renderer
         if (o.bonePanel.cleanupRef.current) {
           o.bonePanel.cleanupRef.current();
@@ -503,7 +503,7 @@ export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       legacyTestId: "ysm-play-entry",
       dockGroup: "motion",
-      render: (list) => {
+      renderCustom:(list) => {
         o.fillPlayPanel?.(list, o.play!);
       },
     });
@@ -516,7 +516,7 @@ export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
       fallback: "感知",
       kind: "panel",
       dockGroup: "motion",
-      render: (list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
+      renderCustom:(list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
     });
   }
   return items;

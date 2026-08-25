@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { zhCN } from "../../../core/i18n/locales/zh-CN.ts";
 import { buildLitematicScene, litematicMenuItems } from "./litematic-adapter.ts";
 import type { PreviewBuildCtx } from "./mount-preview-core.ts";
-import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 
 beforeEach(() => {
   document.body.innerHTML = "";
@@ -38,13 +38,13 @@ const mockVoxelCall = vi.fn(() =>
 /** 提取 buildLitematicScene 返回的 menuItems（由 mount-preview-core 负责注入到 dock-menu） */
 async function extractMenuDOM(): Promise<{
   slicePanel: HTMLElement;
-  items: PreviewMenuItemDef[];
+  items: PreviewMenuNode[];
 }> {
   const ctx = makeMockCtx();
   const built = await buildLitematicScene(ctx, "/a.litematic", mockVoxelCall);
   const items = built.menuItems ?? [];
   const list = document.createElement("div");
-  if (items[0]?.render) items[0].render(list, {} as any);
+  if (items[0]?.renderCustom) items[0].renderCustom(list, {} as any);
   return { slicePanel: list, items };
 }
 

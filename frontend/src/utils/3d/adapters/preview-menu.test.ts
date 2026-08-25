@@ -157,7 +157,7 @@ describe("mountPreviewRootMenu", () => {
       fallback: "模型",
       kind: "panel" as const,
       dockGroup: "model" as const,
-      render: (l: HTMLElement) => {
+      renderCustom: (l: HTMLElement) => {
         l.append("MODEL-PANEL");
       },
     };
@@ -184,7 +184,7 @@ describe("mountPreviewRootMenu", () => {
       fallback: "模型",
       kind: "panel" as const,
       dockGroup: "model" as const,
-      render: (l: HTMLElement) => {
+      renderCustom: (l: HTMLElement) => {
         l.append("MODEL-PANEL");
       },
     };
@@ -258,7 +258,7 @@ describe("mountPreviewRootMenu", () => {
         fallback: "播放",
         kind: "panel",
         dockGroup: "motion",
-        render: () => {},
+        renderCustom: () => {},
       },
     ]);
     expect(overlay.querySelector(`[data-testid="dock-${motionGroupId}"]`)).not.toBeNull();
@@ -275,7 +275,7 @@ describe("mountPreviewRootMenu", () => {
         fallback: "骨骼",
         kind: "panel",
         dockGroup: "model",
-        render: (l) => {
+        renderCustom: (l) => {
           l.append("BONES-PANEL");
         },
       },

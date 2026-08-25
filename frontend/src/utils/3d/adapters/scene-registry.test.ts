@@ -6,14 +6,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
 import { sceneRegistry, MAX_MODELS } from "./scene-registry.ts";
-import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 
 function makeEntry(
   path: string,
   roots: THREE.Object3D[],
   opts?: {
     visible?: boolean;
-    menuItems?: PreviewMenuItemDef[] | null;
+    menuItems?: PreviewMenuNode[] | null;
     boneMaps?: unknown;
     onBonePick?: ((boneId: string) => void) | null;
   },
@@ -115,7 +115,7 @@ describe("SceneRegistry dispatch 换菜单", () => {
   it("setActive 切换 activeId，存在 menuItems 时调用 menuSink.setAdapterItems", () => {
     const sink = { setAdapterItems: vi.fn() };
     sceneRegistry.setMenuSink(sink);
-    const itemsA: PreviewMenuItemDef[] = [{ id: "ax" }] as any;
+    const itemsA: PreviewMenuNode[] = [{ id: "ax" }] as any;
     const a = makeEntry("a.glb", [new THREE.Object3D()], { menuItems: itemsA });
     const b = makeEntry("b.glb", [new THREE.Object3D()], { menuItems: [{ id: "by" }] as any });
 

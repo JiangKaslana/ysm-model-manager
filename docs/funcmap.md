@@ -1382,17 +1382,17 @@
 | `PreviewMenuNodeKind()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:31` | 节点种类：folder 可嵌套；其余为叶节点（与 MikuMikuAR MenuKind 对齐，加 ysm 的 panel 语义） |
 | `PreviewControlSpec()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:45` | 控件绑定规格（slider/toggle/button/field 用；ysm 侧 state 映射表建立后 bind 生效） |
 | `PreviewMenuNode()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:65` | 声明式菜单节点：菜单即数据。与 PreviewMenuItemDef 的映射见 preview-menu-defs.ts 顶部注释 |
-| `isPreviewFolderNode()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:100` | 类型守卫：节点是否为 folder（可下钻） |
-| `collectPreviewLeafNodes()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:105` | 递归收集全部叶子节点（folder 展开；供测试/审计遍历） |
-| `collectPreviewNodeIds()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:118` | 递归收集全部节点 id（供 id 唯一性契约测试） |
+| `isPreviewFolderNode()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:105` | 类型守卫：节点是否为 folder（可下钻） |
+| `collectPreviewLeafNodes()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:110` | 递归收集全部叶子节点（folder 展开；供测试/审计遍历） |
+| `collectPreviewNodeIds()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:123` | 递归收集全部节点 id（供 id 唯一性契约测试） |
 | `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu` | — |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:33` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:72` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:81` | 挂载预览底部根菜单，返回句柄 |
-| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:582` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
-| `nodeToDef()` | `frontend/src/utils/3d/adapters/preview-menu:597` | 逆向映射：PreviewMenuNode → PreviewMenuItemDef（供 setAdapterItems 转换适配器节点为内部 def） |
-| `previewItemToNode()` | `frontend/src/utils/3d/adapters/preview-menu:625` | — |
-| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:654` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
+| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:584` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
+| `nodeToDef()` | `frontend/src/utils/3d/adapters/preview-menu:599` | 逆向映射：PreviewMenuNode → PreviewMenuItemDef（供 setAdapterItems 转换适配器节点为内部 def） |
+| `previewItemToNode()` | `frontend/src/utils/3d/adapters/preview-menu:629` | — |
+| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:658` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |

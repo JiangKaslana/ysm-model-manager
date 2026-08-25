@@ -57,7 +57,7 @@ import { installUiComponentsStyles } from "../../../ui/ui-components-styles.ts";
 import { createSlideMenu } from "../../../ui/ui-helpers.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import { mountPreviewRootMenu, type PreviewMenuHandle } from "./preview-menu.ts";
-import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import { type CameraControlBridge } from "./camera-controls.ts";
 import type { BoneSelectInfo, BoneMaps } from "../model3d.ts";
 import {
@@ -110,7 +110,7 @@ export interface PreviewScene {
   /** 骨骼映射（dispatch 拾取归属用，ADR-093 T5；未接入格式不返回） */
   boneMaps?: BoneMaps | null;
   /** 该模型声明式根菜单专属项（selectModel 换菜单用，ADR-093 T5；未接入为 null） */
-  menuItems?: PreviewMenuItemDef[] | null;
+  menuItems?: PreviewMenuNode[] | null;
   /** 多模型下由统一拾取器调用：点中该模型骨骼时打开其面板（ADR-093 T5） */
   onBonePick?: (boneId: string) => void;
 }

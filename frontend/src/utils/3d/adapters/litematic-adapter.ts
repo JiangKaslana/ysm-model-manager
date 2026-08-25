@@ -8,7 +8,7 @@ import { t } from "../../../core/i18n/t.ts";
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
-import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import { recordLoadTrace } from "../load-trace.ts";
 
 /** 体素数据（GetLitematicVoxelData 等返回 JSON） */
@@ -391,7 +391,7 @@ interface LitematicMenuRenderArgs {
  * 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项，
  * 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。
  */
-export function litematicMenuItems(els: LitematicMenuRenderArgs): PreviewMenuItemDef[] {
+export function litematicMenuItems(els: LitematicMenuRenderArgs): PreviewMenuNode[] {
   return [
     {
       id: "slice",
@@ -401,7 +401,7 @@ export function litematicMenuItems(els: LitematicMenuRenderArgs): PreviewMenuIte
       kind: "panel",
       dockGroup: "model",
       legacyTestId: "litematic-slice-entry",
-      render: (list: HTMLElement) => {
+      renderCustom:(list: HTMLElement) => {
         list.innerHTML = "";
         list.appendChild(els.sep);
         list.appendChild(els.axisLabel);

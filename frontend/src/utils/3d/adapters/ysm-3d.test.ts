@@ -90,15 +90,17 @@ function makeCtx() {
 
 /** 最近一次 setAdapterItems 收到的适配器项 */
 /** 从 preview(built) 对象读取注入的菜单项 */
-function registeredItems(preview: { menuItems?: Array<{ id: string; kind: string; render?: (list: HTMLElement, close: () => void) => void }> | null }): Array<{
+function registeredItems(preview: { menuItems?: Array<{ id: string; kind: string; render?: (list: HTMLElement, close: () => void) => void; renderCustom?: (list: HTMLElement, close?: () => void) => void }> | null }): Array<{
   id: string;
   kind: string;
   render?: (list: HTMLElement, close: () => void) => void;
+  renderCustom?: (list: HTMLElement, close?: () => void) => void;
 }> {
   return (preview.menuItems ?? []) as Array<{
     id: string;
     kind: string;
     render?: (list: HTMLElement, close: () => void) => void;
+    renderCustom?: (list: HTMLElement, close?: () => void) => void;
   }>;
 }
 
@@ -121,12 +123,12 @@ describe("buildYsmScene（shared 装配）", () => {
     const items = registeredItems(preview);
     expect(items.map((i) => i.id)).toEqual(["model", "shot", "bones", "perception"]);
     items.forEach((i) => expect(i.kind).toBe("panel"));
-    items.forEach((i) => expect(typeof i.render).toBe("function"));
+    items.forEach((i) => expect(typeof i.renderCustom).toBe("function"));
 
     // model 面板渲染：fill3DPanel 输出统计行（骨骼 0 根 + 立方体 0 个）
     const list = document.createElement("div");
     const modelItem = items.find((i) => i.id === "model")!;
-    modelItem.render!(list, () => {});
+    modelItem.renderCustom!(list, () => {});
     expect(list.textContent).toContain("模型统计");
 
     preview.dispose();
@@ -176,7 +178,7 @@ describe("buildYsmScene 面板填充与骨骼拾取", () => {
     const items = registeredItems(preview);
     const modelItem = items.find((i) => i.id === "model")!;
     const list = document.createElement("div");
-    modelItem.render!(list, () => {});
+    modelItem.renderCustom!(list, () => {});
     expect(list.textContent).toContain("模型统计");
 
     preview.dispose();
@@ -194,7 +196,7 @@ describe("buildYsmScene 面板填充与骨骼拾取", () => {
     const items = registeredItems(preview);
     const shotItem = items.find((i) => i.id === "shot")!;
     const list = document.createElement("div");
-    shotItem.render!(list, () => {});
+    shotItem.renderCustom!(list, () => {});
     // fillShotPanel 是 no-op，list 保持空
     expect(list.textContent).toBe("");
 
@@ -269,7 +271,7 @@ describe("buildYsmScene dispose 清理行为", () => {
     const items = registeredItems(preview);
     const modelItem = items.find((i) => i.id === "model")!;
     const list = document.createElement("div");
-    expect(() => modelItem.render!(list, () => {})).not.toThrow();
+    expect(() => modelItem.renderCustom!(list, () => {})).not.toThrow();
 
     preview.dispose();
   });
@@ -394,7 +396,7 @@ describe("buildYsmScene 动画播放器集成（ADR-100）", () => {
     const items = registeredItems(preview);
     const playItem = items.find((i) => i.id === "ysm-play");
     expect(playItem).toBeDefined();
-    playItem!.render!(document.createElement("div"), () => {});
+    playItem!.renderCustom!(document.createElement("div"), () => {});
     // 多 clip 标签 = 「文件名 · clip 名」；乱码解码会让 clip 名变 Latin-1 杂音
     expect(firstLabel).toBe("motion · 挥手");
 
@@ -425,7 +427,7 @@ describe("ysmMenuItems 独立菜单表测试", () => {
     items.forEach((i) => {
       expect(i.kind).toBe("panel");
       expect(i.dockGroup).toBe("model");
-      expect(typeof i.render).toBe("function");
+      expect(typeof i.renderCustom).toBe("function");
     });
   });
 
@@ -484,14 +486,14 @@ describe("ysmMenuItems 独立菜单表测试", () => {
     const list = document.createElement("div");
 
     // 首次渲染：cleanupRef.current 初始为 null，直接注册
-    bonesItem.render!(list, () => {});
+    bonesItem.renderCustom!(list, () => {});
     expect(cleanup1).not.toHaveBeenCalled();
 
     // 模拟重入场景：cleanupRef.current 已有值（第二次渲染）
     // 此时应触发清理旧 renderer
     const cleanupRef = (opts.bonePanel as { cleanupRef: { current: (() => void) | null } }).cleanupRef;
     cleanupRef.current = cleanup2;
-    bonesItem.render!(list, () => {});
+    bonesItem.renderCustom!(list, () => {});
     expect(cleanup2).toHaveBeenCalledTimes(1);
   });
 });

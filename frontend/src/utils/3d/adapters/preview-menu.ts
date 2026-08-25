@@ -71,7 +71,8 @@ export { renderCapControls };
 /** 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（ADR-085 S3） */
 export interface PreviewMenuHandle {
   dispose(): void;
-  setAdapterItems(items: PreviewMenuItemDef[]): void;
+  /** 适配器注入声明式节点（内部转换为 PreviewMenuItemDef 兼容渲染链） */
+  setAdapterItems(items: PreviewMenuNode[]): void;
   openPanel(id: string): void;
   refreshDock(): void;
 }
@@ -346,10 +347,12 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   }, { signal: tapAbort.signal });
 
   // ---- 句柄 ----
-  const setAdapterItems = (items: PreviewMenuItemDef[]): void => {
+  const setAdapterItems = (items: PreviewMenuNode[]): void => {
+    // 转换为内部 def 兼容渲染链（dock / makeRow / makeGroupView / makePanelView 均需 PreviewMenuItemDef）
+    const defs = items.map(nodeToDef);
     // ADR-085 S1：运行期 id 冲突守卫（抛错阻断，避免重复行静默渲染）
     const seen = new Set<string>();
-    for (const it of items) {
+    for (const it of defs) {
       if (seen.has(it.id)) {
         throw new Error(`[preview-menu] setAdapterItems 重复 id: "${it.id}"（适配器项之间冲突）`);
       }
@@ -358,7 +361,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       }
       seen.add(it.id);
     }
-    adapterItems = items;
+    adapterItems = defs;
     renderDock();
   };
 
@@ -592,6 +595,37 @@ export function roleBaseName(e: ModelEntry): string {
  * （动态数据面板，如模型统计/纹理列表/骨骼树，按 MikuMikuAR renderCustom 官方定位保留）。
  * 未来把具体面板从逃生舱迁成静态数据节点时，只改本函数一处。
  */
+/** 逆向映射：PreviewMenuNode → PreviewMenuItemDef（供 setAdapterItems 转换适配器节点为内部 def） */
+export function nodeToDef(n: PreviewMenuNode): PreviewMenuItemDef {
+  return {
+    id: n.id,
+    icon: n.icon ?? "",
+    labelKey: n.labelKey ?? "",
+    fallback: n.fallback ?? n.id,
+    kind: n.kind === "action" ? "action" : "panel",
+    dockGroup: n.dockGroup,
+    sharedOnly: n.sharedOnly,
+    hideInSelfMode: n.hideInSelfMode,
+    requiresEnvironment: n.requiresEnvironment,
+    danger: n.danger,
+    legacyTestId: n.legacyTestId,
+    render: n.renderCustom
+      ? (list, closePopup): void => {
+          n.renderCustom?.(list, closePopup ?? (() => {}));
+        }
+      : undefined,
+    run: n.action
+      ? (): void => {
+          void n.action?.({
+            toast: () => {},
+            setStatus: () => {},
+            closeAllOverlays: () => {},
+          });
+        }
+      : undefined,
+  };
+}
+
 export function previewItemToNode(d: PreviewMenuItemDef): PreviewMenuNode {
   return {
     id: d.id,
@@ -796,9 +830,9 @@ function roleDetailView(
         return;
       }
       // ① 模型信息面板本体直渲（dock 🧍 / 默认聚焦模型时；💃 直达动作时隐藏本体）
-      if (primary?.render && deps.initialSection !== "motion") {
+      if (primary?.renderCustom && deps.initialSection !== "motion") {
         try {
-          primary.render(l, () => deps.menu.back());
+          primary.renderCustom(l, () => deps.menu.back());
         } catch (err) {
           console.error("[preview-menu] 模型信息面板渲染失败", primary.id, err);
           const errRow = document.createElement("div");
@@ -819,7 +853,7 @@ function roleDetailView(
           labelKey: "preview.roleToolsSection",
           fallback: "工具",
           defaultOpen: deps.initialSection === "motion",
-          children: toolItems.map(previewItemToNode),
+          children: toolItems,
         });
       }
       // ③ motion 组 → 动作 section
@@ -830,7 +864,7 @@ function roleDetailView(
           labelKey: "preview.roleMotionSection",
           fallback: "动作",
           defaultOpen: deps.initialSection === "motion",
-          children: motionItems.map(previewItemToNode),
+          children: motionItems,
         });
       }
       // ④ onSwitchRole → 详情底部「切换角色 ›」工具行（不占首屏）

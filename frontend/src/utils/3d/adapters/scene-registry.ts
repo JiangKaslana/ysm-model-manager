@@ -9,12 +9,12 @@
 // root 捕获用「build 前后 scene.children 差量」法（适配器无关），详见 ADR-093 §2.2。
 import * as THREE from "three";
 import type { PreviewScene } from "./mount-preview-core.ts";
-import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import type { BoneSelectInfo, BoneMaps } from "../model3d.ts";
 
 /** 菜单句柄最小接口（解耦 preview-menu.ts 运行时依赖） */
 interface MenuItemsSink {
-  setAdapterItems(items: PreviewMenuItemDef[]): void;
+  setAdapterItems(items: PreviewMenuNode[]): void;
 }
 
 /** 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） */
@@ -31,7 +31,7 @@ export interface ModelEntry {
   /** 骨骼映射（dispatch 用；未接入格式为 null） */
   boneMaps: BoneMaps | null;
   /** 该模型声明式根菜单专属项（selectModel 时换菜单用；未接入为 null） */
-  menuItems: PreviewMenuItemDef[] | null;
+  menuItems: PreviewMenuNode[] | null;
   /** 多模型下由统一拾取器调用：点中该模型骨骼时打开其面板（ADR-093 T5） */
   onBonePick: ((boneId: string) => void) | null;
 }
@@ -70,7 +70,7 @@ class SceneRegistry {
     roots: THREE.Object3D[];
     built: PreviewScene;
     boneMaps?: BoneMaps | null;
-    menuItems?: PreviewMenuItemDef[] | null;
+    menuItems?: PreviewMenuNode[] | null;
     onBonePick?: ((boneId: string) => void) | null;
   }): string {
     const id = `m${++this.seq}`;

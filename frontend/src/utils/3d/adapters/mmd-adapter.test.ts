@@ -113,15 +113,17 @@ function makeCtx() {
 }
 
 /** 最近一次 setAdapterItems 收到的适配器项 */
-function registeredItems(built: { menuItems?: Array<{ id: string; kind: string; render?: (list: HTMLElement, close: () => void) => void }> | null }): Array<{
+function registeredItems(built: { menuItems?: Array<{ id: string; kind: string; render?: (list: HTMLElement, close: () => void) => void; renderCustom?: (list: HTMLElement, close?: () => void) => void }> | null }): Array<{
   id: string;
   kind: string;
   render?: (list: HTMLElement, close: () => void) => void;
+  renderCustom?: (list: HTMLElement, close?: () => void) => void;
 }> {
   return (built.menuItems ?? []) as Array<{
     id: string;
     kind: string;
     render?: (list: HTMLElement, close: () => void) => void;
+    renderCustom?: (list: HTMLElement, close?: () => void) => void;
   }>;
 }
 
@@ -335,7 +337,7 @@ describe("buildMmdScene 主路径", () => {
     const playItem = registeredItems(built).find((i) => i.id === "play");
     expect(playItem).toBeDefined();
     const list = document.createElement("div");
-    playItem!.render!(list, () => {});
+    playItem!.renderCustom!(list, () => {});
     const playBtn = list.querySelector<HTMLElement>("#mmd-play-btn");
     expect(playBtn).not.toBeNull();
     expect(playBtn!.textContent).toBe("暂停");
@@ -424,7 +426,7 @@ describe("buildMmdScene 主路径", () => {
     const playItem = registeredItems(built).find((i) => i.id === "play");
     expect(playItem).toBeDefined();
     const list = document.createElement("div");
-    playItem!.render!(list, () => {});
+    playItem!.renderCustom!(list, () => {});
     expect(list.querySelector("#mmd-motion-sel")).toBeNull();
     expect(list.querySelector("#mmd-play-btn")).not.toBeNull();
     built.dispose();
@@ -890,7 +892,7 @@ describe("VMD select 切换：骨骼复位 + action 归零重播", () => {
       const playItem = registeredItems(built).find((i) => i.id === "play");
       expect(playItem).toBeDefined();
       const list = document.createElement("div");
-      playItem!.render!(list, () => {});
+      playItem!.renderCustom!(list, () => {});
       const sel = list.querySelector<HTMLSelectElement>("#mmd-motion-sel");
       expect(sel).not.toBeNull();
       const beforeReset = resetCalls.length;

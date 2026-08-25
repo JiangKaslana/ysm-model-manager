@@ -4,7 +4,8 @@
 // ⚙ 工具含卸载角色、空态与加载入口共存。
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
-import { CORE_MENU_ITEMS, type PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import { CORE_MENU_ITEMS } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import { mountPreviewRootMenu, roleBaseName, type PreviewMenuCtx } from "./preview-menu.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 
@@ -32,7 +33,7 @@ function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
 }
 
 /** 注册一个测试角色（真实 SceneRegistry 单例，测试间 reset） */
-function regRole(path: string, menuItems: PreviewMenuItemDef[] | null = null): string {
+function regRole(path: string, menuItems: PreviewMenuNode[] | null = null): string {
   return sceneRegistry.register({
     path,
     rtype: "test",
@@ -117,14 +118,14 @@ describe("角色面板（roles）", () => {
   });
 
   it("dock 🧍 → 角色列表（切换模型入口）；点角色名 → 详情模型信息本体直渲；详情「切换角色 ›」回列表", () => {
-    const matPanel: PreviewMenuItemDef = {
+    const matPanel: PreviewMenuNode = {
       id: "material",
       icon: "🎨",
       labelKey: "preview.material",
       fallback: "材质",
       kind: "panel",
       dockGroup: "model",
-      render: (l) => {
+      renderCustom: (l) => {
         l.append("MAT-PANEL");
       },
     };
@@ -169,9 +170,9 @@ describe("角色面板（roles）", () => {
   });
 
   it("dock 🧍 → 列表 → 点角色名 → 详情模型信息本体直渲（无模型 section 列表）；动作 section 折叠、点 header 可展开", () => {
-    const defs = (): PreviewMenuItemDef[] => [
-      { id: "material", icon: "🎨", labelKey: "", fallback: "材质", kind: "panel", dockGroup: "model", render: (l) => { l.append("MAT-BODY"); } },
-      { id: "play", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", render: () => {} },
+    const defs = (): PreviewMenuNode[] => [
+      { id: "material", icon: "🎨", labelKey: "", fallback: "材质", kind: "panel", dockGroup: "model", renderCustom: (l) => { l.append("MAT-BODY"); } },
+      { id: "play", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", renderCustom: () => {} },
     ];
     regRole("/m/a.jsm", defs());
     const handle = mountPreviewRootMenu(overlay, makeCtx());
@@ -191,16 +192,16 @@ describe("角色面板（roles）", () => {
   });
 
   it("dock 💃 → 详情聚焦动作 section（play 行直达可见）；模型信息本体隐藏、工具区可见", () => {
-    const defs = (): PreviewMenuItemDef[] => [
-      { id: "material", icon: "🎨", labelKey: "", fallback: "材质", kind: "panel", dockGroup: "model", render: (l) => { l.append("MAT-BODY"); } },
-      { id: "shot", icon: "📷", labelKey: "", fallback: "截图", kind: "panel", dockGroup: "model", render: () => {} },
-      { id: "play", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", render: () => {} },
+    const defs = (): PreviewMenuNode[] => [
+      { id: "material", icon: "🎨", labelKey: "", fallback: "材质", kind: "panel", dockGroup: "model", renderCustom: (l) => { l.append("MAT-BODY"); } },
+      { id: "shot", icon: "📷", labelKey: "", fallback: "截图", kind: "panel", dockGroup: "model", renderCustom: () => {} },
+      { id: "play", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", renderCustom: () => {} },
     ];
     regRole("/m/a.jsm", defs());
     const handle = mountPreviewRootMenu(overlay, makeCtx());
     // mountPreviewRootMenu 不自动注入适配器项 → 先注入 motion 组项使 dock-motion 出现
     handle.setAdapterItems([
-      { id: "dockPlay", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", render: () => {} },
+      { id: "dockPlay", icon: "▶️", labelKey: "", fallback: "播放", kind: "panel", dockGroup: "motion", renderCustom: () => {} },
     ]);
     // 💃 初始聚焦动作 section：motion 展开、模型信息本体隐藏（material 直渲不出现）、工具区展开含 shot 行
     (overlay.querySelector('[data-testid="dock-motion"]') as HTMLElement).click();

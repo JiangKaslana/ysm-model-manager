@@ -94,7 +94,12 @@ export interface PreviewMenuNode {
   hideInSelfMode?: boolean;
   /** 仅环境能力可用（skyCap/groundCap 任一非空）时显示——对应 PreviewMenuItemDef.requiresEnvironment */
   requiresEnvironment?: boolean;
-}
+
+    /** 危险操作（如删除/卸载），渲染红色文字——对应 PreviewMenuItemDef.danger */
+    danger?: boolean;
+    /** 兼容既有 e2e 选择器的 legacy data-testid（如 preview-close-3d / env-menu-btn / ysm-roles-entry），渲染为 id 属性 */
+    legacyTestId?: string;
+  }
 
 /** 类型守卫：节点是否为 folder（可下钻） */
 export function isPreviewFolderNode(n: PreviewMenuNode): boolean {

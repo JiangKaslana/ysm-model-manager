@@ -10,7 +10,7 @@ import { MMDLoader, VmdObject, buildAnimation, buildCameraAnimation, VPDLoader, 
 import { MMDAmmoPlugin } from "@moeru/three-mmd-physics-ammo"; // 官方 Ammo.js 物理后端（PhysicsService 实装，非自研 cannon）
 import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
-import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 import { scheduleBackgroundEncoding, cancelPendingEncodings } from "./mmd-ktx2-encoder.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
@@ -1148,8 +1148,8 @@ export interface MmdMenuItemsOpts {
  * 提取为可导出表：适配器与测试共用同一份真实数组——测试遍历本表断言结构与
  * dock 渲染（对齐 MikuMikuAR 声明式菜单测试范式），加菜单项只改这里。
  */
-export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
-  const items: PreviewMenuItemDef[] = [
+export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuNode[] {
+  const items: PreviewMenuNode[] = [
     {
       id: "model",
       icon: "🧍",
@@ -1158,7 +1158,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       legacyTestId: "mmd-model-entry",
       dockGroup: "model", // 底栏 🧍 模型组
-      render: (list) => o.panels?.fillModelPanel?.(list, o.navCtx),
+      renderCustom:(list) => o.panels?.fillModelPanel?.(list, o.navCtx),
     },
     {
       id: "shot",
@@ -1168,7 +1168,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       dockGroup: "model", // 底栏 🧍 模型组
       legacyTestId: "mmd-shot-entry",
-      render: (list) => o.panels?.fillShotPanel?.(list, o.navCtx, o.screenshot),
+      renderCustom:(list) => o.panels?.fillShotPanel?.(list, o.navCtx, o.screenshot),
     },
     {
       id: "material",
@@ -1178,7 +1178,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       legacyTestId: "mmd-material-entry",
       dockGroup: "model", // 底栏 🧍 模型组
-      render: (list) => o.panels?.buildMaterialControls?.(list, o.material),
+      renderCustom:(list) => o.panels?.buildMaterialControls?.(list, o.material),
     },
   ];
   // MMD 始终注入 play 项（支持用户配置的自定义动作库，空态引导选择）
@@ -1190,7 +1190,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
     kind: "panel",
     legacyTestId: "mmd-play-entry",
     dockGroup: "motion", // 底栏 💃 动作组
-    render: (list) => o.panels?.fillPlayPanel?.(list, o.play),
+    renderCustom:(list) => o.panels?.fillPlayPanel?.(list, o.play),
   });
   if (o.bonePanel) {
     items.push({
@@ -1201,7 +1201,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       dockGroup: "model", // 底栏 🧍 模型组（ADR-085：补齐，与 ysm/vrm bones 对齐）
       legacyTestId: "mmd-bones-entry",
-      render: (list) => {
+      renderCustom:(list) => {
         // 通用骨骼面板：渲染进根菜单面板；重入时先清理旧 renderer
         if (o.bonePanel!.cleanupRef.current) {
           o.bonePanel!.cleanupRef.current();
@@ -1223,7 +1223,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       fallback: "感知",
       kind: "panel",
       dockGroup: "motion",
-      render: (list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
+      renderCustom:(list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
     });
   }
   return items;

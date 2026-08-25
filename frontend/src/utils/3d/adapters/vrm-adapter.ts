@@ -23,7 +23,7 @@ import { buildPerceptionControls, type PerceptionState, type PerceptionCapabilit
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { BoneTree } from "../bone-tools.ts";
-import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 
 /** VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
 export interface VrmDataPort {
@@ -489,8 +489,8 @@ export interface VrmMenuItemsOpts {
  * VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。
  * 提取为可导出表：适配器与测试共用同一份真实数组（对齐 MikuMikuAR），加菜单项只改这里。
  */
-export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
-  const items: PreviewMenuItemDef[] = [
+export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuNode[] {
+  const items: PreviewMenuNode[] = [
     {
       id: "model",
       icon: "🧍",
@@ -499,7 +499,7 @@ export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       dockGroup: "model",
       legacyTestId: "vrm-model-entry",
-      render: (list): void => {
+      renderCustom:(list): void => {
         o.modelPanel?.(list);
       },
     },
@@ -511,7 +511,7 @@ export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       dockGroup: "model",
       legacyTestId: "vrm-shot-entry",
-      render: (list): void => {
+      renderCustom:(list): void => {
         // ADR-052 P3：截图面板填充委托视图层（panels.makeShotPanelRenderer），缺失则 no-op
         if (o.screenshot) o.panels?.makeShotPanelRenderer?.(o.screenshot)(list);
       },
@@ -524,7 +524,7 @@ export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       legacyTestId: "vrm-material-entry",
       dockGroup: "model",
-      render: (list): void => {
+      renderCustom:(list): void => {
         o.panels?.makePanelRenderer?.(o.material)(list);
       },
     },
@@ -536,7 +536,7 @@ export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       legacyTestId: "vrm-bones-entry",
       dockGroup: "model", // 底栏 🧍 模型组（骨骼）
-      render: (list): void => {
+      renderCustom:(list): void => {
         // 通用骨骼面板（ADR-077）：渲染进根菜单面板；重入时先清理旧 renderer
         if (o.bonePanel.cleanupRef.current) {
           o.bonePanel.cleanupRef.current();
@@ -559,7 +559,7 @@ export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       legacyTestId: "vrm-play-entry",
       dockGroup: "motion", // 底栏 💃 动作组（对齐 MMD）
-      render: (list): void => {
+      renderCustom:(list): void => {
         o.panels?.fillPlayPanel?.(list, o.play!);
       },
     });
@@ -572,7 +572,7 @@ export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
       fallback: "感知",
       kind: "panel",
       dockGroup: "motion",
-      render: (list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
+      renderCustom:(list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
     });
   }
   return items;

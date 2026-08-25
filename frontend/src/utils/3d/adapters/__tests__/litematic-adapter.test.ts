@@ -5,7 +5,7 @@
 // 每条 bug 以 `// BUG: ...` 在注释中标注，便于主模型/审阅者定位。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { litematicMenuItems } from "../litematic-adapter.ts";
-import type { PreviewMenuItemDef } from "../preview-menu-defs.ts";
+import type { PreviewMenuNode } from "../preview-menu-node-types.ts";
 
 // ===== 测试夹具 =====
 
@@ -47,7 +47,7 @@ describe("litematicMenuItems — 菜单项结构契约", () => {
 
   it("返回项无 run（panel 型只走 render）", () => {
     const [item] = litematicMenuItems(makeEls());
-    expect(item.run).toBeUndefined();
+    expect(item.action).toBeUndefined();
   });
 
   it("返回项无 danger / sharedOnly / requiresEnvironment", () => {
@@ -66,7 +66,7 @@ describe("litematicMenuItems — render 回调行为", () => {
     // 预先塞入一个干扰子节点，验证 innerHTML="" 会清空
     list.appendChild(document.createElement("div"));
     expect(list.children.length).toBe(1);
-    (item.render as (list: HTMLElement) => void)(list);
+    (item.renderCustom as (list: HTMLElement) => void)(list);
     expect(list.children.length).toBe(8);
     // 顺序：sep, axisLabel, axisSel, layerMode, layerSlider, layerInput, layerSlider2, layerInput2
     expect(list.children[0] === els.sep).toBe(true);
@@ -79,8 +79,8 @@ describe("litematicMenuItems — render 回调行为", () => {
     expect(list.children[7] === els.layerInput2).toBe(true);
   });
 
-  // BUG: P2 — render 回调签名与 PreviewMenuItemDef.render 契约不一致。
-  // PreviewMenuItemDef.render 签名: (list: HTMLElement, closePopup: () => void) => void
+  // BUG: P2 — render 回调签名与 PreviewMenuItemDef.renderCustom 契约不一致。
+  // PreviewMenuItemDef.renderCustom 签名: (list: HTMLElement, closePopup: () => void) => void
   // 实际 render: (list: HTMLElement) => { ... }  只吃一个参数，closePopup 被静默丢弃。
   // 影响：如果 menu 框架以 (list, closePopup) 双参数调用，render 内的 this / 闭包不受影响，
   // 但 litematicMenuItems 永远拿不到 closePopup——无法主动关闭面板，且无法通过 closePopup 触达
@@ -90,8 +90,8 @@ describe("litematicMenuItems — render 回调行为", () => {
     const [item] = litematicMenuItems(els);
     const list = document.createElement("div");
     const closeSpy = vi.fn();
-    // 按 PreviewMenuItemDef.render 契约以双参数调用
-    (item.render as (list: HTMLElement, closePopup: () => void) => void)(list, closeSpy);
+    // 按 PreviewMenuItemDef.renderCustom 契约以双参数调用
+    (item.renderCustom as (list: HTMLElement, closePopup: () => void) => void)(list, closeSpy);
     // render 内部没有消费 closePopup，因此 spy 永远不会被调用
     expect(closeSpy).not.toHaveBeenCalled();
   });
@@ -104,14 +104,14 @@ describe("litematicMenuItems — render 回调行为", () => {
     const els = makeEls();
     const [item] = litematicMenuItems(els);
     const list = document.createElement("div");
-    (item.render as (list: HTMLElement) => void)(list);
+    (item.renderCustom as (list: HTMLElement) => void)(list);
     // 在 render 后向 list 插入一个"临时遮罩"节点
     const overlay = document.createElement("div");
     overlay.dataset.temp = "1";
     list.appendChild(overlay);
     expect(list.querySelector('[data-temp="1"]')).not.toBeNull();
     // 第二次 render：innerHTML="" 会杀掉 overlay
-    (item.render as (list: HTMLElement) => void)(list);
+    (item.renderCustom as (list: HTMLElement) => void)(list);
     expect(list.querySelector('[data-temp="1"]')).toBeNull();
     // 原有 8 个元素仍在
     expect(list.children.length).toBe(8);
@@ -125,7 +125,7 @@ describe("litematicMenuItems — render 回调行为", () => {
     const [item] = litematicMenuItems(els);
     expect(item.legacyTestId).toBe("litematic-slice-entry");
     const list = document.createElement("div");
-    (item.render as (list: HTMLElement) => void)(list);
+    (item.renderCustom as (list: HTMLElement) => void)(list);
     // 检查 render 出的 8 个元素中是否有 data-testid="litematic-slice-entry"
     const found = list.querySelector('[data-testid="litematic-slice-entry"]');
     expect(found).toBeNull(); // BUG: 期望应能匹配到
@@ -150,7 +150,7 @@ describe("litematicMenuItems — 参数校验与防御", () => {
     Object.assign(els, override);
     const [item] = litematicMenuItems(els);
     const list = document.createElement("div");
-    expect(() => (item.render as (list: HTMLElement) => void)(list)).toThrow(TypeError);
+    expect(() => (item.renderCustom as (list: HTMLElement) => void)(list)).toThrow(TypeError);
   });
 
   // BUG: P1 — 空对象传入时 render 直接对 8 个字段读，全部为 undefined，
@@ -158,7 +158,7 @@ describe("litematicMenuItems — 参数校验与防御", () => {
   it("BUG: 空对象作为入参时 render 抛 TypeError", () => {
     const [item] = litematicMenuItems({} as any);
     const list = document.createElement("div");
-    expect(() => (item.render as (list: HTMLElement) => void)(list)).toThrow(TypeError);
+    expect(() => (item.renderCustom as (list: HTMLElement) => void)(list)).toThrow(TypeError);
   });
 
   // BUG: P2 — 即使传入完整 8 个字段，render 也不检查元素类型。
@@ -172,7 +172,7 @@ describe("litematicMenuItems — 参数校验与防御", () => {
     const [item] = litematicMenuItems(els);
     const list = document.createElement("div");
     // 不抛错：静默接受 <div>
-    expect(() => (item.render as (list: HTMLElement) => void)(list)).not.toThrow();
+    expect(() => (item.renderCustom as (list: HTMLElement) => void)(list)).not.toThrow();
     expect(list.children[2]).toBe(fakeSel);
   });
 
@@ -182,7 +182,7 @@ describe("litematicMenuItems — 参数校验与防御", () => {
     const extra = document.createElement("button");
     const [item] = litematicMenuItems({ ...els, extra } as any);
     const list = document.createElement("div");
-    (item.render as (list: HTMLElement) => void)(list);
+    (item.renderCustom as (list: HTMLElement) => void)(list);
     expect(list.children.length).toBe(8);
     expect([...list.children].includes(extra)).toBe(false);
   });
@@ -197,7 +197,7 @@ describe("litematicMenuItems — 返回项可变性", () => {
     const els = makeEls();
     const [item] = litematicMenuItems(els);
     const list = document.createElement("div");
-    (item.render as (list: HTMLElement) => void)(list);
+    (item.renderCustom as (list: HTMLElement) => void)(list);
     expect(list.children[2]).toBe(els.axisSel);
 
     const newAxisSel = document.createElement("select");
@@ -205,12 +205,12 @@ describe("litematicMenuItems — 返回项可变性", () => {
     (els as any).axisSel = newAxisSel;
 
     // render 闭包读的是 els.axisSel 的当前值，会看到新元素
-    (item.render as (list: HTMLElement) => void)(list);
+    (item.renderCustom as (list: HTMLElement) => void)(list);
     expect(list.children[2]).toBe(newAxisSel);
     // 旧元素的事件监听器（若有）已永久丢失——这是"闭包捕获对象引用"的副作用
   });
 
-  // BUG: P2 — litematicMenuItems 是纯函数但返回的 item.render 有副作用（修改 DOM），
+  // BUG: P2 — litematicMenuItems 是纯函数但返回的 item.renderCustom 有副作用（修改 DOM），
   // 且 render 依赖外部 mutable 状态（layerAxis/layerVal 在 buildLitematicScene 闭包中）。
   // 这使 render 本身不可纯测试——只能通过 DOM 元素属性间接验证，
   // 但 render 不设置任何 stateful 属性，只是搬运元素。
@@ -218,21 +218,21 @@ describe("litematicMenuItems — 返回项可变性", () => {
     const els = makeEls();
     const [item] = litematicMenuItems(els);
     const list = document.createElement("div");
-    (item.render as (list: HTMLElement) => void)(list);
+    (item.renderCustom as (list: HTMLElement) => void)(list);
     const first = [...list.children];
-    (item.render as (list: HTMLElement) => void)(list);
+    (item.renderCustom as (list: HTMLElement) => void)(list);
     const second = [...list.children];
     expect(second).toEqual(first);
   });
 });
 
 describe("litematicMenuItems — 返回项与 PreviewMenuItemDef 契约完整性", () => {
-  // BUG: P1 — render 参数签名 (list) 与 PreviewMenuItemDef.render 的 (list, closePopup) 不一致。
+  // BUG: P1 — render 参数签名 (list) 与 PreviewMenuItemDef.renderCustom 的 (list, closePopup) 不一致。
   // TypeScript 不会报错（函数参数可省略），但在"契约"层面，适配器声明式菜单项
   // 无法响应菜单框架的 closePopup 回调。此处断言 render.length（JS 参数个数）与契约不符。
-  it("BUG: render.length === 1 与 PreviewMenuItemDef.render 声明的参数个数 (2) 不一致", () => {
+  it("BUG: render.length === 1 与 PreviewMenuItemDef.renderCustom 声明的参数个数 (2) 不一致", () => {
     const [item] = litematicMenuItems(makeEls());
-    expect(item.render!.length).toBe(1); // 契约要求是 2
+    expect(item.renderCustom!.length).toBe(1); // 契约要求是 2
   });
 
   // BUG: P2 — item 没有 render 时 menu 框架会走 fillers 映射，litematicMenuItems
@@ -240,7 +240,7 @@ describe("litematicMenuItems — 返回项与 PreviewMenuItemDef 契约完整性
   // 之类的钩子让 buildLitematicScene 在 render 后注入 focus-trap / a11y 属性。
   it("render 回调存在且非 null（确保 panel 型必走适配器渲染）", () => {
     const [item] = litematicMenuItems(makeEls());
-    expect(typeof item.render).toBe("function");
+    expect(typeof item.renderCustom).toBe("function");
   });
 
   // BUG: P2 — 每个调用返回的都是一个新数组 + 一个新对象，无稳定引用。

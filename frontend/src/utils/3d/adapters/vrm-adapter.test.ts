@@ -220,17 +220,19 @@ function makeCtx() {
 }
 
 /** 从 built 对象读取注入的菜单项（render 双参对齐 PreviewMenuItemDef，严格逆变下单参不可赋） */
-function registeredItems(built: { menuItems?: Array<{ id: string; kind: string; dockGroup?: string; render?: (list: HTMLElement, close: () => void) => void }> | null }): Array<{
+function registeredItems(built: { menuItems?: Array<{ id: string; kind: string; dockGroup?: string; render?: (list: HTMLElement, close: () => void) => void; renderCustom?: (list: HTMLElement, close?: () => void) => void }> | null }): Array<{
   id: string;
   kind: string;
   dockGroup?: string;
   render?: (list: HTMLElement, close: () => void) => void;
+  renderCustom?: (list: HTMLElement, close?: () => void) => void;
 }> {
   return (built.menuItems ?? []) as Array<{
     id: string;
     kind: string;
     dockGroup?: string;
     render?: (list: HTMLElement, close: () => void) => void;
+    renderCustom?: (list: HTMLElement, close?: () => void) => void;
   }>;
 }
 
@@ -538,7 +540,7 @@ describe("VRMA 多动作切换", () => {
 
     // 调用 render 触发 fillPlayPanel（第二参 close 本用例不关心，传 no-op 满足双参签名）
     const list = document.createElement("div");
-    playItem2!.render!(list, () => {});
+    playItem2!.renderCustom!(list, () => {});
     expect(fillPlayPanel).toHaveBeenCalled();
 
     built2.dispose();
