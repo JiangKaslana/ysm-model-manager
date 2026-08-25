@@ -1,0 +1,207 @@
+// @vitest-environment node
+// ===== Animation Controller 状态机测试（animation-controller.ts）=====
+// 解析 .animation_controllers.json + 运行时状态转换评估。
+import { describe, it, expect, afterEach } from "vitest";
+import {
+  parseAnimationControllerJSON,
+  AnimationControllerRuntime,
+  findControllerForAnimation,
+  type AnimationController,
+} from "./animation-controller.ts";
+import { setMolangScope } from "./molang.ts";
+
+afterEach(() => {
+  setMolangScope(null);
+});
+
+// ── 解析 ────────────────────────────────────────
+
+describe("parseAnimationControllerJSON 解析", () => {
+  it("非法 JSON 返回解析错误", () => {
+    const r = parseAnimationControllerJSON("{not json");
+    expect(r.controllers).toEqual([]);
+    expect(r.errors.length).toBeGreaterThan(0);
+  });
+
+  it("缺少 animation_controllers 字段返回错误", () => {
+    const r = parseAnimationControllerJSON('{"format_version":"1.17.0"}');
+    expect(r.controllers).toEqual([]);
+    expect(r.errors[0]).toMatch(/animation_controllers/);
+  });
+
+  it("解析状态：动画列表 / transitions / on_exit / blend_transition", () => {
+    const json = `{
+      "animation_controllers": {
+        "player.post_main": {
+          "states": {
+            "idle": {
+              "animations": ["idle"],
+              "on_exit": ["variable.hit = 1"],
+              "transitions": [ { "walk": "query.anim_time >= 1" }, { "jump": "" } ]
+            },
+            "walk": { "animations": ["walk"] },
+            "jump": { "animations": ["jump"], "blend_transition": 0.5 }
+          }
+        }
+      }
+    }`;
+    const r = parseAnimationControllerJSON(json);
+    expect(r.errors).toEqual([]);
+    expect(r.controllers).toHaveLength(1);
+
+    const c = r.controllers[0];
+    expect(c.name).toBe("player.post_main");
+    expect(c.initialState).toBe("idle"); // 首个状态即初始状态
+
+    const idle = c.states.get("idle")!;
+    expect(idle.animations).toEqual(["idle"]);
+    expect(idle.blendTransition).toBe(0.2); // 缺省 0.2s
+    expect(idle.transitions).toHaveLength(2);
+    // 非空条件 → unconditional=false、condition 编译成功
+    expect(idle.transitions[0].target).toBe("walk");
+    expect(idle.transitions[0].unconditional).toBe(false);
+    expect(idle.transitions[0].condition).not.toBeNull();
+    // 空表达式 → 显式无条件转换
+    expect(idle.transitions[1].target).toBe("jump");
+    expect(idle.transitions[1].unconditional).toBe(true);
+
+    const jump = c.states.get("jump")!;
+    expect(jump.blendTransition).toBe(0.5);
+
+    expect(idle.onExit.length).toBe(1);
+  });
+
+});
+
+// ── 状态机运行时 ────────────────────────────────────────
+
+function buildController(): AnimationController {
+  return parseAnimationControllerJSON(`{
+      "animation_controllers": {
+        "player.post_main": {
+          "states": {
+            "idle": {
+              "animations": ["idle"],
+              "on_exit": ["variable.hit = 1"],
+              "transitions": [ { "walk": "query.anim_time >= 1" } ]
+            },
+            "walk": { "animations": ["walk"], "blend_transition": 0.3 },
+            "jump": { "animations": ["jump"] }
+          }
+        }
+      }
+    }`).controllers[0];
+}
+
+describe("AnimationControllerRuntime 状态机", () => {
+  it("初始状态取首帧、currentAnimation 取 animations 首位", () => {
+    const rt = new AnimationControllerRuntime(buildController());
+    expect(rt.current_state).toBe("idle");
+    expect(rt.currentAnimation).toBe("idle");
+  });
+
+  it("时间条件未满足 → 不切换、返回 false", () => {
+    const rt = new AnimationControllerRuntime(buildController());
+    expect(rt.update(0.5)).toBe(false);
+    expect(rt.current_state).toBe("idle");
+  });
+
+  it("时间条件满足（query.anim_time>=1）→ 切状态、触发回调、返回 true", () => {
+    const changes: { name: string; blend: number }[] = [];
+    const rt = new AnimationControllerRuntime(buildController(), (name, blend) => {
+      changes.push({ name, blend });
+    });
+    expect(rt.update(1.0)).toBe(true);
+    expect(rt.current_state).toBe("walk");
+    expect(changes).toEqual([{ name: "walk", blend: 0.3 }]);
+  });
+
+  it("无条件转换（空表达式）总是触发", () => {
+    // idle 的 jump 无条件转换在 walk 条件前，若都满足则取旧条件首个命中（walk）。
+    // 单独验证 unconditional：构造只有空条件的第一条转换。
+    const ctrl = parseAnimationControllerJSON(`{
+      "animation_controllers": { "c": {
+        "states": {
+          "a": { "transitions": [ { "b": "" } ] },
+          "b": { "animations": ["b"] }
+        }
+      }}
+    }`).controllers[0];
+    const rt = new AnimationControllerRuntime(ctrl);
+    expect(rt.update(0)).toBe(true);
+    expect(rt.current_state).toBe("b");
+  });
+
+  it("condition=null 且非 unconditional（编译失败守护）→ 跳过不触发", () => {
+    // molangjs 全容错解析几乎不产生编译失败；此处直接构造 condition=null
+    // 命中运行时「条件编译失败 → 跳过」防御分支（不被无条件短路）。
+    const ctrl: AnimationController = {
+      name: "c",
+      initialState: "a",
+      states: new Map([
+        ["a", { name: "a", animations: [], onExit: [], blendTransition: 0.2, transitions: [
+          { target: "b", condition: null, raw: "(", unconditional: false },
+        ] }],
+        ["b", { name: "b", animations: ["b"], onExit: [], blendTransition: 0.2, transitions: [] }],
+      ]),
+    };
+    const rt = new AnimationControllerRuntime(ctrl);
+    expect(rt.update(5)).toBe(false);
+    expect(rt.current_state).toBe("a");
+  });
+
+  it("转换触发时执行 on_exit（经 v.* 持久作用域可见）", () => {
+    const scope: Record<string, number> = {};
+    setMolangScope(scope); // 控制器求值段开启持久作用域
+    const rt = new AnimationControllerRuntime(buildController());
+    expect(rt.update(99)).toBe(true); // 触发到 walk
+    rt.update(0.5); // 处于 walk，无转换
+    expect(scope["variable.hit"]).toBe(1); // on_exit 写入的变量跨帧持久
+  });
+
+  it("on_exit 执行失败被静默忽略、不阻断转换", () => {
+    const ctrl = parseAnimationControllerJSON(`{
+      "animation_controllers": { "c": {
+        "states": {
+          "a": { "on_exit": ["1/0"], "transitions": [ { "b": "" } ] },
+          "b": { "animations": ["b"] }
+        }
+      }}
+    }`).controllers[0];
+    const rt = new AnimationControllerRuntime(ctrl);
+    expect(rt.update(0)).toBe(true); // 转换仍触发
+    expect(rt.current_state).toBe("b");
+  });
+
+  it("reset 回到初始状态、清空 timeInState", () => {
+    const rt = new AnimationControllerRuntime(buildController());
+    rt.update(1.0);
+    expect(rt.current_state).toBe("walk");
+    rt.reset();
+    expect(rt.current_state).toBe("idle");
+    expect(rt.update(0.5)).toBe(false); // timeInState 已清零
+  });
+
+  it("当前状态无 animations → currentAnimation 返回空串", () => {
+    const ctrl = parseAnimationControllerJSON(`{
+      "animation_controllers": { "c": {
+        "states": { "empty": { "transitions": [ { "e2": "" } ] }, "e2": {} }
+      }}
+    }`).controllers[0];
+    const rt = new AnimationControllerRuntime(ctrl);
+    expect(rt.currentAnimation).toBe("");
+  });
+});
+
+// ── 控制器查找 ────────────────────────────────────────
+
+describe("findControllerForAnimation", () => {
+  it("匹配到含该动画名的控制器", () => {
+    const c = buildController();
+    expect(findControllerForAnimation([c], "walk")).toBe(c);
+  });
+
+  it("未匹配返回 null", () => {
+    expect(findControllerForAnimation([buildController()], "nonexistent")).toBeNull();
+  });
+});

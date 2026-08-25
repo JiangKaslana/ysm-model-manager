@@ -81,7 +81,7 @@ ModernYSM（upstream vendor）用 **TranslucencyScanner**：加载时逐像素�
 
 ## 5. Phase A 落地实测（2026-08-23）
 
-实现：`texture-alpha.ts classifyRgba` 改为统计半透明像素占比，`> BLEND_MIN_RATIO(0.005)` 才判 blend；测试 `texture-alpha.test.ts` 6 用例（含杂点免疫与超阈保持 blend 双向锁定）。
+实现：`texture-alpha.ts classifyRgba` 改为统计半透明像素占比，`> BLEND_MIN_RATIO` 才判 blend（当前 **0.05 = 5%**，初值 0.005 = 0.5% 的收敛依据见 §5 末尾）；测试 `texture-alpha.test.ts` 6 用例（含杂点免疫与超阈保持 blend 双向锁定）。
 
 探针新旧口径对比（同 wine_fox 语料）：
 
@@ -92,6 +92,8 @@ ModernYSM（upstream vendor）用 **TranslucencyScanner**：加载时逐像素�
 | 真混合模型 | 18_wedding 判 blend（对） | 18_wedding 保持 blend（对） |
 
 剩余 35.6% 为 cutout 全局模型拖 opaque 面白跑 alphaTest——纯性能/纯度问题而非 depthWrite 正确性危害，归 Phase B 面级拆分范畴。
+
+**阈值收敛（`BLEND_MIN_RATIO`: 0.005 → 0.05，2026-08-25）**：上表实测沿用初值 0.005（0.5%）。对真实长效材质 0.5% 仍过松——车漆抗锯齿、窗玻璃边缘的半透明像素常占整图 0.5%~5%，会把整 mesh 误判为 blend 导致透明排序错乱。收紧至 `BLEND_MIN_RATIO=0.05`（5%）后，此类噪声边缘纹理判 cutout/opaque，仅具大面积半透明本体（如真实玻璃）的纹理才进 blend 管线。前端纹理入口 `classifyRgba` 已同步。
 
 ## 6. Phase B 落地实测（2026-08-24）
 

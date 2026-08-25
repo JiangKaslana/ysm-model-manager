@@ -400,29 +400,29 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SetErrorSink()` | `go/scanner/scanner:94` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
-| `SetConfigFunc()` | `go/scanner/scanner:125` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `OnCacheInvalidated()` | `go/scanner/scanner:160` | OnCacheInvalidated 注册一个扫描缓存失效回调。回调会在 InvalidateCache 或 InvalidatePath 完成清理后同步调用，适合清理依赖 sca |
-| `InvalidateCache()` | `go/scanner/scanner:179` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
-| `InvalidatePath()` | `go/scanner/scanner:195` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
-| `ScanEntries()` | `go/scanner/scanner:227` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
-| `ScanEntriesWithHit()` | `go/scanner/scanner:234` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:415` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:462` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:492` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:555` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `SetErrorSink()` | `go/scanner/scanner:92` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
+| `SetConfigFunc()` | `go/scanner/scanner:123` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `OnCacheInvalidated()` | `go/scanner/scanner:158` | OnCacheInvalidated 注册一个扫描缓存失效回调。回调会在 InvalidateCache 或 InvalidatePath 完成清理后同步调用，适合清理依赖 sca |
+| `InvalidateCache()` | `go/scanner/scanner:177` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
+| `InvalidatePath()` | `go/scanner/scanner:193` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
+| `ScanEntries()` | `go/scanner/scanner:225` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
+| `ScanEntriesWithHit()` | `go/scanner/scanner:232` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
+| `ComputeFileHash()` | `go/scanner/scanner:413` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:453` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:483` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:546` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `DetectConflicts()` | `go/sync/conflict:69` | DetectConflicts 检测本地和远端之间的冲突 基于文件哈希比较：两端都存在且哈希不同 → 内容冲突 localDir: 本地目录路径（整合包） remoteDir: 远 |
-| `ResolveConflict()` | `go/sync/conflict:131` | ResolveConflict 解决单个文件冲突 先备份再操作，确保安全 |
-| `ResolveConflicts()` | `go/sync/conflict:165` | ResolveConflicts 批量解决冲突 |
-| `ConflictType()` | `go/sync/conflict:13` | ConflictType 冲突类型 |
-| `ResolutionStrategy()` | `go/sync/conflict:23` | ResolutionStrategy 冲突解决策略 |
-| `FileConflict()` | `go/sync/conflict:35` | FileConflict 文件冲突详情 |
-| `ConflictReport()` | `go/sync/conflict:57` | ConflictReport 冲突报告 |
+| `DetectConflicts()` | `go/sync/conflict:70` | DetectConflicts 检测本地和远端之间的冲突 基于文件哈希比较：两端都存在且哈希不同 → 内容冲突 localDir: 本地目录路径（整合包） remoteDir: 远 |
+| `ResolveConflict()` | `go/sync/conflict:132` | ResolveConflict 解决单个文件冲突 先备份再操作，确保安全 |
+| `ResolveConflicts()` | `go/sync/conflict:166` | ResolveConflicts 批量解决冲突 |
+| `ConflictType()` | `go/sync/conflict:14` | ConflictType 冲突类型 |
+| `ResolutionStrategy()` | `go/sync/conflict:24` | ResolutionStrategy 冲突解决策略 |
+| `FileConflict()` | `go/sync/conflict:36` | FileConflict 文件冲突详情 |
+| `ConflictReport()` | `go/sync/conflict:58` | ConflictReport 冲突报告 |
 | `InvalidateSyncScanCaches()` | `go/sync/sync_cache:54` | InvalidateSyncScanCaches 清空全部同步目录扫描结果缓存。 |
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
@@ -471,19 +471,19 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `TextureHash()` | `go/texture_cache/texture_cache:42` | TextureHash 计算文件内容的 SHA256 哈希，用作缓存 key。 |
-| `CachePath()` | `go/texture_cache/texture_cache:57` | CachePath 返回给定哈希对应的缓存文件路径。 |
-| `ReadCached()` | `go/texture_cache/texture_cache:67` | ReadCached 读取缓存中的 KTX2 数据。 |
-| `WriteCached()` | `go/texture_cache/texture_cache:87` | WriteCached 写入 KTX2 数据到缓存。 |
-| `HasCached()` | `go/texture_cache/texture_cache:114` | HasCached 检查缓存中是否存在指定哈希的 KTX2 文件。 |
-| `ClearCache()` | `go/texture_cache/texture_cache:130` | ClearCache 清空纹理缓存目录（用于测试或用户主动清理）。 |
-| `ListCacheFiles()` | `go/texture_cache/texture_cache:162` | ListCacheFiles 列出所有缓存文件 |
-| `GetCacheStats()` | `go/texture_cache/texture_cache:208` | GetCacheStats 获取缓存统计 |
-| `SetCacheLimits()` | `go/texture_cache/texture_cache:258` | SetCacheLimits 覆盖淘汰阈值（测试/配置注入用）。 |
-| `Prune()` | `go/texture_cache/texture_cache:276` | Prune 淘汰纹理缓存：先清超龄（TTL），再按容量从最旧删到上限内。 |
-| `CacheEntry()` | `go/texture_cache/texture_cache:155` | CacheEntry 缓存条目信息 |
-| `CacheStats()` | `go/texture_cache/texture_cache:201` | CacheStats 缓存统计信息 |
-| `PruneResult()` | `go/texture_cache/texture_cache:267` | PruneResult 一次淘汰的结果（供日志与测试断言） |
+| `TextureHash()` | `go/texture_cache/texture_cache:39` | TextureHash 计算文件内容的 SHA256 哈希，用作缓存 key。 |
+| `CachePath()` | `go/texture_cache/texture_cache:48` | CachePath 返回给定哈希对应的缓存文件路径。 |
+| `ReadCached()` | `go/texture_cache/texture_cache:58` | ReadCached 读取缓存中的 KTX2 数据。 |
+| `WriteCached()` | `go/texture_cache/texture_cache:78` | WriteCached 写入 KTX2 数据到缓存。 |
+| `HasCached()` | `go/texture_cache/texture_cache:96` | HasCached 检查缓存中是否存在指定哈希的 KTX2 文件。 |
+| `ClearCache()` | `go/texture_cache/texture_cache:112` | ClearCache 清空纹理缓存目录（用于测试或用户主动清理）。 |
+| `ListCacheFiles()` | `go/texture_cache/texture_cache:144` | ListCacheFiles 列出所有缓存文件 |
+| `GetCacheStats()` | `go/texture_cache/texture_cache:190` | GetCacheStats 获取缓存统计 |
+| `SetCacheLimits()` | `go/texture_cache/texture_cache:240` | SetCacheLimits 覆盖淘汰阈值（测试/配置注入用）。 |
+| `Prune()` | `go/texture_cache/texture_cache:258` | Prune 淘汰纹理缓存：先清超龄（TTL），再按容量从最旧删到上限内。 |
+| `CacheEntry()` | `go/texture_cache/texture_cache:137` | CacheEntry 缓存条目信息 |
+| `CacheStats()` | `go/texture_cache/texture_cache:183` | CacheStats 缓存统计信息 |
+| `PruneResult()` | `go/texture_cache/texture_cache:249` | PruneResult 一次淘汰的结果（供日志与测试断言） |
 
 ## Go·Three.js
 

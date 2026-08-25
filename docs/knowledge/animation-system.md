@@ -8,6 +8,7 @@ source_files:
   - frontend/src/utils/animation/animate.ts
   - frontend/src/utils/animation/stagger.ts
   - frontend/src/utils/animation/molang.ts
+  - frontend/src/utils/animation/animation-controller.ts
   - frontend/src/utils/animation/molang-lib/molang.js
   - frontend/src/utils/animation/molang-lib/easing.js
   - frontend/src/utils/animation/molang-lib/math.js
@@ -17,6 +18,7 @@ tests:
   - frontend/src/utils/animation/animate.test.ts
   - frontend/src/utils/animation/animation.test.ts
   - frontend/src/utils/animation/stagger.test.ts
+  - frontend/src/utils/animation/animation-controller.test.ts
 use_when:
   - 动画
   - 骨骼动画
@@ -26,6 +28,9 @@ use_when:
   - 数字滚动
   - stagger 入场
   - 关闭动画
+  - 状态机
+  - 动画控制器
+  - AnimationController
 perf:
   - cpu-bound
 invariant_anchors:
@@ -69,6 +74,12 @@ invariant_anchors:
 - 变量上下文：`query.anim_time` / `q.anim_time` / `query.life_time` / `q.life_time` / `query.delta_time` / `q.delta_time`
 - 未知变量 → 0：mod 扩展的游戏态查询（`ysm.*`/按键/药效等）在预览器无宿主语境，优雅降级而非抛错
 
+`animation-controller.ts`（动画控制器状态机，wine_fox 等模型支持）：
+- `parseAnimationControllerJSON(jsonStr): { controllers, errors }` — 解析 `.animation_controllers.json`；缺 `animation_controllers` 字段进 errors；每个状态含 animations 列表 / on_exit 动作 / transitions（target→Molang 条件表达式）/ blend_transition（缺省 0.2s）；**空条件表达式 = 显式无条件转换（unconditional=true，总是触发）**；首个遇到的 state 作为初始状态
+- `AnimationControllerRuntime` — 运行时状态机：`update(dt)` 每帧评估当前状态转换条件（首个满足的触发，condition 用 `animTime=timeInState` 求值），触发时先执行当前状态 on_exit 再切状态并回调 `onStateChange(animationName, blendTime)`；条件编译失败（condition=null 且非 unconditional）→ 跳过不触发（不 fail-open）
+- `findControllerForAnimation(controllers, animationName): AnimationController | null` — 按动画名反查控制器
+- 与 Timeline 配合（Bedrock 官方设计）：Timeline 经 molang `setMolangScope` 写 `v.*` 变量（每播放器持久作用域跨帧可见），Controller 条件读 `v.*` 决定状态切换；v.* 跨帧持久化依赖 molangjs 核心，弹簧物理等场景需改 molangjs 核心（已知限制）
+
 ## 与其他子系统关系
 
 - `parseBedrockAnimationJSON` 消费方：`app-preview/wasm.ts`（+`loader.ts`，WASM 解码出的动画 JSON）
@@ -107,6 +118,8 @@ invariant_anchors:
 - Molang 表达式不解释执行：检测到即标记 hasMolang 并跳过该值（避免 eval 任意表达式）；注意实现细节——**直接字符串帧被跳过 ✓，但数组含 Molang 轴被零填充保留**（`animation.ts` Molang 跳过逻辑），`hasMolangInChannelData`（`animation.ts` Molang 检测函数）只识别字符串值（对象/数组/纯数字键均不会被判为 Molang，属宽松误判风险）；**Molang 只是标记不拦截求值**（零填充帧仍被当真实关键帧插值，P3 观察）
 - evaluateKeyframes 对空数组/越界时间返回端点值或 null，不抛异常（`t=NaN` 时二分插值产生 NaN 向量，无守卫，P3 观察）
 - `no-animations` 开关作用于 CSS animation；JS 驱动的动画（模型动画求值/数字滚动）不受该 class 影响，属模型数据呈现而非装饰动效
+- **molangjs 全容错原语（2026-08-25 实测）**：molangjs 用容错解析器——对 `"("`、`"@@"`、`"1..2"`、`"query."` 等任意非法/残缺 token 都不抛错、直接返回 0。故 `compileMolang` 走「解析异常→返回 null」的路径在真实世界中几乎不可达，`parseAnimationControllerJSON` 上报「转换条件编译失败」与运行时「condition=null 跳过不触发」均为几乎不触发的防御分支（测试用构造对象直接命中），属低价值死防御，可作后续清理候选
+- **molangjs 全容错**（见上）亦意味着 Molang 条件「真值」判定需注意：未识别表达式稳定返回 0 = 恒假，不会误触发转换
 - 播放循环（RAF）由消费方组件自行管理并须在卸载时 cancelAnimationFrame；曾有的 AnimationPlayer 封装类因长期无消费方已在死代码清理中移除，如需播放器请基于 evaluateClip 重建
 - **求值链路运行时消费方**（2026-08-21 更新）：`evaluateClip` 由 YSM 动画播放器消费（`utils/3d/ysm-animation-player.ts`，ADR-100 L1-L3，每帧 localOnly 求值驱动骨骼 Group）；`parseBedrockAnimationJSON` 消费方 `app-preview/wasm.ts`（+loader.ts）与 `ysm-adapter.ts`（动画扫描）；`animateNumber` 实际返回取消函数 `() => void`（**JSDoc 已标注 `@returns 取消函数`**），消费方 app-tree/render.ts、app-sidebar/events.ts **忽略取消函数**（快速连续渲染叠加未清理 timer，P3 观察）；`isMolang` 为死代码（仅定义处命中）
 - **层级传播未应用父级旋转**（`animation.ts` 层级传播逻辑，P3 观察）：注释声称「子级位移经父级旋转后」累加，实现却是纯向量相加 `pp+cp`、旋转仅欧拉角分量相加——父级非零旋转时传播结果错误；求值链路休眠态无运行时影响，属唤醒前的设计降级点（唤醒需先补旋转矩阵/四元数传播，测试仅覆盖无旋转父级）
@@ -150,7 +163,7 @@ invariant_anchors:
 | molang 求值器 | ✅ 已落地 | `molang.ts` `compileMolang` 返回 `(animTime) => number` 闭包，被 `animation.ts:115,140` 调用 |
 | transition（跨 clip） | ✅ 已落地 | `selectClip` 从当前姿态采集 rest + alpha 归零，commit 163a6f09 |
 | blend（多源混合） | ❌ 未接 | `grep blend` 整个 `frontend/src/utils/animation/` 零命中 |
-| 状态机 | ❌ 未接 | 无 `AnimationController`/predicate 优先级 |
+| 状态机 | ✅ 已落地 | `animation-controller.ts` 解析 `.animation_controllers.json` + `AnimationControllerRuntime` 状态机（transitions/on_exit/unconditional/编译失败守护），`animation-controller.test.ts` 14 用例 |
 
 molangjs 内嵌策略：npm 包因 `"type":"module"` + CJS dist 混用在 Node 测试环境连续报错，本项目采用**源码内嵌**——`frontend/src/utils/animation/molang-lib/` 保留 JannisX11 molangjs（MIT，Blockbench 官方依赖）原始版权头，本地路径 import。
 
