@@ -53,7 +53,7 @@
 | `sync:download:missing` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
 | `theme:change` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
-| `toast:show` | 206 | 2 | 0 | 0 | ✅ |
+| `toast:show` | 200 | 2 | 0 | 0 | ✅ |
 | `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
 
@@ -69,7 +69,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-content/init-workshop.ts` | 112 |
+| `frontend/src/views/app-content/init-workshop.ts` | 119 |
 
 ### `batch:disable`
 
@@ -552,16 +552,10 @@
 | `frontend/src/views/app-content/settings/ui-prefs.ts` | 151 |
 | `frontend/src/views/app-content/settings/ui-prefs.ts` | 161 |
 | `frontend/src/views/app-content/settings/worker-prefs.ts` | 43 |
-| `frontend/src/views/app-content/site/drag.ts` | 38 |
-| `frontend/src/views/app-content/site/drag.ts` | 75 |
-| `frontend/src/views/app-content/site/drag.ts` | 98 |
-| `frontend/src/views/app-content/site/drag.ts` | 107 |
-| `frontend/src/views/app-content/site/edit.ts` | 86 |
-| `frontend/src/views/app-content/site/edit.ts` | 93 |
-| `frontend/src/views/app-content/site/edit.ts` | 108 |
-| `frontend/src/views/app-content/site/edit.ts` | 134 |
-| `frontend/src/views/app-content/site/edit.ts` | 167 |
-| `frontend/src/views/app-content/site/edit.ts` | 174 |
+| `frontend/src/views/app-content/site/drag.ts` | 41 |
+| `frontend/src/views/app-content/site/drag.ts` | 78 |
+| `frontend/src/views/app-content/site/drag.ts` | 101 |
+| `frontend/src/views/app-content/site/drag.ts` | 110 |
 | `frontend/src/views/app-content/site/events.ts` | 104 |
 | `frontend/src/views/app-content/site/events.ts` | 271 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 108 |

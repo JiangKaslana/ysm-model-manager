@@ -47,19 +47,19 @@ func Install(src, customDir, filesRoot, linkMode string) error {
 	return InstallLocked(src, customDir, filesRoot, linkMode)
 }
 
-// InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。
-// 语义与 Install 一致，但不重复加锁——供 sync.RelinkDir 等已持锁调用方使用（防重入死锁）。
-func InstallLocked(src, customDir, filesRoot, linkMode string) error {
-	src = strings.TrimSpace(src)
-	customDir = strings.TrimSpace(customDir)
-	if src == "" || customDir == "" {
-		return types.AppError{Code: types.ErrInvalidParam, Operation: "安装模型", Reason: "参数为空", Suggestion: "请检查输入"}
-	}
-
-	// 🔒 路径清理与安全校验
-	srcClean := cleanAbs(src)
-	customClean := cleanAbs(customDir)
-
+// validateInstallPaths 单文件安装前的双向路径安全守卫（原 InstallLocked 阶段 2 提纯）。
+// 共四道守卫，顺序与语义严格保持与拆分前一致：
+//  1. customClean：直接字符串 ContainsMinecraftMarker（防穿越到 .minecraft 外）
+//  2. customClean：filepath.EvalSymlinks 解析真实路径后再次 ContainsMinecraftMarker
+//     （防 symlink 段绕过字符串守卫，EvalSymlinks 失败属正常——路径不存在时保持原守卫结论）
+//  3. filesRoot 非空时：IsInside(filesRoot, srcClean) —— 验证 src 在仓库目录内（防任意文件写入）
+//  4. filesRoot 非空时：EvalSymlinks(srcClean) + EvalSymlinks(filesRoot) 后再次 IsInside
+//     （防 src/filesRoot 两侧任一方 symlink 段绕过；Windows 下短名 ZHUJIE~1 与长名混用
+//     导致 IsInside 误判越权，两侧必须同步归一化到长名；任一侧失败保持原结论不放宽）
+//
+// 参数 src / customDir 传原始未 trim 字符串仅用于 AppError SourcePath 字段显示，
+// 不参与校验计算（校验使用 srcClean / customClean / filesRoot 归一化值）。
+func validateInstallPaths(srcClean, customClean, filesRoot, src, customDir string) error {
 	// 验证 customDir 在 .minecraft 内（防路径穿越）
 	if !paths.ContainsMinecraftMarker(customClean) {
 		return types.AppError{Code: types.ErrInvalidPath, Operation: "安装模型", SourcePath: customDir, Reason: "目标目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
@@ -92,14 +92,17 @@ func InstallLocked(src, customDir, filesRoot, linkMode string) error {
 			}
 		}
 	}
+	return nil
+}
 
-	if !isSupportedModelExt(src) {
-		return types.AppError{Code: types.ErrUnsupportedFmt, Operation: "安装模型", SourcePath: src, Reason: "不支持的文件类型", Suggestion: "支持格式: " + strings.Join(types.AllExts(), " / ")}
-	}
-
-	// 计算相对路径，保持目录结构
-	// 上方 IsInside 已 fail-fast 保证 srcClean 在仓库内，此处直接用 Clean 后路径算 rel，
-	// 不用 HasPrefix 二次判断（无分隔符边界校验，/repo 会误匹配 /repository）
+// resolveInstallTargetDir 计算实际落地目录 targetDir（原 InstallLocked 阶段 4 提纯）。
+// 规则：filesRoot 为空 → targetDir = customDir（不保留仓库层级，直接落到 customDir）；
+// filesRoot 非空 → 用 filepath.Rel 计算 srcClean 相对仓库根的子路径 rel，取 Dir(rel)
+// 作为相对子目录拼到 customDir 下（保持仓库内目录结构，避免 /repo/aaa/bbb.pmodel
+// 直接落 custom/bbb.pmodel 与 /repo/ccc/bbb.pmodel 同名覆盖）。
+// 拼出的 targetDir 再走 cleanAbs + ContainsMinecraftMarker 守卫（子目录也必须在 .minecraft 内）。
+// filepath.Rel 失败（如跨盘符/跨根）时静默回退 customDir，不抛错——fail-soft 不影响主流程。
+func resolveInstallTargetDir(srcClean, customDir, filesRoot, customClean string) (string, error) {
 	targetDir := customDir
 	if filesRoot != "" {
 		absFiles := cleanAbs(filesRoot)
@@ -111,21 +114,39 @@ func InstallLocked(src, customDir, filesRoot, linkMode string) error {
 				// 再次校验子目录也在 .minecraft 内
 				targetDir = cleanAbs(targetDir)
 				if !paths.ContainsMinecraftMarker(targetDir) {
-					return types.AppError{Code: types.ErrInvalidPath, Operation: "安装模型", SourcePath: targetDir, Reason: "子目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
+					return "", types.AppError{Code: types.ErrInvalidPath, Operation: "安装模型", SourcePath: targetDir, Reason: "子目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
 				}
 			}
 		}
 	}
+	return targetDir, nil
+}
 
-	switch linkMode {
-	case "hardlink":
-		return linkOrCopyLocked(src, targetDir)
-	case "symlink":
-		return symlinkOrCopyLocked(src, targetDir)
-	default:
-		_, err := copyFileLocked(src, targetDir)
+// InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。
+// 语义与 Install 一致，但不重复加锁——供 sync.RelinkDir 等已持锁调用方使用（防重入死锁）。
+func InstallLocked(src, customDir, filesRoot, linkMode string) error {
+	src = strings.TrimSpace(src)
+	customDir = strings.TrimSpace(customDir)
+	if src == "" || customDir == "" {
+		return types.AppError{Code: types.ErrInvalidParam, Operation: "安装模型", Reason: "参数为空", Suggestion: "请检查输入"}
+	}
+
+	srcClean := cleanAbs(src)
+	customClean := cleanAbs(customDir)
+	if err := validateInstallPaths(srcClean, customClean, filesRoot, src, customDir); err != nil {
 		return err
 	}
+	if !isSupportedModelExt(src) {
+		return types.AppError{Code: types.ErrUnsupportedFmt, Operation: "安装模型", SourcePath: src, Reason: "不支持的文件类型", Suggestion: "支持格式: " + strings.Join(types.AllExts(), " / ")}
+	}
+	// 计算相对路径，保持目录结构
+	// 上方 IsInside 已 fail-fast 保证 srcClean 在仓库内，此处直接用 Clean 后路径算 rel，
+	// 不用 HasPrefix 二次判断（无分隔符边界校验，/repo 会误匹配 /repository）
+	targetDir, err := resolveInstallTargetDir(srcClean, customDir, filesRoot, customClean)
+	if err != nil {
+		return err
+	}
+	return applyInstallFileByMode(src, targetDir, linkMode)
 }
 
 // evalSymlinksOrKeep 解析路径中的符号链接段（真实路径），失败时保留原路径。
@@ -165,16 +186,16 @@ func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 	return installDirAtLocked(srcDir, dstDir, "", filesRoot, linkMode, rtype)
 }
 
-// installDirAtLocked 安装目录到目标位置。relInside 控制最终落位：
-//   - 空字符串：finalDst = dstDir/<basename>（InstallDir 原语义，向后兼容）
-//   - 非空    ：finalDst = dstDir/<relInside>（保留仓库多层物理路径）
-//
-// relInside 须为正斜杠分隔的干净相对路径，禁止 ".." 穿越和绝对路径。
-func installDirAtLocked(srcDir, dstDir, relInside, filesRoot, linkMode, rtype string) error {
+// normalizeInstallDirPaths 目录安装前的路径归一化与安全守卫（原 installDirAtLocked 阶段 1-3 提纯）。
+// 执行顺序：TrimSpace → cleanAbs → evalSymlinksOrKeep（防 symlink 绕过字符串守卫）→ 空值拒绝 →
+// sameDir 死递归守卫 → ContainsMinecraftMarker(.minecraft 内) → filesRoot 非空时 IsInside(仓库内) 守卫。
+// 任一守卫失败立即返回 types.AppError；通过则返回归一化后的 (srcDir, dstDir, filesRoot) 三元组，
+// 后续逻辑直接消费这些归一化值，不再重复解析。
+func normalizeInstallDirPaths(srcDir, dstDir, filesRoot string) (string, string, string, error) {
 	srcDir = strings.TrimSpace(srcDir)
 	dstDir = strings.TrimSpace(dstDir)
 	if srcDir == "" || dstDir == "" {
-		return types.AppError{Code: types.ErrInvalidParam, Operation: "安装目录", Reason: "参数为空", Suggestion: "请检查输入"}
+		return "", "", "", types.AppError{Code: types.ErrInvalidParam, Operation: "安装目录", Reason: "参数为空", Suggestion: "请检查输入"}
 	}
 	srcDir = cleanAbs(srcDir)
 	dstDir = cleanAbs(dstDir)
@@ -198,23 +219,34 @@ func installDirAtLocked(srcDir, dstDir, relInside, filesRoot, linkMode, rtype st
 	// 由 SameFile 正确识别同目录。dstDir 尚不存在（全新安装）时 Lstat 失败 →
 	// 与已存在的 srcDir 必不同，仅字符串完全相同时拒绝。
 	if sameDir(srcDir, dstDir) {
-		return types.AppError{Code: types.ErrInvalidParam, Operation: "安装目录", SourcePath: srcDir, Reason: "源目录与目标目录相同"}
+		return "", "", "", types.AppError{Code: types.ErrInvalidParam, Operation: "安装目录", SourcePath: srcDir, Reason: "源目录与目标目录相同"}
 	}
 
 	// 验证 dstDir 在 .minecraft 内
 	if !paths.ContainsMinecraftMarker(dstDir) {
-		return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: dstDir, Reason: "目标目录不在 .minecraft 路径内"}
+		return "", "", "", types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: dstDir, Reason: "目标目录不在 .minecraft 路径内"}
 	}
 	// 验证 srcDir 在仓库目录内
 	if filesRoot != "" {
 		if err := paths.IsInside(filesRoot, srcDir); err != nil {
-			return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: srcDir, Reason: "源目录不在仓库目录内"}
+			return "", "", "", types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: srcDir, Reason: "源目录不在仓库目录内"}
 		}
 	}
+	return srcDir, dstDir, filesRoot, nil
+}
 
-	// 计算 finalDst：relInside 非空时用它作为相对路径（保留多层物理路径），
-	// 否则回退到 basename 语义
-	var finalDst string
+// resolveFinalDst 计算最终落位路径 finalDst（原 installDirAtLocked 阶段 4 提纯）。
+// relInside 控制规则：
+//   - 空字符串：finalDst = dstDir/<basename(srcDir)>（InstallDir 原语义，向后兼容）
+//   - 非空    ：finalDst = dstDir/<relInside>（保留仓库多层物理路径）
+//
+// relInside 须为正斜杠分隔的干净相对路径，以下非法形态直接拒绝（防穿越 / 防 ADS）：
+//   - 清洗后为 "." 或 ".."
+//   - 以 "../" 开头（父目录穿越）
+//   - 绝对路径（filepath.IsAbs）
+//   - 含 Windows 盘符（VolumeName != ""，如 "C:foo" 被 NTFS 解析为 ADS 流路径）
+//   - 原始字符串以 "/" 开头（正斜杠根路径，FromSlash 后在 Windows 仍判为相对但有根歧义）
+func resolveFinalDst(srcDir, dstDir, relInside string) (string, error) {
 	if relInside != "" {
 		// 路径清洗：防 ".." 穿越、绝对路径、Windows 盘符相对路径（ADS 风险）
 		rel := filepath.FromSlash(relInside)
@@ -224,23 +256,22 @@ func installDirAtLocked(srcDir, dstDir, relInside, filesRoot, linkMode, rtype st
 			filepath.IsAbs(rel) ||
 			filepath.VolumeName(rel) != "" ||
 			strings.HasPrefix(relInside, "/") {
-			return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: relInside, Reason: "相对路径非法（禁止 .. 穿越、绝对路径或盘符前缀）"}
+			return "", types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: relInside, Reason: "相对路径非法（禁止 .. 穿越、绝对路径或盘符前缀）"}
 		}
-		finalDst = filepath.Join(dstDir, rel)
-	} else {
-		finalDst = filepath.Join(dstDir, filepath.Base(srcDir))
+		return filepath.Join(dstDir, rel), nil
 	}
+	return filepath.Join(dstDir, filepath.Base(srcDir)), nil
+}
 
-	// finalDst 落在 srcDir 内同样死递归（srcDir 与 dstDir
-	// 不同但嵌套时，如 dstDir 是 srcDir 的子目录）——在递归入口再守一道
-	if paths.IsInside(srcDir, finalDst) == nil {
-		return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: finalDst, Reason: "目标目录位于源目录内（潜在死递归）"}
-	}
-	// 失败回滚——installDirRecursive 部分失败时删除整树，
-	// 防新旧混合状态残留（对齐 go/fileops/fileops.go:412-419 copyDirRecursive 的
-	// 整树 os.RemoveAll(dstDir) 回滚）；仅删除「本次新建」的 finalDst，不影响 dstDir
-	// 其它内容。重装/覆盖场景下 finalDst 是用户既有数据（MkdirAll 会复用旧目录），
-	// 失败时不能整树删除，否则误删旧数据——先记录本次安装前 finalDst 是否已存在
+// callInstallDirRecursiveWithRollback 调用 installDirRecursive，并在失败时按「仅本次新建才回滚」
+// 策略清理（原 installDirAtLocked 阶段 6 提纯）。
+//
+// 先记录 finalDst 本次安装前是否已存在：
+//   - 已存在（重装/覆盖）：finalDst 可能含用户既有数据，MkdirAll 复用旧目录，失败时**不**整树删除，
+//     否则误删旧数据（对齐 fileops.copyDirRecursive 的整树回滚口径，同时防覆盖场景误删）
+//   - 不存在（全新安装）：失败时 os.RemoveAll(finalDst) 清理部分文件；回滚失败时返回复合错误
+//     （fmt.Errorf("%w; 回滚失败: %w")），让调用方能区分「安装失败」与「安装失败+残渣残留」。
+func callInstallDirRecursiveWithRollback(srcDir, finalDst, linkMode, rtype, filesRoot string) error {
 	dstExisted := false
 	if _, err := os.Stat(finalDst); err == nil {
 		dstExisted = true
@@ -259,6 +290,28 @@ func installDirAtLocked(srcDir, dstDir, relInside, filesRoot, linkMode, rtype st
 		return err
 	}
 	return nil
+}
+
+// installDirAtLocked 安装目录到目标位置。relInside 控制最终落位：
+//   - 空字符串：finalDst = dstDir/<basename>（InstallDir 原语义，向后兼容）
+//   - 非空    ：finalDst = dstDir/<relInside>（保留仓库多层物理路径）
+//
+// relInside 须为正斜杠分隔的干净相对路径，禁止 ".." 穿越和绝对路径。
+func installDirAtLocked(srcDir, dstDir, relInside, filesRoot, linkMode, rtype string) error {
+	var err error
+	if srcDir, dstDir, filesRoot, err = normalizeInstallDirPaths(srcDir, dstDir, filesRoot); err != nil {
+		return err
+	}
+	finalDst, err := resolveFinalDst(srcDir, dstDir, relInside)
+	if err != nil {
+		return err
+	}
+	// finalDst 落在 srcDir 内同样死递归（srcDir 与 dstDir
+	// 不同但嵌套时，如 dstDir 是 srcDir 的子目录）——在递归入口再守一道
+	if paths.IsInside(srcDir, finalDst) == nil {
+		return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: finalDst, Reason: "目标目录位于源目录内（潜在死递归）"}
+	}
+	return callInstallDirRecursiveWithRollback(srcDir, finalDst, linkMode, rtype, filesRoot)
 }
 
 // sameDir 判断 srcDir 与 dstDir 是否指向同一目录。
@@ -297,6 +350,87 @@ func checkDstSymlinkSegments(finalDst string) error {
 	}
 }
 
+// isAllowedEntryName 纯函数：判断目录条目文件名是否允许落地（原 installDirRecursive 内 isAllowed 闭包升格）。
+// 两级过滤：
+//  1. 硬黑名单：可执行文件类（.exe/.bat/.dll/.cmd/.scr/.pif/.com/.msi/.ps1/.vbs）即使 rtype 为空也拒绝，
+//     防模型目录内嵌的 .exe 被拷进 .minecraft（BUG-3 修复）；
+//  2. 注册表驱动白名单：types.InstallExtsFor(rtype) 从 resource_types.json 读取（EntityPlayer/ysm
+//     等声明模型+纹理配套扩展名），空=全放行（仅受硬黑名单限制），新增类型改 JSON 无需改本函数。
+func isAllowedEntryName(name, rtype string) bool {
+	low := strings.ToLower(name)
+	ext := filepath.Ext(low)
+	switch ext {
+	case ".exe", ".bat", ".dll", ".cmd", ".scr", ".pif", ".com", ".msi", ".ps1", ".vbs":
+		return false
+	}
+	installExts := types.InstallExtsFor(rtype)
+	if len(installExts) == 0 {
+		return true
+	}
+	for _, e := range installExts {
+		if ext == e {
+			return true
+		}
+	}
+	return false
+}
+
+// applyInstallFileByMode 按 linkMode 分发单个文件到落地层（纯分发，无日志）。
+// 与 InstallLocked 阶段 5 三分支同口径，为 installDirRecursive 循环提供单一入口。
+// copyFileLocked 返回 (string, error)，其它返回 error，统一收口为 error。
+func applyInstallFileByMode(srcFile, dstDir, linkMode string) error {
+	switch linkMode {
+	case "hardlink":
+		return linkOrCopyLocked(srcFile, dstDir)
+	case "symlink":
+		return symlinkOrCopyLocked(srcFile, dstDir)
+	default:
+		_, err := copyFileLocked(srcFile, dstDir)
+		return err
+	}
+}
+
+// installSingleDirEntry 处理 installDirRecursive 主循环中的单个 DirEntry（循环体提纯）。
+// 包含四个语义阶段：子目录递归 / 文件名白黑名单过滤 / 条目级 symlink 越权逃逸守卫 / 按 linkMode 落地。
+// errs 由调用方传指针（in-place append），条目内部分失败仅记录、不打断整体遍历；
+// 子目录分支递归调用 installDirRecursive，保持原深度优先顺序不变。
+func installSingleDirEntry(entry os.DirEntry, srcDir, finalDst, linkMode, rtype, filesRoot string, errs *[]error) {
+	name := entry.Name()
+	if entry.IsDir() {
+		// 递归处理子目录（MMD 的 spa/textures/toon 等深层子文件夹）
+		subSrc := filepath.Join(srcDir, name)
+		subDst := filepath.Join(finalDst, name)
+		if err := installDirRecursive(subSrc, subDst, linkMode, rtype, filesRoot); err != nil {
+			log.Printf("[installer] 递归安装 %s 失败: %v (继续)", subSrc, err)
+			*errs = append(*errs, fmt.Errorf("%s: %w", name, err))
+		}
+		return
+	}
+	if !isAllowedEntryName(name, rtype) {
+		return
+	}
+	srcFile := filepath.Join(srcDir, name)
+	// 条目级符号链接逃逸——仓库内若存在指向仓库外的 symlink
+	// （DirEntry.IsDir 对 symlink 恒为 false，指向仓库外目录的 symlink 也会落到本分支），
+	// linkMode=symlink 时会把指向仓库外的链接直接落进游戏目录。解析真实路径后按
+	// paths.IsInside(filesRoot, …) 校验（与 Install 的 src 守卫同口径），越权则跳过并记录；
+	// EvalSymlinks 失败（断链/不存在）时保持放行，交给下方落地逻辑按原语义处理
+	if fi, err := os.Lstat(srcFile); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		if resolved, err := filepath.EvalSymlinks(srcFile); err == nil {
+			if filesRoot != "" {
+				if err := paths.IsInside(filesRoot, resolved); err != nil {
+					log.Printf("[installer] 跳过越权符号链接条目 %s (真实目标 %s 不在仓库内): %v", srcFile, resolved, err)
+					return
+				}
+			}
+		}
+	}
+	if err := applyInstallFileByMode(srcFile, finalDst, linkMode); err != nil {
+		log.Printf("[installer] 安装文件 %s 失败: %v (继续)", srcFile, err)
+		*errs = append(*errs, fmt.Errorf("%s: %w", name, err))
+	}
+}
+
 // installDirRecursive 递归安装目录树
 func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) error {
 	// 目标侧符号链接段校验——必须放在 MkdirAll 之前：MkdirAll 会跟随 symlink
@@ -315,31 +449,6 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 		return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: finalDst, Reason: "目标子目录不在 .minecraft 路径内"}
 	}
 
-	isAllowed := func(name string) bool {
-		low := strings.ToLower(name)
-		ext := filepath.Ext(low)
-		// BUG-3 修复：default 分支不再通吃所有文件——
-		// 可执行文件（.exe/.bat/.dll/.cmd/.scr/.pif/.com/.msi）
-		// 即使 rtype="" 也应被拒绝，防止模型目录内嵌的 .exe 被拷贝进 .minecraft。
-		switch ext {
-		case ".exe", ".bat", ".dll", ".cmd", ".scr", ".pif", ".com", ".msi", ".ps1", ".vbs":
-			return false
-		}
-		// 注册表驱动（Top 3）：安装白名单来自 resource_types.json 的 installExts
-		// （EntityPlayer/ysm 声明模型+纹理配套扩展名；空=全部放行，仅可执行文件黑名单除外）。
-		// 新增类型只需改 JSON，无需改本函数。
-		installExts := types.InstallExtsFor(rtype)
-		if len(installExts) == 0 {
-			return true
-		}
-		for _, e := range installExts {
-			if ext == e {
-				return true
-			}
-		}
-		return false
-	}
-
 	entries, err := os.ReadDir(srcDir)
 	if err != nil {
 		log.Printf("[installer] readdir 失败 %s: %v", srcDir, err)
@@ -347,52 +456,7 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 	}
 	var errs []error
 	for _, entry := range entries {
-		if entry.IsDir() {
-			// 递归处理子目录（MMD 的 spa/textures/toon 等深层子文件夹）
-			subSrc := filepath.Join(srcDir, entry.Name())
-			subDst := filepath.Join(finalDst, entry.Name())
-			if err := installDirRecursive(subSrc, subDst, linkMode, rtype, filesRoot); err != nil {
-				log.Printf("[installer] 递归安装 %s 失败: %v (继续)", subSrc, err)
-				errs = append(errs, fmt.Errorf("%s: %w", entry.Name(), err))
-			}
-			continue
-		}
-		if !isAllowed(entry.Name()) {
-			continue
-		}
-		srcFile := filepath.Join(srcDir, entry.Name())
-		// 条目级符号链接逃逸——仓库内若存在指向仓库外的 symlink
-		// （DirEntry.IsDir 对 symlink 恒为 false，指向仓库外目录的 symlink 也会落到本分支），
-		// linkMode=symlink 时会把指向仓库外的链接直接落进游戏目录。解析真实路径后按
-		// paths.IsInside(filesRoot, …) 校验（与 Install 的 src 守卫同口径），越权则跳过并记录；
-		// EvalSymlinks 失败（断链/不存在）时保持放行，交给下方落地逻辑按原语义处理
-		if fi, err := os.Lstat(srcFile); err == nil && fi.Mode()&os.ModeSymlink != 0 {
-			if resolved, err := filepath.EvalSymlinks(srcFile); err == nil {
-				if filesRoot != "" {
-					if err := paths.IsInside(filesRoot, resolved); err != nil {
-						log.Printf("[installer] 跳过越权符号链接条目 %s (真实目标 %s 不在仓库内): %v", srcFile, resolved, err)
-						continue
-					}
-				}
-			}
-		}
-		switch linkMode {
-		case "hardlink":
-			if err := linkOrCopyLocked(srcFile, finalDst); err != nil {
-				log.Printf("[installer] linkOrCopy 失败 %s: %v (继续)", srcFile, err)
-				errs = append(errs, fmt.Errorf("%s: %w", entry.Name(), err))
-			}
-		case "symlink":
-			if err := symlinkOrCopyLocked(srcFile, finalDst); err != nil {
-				log.Printf("[installer] symlinkOrCopy 失败 %s: %v (继续)", srcFile, err)
-				errs = append(errs, fmt.Errorf("%s: %w", entry.Name(), err))
-			}
-		default:
-			if _, err := copyFileLocked(srcFile, finalDst); err != nil {
-				log.Printf("[installer] CopyFile 失败 %s: %v (继续)", srcFile, err)
-				errs = append(errs, fmt.Errorf("%s: %w", entry.Name(), err))
-			}
-		}
+		installSingleDirEntry(entry, srcDir, finalDst, linkMode, rtype, filesRoot, &errs)
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("安装目录 %s 部分失败: %w", srcDir, errors.Join(errs...))

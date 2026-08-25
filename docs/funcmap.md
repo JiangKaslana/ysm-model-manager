@@ -276,15 +276,15 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `Install()` | `go/installer/installer:44` | Install 安装模型到目标目录（支持链接模式） |
-| `InstallLocked()` | `go/installer/installer:52` | InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `InstallDir()` | `go/installer/installer:147` | InstallDir 安装整个目录下的所有文件到目标目录。 |
-| `InstallDirRel()` | `go/installer/installer:157` | InstallDirRel 安装目录到 dstRoot/&lt;relSlash&gt;（保留仓库多层物理路径）。 |
-| `InstallDirLocked()` | `go/installer/installer:164` | InstallDirLocked 与 InstallDir 语义相同，但不重复加锁——供已持锁调用方使用。 |
-| `InstallToGlobal()` | `go/installer/installer:404` | InstallToGlobal 安装到全局 custom 目录 |
-| `InstallWithOverlay()` | `go/installer/installer:430` | InstallWithOverlay 带冲突检查的安装 |
-| `CopyFile()` | `go/installer/installer:514` | CopyFile 复制文件到目标目录（带互斥锁） |
-| `CopyFileLocked()` | `go/installer/installer:522` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `IsValidRepoRoot()` | `go/installer/installer:672` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
+| `InstallLocked()` | `go/installer/installer:127` | InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
+| `InstallDir()` | `go/installer/installer:168` | InstallDir 安装整个目录下的所有文件到目标目录。 |
+| `InstallDirRel()` | `go/installer/installer:178` | InstallDirRel 安装目录到 dstRoot/&lt;relSlash&gt;（保留仓库多层物理路径）。 |
+| `InstallDirLocked()` | `go/installer/installer:185` | InstallDirLocked 与 InstallDir 语义相同，但不重复加锁——供已持锁调用方使用。 |
+| `InstallToGlobal()` | `go/installer/installer:468` | InstallToGlobal 安装到全局 custom 目录 |
+| `InstallWithOverlay()` | `go/installer/installer:494` | InstallWithOverlay 带冲突检查的安装 |
+| `CopyFile()` | `go/installer/installer:578` | CopyFile 复制文件到目标目录（带互斥锁） |
+| `CopyFileLocked()` | `go/installer/installer:586` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
+| `IsValidRepoRoot()` | `go/installer/installer:736` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
 
 ## go/instance
 
@@ -1974,8 +1974,8 @@
 | `getLastModelPath()` | `frontend/src/views/app-content/init-pages:291` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:37` | 初始化创意工坊页（编排入口） |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:143` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
-| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:154` | app-content 组件接口（供 workshop/github 初始化函数访问） |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:150` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
+| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:161` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:22` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:29` | — |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:31` | 初始化设置页所有事件绑定 |
