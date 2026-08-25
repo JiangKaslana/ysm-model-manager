@@ -24,6 +24,9 @@ export function bindDragEvents(state: SiteViewState, _refreshView: () => void): 
       _dragCounter++;
       dropZone.classList.add("cr-drop-zone-active");
     };
+    const onDragOver = (e: Event): void => {
+      e.preventDefault();
+    };
     const onDragLeave = (): void => {
       _dragCounter--;
       if (_dragCounter <= 0) {
@@ -119,11 +122,19 @@ export function bindDragEvents(state: SiteViewState, _refreshView: () => void): 
     };
 
     dropZone.addEventListener("dragenter", onDragEnter as EventListener);
-    dropZone.addEventListener("dragover", (e) => e.preventDefault());
+    dropZone.addEventListener("dragover", onDragOver);
     dropZone.addEventListener("dragleave", onDragLeave);
     dropZone.addEventListener("drop", onDrop as unknown as EventListener);
+
+    // 收集 cleanup，在组件卸载时移除事件监听，防止泄漏
+    return () => {
+      dropZone.removeEventListener("dragenter", onDragEnter as EventListener);
+      dropZone.removeEventListener("dragover", onDragOver);
+      dropZone.removeEventListener("dragleave", onDragLeave);
+      dropZone.removeEventListener("drop", onDrop as unknown as EventListener);
+    };
   }
 
-  // 拖拽块无全局监听需清理，返回空 cleanup（统一接口）
+  // 无 dropZone 时返回空 cleanup
   return () => {};
 }

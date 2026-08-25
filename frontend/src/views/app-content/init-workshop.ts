@@ -63,8 +63,15 @@ export function initWorkshopPage(host: AppContentHost): void {
   }
 
   // 站点视图切换（先定义，再注册给 tabs）
+  // 保存上一次渲染的 cleanup 函数，切站点时先清理旧监听再渲染新视图
+  let _prevSiteViewCleanup: (() => void) | null = null;
   const showSiteView = (site: WorkshopSite | null): void => {
     if (!site) return;
+    // 清理旧站点视图的监听器，防止切页时事件泄漏
+    if (_prevSiteViewCleanup) {
+      _prevSiteViewCleanup();
+      _prevSiteViewCleanup = null;
+    }
     const openUrl = (url: string): void => {
       openSite(host, site, browseMode);
     };
@@ -100,7 +107,7 @@ export function initWorkshopPage(host: AppContentHost): void {
         if (host._currentSite) showSiteView(host._currentSite);
       },
     };
-    renderSiteView(site, ctx);
+    _prevSiteViewCleanup = renderSiteView(site, ctx);
   };
 
   // 注册 showSiteView 给 tabs 模块使用（必须在 initWorkshopTabs 之前）
