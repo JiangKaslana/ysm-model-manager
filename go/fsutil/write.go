@@ -7,6 +7,7 @@
 package fsutil
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -113,4 +114,19 @@ func WriteFileAtomic(destPath string, data []byte) error {
 		return fmt.Errorf("%w: %w", ErrRenameFailed, err)
 	}
 	return nil
+}
+
+// SHA256File 计算文件内容的 SHA256 哈希，返回十六进制字符串。
+// 收敛自 scanner/texture_cache/sync 三处独立实现，统一为单一事实来源。
+func SHA256File(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }

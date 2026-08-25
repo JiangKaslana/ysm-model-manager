@@ -10,11 +10,8 @@
 package texture_cache
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -40,17 +37,11 @@ var CacheDir = func() string {
 // TextureHash 计算文件内容的 SHA256 哈希，用作缓存 key。
 // 哈希基于文件内容而非路径，模型重命名/移动后缓存仍然命中。
 func TextureHash(path string) (string, error) {
-	f, err := os.Open(path)
+	hash, err := fsutil.SHA256File(path)
 	if err != nil {
-		return "", fmt.Errorf("texture_cache: 打开文件 %s: %w", path, err)
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
 		return "", fmt.Errorf("texture_cache: 计算哈希 %s: %w", path, err)
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return hash, nil
 }
 
 // CachePath 返回给定哈希对应的缓存文件路径。
@@ -93,17 +84,8 @@ func WriteCached(hash string, data []byte) error {
 		return fmt.Errorf("texture_cache: 创建缓存目录 %s: %w", dir, err)
 	}
 	path := filepath.Join(dir, hash+".ktx2")
-	// 避免部分写入：先写临时文件再重命名
-	tmpPath := path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, fsutil.FilePerms); err != nil {
-		return fmt.Errorf("texture_cache: 写入缓存 %s: %w", tmpPath, err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		// 重命名失败（跨设备等），尝试直接覆盖
-		os.Remove(tmpPath) // 清理临时文件
-		if writeErr := os.WriteFile(path, data, fsutil.FilePerms); writeErr != nil {
-			return fmt.Errorf("texture_cache: 写入缓存（重命名降级）%s: %w", path, writeErr)
-		}
+	if err := fsutil.WriteFileAtomic(path, data); err != nil {
+		return fmt.Errorf("texture_cache: 写入缓存 %s: %w", path, err)
 	}
 	// 写后限频淘汰：缓存只增不减会长期膨胀，写路径是最自然的收敛触发点
 	maybePrune()

@@ -385,14 +385,14 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Scan()` | `go/rustbridge/bridge_android:44` | — |
-| `ScanManifest()` | `go/rustbridge/bridge_android:84` | — |
-| `Scan()` | `go/rustbridge/bridge_darwin:44` | — |
-| `ScanManifest()` | `go/rustbridge/bridge_darwin:82` | — |
-| `Scan()` | `go/rustbridge/bridge_linux:44` | — |
-| `ScanManifest()` | `go/rustbridge/bridge_linux:82` | — |
-| `Scan()` | `go/rustbridge/bridge_windows:27` | — |
-| `ScanManifest()` | `go/rustbridge/bridge_windows:72` | ScanManifest 使用 Go 预枚举的文件清单调用 Rust，跳过 Rust 侧的文件系统发现（jwalk）。 |
+| `Scan()` | `go/rustbridge/bridge_android:43` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_android:73` | — |
+| `Scan()` | `go/rustbridge/bridge_darwin:41` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_darwin:69` | — |
+| `Scan()` | `go/rustbridge/bridge_linux:41` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_linux:69` | — |
+| `Scan()` | `go/rustbridge/bridge_windows:24` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_windows:59` | ScanManifest 使用 Go 预枚举的文件清单调用 Rust，跳过 Rust 侧的文件系统发现（jwalk）。 |
 | `ScanError()` | `go/rustbridge/types:7` | — |
 | `ScanResponse()` | `go/rustbridge/types:12` | — |
 

@@ -5,10 +5,8 @@
 package scanner
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -419,18 +417,11 @@ func ComputeFileHash(path string) string {
 	if fi, err := os.Stat(path); err == nil && fi.Size() > types.MaxImportSize {
 		return ""
 	}
-	f, err := os.Open(path)
+	hash, err := fsutil.SHA256File(path)
 	if err != nil {
 		return ""
 	}
-	defer f.Close()
-	h := sha256.New()
-	// 检查 io.Copy 读错误，读失败返回空哈希（与 open 失败一致），
-	// 避免截断哈希静默进入同步匹配（截断哈希与完整哈希无法区分）
-	if _, err := io.Copy(h, f); err != nil {
-		return ""
-	}
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return hash
 }
 
 // ========== 作者提取 ==========
@@ -581,16 +572,8 @@ func GenerateRepoIndex(repoPath string) (string, error) {
 		return "", fmt.Errorf("序列化 index 条目失败: %w", err)
 	}
 	indexPath := filepath.Join(repoPath, "index.json")
-	// 临时文件 + rename 原子替换，避免崩溃/中断留下半截 index.json（陷阱 #8 变体）
-	// 失败路径统一清理 .tmp：WriteFile 半写残留与 rename 失败残留都 Remove，不留孤儿临时文件
-	tmpPath := indexPath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, fsutil.FilePerms); err != nil {
-		_ = os.Remove(tmpPath)
-		return "", fmt.Errorf("写入 index.json.tmp 失败: %w", err)
-	}
-	if err := os.Rename(tmpPath, indexPath); err != nil {
-		_ = os.Remove(tmpPath)
-		return "", fmt.Errorf("原子替换 index.json 失败: %w", err)
+	if err := fsutil.WriteFileAtomic(indexPath, data); err != nil {
+		return "", fmt.Errorf("写入 index.json 失败: %w", err)
 	}
 
 	workflowDir := filepath.Join(repoPath, ".github", "workflows")

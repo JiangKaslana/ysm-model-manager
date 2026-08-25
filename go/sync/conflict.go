@@ -1,12 +1,13 @@
 package sync
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"ysm-model-manager/go/fsutil"
 )
 
 // ConflictType 冲突类型
@@ -242,17 +243,11 @@ func collectFileEntries(dir string) (map[string]fileEntryInfo, error) {
 
 // computeFileHash 计算文件 SHA256 哈希
 func computeFileHash(path string) (string, error) {
-	f, err := os.Open(path)
+	hash, err := fsutil.SHA256File(path)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
+	return hash, nil
 }
 
 // suggestStrategy 根据修改时间建议解决策略
