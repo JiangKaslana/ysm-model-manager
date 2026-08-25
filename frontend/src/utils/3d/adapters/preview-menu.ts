@@ -8,6 +8,7 @@
 
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
 import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
+import type { PreviewActionMenuCtx } from "./preview-menu-node-types.ts";
 import { renderEnvLevel } from "./preview-menu-env.ts";
 import { renderCapControls } from "./preview-menu-cap-controls.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
@@ -28,6 +29,16 @@ import { sceneRegistry, type ModelEntry } from "./scene-registry.ts";
 import type { FogCapability } from "../caps/fog-capability.ts";
 import { isFrustumCullEnabled, setFrustumCullEnabled } from "../frustum-cull.ts";
 import { getMaxFps, invalidateMaxFpsCache, MAX_FPS_KEY, getMaxPixelRatio, MAX_PIXEL_RATIO_KEY } from "../render-budget.ts";
+
+/**
+ * 空桩 action ctx：适配器动作目前拿不到真 ctx（PreviewMenuCtx 无 toast/setStatus/closeAllOverlays 字段）。
+ * 收敛成单一常量避免五处调用点重复字面量漂移；接真 ctx 时只需改这一处。
+ */
+const noopActionCtx: PreviewActionMenuCtx = {
+  toast: () => {},
+  setStatus: () => {},
+  closeAllOverlays: () => {},
+};
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
@@ -220,7 +231,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       } else if (node.renderCustom) {
         node.renderCustom(list, () => hideMenu());
       } else if (node.action) {
-        node.action({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
+        node.action(noopActionCtx);
       } else {
         fillers[node.id]?.(list, menu);
       }
@@ -252,7 +263,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
             menu.navigate(makePanelView(node));
           } else if (node.action) {
             hideMenu();
-            node.action({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
+            node.action(noopActionCtx);
           }
         };
         list.appendChild(row);
@@ -690,7 +701,7 @@ export function renderMenu(
       const lb = document.createElement("span"); lb.className = "slide-label"; lb.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id; row.appendChild(lb);
       row.addEventListener("click", (ev: MouseEvent): void => {
         ev.stopPropagation();
-        void node.action?.({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
+        void node.action?.(noopActionCtx);
       });
       container.appendChild(row);
       continue;
@@ -705,7 +716,7 @@ export function renderMenu(
       if (node.value && typeof node.value === "string") { const meta = document.createElement("span"); meta.className = "slide-sublabel"; meta.textContent = node.value; row.appendChild(meta); }
       row.addEventListener("click", (ev: MouseEvent): void => {
         ev.stopPropagation();
-        void node.action?.({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
+        void node.action?.(noopActionCtx);
       });
       container.appendChild(row);
       continue;
@@ -734,7 +745,7 @@ export function renderMenu(
       if (node.kind === "panel") {
         deps.menu.navigate(deps.makePanelView(node));
       } else if (node.action) {
-        node.action({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
+        node.action(noopActionCtx);
       }
     };
     container.appendChild(row);
