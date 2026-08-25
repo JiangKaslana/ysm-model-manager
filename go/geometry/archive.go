@@ -847,6 +847,65 @@ func sortByTexOrder(texOrder []string, pngs [][]byte, pngNames []string) map[str
 	return orderMap
 }
 
+// buildSubModels 构建 SubModels 清单（L0 manifest 优先 → L1 兜底派生于 geoFiles），写入 geo。
+// 隐式时序约束：必须在 sortByTexOrder 之后调用——L0 TexSlot 用 texNameByItem → orderMap
+// 换算「排序后」槽位（orderMap 由 sortByTexOrder 返回）；先拆此先后会改行为。
+// L0「覆盖判定不对称」红线：SubModels 分支只看 len(maidManifest)>0（不看 resolveL0.hit），
+// 与 geoFiles 等覆盖判定（看 hit）不一致，此为现状事实，勿"顺手统一"。
+// geo 必须非 nil（调用方已判）；geoFiles 按声明序已排好（sortByModelOrder 先于本函数）。
+func buildSubModels(geo *types.BedrockModel, maidManifest []maidManifestItem, resolvedPathByItem, texNameByItem map[int]string, orderMap map[string]int, geoFiles []geoEntry, pngs [][]byte) {
+	// L0：Name 取自 manifest，SourcePath 是 zip 内绝对路径，TexSlot 对应 manifest 下标
+	if len(maidManifest) > 0 {
+		l0Subs := make([]types.SubModel, 0, len(maidManifest))
+		for i, item := range maidManifest {
+			if item.Name == "" {
+				continue
+			}
+			// SourcePath 用实际解析到的 zip 路径（形式 B model_id 推断时 item.Model 为空，
+			// 直接拼 maidNs 会得到命名空间目录 → 单角色匹配必失败，静默回退全量合并模型）；
+			// 未解析到则留空 → 前端 subPath undefined 走兜底。
+			// TexSlot 用条目纹理在排序后纹理数组的下标（texNameByItem → orderMap），
+			// 而非 manifest 下标（纹理解析失败的条目会使 l0Pngs 收缩、下标漂移）。
+			slot := 0
+			if tn, ok := texNameByItem[i]; ok {
+				if s, ok2 := orderMap[tn]; ok2 {
+					slot = s
+				}
+			}
+			l0Subs = append(l0Subs, types.SubModel{
+				Name:       item.Name,
+				SourcePath: resolvedPathByItem[i],
+				TexSlot:    slot,
+			})
+		}
+		if len(l0Subs) > 0 {
+			geo.SubModels = l0Subs
+		}
+	}
+	if len(geo.SubModels) == 0 && len(geoFiles) > 0 {
+		// L1 兜底：从 geoFiles 派生（Name=basename 去 .geo.json/.json 后缀）
+		l1Subs := make([]types.SubModel, 0, len(geoFiles))
+		for i, gf := range geoFiles {
+			subName := filepath.ToSlash(gf.name)
+			if idx := strings.LastIndex(subName, "/"); idx >= 0 {
+				subName = subName[idx+1:]
+			}
+			subName = strings.TrimSuffix(subName, ".geo.json")
+			subName = strings.TrimSuffix(subName, ".json")
+			slot := i
+			if slot >= len(pngs) && len(pngs) > 0 {
+				slot = len(pngs) - 1
+			}
+			l1Subs = append(l1Subs, types.SubModel{
+				Name:       subName,
+				SourcePath: gf.name,
+				TexSlot:    slot,
+			})
+		}
+		geo.SubModels = l1Subs
+	}
+}
+
 // parseModelFromEntries 共享主体：ysm.json 解析 + model/texture 顺序 + geo/png/anim 收集，
 // 构建 BedrockModel。logTag 用于日志前缀（"zip" / "7z"）。
 //
@@ -1095,57 +1154,8 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			geo.TextureCategories = ordered
 		}
 
-		// ===== SubModels 清单：L0 优先 → L1 兜底 =====
-		if len(maidManifest) > 0 {
-			// L0：Name 取自 manifest，SourcePath 是 zip 内绝对路径，TexSlot 对应 manifest 下标
-			l0Subs := make([]types.SubModel, 0, len(maidManifest))
-			for i, item := range maidManifest {
-				if item.Name == "" {
-					continue
-				}
-				// SourcePath 用实际解析到的 zip 路径（形式 B model_id 推断时 item.Model 为空，
-				// 直接拼 maidNs 会得到命名空间目录 → 单角色匹配必失败，静默回退全量合并模型）；
-				// 未解析到则留空 → 前端 subPath undefined 走兜底。
-				// TexSlot 用条目纹理在排序后纹理数组的下标（texNameByItem → orderMap），
-				// 而非 manifest 下标（纹理解析失败的条目会使 l0Pngs 收缩、下标漂移）。
-				slot := 0
-				if tn, ok := texNameByItem[i]; ok {
-					if s, ok2 := orderMap[tn]; ok2 {
-						slot = s
-					}
-				}
-				l0Subs = append(l0Subs, types.SubModel{
-					Name:       item.Name,
-					SourcePath: resolvedPathByItem[i],
-					TexSlot:    slot,
-				})
-			}
-			if len(l0Subs) > 0 {
-				geo.SubModels = l0Subs
-			}
-		}
-		if len(geo.SubModels) == 0 && len(geoFiles) > 0 {
-			// L1 兜底：从 geoFiles 派生（Name=basename 去 .geo.json/.json 后缀）
-			l1Subs := make([]types.SubModel, 0, len(geoFiles))
-			for i, gf := range geoFiles {
-				subName := filepath.ToSlash(gf.name)
-				if idx := strings.LastIndex(subName, "/"); idx >= 0 {
-					subName = subName[idx+1:]
-				}
-				subName = strings.TrimSuffix(subName, ".geo.json")
-				subName = strings.TrimSuffix(subName, ".json")
-				slot := i
-				if slot >= len(pngs) && len(pngs) > 0 {
-					slot = len(pngs) - 1
-				}
-				l1Subs = append(l1Subs, types.SubModel{
-					Name:       subName,
-					SourcePath: gf.name,
-					TexSlot:    slot,
-				})
-			}
-			geo.SubModels = l1Subs
-		}
+		// SubModels 清单（L0 manifest 优先 → L1 兜底）已收编 buildSubModels
+		buildSubModels(geo, maidManifest, resolvedPathByItem, texNameByItem, orderMap, geoFiles, pngs)
 	}
 	// 顺带返回过滤后的 geoFiles（L0/L1 口径、排 arm）：ParseFromZipEntry 复用同一趟解析
 	// 的 geoFiles 做 subPath 匹配，避免二次全量遍历（审核 P3）
