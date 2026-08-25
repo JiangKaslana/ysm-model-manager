@@ -1513,24 +1513,61 @@ function buildPostprocessingSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
 /** 设置面板 schema：性能/画质开关声明式节点 */
 function buildSettingsSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
   const nodes: PreviewMenuNode[] = [];
-  // ⚡ 性能分组标题
-  nodes.push({ id: "settings-perf-header", kind: "sectionTitle", labelKey: "preview.settingsPerf", fallback: "性能" });
-  // 视锥裁剪 toggle
-  nodes.push({
+  // ⚡ 性能分组
+  nodes.push(bsBuildSectionTitle("settings-perf-header", "preview.settingsPerf", "性能"));
+  nodes.push(bsBuildFrustumCullToggle());
+  nodes.push(bsBuildFpsSelect());
+  // 🎨 画质分组
+  nodes.push(bsBuildSectionTitle("settings-quality-header", "preview.settingsQuality", "画质"));
+  nodes.push(bsBuildPixelRatioSlider());
+  const ppCap = sceneCapabilityRegistry.getById("postprocessing") as
+    | (import("../caps/postprocessing-capability.ts").PostprocessingCapability & {
+        setEnabled(v: boolean): void;
+        isEnabled(): boolean;
+      })
+    | undefined;
+  if (ppCap) nodes.push(bsBuildBloomToggle(ppCap));
+  const skyCap = sceneCapabilityRegistry.getById("sky") as
+    | (import("../caps/sky-capability.ts").SkyCapability & {
+        setEnvironmentEnabled(v: boolean): void;
+        isEnvironmentEnabled(): boolean;
+      })
+    | undefined;
+  if (skyCap) nodes.push(bsBuildPmremToggle(skyCap));
+  nodes.push(bsBuildNote());
+  return nodes;
+}
+
+function bsBuildSectionTitle(id: string, labelKey: string, fallback: string): PreviewMenuNode {
+  return { id, kind: "sectionTitle", labelKey, fallback };
+}
+
+function bsMakeSlideRow(): HTMLDivElement {
+  const row = document.createElement("div");
+  row.className = "slide-item";
+  row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+  return row;
+}
+
+function bsMakeSlideLabel(textKey: string, textFallback: string, extraStyle?: string): HTMLSpanElement {
+  const label = document.createElement("span");
+  label.className = "slide-label";
+  label.textContent = tr(textKey, textFallback);
+  label.style.cssText = extraStyle ?? "font-size:12px";
+  return label;
+}
+
+function bsBuildFrustumCullToggle(): PreviewMenuNode {
+  return {
     id: "settings-frustum-cull",
     kind: "custom",
     labelKey: "preview.settingsFrustumCull",
     fallback: "视锥裁剪",
     renderCustom: (list: HTMLElement): void => {
-      const row = document.createElement("div");
-      row.className = "slide-item";
-      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+      const row = bsMakeSlideRow();
       const labelBox = document.createElement("div");
       labelBox.style.cssText = "flex:1;display:flex;align-items:center;gap:8px;min-width:0";
-      const label = document.createElement("span");
-      label.className = "slide-label";
-      label.textContent = tr("preview.settingsFrustumCull", "视锥裁剪");
-      label.style.fontSize = "12px";
+      const label = bsMakeSlideLabel("preview.settingsFrustumCull", "视锥裁剪");
       const hint = document.createElement("span");
       hint.style.cssText = "font-size:11px;color:rgba(255,255,255,0.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
       hint.textContent = tr("preview.settingsFrustumCullHint", "镜头外模型跳过渲染，省 GPU");
@@ -1543,21 +1580,18 @@ function buildSettingsSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
       row.append(labelBox, toggle);
       list.appendChild(row);
     },
-  });
-  // 帧率上限 select
-  nodes.push({
+  };
+}
+
+function bsBuildFpsSelect(): PreviewMenuNode {
+  return {
     id: "settings-fps",
     kind: "custom",
     labelKey: "preview.settingsMaxFps",
     fallback: "帧率上限",
     renderCustom: (list: HTMLElement): void => {
-      const row = document.createElement("div");
-      row.className = "slide-item";
-      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-      const label = document.createElement("span");
-      label.className = "slide-label";
-      label.textContent = tr("preview.settingsMaxFps", "帧率上限");
-      label.style.cssText = "flex:1;font-size:12px";
+      const row = bsMakeSlideRow();
+      const label = bsMakeSlideLabel("preview.settingsMaxFps", "帧率上限", "flex:1;font-size:12px");
       const sel = document.createElement("select");
       sel.className = "setting-select";
       sel.style.cssText = "font-size:11px;padding:2px 4px";
@@ -1581,11 +1615,11 @@ function buildSettingsSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
       row.append(label, sel);
       list.appendChild(row);
     },
-  });
-  // 🎨 画质分组标题
-  nodes.push({ id: "settings-quality-header", kind: "sectionTitle", labelKey: "preview.settingsQuality", fallback: "画质" });
-  // 渲染分辨率上限 slider
-  nodes.push({
+  };
+}
+
+function bsBuildPixelRatioSlider(): PreviewMenuNode {
+  return {
     id: "settings-pixel-ratio",
     kind: "custom",
     labelKey: "preview.settingsMaxPixelRatio",
@@ -1597,9 +1631,7 @@ function buildSettingsSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
       row.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
       const head = document.createElement("div");
       head.style.cssText = "display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.7)";
-      const name = document.createElement("span");
-      name.className = "slide-label";
-      name.textContent = tr("preview.settingsMaxPixelRatio", "渲染分辨率上限");
+      const name = bsMakeSlideLabel("preview.settingsMaxPixelRatio", "渲染分辨率上限");
       const val = document.createElement("span");
       val.textContent = `${resCap.toFixed(2)}x`;
       head.append(name, val);
@@ -1618,75 +1650,68 @@ function buildSettingsSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
       row.append(head, slider);
       list.appendChild(row);
     },
-  });
-  // Bloom 开关（cap 存在时）
-  const ppCap = sceneCapabilityRegistry.getById("postprocessing") as
-    | (import("../caps/postprocessing-capability.ts").PostprocessingCapability & {
-        setEnabled(v: boolean): void;
-        isEnabled(): boolean;
-      })
-    | undefined;
-  if (ppCap) {
-    nodes.push({
-      id: "settings-bloom",
-      kind: "custom",
-      labelKey: "preview.settingsBloom",
-      fallback: "Bloom 辉光",
-      renderCustom: (list: HTMLElement): void => {
-        const row = document.createElement("div");
-        row.className = "slide-item";
-        row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-        const label = document.createElement("span");
-        label.className = "slide-label";
-        label.textContent = tr("preview.settingsBloom", "Bloom 辉光");
-        label.style.cssText = "flex:1;font-size:12px";
-        const toggle = createHeaderToggle({
-          value: ppCap.isEnabled(),
-          onChange: (v: boolean): void => ppCap.setEnabled(v),
-          bind: (): boolean => ppCap.isEnabled(),
-        });
-        row.append(label, toggle);
-        list.appendChild(row);
-      },
-    });
+  };
+}
+
+function bsBuildBloomToggle(
+  ppCap: import("../caps/postprocessing-capability.ts").PostprocessingCapability & {
+    setEnabled(v: boolean): void;
+    isEnabled(): boolean;
   }
-  // PMREM 开关（cap 存在时）
-  const skyCap = sceneCapabilityRegistry.getById("sky") as
-    | (import("../caps/sky-capability.ts").SkyCapability & {
-        setEnvironmentEnabled(v: boolean): void;
-        isEnvironmentEnabled(): boolean;
-      })
-    | undefined;
-  if (skyCap) {
-    nodes.push({
-      id: "settings-pmrem",
-      kind: "custom",
-      labelKey: "preview.settingsPmrem",
-      fallback: "PMREM 环境光",
-      renderCustom: (list: HTMLElement): void => {
-        const row = document.createElement("div");
-        row.className = "slide-item";
-        row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-        const label = document.createElement("span");
-        label.className = "slide-label";
-        label.textContent = tr("preview.settingsPmrem", "PMREM 环境光");
-        label.style.cssText = "flex:1;font-size:12px";
-        const toggle = createHeaderToggle({
-          value: skyCap.isEnvironmentEnabled(),
-          onChange: (v: boolean): void => skyCap.setEnvironmentEnabled(v),
-          bind: (): boolean => skyCap.isEnvironmentEnabled(),
-        });
-        row.append(label, toggle);
-        list.appendChild(row);
-      },
-    });
+): PreviewMenuNode {
+  return {
+    id: "settings-bloom",
+    kind: "custom",
+    labelKey: "preview.settingsBloom",
+    fallback: "Bloom 辉光",
+    renderCustom: (list: HTMLElement): void => {
+      const row = bsMakeSlideRow();
+      const label = bsMakeSlideLabel("preview.settingsBloom", "Bloom 辉光", "flex:1;font-size:12px");
+      const toggle = createHeaderToggle({
+        value: ppCap.isEnabled(),
+        onChange: (v: boolean): void => ppCap.setEnabled(v),
+        bind: (): boolean => ppCap.isEnabled(),
+      });
+      row.append(label, toggle);
+      list.appendChild(row);
+    },
+  };
+}
+
+function bsBuildPmremToggle(
+  skyCap: import("../caps/sky-capability.ts").SkyCapability & {
+    setEnvironmentEnabled(v: boolean): void;
+    isEnvironmentEnabled(): boolean;
   }
-  // 说明文字
-  nodes.push({ id: "settings-note", kind: "custom", renderCustom: (list) => {
-    const note = document.createElement("div");
-    note.style.cssText = "padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5";
-    note.textContent = tr("preview.settingsNote", "分辨率上限需重新进入 3D 预览生效；其余开关即时生效。");
-    list.appendChild(note);
-  }});
-  return nodes;
+): PreviewMenuNode {
+  return {
+    id: "settings-pmrem",
+    kind: "custom",
+    labelKey: "preview.settingsPmrem",
+    fallback: "PMREM 环境光",
+    renderCustom: (list: HTMLElement): void => {
+      const row = bsMakeSlideRow();
+      const label = bsMakeSlideLabel("preview.settingsPmrem", "PMREM 环境光", "flex:1;font-size:12px");
+      const toggle = createHeaderToggle({
+        value: skyCap.isEnvironmentEnabled(),
+        onChange: (v: boolean): void => skyCap.setEnvironmentEnabled(v),
+        bind: (): boolean => skyCap.isEnvironmentEnabled(),
+      });
+      row.append(label, toggle);
+      list.appendChild(row);
+    },
+  };
+}
+
+function bsBuildNote(): PreviewMenuNode {
+  return {
+    id: "settings-note",
+    kind: "custom",
+    renderCustom: (list: HTMLElement): void => {
+      const note = document.createElement("div");
+      note.style.cssText = "padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5";
+      note.textContent = tr("preview.settingsNote", "分辨率上限需重新进入 3D 预览生效；其余开关即时生效。");
+      list.appendChild(note);
+    },
+  };
 }
