@@ -550,6 +550,7 @@ export const en: Record<string, string> = {
   "sidebar.loadFailed": "Failed to load modpack list",
   "sidebar.loadFailedDetail": "Failed to read modpack",
   "sidebar.allTypes": "All Types",
+  "sidebar.installAll": "Install All",
   "sidebar.pushSelected": "Push Selected",
   "sidebar.pullSelected": "Pull Selected",
   "sidebar.syncFully": "Fully Synced",

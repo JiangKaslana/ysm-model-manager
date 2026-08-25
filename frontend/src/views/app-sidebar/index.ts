@@ -26,6 +26,7 @@ import type { loadInstances } from "./loader.ts";
 import type { SidebarInstance } from "./data.ts";
 import { getApp } from "../../backend/app.ts";
 import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
+import { t } from "../../core/i18n/t.ts";
 
 // 持久化勾选状态（跨重新渲染保持），按 rtype 隔离避免类型切换串扰
 const _checkedSets = new Map<string, Set<string>>();
@@ -78,7 +79,7 @@ class AppSidebar extends WebComponentBase {
       // 更新导入按钮文字
       const btn = this._root.querySelector(".sidebar-import-all");
       if (btn) {
-        btn.textContent = "⬇️ 一键安装" + (RESOURCE_TYPE_LABELS[this._rtype] || "资源");
+        btn.textContent = "⬇️ " + t("sidebar.installAll") + (RESOURCE_TYPE_LABELS[this._rtype] || t("format.resources"));
       }
     }
   }
@@ -348,7 +349,7 @@ class AppSidebar extends WebComponentBase {
         bus.emit("toast:show", { msg: "❌ 拉取失败: " + (safeErrorMessage(err)), duration: 3000, type: "error" });
       } finally {
         // 意外 throw 也必须恢复按钮与锁（陷阱 #3：按钮卡死根因）
-        pullBtn.textContent = "⬇️ 拉取所选 ▾";
+        pullBtn.textContent = "⬇️ " + t("sidebar.pullSelected") + " ▾";
         pullBtn.disabled = false;
         this._syncInProgress = false;
       }
