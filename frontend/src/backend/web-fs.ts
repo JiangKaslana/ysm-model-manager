@@ -1079,14 +1079,17 @@ function validateGroupHasUsableMain(group: File[]): boolean {
 
 /**
  * [子函数 5/6] 组写入主流程：遍历文件落 IDB → 写 dirKey 目录条目。
- * 返回 { success, fileFails, writtenKeys }。success=false 表示无任何文件写入。
+ * 返回 { success, fileFails }。success=false 表示无任何文件写入。
+ * writtenKeys 为调用方传入的**累积器**（out-param）：每次写入成功即 push，
+ * 中途抛错时调用方 catch 仍能拿到已落盘的 key 做回滚（若用局部数组只在成功路径
+ * 返回，idbSet 中途抛错会丢——P2 回归：回滚 no-op 留下孤儿条目）。
  */
 async function writeGroupFiles(
   group: File[],
   type: string,
-  stem: string
-): Promise<{ success: boolean; fileFails: number; writtenKeys: WrittenKey[] }> {
-  const writtenKeys: WrittenKey[] = [];
+  stem: string,
+  writtenKeys: WrittenKey[],
+): Promise<{ success: boolean; fileFails: number }> {
   let wrote = false;
   let fileFails = 0;
 
@@ -1107,14 +1110,14 @@ async function writeGroupFiles(
     wrote = true;
   }
 
-  if (!wrote) return { success: false, fileFails, writtenKeys };
+  if (!wrote) return { success: false, fileFails };
 
   const dk = dirKey(type, stem);
   const dkPreExisted = (await idbGet("files", dk)) !== undefined;
   await idbSet("files", dk, { name: stem, addedAt: Date.now() });
   writtenKeys.push({ key: dk, preExisted: dkPreExisted });
 
-  return { success: true, fileFails, writtenKeys };
+  return { success: true, fileFails };
 }
 
 /**
@@ -1160,12 +1163,12 @@ export async function importWebFiles(
       failed += group.length;
       continue;
     }
-    // writtenKeys 提到 try 外层，确保 catch 回滚时能拿到「已成功写入」的部分
-    // （写半中间崩了也要把已落盘的本次新建 key 清掉）
-    let writtenKeys: WrittenKey[] = [];
+    // writtenKeys 累积器传入 writeGroupFiles（out-param）：每次写入成功即 push，
+    // 中途抛错时 catch 仍能拿到已落盘的 key 做回滚（若在 writeGroupFiles 内用局部
+    // 数组只在成功路径返回，idbSet 中途抛错会丢——P2 回归：回滚 no-op 留下孤儿条目）。
+    const writtenKeys: WrittenKey[] = [];
     try {
-      const result = await writeGroupFiles(group, type, stem);
-      writtenKeys = result.writtenKeys;
+      const result = await writeGroupFiles(group, type, stem, writtenKeys);
       if (!result.success) {
         failed += group.length;
         continue;
