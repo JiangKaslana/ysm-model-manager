@@ -845,116 +845,191 @@ function ensureMenuStyles(): void {
  * 这是「单一渲染器吃树数据」的落点：新增/迁移菜单项时写 PreviewMenuNode 数据即可，
  * 渲染逻辑不随菜单项膨胀（对齐 MikuMikuAR renderMenu 范式）。
  */
-export function renderMenu(
-  container: HTMLElement,
-  nodes: PreviewMenuNode[],
-  deps: {
-    makeRow: (node: PreviewMenuNode, opts?: { chevron?: boolean }) => HTMLElement;
-    makePanelView: (node: PreviewMenuNode) => SlideMenuView;
-    menu: SlideMenuHandle;
-    actionCtx: PreviewActionMenuCtx;
-  },
+// ===================================================================
+// renderMenu — 子函数（8 kind 分派拆 6 子，2 段 onclick 模式⑥提纯）
+// ===================================================================
+
+/** renderMenu 依赖接口（deps 形参类型提级，避免主函数里重复写 8 行参数表） */
+interface RenderMenuDeps {
+  makeRow: (node: PreviewMenuNode, opts?: { chevron?: boolean }) => HTMLElement;
+  makePanelView: (node: PreviewMenuNode) => SlideMenuView;
+  menu: SlideMenuHandle;
+  actionCtx: PreviewActionMenuCtx;
+}
+
+/** 统一 label 取值：labelKey→tr(fallback)；无 labelKey 直接用 node.id */
+function rmLabel(node: PreviewMenuNode, valueOverride?: unknown): string {
+  if (node.labelKey) return tr(node.labelKey, node.fallback ?? (valueOverride !== undefined ? String(valueOverride) : node.id));
+  return valueOverride !== undefined ? String(valueOverride) : node.id;
+}
+
+/** [模式⑥·提纯 1/2] 通用 action click：ev.stopPropagation + void action?(actionCtx)，button/row 两段同构共用 */
+function rmBindActionClick(
+  el: HTMLElement,
+  action: ((ctx: PreviewActionMenuCtx) => unknown) | undefined,
+  actionCtx: PreviewActionMenuCtx,
 ): void {
+  el.addEventListener("click", (ev: MouseEvent): void => {
+    ev.stopPropagation();
+    if (action) void action(actionCtx);
+  });
+}
+
+/** [模式⑥·提纯 2/2] 叶节点 click：panel navigate / action 执行，共用 stopPropagation */
+function rmBindLeafClick(
+  row: HTMLElement,
+  node: PreviewMenuNode,
+  deps: RenderMenuDeps,
+): void {
+  row.onclick = (ev: MouseEvent): void => {
+    ev.stopPropagation();
+    if (node.kind === "panel") {
+      deps.menu.navigate(deps.makePanelView(node));
+    } else if (node.action) {
+      node.action(deps.actionCtx);
+    }
+  };
+}
+
+/** [子函数 1/6] folder：可折叠 section，递归 renderMenu 渲染 children */
+function rmAppendFolder(
+  container: HTMLElement,
+  node: PreviewMenuNode,
+  deps: RenderMenuDeps,
+): void {
+  const children = node.children ?? [];
+  if (children.length === 0) return;
+  const section = document.createElement("div");
+  section.dataset.testid = node.id;
+  const header = document.createElement("div");
+  header.className = "cap-section-header";
+  const collapsed = node.defaultOpen === false;
+  const arrow = document.createElement("span");
+  arrow.textContent = collapsed ? "▸" : "▾";
+  arrow.className = "cap-section-arrow";
+  const title = document.createElement("span");
+  title.textContent = rmLabel(node);
+  header.append(arrow, title);
+  const body = document.createElement("div");
+  body.dataset.testid = node.id + "-body";
+  body.style.cssText = "display:" + (collapsed ? "none" : "block");
+  header.addEventListener("click", (ev: MouseEvent): void => {
+    ev.stopPropagation();
+    const nowCollapsed = body.style.display === "none";
+    body.style.display = nowCollapsed ? "block" : "none";
+    arrow.textContent = nowCollapsed ? "▾" : "▸";
+  });
+  renderMenu(body, children, deps);
+  section.append(header, body);
+  container.appendChild(section);
+}
+
+/** [子函数 2/6] field：键值对行（统计/信息展示） */
+function rmAppendField(container: HTMLElement, node: PreviewMenuNode): void {
+  const row = document.createElement("div");
+  row.className = "slide-item field-row";
+  row.dataset.testid = "preview-" + node.id;
+  const k = document.createElement("span");
+  k.className = "field-label";
+  k.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id;
+  const displayed = node.value ?? (node.labelKey ? tr(node.labelKey, node.id) : node.id);
+  const v = document.createElement("span");
+  v.className = "field-value";
+  v.textContent = String(displayed);
+  row.append(k, v);
+  container.appendChild(row);
+}
+
+/** [子函数 3/6] button：操作按钮行 */
+function rmAppendButton(container: HTMLElement, node: PreviewMenuNode, actionCtx: PreviewActionMenuCtx): void {
+  const row = document.createElement("div");
+  row.className = "slide-item";
+  row.dataset.testid = "preview-" + node.id;
+  if (node.icon) {
+    const ic = document.createElement("span");
+    ic.className = "slide-icon";
+    ic.textContent = node.icon;
+    row.appendChild(ic);
+  }
+  const lb = document.createElement("span");
+  lb.className = "slide-label";
+  lb.textContent = rmLabel(node);
+  row.appendChild(lb);
+  rmBindActionClick(row, node.action, actionCtx);
+  container.appendChild(row);
+}
+
+/** [子函数 4/6] row：动态列表行（纹理/材质/bone 等） */
+function rmAppendDynamicRow(container: HTMLElement, node: PreviewMenuNode, actionCtx: PreviewActionMenuCtx): void {
+  const row = document.createElement("div");
+  row.className = "slide-item";
+  row.dataset.testid = "preview-" + node.id;
+  if (node.icon) {
+    const ic = document.createElement("span");
+    ic.className = "slide-icon";
+    ic.textContent = node.icon;
+    row.appendChild(ic);
+  }
+  const lb = document.createElement("span");
+  lb.className = "slide-label";
+  lb.style.cssText = "font-size:12px";
+  lb.textContent = rmLabel(node, node.value || node.id);
+  row.appendChild(lb);
+  if (node.value && typeof node.value === "string") {
+    const meta = document.createElement("span");
+    meta.className = "slide-sublabel";
+    meta.textContent = node.value;
+    row.appendChild(meta);
+  }
+  rmBindActionClick(row, node.action, actionCtx);
+  container.appendChild(row);
+}
+
+/** [子函数 5/6] divider + sectionTitle：两个轻量节点共用 tiny 子函数 */
+function rmAppendDecor(container: HTMLElement, node: PreviewMenuNode): void {
+  if (node.kind === "divider") {
+    const hr = document.createElement("div");
+    hr.dataset.testid = node.id;
+    hr.className = "menu-divider";
+    container.appendChild(hr);
+    return;
+  }
+  // sectionTitle
+  const st = document.createElement("div");
+  st.dataset.testid = node.id;
+  st.textContent = rmLabel(node);
+  st.className = "section-title";
+  container.appendChild(st);
+}
+
+/** [子函数 6/6] 叶节点：panel / action / custom —— 直接走 makeRow + navigate/action */
+function rmAppendLeaf(container: HTMLElement, node: PreviewMenuNode, deps: RenderMenuDeps): void {
+  const row = deps.makeRow(node, { chevron: node.kind === "panel" });
+  rmBindLeafClick(row, node, deps);
+  container.appendChild(row);
+}
+
+// ===================================================================
+// renderMenu — 主函数（分派器，≤25 行）
+// ===================================================================
+
+export function renderMenu(container: HTMLElement, nodes: PreviewMenuNode[], deps: RenderMenuDeps): void {
   ensureMenuStyles();
   for (const node of nodes) {
     if (node.visibleWhen && !node.visibleWhen()) continue;
-    // folder：可折叠 section（kind==="folder" 或有 children）
     if (node.kind === "folder" || Array.isArray(node.children)) {
-      const children = node.children ?? [];
-      if (children.length === 0) continue;
-      const section = document.createElement("div");
-      section.dataset.testid = node.id;
-      const header = document.createElement("div");
-      header.className = "cap-section-header";
-      const collapsed = node.defaultOpen === false;
-      const arrow = document.createElement("span");
-      arrow.textContent = collapsed ? "▸" : "▾";
-      arrow.className = "cap-section-arrow";
-      const title = document.createElement("span");
-      title.textContent = node.labelKey ? tr(node.labelKey, node.fallback ?? node.id) : node.id;
-      header.append(arrow, title);
-      const body = document.createElement("div");
-      body.dataset.testid = node.id + "-body";
-      body.style.cssText = "display:" + (collapsed ? "none" : "block");
-      header.addEventListener("click", (ev: MouseEvent): void => {
-        ev.stopPropagation();
-        const nowCollapsed = body.style.display === "none";
-        body.style.display = nowCollapsed ? "block" : "none";
-        arrow.textContent = nowCollapsed ? "▾" : "▸";
-      });
-      renderMenu(body, children, deps);
-      section.append(header, body);
-      container.appendChild(section);
-      continue;
+      rmAppendFolder(container, node, deps);
+    } else if (node.kind === "field") {
+      rmAppendField(container, node);
+    } else if (node.kind === "button") {
+      rmAppendButton(container, node, deps.actionCtx);
+    } else if (node.kind === "row") {
+      rmAppendDynamicRow(container, node, deps.actionCtx);
+    } else if (node.kind === "divider" || node.kind === "sectionTitle") {
+      rmAppendDecor(container, node);
+    } else {
+      rmAppendLeaf(container, node, deps);
     }
-    // field: 键值对行（统计/信息展示）
-    if (node.kind === "field") {
-      const row = document.createElement("div");
-      row.className = "slide-item field-row";
-      row.dataset.testid = "preview-" + node.id;
-      const k = document.createElement("span"); k.className = "field-label"; k.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id;
-      const v = document.createElement("span"); v.className = "field-value"; v.textContent = String(node.value ?? (node.labelKey ? tr(node.labelKey, node.id) : node.id));
-      row.append(k, v);
-      container.appendChild(row);
-      continue;
-    }
-    // button: 操作按钮行
-    if (node.kind === "button") {
-      const row = document.createElement("div");
-      row.className = "slide-item";
-      row.dataset.testid = "preview-" + node.id;
-      if (node.icon) { const ic = document.createElement("span"); ic.className = "slide-icon"; ic.textContent = node.icon; row.appendChild(ic); }
-      const lb = document.createElement("span"); lb.className = "slide-label"; lb.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id; row.appendChild(lb);
-      row.addEventListener("click", (ev: MouseEvent): void => {
-        ev.stopPropagation();
-        void node.action?.(deps.actionCtx);
-      });
-      container.appendChild(row);
-      continue;
-    }
-    // row: 动态列表行（纹理/材质/bone 等）
-    if (node.kind === "row") {
-      const row = document.createElement("div");
-      row.className = "slide-item";
-      row.dataset.testid = "preview-" + node.id;
-      if (node.icon) { const ic = document.createElement("span"); ic.className = "slide-icon"; ic.textContent = node.icon; row.appendChild(ic); }
-      const lb = document.createElement("span"); lb.className = "slide-label"; lb.style.cssText = "font-size:12px"; lb.textContent = node.labelKey ? tr(node.labelKey, String(node.value || node.id)) : String(node.value || node.id); row.appendChild(lb);
-      if (node.value && typeof node.value === "string") { const meta = document.createElement("span"); meta.className = "slide-sublabel"; meta.textContent = node.value; row.appendChild(meta); }
-      row.addEventListener("click", (ev: MouseEvent): void => {
-        ev.stopPropagation();
-        void node.action?.(deps.actionCtx);
-      });
-      container.appendChild(row);
-      continue;
-    }
-    // divider：轻量分隔线
-    if (node.kind === "divider") {
-      const hr = document.createElement("div");
-      hr.dataset.testid = node.id;
-      hr.className = "menu-divider";
-      container.appendChild(hr);
-      continue;
-    }
-    // sectionTitle：小标题行（不折叠）
-    if (node.kind === "sectionTitle") {
-      const st = document.createElement("div");
-      st.dataset.testid = node.id;
-      st.textContent = node.labelKey ? tr(node.labelKey, node.fallback ?? node.id) : node.id;
-      st.className = "section-title";
-      container.appendChild(st);
-      continue;
-    }
-    // 叶节点：panel / action / custom —— 直接走 makeRow/navigate/action
-    const row = deps.makeRow(node, { chevron: node.kind === "panel" });
-    row.onclick = (ev: MouseEvent): void => {
-      ev.stopPropagation();
-      if (node.kind === "panel") {
-        deps.menu.navigate(deps.makePanelView(node));
-      } else if (node.action) {
-        node.action(deps.actionCtx);
-      }
-    };
-    container.appendChild(row);
   }
 }
 
