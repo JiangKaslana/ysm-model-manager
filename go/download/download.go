@@ -164,7 +164,7 @@ func isRetryableError(err error) bool {
 	if errors.As(err, &netErr) {
 		return true
 	}
-	return errors.Is(err, io.ErrUnexpectedEOF)
+	return errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, ErrTruncated)
 }
 
 // retryDownload downloadTo 的退避重试外壳：默认（retry=nil）直接透传不重试；

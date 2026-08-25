@@ -3,10 +3,12 @@ package download
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -140,5 +142,40 @@ func TestRetry_NetworkError_RetriesThenSucceeds(t *testing.T) {
 	}).WithRetry(3, time.Millisecond)
 	if err := dl.File(context.Background(), ts.URL, filepath.Join(t.TempDir(), "f.txt"), nil); err != nil {
 		t.Fatalf("网络错误重试后应成功，got %v", err)
+	}
+}
+
+// truncatingTransport 前 N 次声明 Content-Length 但少写字节（clean EOF 截断），
+// 之后透传真实 transport。模拟代理提前关闭连接——TruncationError 应被重试。
+type truncatingTransport struct {
+	rt       http.RoundTripper
+	failures int
+}
+
+func (t *truncatingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.failures > 0 {
+		t.failures--
+		// 声明 10 字节但只写 3 字节 → downloadTo 检测 downloaded < total → TruncationError
+		return &http.Response{
+			StatusCode:    http.StatusOK,
+			ContentLength: 10,
+			Body:          io.NopCloser(strings.NewReader("abc")),
+			Header:        make(http.Header),
+		}, nil
+	}
+	return t.rt.RoundTrip(req)
+}
+
+func TestRetry_TruncationRetried(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	}))
+	defer ts.Close()
+
+	dl := NewWithClient(&http.Client{
+		Transport: &truncatingTransport{rt: ts.Client().Transport, failures: 2},
+	}).WithRetry(3, time.Millisecond)
+	if err := dl.File(context.Background(), ts.URL, filepath.Join(t.TempDir(), "f.txt"), nil); err != nil {
+		t.Fatalf("截断错误重试后应成功，got %v", err)
 	}
 }
