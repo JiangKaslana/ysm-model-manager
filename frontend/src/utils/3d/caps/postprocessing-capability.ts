@@ -111,7 +111,6 @@ const SSRPASS_OUTPUT_DEFAULT = 0;
 /* ============ getMenuControls 拆分：4 个包级函数（前缀 ppc 防冲突） ============ */
 
 function ppcBuildBasic(cap: PostprocessingCapability): MenuControlDef[] {
-  const params = cap.getParams();
   return [
     {
       id: "pp-enabled",

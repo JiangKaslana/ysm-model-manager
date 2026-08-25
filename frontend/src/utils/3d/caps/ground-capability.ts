@@ -165,6 +165,7 @@ export class GroundCapability implements SceneCapability {
     surface.rotation.x = -Math.PI / 2;
     surface.position.y = 0.005;
     surface.name = "ysm-ground-surface";
+    this.surface = surface; // 先挂成员再刷新（refreshSurface→rebuildSurface 会解引用 this.surface）
     this.refreshSurface();
     return surface;
   }
