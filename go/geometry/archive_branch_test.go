@@ -468,7 +468,8 @@ func TestParseComponentsFromZip_NoDeclarations(t *testing.T) {
 		t.Errorf("组件 0 = %q, 期望 head（main 优先）", comps[0].Bones[0].Name)
 	}
 	// ADR-114 perComponent：无纹理声明时 cube.TexSlot=0（每组件用自己的第 0 张）
-	for i, want := range []string{"main", "arm", "arrow"} {
+	// arm 与 main 共用皮肤（ModernYSM 权威）：texNames 置空、不填 ComponentTextures。
+	for i, want := range []string{"main", "", "arrow"} {
 		if texNames[i] != want {
 			t.Errorf("texNames[%d] = %q, 期望 %q", i, texNames[i], want)
 		}
@@ -750,9 +751,10 @@ func TestBuildComponents_ModelTexNameMap(t *testing.T) {
 		t.Errorf("组件 0 SourceName = %q, 期望 main", comps[0].SourceName)
 	}
 	// 关键断言：每个组件的 ComponentTextures 应绑定正确的同名纹理
+	// arm 除外：arm 与 main 共用同一套 player.texture 皮肤（ModernYSM 权威），
+	// 不填 ComponentTextures，前端走全局 texArr[0]。
 	wantCompTex := map[string]string{
 		"main":     "SKIN",
-		"arm":      "SKIN_W",
 		"foxcar":   "FOXCAR",
 		"minecart": "MINECART",
 		"boat":     "BOAT",
@@ -775,10 +777,9 @@ func TestBuildComponents_ModelTexNameMap(t *testing.T) {
 		}
 	}
 	// texNames：每组件一个期望纹理名（用于 R1 契约校验）
-	// foxcar/minecart/boat：player.texture 有 8 项但 texOrder 去重后 7 项。
-	// 修复后按 basename 直接查 modelTexName，不依赖索引对齐。
-	// minecart/boat 没有 projModels 声明，declaredTexName 为空 → fallback basename。
-	wantTexNames := []string{"skin", "skin_white", "foxcar", "minecart", "boat"}
+	// arm 与 main 共用同一套 player.texture 皮肤（ModernYSM 权威）：
+	// arm 的 texNames 置空、ComponentTextures 为空，前端走全局 texArr[0]。
+	wantTexNames := []string{"skin", "", "foxcar", "minecart", "boat"}
 	if len(texNames) != len(wantTexNames) {
 		t.Errorf("texNames 长度 = %d, 期望 %d", len(texNames), len(wantTexNames))
 	}

@@ -33,9 +33,18 @@ func readFileLimited(path string) []byte {
 	return fsutil.ReadLimitedEntry(f, maxReadSize)
 }
 
-// isArmModelName 判断模型文件是否为第一人称手臂模型（arm.json / arm.geo.json）。
-// 该类文件是游戏第一人称视角的手臂几何，与 main.json 的手臂重叠，
-// 合并会渲染出两对手臂，加载时须排除。
+// isArmModelName 判断模型文件是否为第一人称手持视角的独立手臂几何
+// （arm.json / arm.geo.json）。
+//
+// 权威来源（ModernYSM MainModelData）：main 和 arm 是 models 列表里的两个
+// 独立 GeoModel（get(0)=main, get(1)=arm），两者共用同一套 textureMap
+// （files.player.texture），通过 textureIndex 选皮肤。arm 的几何与 main 的
+// 手臂几何不同（pivot/位置不同），用于游戏内第一人称手持物品视角
+// （RenderFirstPlayerBackground 用 renderPartMask=3 渲染 armModel）。
+//
+// 合并版（FindGeometryInExtractedYSM）在全身第三人称预览中不需要 arm 的
+// 第一人称手臂几何，剔除避免错位；组件版（FindComponentsInExtractedYSM）
+// 保留 arm 作为独立组件，供多组件切换查看。
 func isArmModelName(name string) bool {
 	base := strings.ToLower(name)
 	if idx := strings.LastIndexAny(base, "/\\"); idx >= 0 {
@@ -160,8 +169,9 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 	dir := filepath.Dir(ysmJsonPath)
 
 	// 加载全部模型文件（main 排首位 texIdx=0），但排除第一人称手臂模型 arm.json：
-	// arm 是游戏第一人称视角的手臂几何，与 main.json 的手臂（第三人称全身已含）重叠，
-	// 合并会渲染出两对手臂（双手臂问题）。
+	// arm 是第一人称手持视角的独立手臂几何（pivot 与 main 的手臂不同），
+	// 合并版在全身第三人称预览中不需要此几何，剔除避免错位。
+	// 详见 isArmModelName 注释的权威来源。
 	var orderedNames []string
 	if modelMapOrig != nil {
 		if mainPath, ok := modelMapOrig["main"]; ok {
@@ -604,9 +614,16 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 				if geoData != nil {
 					gj := geometry.ParseBedrockGeometry(geoData)
 					if gj != nil {
+						// arm 是第一人称手持视角的独立手臂几何（见 isArmModelName
+						// 注释的权威来源），与 main 共用同一套 player.texture 皮肤。
+						// arm 不填 ComponentTextures、texSlot=0（贴 texArr[0] 默认皮肤）、
+						// texNames 置空（前端 R1 校验跳过空值）——与 buildComponents 口径一致。
+						isArm := isArmModelName(mn)
 						onDeclTex := false
 						texSlot := len(texOrderNames) + undeclSeq
-						if j, declared := declPos[mn]; declared && len(texOrderNames) > 0 {
+						if isArm {
+							texSlot = 0
+						} else if j, declared := declPos[mn]; declared && len(texOrderNames) > 0 {
 							onDeclTex = j < len(texOrderNames)
 							if onDeclTex {
 								texSlot = j // 已声明且在纹理声明范围内：贴 texArr[j]
@@ -622,7 +639,9 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 						// 未声明组件（按名段）同名纹理兜底（perComponent）：命中挂
 						// ComponentTextures、texNames 置空（前端 R1 校验跳过空值）；
 						// 已声明组件不填——保留全局 texArr[texSlot] 多皮肤切换语义。
-						if !onDeclTex {
+						// arm 不走此分支（isArm 时 onDeclTex 保持 false 但 texSlot 已强制 0，
+						// 且 arm 不应填 ComponentTextures——与 main 共用全局 texArr[0]）。
+						if !onDeclTex && !isArm {
 							if pngPath, ok := pngNameMap[tn]; ok {
 								if pngData := readFileLimited(pngPath); pngData != nil {
 									gj.ComponentTextures = map[string][]string{
@@ -639,15 +658,21 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 											gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
 										}
 									}
+									log.Printf("[ysm] 加载模型组件 %q (texIdx=%d, name=%q)", candidate, 0, base)
 									comps = append(comps, *gj)
 									break
 								}
 							}
 						}
-						texNames = append(texNames, tn)
+						// arm 的 texNames 置空（前端 R1 校验跳过，arm 走全局 texArr[0]）
+						if isArm {
+							texNames = append(texNames, "")
+						} else {
+							texNames = append(texNames, tn)
+						}
 						// SourceName = 组件源模型文件名（去扩展名，如 main/arm/arrow），UI 组件名用
 						gj.SourceName = strings.TrimSuffix(strings.TrimSuffix(base, ".geo.json"), ".json")
-						// TexSlot = 声明序位置（texArr 全局索引；未声明=按名段）
+						// TexSlot = 声明序位置（texArr 全局索引；未声明=按名段；arm=0 共用 main 皮肤）
 						for bi := range gj.Bones {
 							for ci := range gj.Bones[bi].Cubes {
 								gj.Bones[bi].Cubes[ci].TexSlot = texSlot
@@ -655,6 +680,7 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 								gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
 							}
 						}
+						log.Printf("[ysm] 加载模型组件 %q (texIdx=%d, name=%q)", candidate, texSlot, gj.SourceName)
 						comps = append(comps, *gj)
 					}
 				}

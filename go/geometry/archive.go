@@ -19,9 +19,18 @@ import (
 // 共享 types.MaxReadLimit（索引 6.7+5.2，与 fileops/ysm 的 50MB 上限单点）
 const maxExtractSize = types.MaxReadLimit
 
-// isArmModelName 判断模型文件是否为第一人称手臂模型（arm.json / arm.geo.json）。
-// 该类文件是游戏第一人称视角的手臂几何，与 main.json 的手臂重叠，
-// 合并会渲染出两对手臂，加载时须排除。
+// isArmModelName 判断模型文件是否为第一人称手持视角的独立手臂几何
+// （arm.json / arm.geo.json）。
+//
+// 权威来源（ModernYSM MainModelData）：main 和 arm 是 models 列表里的两个
+// 独立 GeoModel（get(0)=main, get(1)=arm），两者共用同一套 textureMap
+// （files.player.texture），通过 textureIndex 选皮肤。arm 的几何与 main 的
+// 手臂几何不同（pivot/位置不同），用于游戏内第一人称手持物品视角
+// （RenderFirstPlayerBackground 用 renderPartMask=3 渲染 armModel）。
+//
+// 合并版（ParseFromZip）在全身第三人称预览中不需要 arm 的第一人称手臂几何，
+// 剔除避免错位；组件版（ParseComponentsFromZip / FindComponentsInExtractedYSM）
+// 保留 arm 作为独立组件，供多组件切换查看。
 func isArmModelName(name string) bool {
 	base := strings.ToLower(name)
 	if idx := strings.LastIndexAny(base, "/\\"); idx >= 0 {
@@ -31,8 +40,12 @@ func isArmModelName(name string) bool {
 	return base == "arm" || base == "arm.geo"
 }
 
-// filterArmModels 移除模型顺序表中的第一人称手臂模型占位：
-// 避免 arm.json 占据 texIdx 槽位导致 main 纹理错位。
+// filterArmModels 移除模型顺序表中的第一人称手臂模型占位。
+//
+// 合并版（ParseFromZip）把所有模型骨骼合并成一个 BedrockModel 渲染，
+// arm.json 的第一人称手臂几何在此场景下不需要，且其 pivot 与 main 的
+// 手臂不同会导致错位，因此剔除。组件版不走此过滤——arm 作为独立组件保留
+// （见 isArmModelName 注释的权威来源）。
 func filterArmModels(order []string) []string {
 	out := make([]string, 0, len(order))
 	for _, p := range order {
@@ -1300,20 +1313,26 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 		// 查组件声明的纹理名：按 basename 直接查 modelTexName 映射，不再依赖 modelOrder 索引。
 		// 修复 wine_fox 根因：texOrder 去重后长度 < modelOrder，按索引查表会错位。
 		declaredTexName := ""
-		if modelTexName != nil {
-			declaredTexName = modelTexName[filepath.ToSlash(gf.name)]
-		}
-		// fallback：按 compName 查（path 前缀可能被 strip，如 "models/foxcar.json" → 查不到，
-		// 此时用 basename）
-		if declaredTexName == "" && modelTexName != nil {
-			declaredTexName = modelTexName[compName]
-		}
-		// 未声明纹理的组件：同名 basename 纹理兜底（arm → arm.png；对齐 YSMViewer
-		// 每组件独立纹理口径——Go 端识别组件同名纹理，前端不再 fallback 全局贴错/灰。
-		// 三叉戟灰根因修复：投射物/子组件未声明纹理时 compTex 曾无条目）
-		if declaredTexName == "" {
-			if _, ok := pngNameMap[compName]; ok {
-				declaredTexName = compName
+		// arm 是第一人称手持视角的独立手臂几何（见 isArmModelName 注释的权威来源），
+		// 与 main 共用同一套 player.texture 皮肤。arm 不填 ComponentTextures、不查
+		// 声明纹理——前端走全局 texArr[textureIndex]，与 main 一起切皮肤。
+		isArm := isArmModelName(gf.name)
+		if !isArm {
+			if modelTexName != nil {
+				declaredTexName = modelTexName[filepath.ToSlash(gf.name)]
+			}
+			// fallback：按 compName 查（path 前缀可能被 strip，如 "models/foxcar.json" → 查不到，
+			// 此时用 basename）
+			if declaredTexName == "" && modelTexName != nil {
+				declaredTexName = modelTexName[compName]
+			}
+			// 未声明纹理的组件：同名 basename 纹理兜底（arm → arm.png；对齐 YSMViewer
+			// 每组件独立纹理口径——Go 端识别组件同名纹理，前端不再 fallback 全局贴错/灰。
+			// 三叉戟灰根因修复：投射物/子组件未声明纹理时 compTex 曾无条目）
+			if declaredTexName == "" {
+				if _, ok := pngNameMap[compName]; ok {
+					declaredTexName = compName
+				}
 			}
 		}
 
@@ -1335,15 +1354,20 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 		}
 
 		// 填 ComponentTextures[compName] = [texBase64]
+		// arm 不填（与 main 共用全局 texArr[0] 皮肤，见上 isArm 分支）
 		compTex := make(map[string][]string)
-		if texBase64 != "" {
+		if texBase64 != "" && !isArm {
 			compTex[compName] = []string{texBase64}
 		}
 
 		// texNames[i] = 组件声明的纹理名（无声明用 basename）
+		// arm 的 texNames 置空（前端 R1 校验跳过空值，arm 走全局 texArr[0]）
 		tn := compName
 		if declaredTexName != "" {
 			tn = declaredTexName
+		}
+		if isArm {
+			tn = ""
 		}
 		g.SourceName = compName
 		g.ComponentTextures = compTex

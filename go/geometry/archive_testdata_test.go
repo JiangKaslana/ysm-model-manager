@@ -51,6 +51,10 @@ func loadTestdataZip(t *testing.T) []byte {
 
 // TestComponentsFromRealSample 真实样本多组件契约：
 // main 优先 + 组件序 + TexSlot 全局化（无钳制）
+//
+// arm 纹理绑定变更（ModernYSM 权威）：arm 是第一人称手持视角的独立手臂几何，
+// 与 main 共用同一套 player.texture 皮肤。arm 不填 ComponentTextures、
+// texNames 置空、TexSlot=0（贴 texArr[0] 默认皮肤）。详见 isArmModelName 注释。
 func TestComponentsFromRealSample(t *testing.T) {
 	data := loadTestdataZip(t)
 	comps, texNames, err := ParseComponentsFromZip(data, int64(len(data)))
@@ -60,13 +64,9 @@ func TestComponentsFromRealSample(t *testing.T) {
 	if len(comps) != 2 {
 		t.Fatalf("期望 2 组件（main+arm）, 得到 %d", len(comps))
 	}
-	// R1 契约：组件序纹理名（i < len(texOrder) 用声明序纹理名），
-	// 与 TextureNames 同口径（去扩展名）
-	if len(texNames) != 2 {
-		t.Fatalf("texNames = %d, 期望 2", len(texNames))
-	}
-	if texNames[0] != "01tex" || texNames[1] != "02tex" {
-		t.Errorf("texNames = %v, 期望 [01tex 02tex]（ysm texture 声明序, 去扩展名）", texNames)
+	// arm texNames 置空（与 main 共用全局 texArr[0] 皮肤）
+	if texNames[0] != "01tex" || texNames[1] != "" {
+		t.Errorf("texNames = %v, 期望 [01tex ]（arm 与 main 共用皮肤，texNames 置空）", texNames)
 	}
 
 	names0 := make(map[string]bool)

@@ -69,12 +69,11 @@ func TestComponentTextures_Undeclared_SameNameFallback(t *testing.T) {
 	if armComp == nil {
 		t.Fatal("未找到 arm 组件")
 	}
-	// 修复后：arm.png 存在于 pngs + 同名兜底 → compTex["arm"] 应有 base64 条目
-	texs := armComp.ComponentTextures["arm"]
-	if len(texs) == 0 {
-		t.Errorf("同名纹理存在时应兜底绑定（arm → arm.png）, 实际 %v", armComp.ComponentTextures)
-	} else if !strings.HasPrefix(texs[0], "data:image/png;base64,") {
-		t.Errorf("compTex[arm][0] 应为 base64 data URI")
+	// arm 与 main 共用同一套 player.texture 皮肤（ModernYSM 权威，见 isArmModelName 注释）：
+	// arm 不走同名纹理兜底，不填 ComponentTextures，前端走全局 texArr[0]。
+	// 即使 arm.png 存在，arm 也不会绑定它——arm 的纹理来自 main 的皮肤数组。
+	if len(armComp.ComponentTextures) != 0 {
+		t.Errorf("arm 不应填 ComponentTextures（与 main 共用皮肤）, 实际 %v", armComp.ComponentTextures)
 	}
 }
 

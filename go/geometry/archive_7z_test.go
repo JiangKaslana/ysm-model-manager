@@ -171,7 +171,9 @@ func TestParseComponentsFrom7z_Full(t *testing.T) {
 		t.Errorf("组件 2 应为 arrow, 得到 %s", got)
 	}
 	// texNames：声明组件用声明序纹理名（去扩展名），未声明组件用 basename
-	wantNames := []string{"tex_a", "tex_b", "arrow"}
+	// arm 与 main 共用同一套 player.texture 皮肤（ModernYSM 权威）：
+	// arm 的 texNames 置空、ComponentTextures 为空，前端走全局 texArr[0]。
+	wantNames := []string{"tex_a", "", "arrow"}
 	for i, want := range wantNames {
 		if texNames[i] != want {
 			t.Errorf("texNames[%d] = %q, 期望 %q", i, texNames[i], want)

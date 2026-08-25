@@ -55,8 +55,8 @@ func TestParseComponentsFromZip(t *testing.T) {
 		t.Fatalf("组件数 = %d, 期望 3（main/arm/arrow）", len(comps))
 	}
 	// ADR-114 perComponent：texNames = 组件声明的纹理名（无声明用 basename）
-	// main→skin（声明 textures/skin.png）、arm→arm（未声明纹理，用 basename）、arrow→arrow
-	wantNames := []string{"skin", "arm", "arrow"}
+	// main→skin（声明 textures/skin.png）、arm→""（与 main 共用皮肤，texNames 置空）、arrow→arrow
+	wantNames := []string{"skin", "", "arrow"}
 	for i, want := range wantNames {
 		if texNames[i] != want {
 			t.Errorf("texNames[%d] = %q, 期望 %q", i, texNames[i], want)

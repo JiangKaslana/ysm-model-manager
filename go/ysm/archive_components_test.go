@@ -73,7 +73,9 @@ func TestFindComponentsInExtractedYSM(t *testing.T) {
 	}
 	// TexSlot：main/arm 共享 skin（0），arrow/boat 按名段 1/2
 	wantSlots := []int{0, 0, 1, 2}
-	wantTexNames := []string{"skin", "skin", "arrow", "boat"}
+	// arm 与 main 共用同一套 player.texture 皮肤（ModernYSM 权威）：
+	// arm 的 texNames 置空、ComponentTextures 为空，前端走全局 texArr[0]。
+	wantTexNames := []string{"skin", "", "arrow", "boat"}
 	for i, c := range comps {
 		slot := c.Bones[0].Cubes[0].TexSlot
 		if slot != wantSlots[i] {
