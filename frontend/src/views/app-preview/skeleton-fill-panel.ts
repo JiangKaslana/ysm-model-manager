@@ -30,87 +30,102 @@ export function fill3DPanel(
   _model3d: PanelHandle,
   modelSel: HTMLSelectElement,
 ): { boneContainer: HTMLElement | null; boneDetailText: HTMLElement } {
-  // 统计
-  const mg = spec.models?.[0] as
-    | { bones?: Array<{ _cubeCount?: number }>; textureWidth?: number; textureHeight?: number; name?: string; id?: string }
-    | undefined;
-  let totalCubes = 0;
-  for (const b of mg?.bones || []) totalCubes += b._cubeCount || 0;
-  panel.appendChild(sec("📐 模型统计", false));
-  panel.appendChild(iRow("骨骼", (mg?.bones?.length || 0) + " 根"));
-  panel.appendChild(iRow("立方体", totalCubes + " 个"));
-  panel.appendChild(iRow("纹理尺寸", (mg?.textureWidth || "?") + "×" + (mg?.textureHeight || "?")));
+  // 组件化统计 + 纹理（随 modelSel 切换；ADR-114 perComponent 专属/全局双向）
+  // 数据源（贴合真实，非猜测）：
+  //  - 归属判定 spec.componentTextures[name]（存在=组件专属，否则走全局槽）
+  //  - 全局槽 = spec.models[i].meshGroups[].texIdx（Go 真实设置的全局槽；专属组件为本地 0）
+  //  - 纹理信息 model.textures[i] / textureNames[i] / texArr[i]（尺寸/加载态）
+  const statsBox = document.createElement("div");
+  statsBox.dataset.testid = "model-stats";
+  panel.appendChild(statsBox);
+  const texBox = document.createElement("div");
+  texBox.dataset.testid = "tex-box";
+  panel.appendChild(texBox);
+  const compTex = (spec as { componentTextures?: Record<string, string[]> }).componentTextures;
 
-  // 纹理列表
-  if (texArr.length > 0) {
-    // 按 textureCategories 区分可切换皮肤（player）与组件专属纹理
-    const cats = model.textureCategories || [];
-    const switchableCount = cats.filter((c) => c === "player").length || texArr.length;
-    panel.appendChild(sec("🎨 纹理 (" + switchableCount + ")" + (texArr.length > switchableCount ? " / " + texArr.length + " 全量" : "")));
-    // 当前组件绑定：显示选中组件声明的纹理（方案 B：声明纹理 vs 实际绑定两层显示）
-    const bindingRow = document.createElement("div");
-    bindingRow.className = "binding-row";
-    bindingRow.dataset.testid = "tex-binding";
-    bindingRow.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0;margin-bottom:2px";
-    const bindingLabel = document.createElement("span");
-    bindingLabel.textContent = "当前组件绑定";
-    const bindingValue = document.createElement("span");
-    bindingValue.style.color = "rgba(255,255,255,0.9)";
-    bindingValue.textContent = "全量";
-    bindingRow.appendChild(bindingLabel);
-    bindingRow.appendChild(bindingValue);
-    panel.appendChild(bindingRow);
-    // 组件选择器 onchange 追加更新绑定行（不覆盖已有 showModelGroup）
-    // texArrOrder[idx] = 组件 idx 声明的纹理名（Go 端按 texSlot 分配，多组件可共享同一张）。
-    // 注意：perComponent 组件（arrow/载具/⊗ 投射物，纹理在 ComponentTextures）texArrOrder 为
-    // 空串，不能直接显示「全量」——那会把「组件已绑定专属纹理」的事实藏掉（wine_fox arrow 只读
-    // skin 的观感根因）。命中 componentTextures 时按组件名诚实地显示其专属纹理。
-    const texArrOrder = (spec as { texArrOrder?: string[] }).texArrOrder;
-    const componentTextures = (spec as { componentTextures?: Record<string, string[]> }).componentTextures;
-    const updateBinding = (): void => {
-      const idx = parseInt(modelSel.value, 10);
-      if (isNaN(idx) || idx < 0) {
-        bindingValue.textContent = "全量";
-        return;
+  const renderComponent = (rawIdx: number): void => {
+    // ── 统计（全量汇总 or 单组件） ──
+    statsBox.innerHTML = "";
+    statsBox.appendChild(sec("📐 模型统计", false));
+    let bones = 0;
+    let cubes = 0;
+    let tw: number | string = "?";
+    let th: number | string = "?";
+    if (rawIdx < 0) {
+      for (const m of spec.models || []) {
+        const mm = m as { bones?: Array<{ _cubeCount?: number }>; textureWidth?: number; textureHeight?: number };
+        bones += mm.bones?.length || 0;
+        for (const b of mm.bones || []) cubes += b._cubeCount || 0;
       }
-      const declared = texArrOrder?.[idx];
-      if (declared) {
-        bindingValue.textContent = declared;
-        return;
-      }
-      // perComponent 组件：按 spec.models[idx].name（SourceName）查 componentTextures
-      const mgName = (spec.models as Array<{ name?: string; id?: string }> | undefined)?.[idx]?.name;
-      if (mgName && componentTextures?.[mgName]?.length) {
-        bindingValue.textContent = mgName + "（组件专属）";
-        return;
-      }
-      bindingValue.textContent = "全量";
-    };
-    modelSel.addEventListener("change", updateBinding);
-    for (let i = 0; i < texArr.length; i++) {
-      const tex = texArr[i];
-      const w = tex?.userData?.imgWidth || (tex?.image as HTMLImageElement | undefined)?.naturalWidth || 0;
-      const h = tex?.userData?.imgHeight || (tex?.image as HTMLImageElement | undefined)?.naturalHeight || 0;
-      const url = model.textures?.[i] || "";
-      const name = model.textureNames?.[i] || url.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") || "纹理 " + (i + 1);
-      const d = document.createElement("div");
-      d.className = "tex-row";
-      d.dataset.testid = "tex-" + i;
-      d.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer";
-      const img = document.createElement("canvas");
-      img.width = 16;
-      img.height = 16;
-      img.style.cssText = "width:16px;height:16px;border-radius:2px;flex-shrink:0;border:1px solid rgba(255,255,255,0.1)";
-      const tCtx = img.getContext("2d");
-      if (tex?.image) tCtx!.drawImage(tex.image as HTMLImageElement, 0, 0, 16, 16);
-      d.appendChild(img);
-      const cat = cats[i] || "";
-      const catLabel = cat && cat !== "player" ? cat : "";
-      const catBadge = catLabel ? `<span style="color:rgba(255,255,255,0.35);font-size:9px;padding:0 4px;border:1px solid rgba(255,255,255,0.12);border-radius:3px;flex-shrink:0">${catLabel}</span>` : "";
-      d.innerHTML += `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(name)}</span>${catBadge}<span style="color:rgba(255,255,255,0.4);font-size:10px;flex-shrink:0">${w}×${h}</span>`;
-      panel.appendChild(d);
+      const m0 = spec.models?.[0] as { textureWidth?: number; textureHeight?: number } | undefined;
+      tw = m0?.textureWidth ?? "?";
+      th = m0?.textureHeight ?? "?";
+    } else {
+      const mm = spec.models?.[rawIdx] as
+        | { bones?: Array<{ _cubeCount?: number }>; textureWidth?: number; textureHeight?: number }
+        | undefined;
+      bones = mm?.bones?.length || 0;
+      for (const b of mm?.bones || []) cubes += b._cubeCount || 0;
+      tw = mm?.textureWidth ?? "?";
+      th = mm?.textureHeight ?? "?";
     }
-  }
+    statsBox.appendChild(iRow("骨骼", bones + " 根"));
+    statsBox.appendChild(iRow("立方体", cubes + " 个"));
+    statsBox.appendChild(iRow("纹理尺寸", tw + "×" + th));
+
+    // ── 纹理（只显示当前组件的绑定） ──
+    const eff = rawIdx < 0 ? 0 : rawIdx;
+    const mg = spec.models?.[eff] as
+      | { name?: string; id?: string; meshGroups?: Array<{ texIdx?: number }> }
+      | undefined;
+    const compName = mg?.name || mg?.id || "main";
+    texBox.innerHTML = "";
+
+    // 当前组件绑定摘要行
+    const cap = document.createElement("div");
+    cap.dataset.testid = "tex-binding";
+    cap.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0;margin-bottom:2px";
+    texBox.appendChild(cap);
+
+    // 组件专属纹理（componentTextures 命中 → 本地槽，不占全局切换）
+    const ex = mg ? compTex?.[compName] : undefined;
+    if (mg && ex?.length) {
+      cap.innerHTML = `<span>当前组件绑定：${esc(compName)}</span><span style="color:rgba(255,255,255,0.9)">组件专属</span>`;
+      const secEl = sec(`🎨 专属纹理 (${ex.length})`);
+      secEl.dataset.testid = "tex-section";
+      texBox.appendChild(secEl);
+      ex.forEach((_uri, k) => {
+        texBox.appendChild(texRow(compName + (ex.length > 1 ? " #" + (k + 1) : ""), k, null, { ex: true }));
+      });
+      return;
+    }
+
+    // 全局共享：该组件 meshGroups.texIdx 去重；meshGroups 缺失（单组件/稀数据）
+    // 回退到全部声明纹理（骨架测试同序断言：skin+tail 都在列，不吞信息）
+    const slots: number[] = [];
+    for (const msh of mg?.meshGroups || []) {
+      const s = msh.texIdx;
+      if (typeof s === "number" && s >= 0 && s < texArr.length && !slots.includes(s)) slots.push(s);
+    }
+    if (mg && slots.length === 0 && texArr.length > 0) {
+      for (let i = 0; i < texArr.length; i++) slots.push(i);
+    }
+    cap.innerHTML = `<span>当前组件绑定：${esc(compName)}</span><span style="color:rgba(255,255,255,0.9)">槽 ${slots.map((s) => "[" + s + "]").join(" ") || "—"}</span>`;
+    const secEl = sec(`🎨 纹理 (${slots.length})`);
+    secEl.dataset.testid = "tex-section";
+    texBox.appendChild(secEl);
+    for (const s of slots) {
+      const tex = texArr[s];
+      const name = model.textureNames?.[s] || model.textures?.[s]?.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") || "纹理 " + (s + 1);
+      const cat = model.textureCategories?.[s] || "";
+      texBox.appendChild(texRow(name, s, tex ?? null, { cat }));
+    }
+  };
+
+  // 初始渲染（modelSel 此刻 value 多为空 → 落 main）；change 再切组件
+  const initVal = parseInt(modelSel.value, 10);
+  renderComponent(Number.isInteger(initVal) ? initVal : 0);
+  modelSel.addEventListener("change", () => renderComponent(parseInt(modelSel.value, 10)));
 
   // 模型选择器
   const mgCount = _model3d.getModelGroupCount();
@@ -243,5 +258,34 @@ function iRow(k: string, v: string): HTMLDivElement {
   d.dataset.testid = "stat-" + k.toLowerCase();
   d.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0";
   d.innerHTML = `<span>${k}</span><span style="color:rgba(255,255,255,0.9)">${v}</span>`;
+  return d;
+}
+// 纹理归一行：左侧名称（截断），右侧 = 尺寸（tex 已加载）+ 分类 / 组件专属徽标
+function texRow(
+  name: string,
+  _slot: number,
+  tex: import("three").Texture | null,
+  opt: { cat?: string; ex?: boolean } = {},
+): HTMLDivElement {
+  const d = document.createElement("div");
+  d.dataset.testid = "tex-row";
+  d.style.cssText = "display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:10px;color:rgba(255,255,255,0.7);padding:1px 0";
+  const left = document.createElement("span");
+  left.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0";
+  left.textContent = name;
+  d.appendChild(left);
+  const right = document.createElement("span");
+  right.style.cssText = "flex-shrink:0;color:rgba(255,255,255,0.5)";
+  if (opt.ex) {
+    right.textContent = "专属";
+  } else {
+    const ud = (tex as unknown as { userData?: { imgWidth?: unknown; imgHeight?: unknown } })?.userData;
+    const w = typeof ud?.imgWidth === "number" ? ud.imgWidth : null;
+    const h = typeof ud?.imgHeight === "number" ? ud.imgHeight : null;
+    const size = w !== null && h !== null ? w + "×" + h : "0×0";
+    const loaded = tex?.image ? "已加载" : "未加载";
+    right.textContent = (opt.cat ? opt.cat + " · " : "") + size + (loaded ? " · " + loaded : "");
+  }
+  d.appendChild(right);
   return d;
 }
