@@ -32,6 +32,7 @@ import { buildPerceptionControls, type PerceptionState, type PerceptionCapabilit
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import { createYsmAnimPlayer, type YsmAnimPlayer } from "../ysm-animation-player.ts";
 import { parseBedrockAnimationJSON, ysmAnimClipLabels, type AnimationClip } from "../../animation/animation.ts";
+import { parseAnimationControllerJSON, type AnimationController } from "../../animation/animation-controller.ts";
 import { b64ToBytes } from "../base64.ts";
 import type { MmdPlayBridge } from "../../../views/app-preview/mmd-controls.ts";
 import { ysmSemanticBoneMap } from "../semantic-bones.ts";
@@ -203,6 +204,7 @@ export async function buildYsmScene(
       breath = createBreathController();
 
       const allClips: Array<{ label: string; clip: AnimationClip }> = [];
+      const allControllers: AnimationController[] = [];
       const embedded = model._animClips ?? [];
       if (embedded.length > 0) {
         // 内嵌动画优先：WASM/Go 解码已解析的 clips——单文件 .ysm 的主来源
@@ -211,10 +213,13 @@ export async function buildYsmScene(
           allClips.push({ label: clip.name || `Clip ${i + 1}`, clip });
         });
       } else if (opts.listAllFilePaths && opts.readTextFile) {
-        // 磁盘兜底：无内嵌动画时扫同目录 .animation.json
+        // 磁盘兜底：无内嵌动画时扫同目录 .animation.json 和 .animation_controllers.json
         const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
         const files = (await opts.listAllFilePaths(dirPath)) || [];
         const animFiles = files.filter((f) => f.toLowerCase().endsWith(".animation.json"));
+        const controllerFiles = files.filter((f) => f.toLowerCase().endsWith(".animation_controllers.json"));
+
+        // 加载动画文件
         for (const animFile of animFiles) {
           try {
             const b64 = await opts.readTextFile(animFile);
@@ -233,6 +238,20 @@ export async function buildYsmScene(
             }
           } catch { /* 单个文件解析失败跳过 */ }
         }
+
+        // 加载动画控制器文件（wine_fox 等模型的状态机驱动）
+        for (const ctrlFile of controllerFiles) {
+          try {
+            const b64 = await opts.readTextFile(ctrlFile);
+            if (!b64) continue;
+            const text = new TextDecoder("utf-8").decode(b64ToBytes(b64));
+            const { controllers } = parseAnimationControllerJSON(text);
+            if (controllers.length > 0) {
+              // 存储第一个控制器（wine_fox 通常只有一个 player.post_main）
+              allControllers.push(...controllers);
+            }
+          } catch { /* 单个控制器文件解析失败跳过 */ }
+        }
       }
       if (allClips.length > 0) {
         // 构建 boneByName：spec.bones[].name → 骨骼 Group（boneGroupMap 值为 Group 层级节点）
@@ -246,6 +265,10 @@ export async function buildYsmScene(
         const labels = allClips.map((c) => c.label);
         const clips = allClips.map((c) => c.clip);
         animPlayer = createYsmAnimPlayer(boneByName, clips, hierarchy, labels);
+        // 设置动画控制器（wine_fox 等模型的状态机驱动）
+        if (allControllers.length > 0) {
+          animPlayer.setController(allControllers[0]);
+        }
         animBridge = {
           clips: allClips.map((c) => ({ label: c.label })),
           isPlaying: () => animPlayer?.isPlaying() ?? false,

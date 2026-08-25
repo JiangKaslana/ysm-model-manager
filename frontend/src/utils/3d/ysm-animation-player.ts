@@ -17,11 +17,16 @@
 import * as THREE from "three";
 import {
   evaluateClip,
+  executeTimeline,
   type AnimationClip,
   type BoneChannels,
   type BoneHierarchyNode,
   type Vec3,
 } from "../animation/animation.ts";
+import {
+  AnimationControllerRuntime,
+  type AnimationController,
+} from "../animation/animation-controller.ts";
 
 export interface YsmAnimPlayer {
   apply(dt: number): void;
@@ -35,6 +40,10 @@ export interface YsmAnimPlayer {
   clipCount(): number;
   selectClip(index: number): void;
   isAnimActive(): boolean;
+  /** 设置动画控制器（wine_fox 等模型的状态机驱动） */
+  setController(controller: AnimationController): void;
+  /** 获取当前控制器状态名（调试用） */
+  getControllerState(): string | null;
 }
 
 /**
@@ -53,9 +62,19 @@ export function createYsmAnimPlayer(
   const rawLabels = clipLabels ?? clips.map((_, i) => `Clip ${i}`);
   const labels = rawLabels.slice(0, clips.length).map((label) => ({ label }));
 
+  // clip 名称 → 索引映射（Controller 驱动时按名称查找 clip）
+  const clipNameToIdx = new Map<string, number>();
+  for (let i = 0; i < clips.length; i++) {
+    clipNameToIdx.set(clips[i].name, i);
+  }
+
   let currentIdx = 0;
   let elapsed = 0;
   let playing = true;
+
+  // 动画控制器运行时（可选，由 setController 设置）
+  let controllerRuntime: AnimationControllerRuntime | null = null;
+  let controllerVariables: Record<string, number> = {};
 
   // L3 混合状态：base = 构造期姿态（未动画骨骼的回落目标）；
   // rest = 混合段起点（selectClip/dispose 后从当前姿态重新采集），alpha 累加到 1。
@@ -76,16 +95,55 @@ export function createYsmAnimPlayer(
 
   function getClip(): AnimationClip { return clips[currentIdx]; }
 
+  // 上一帧时间（用于 timeline 事件区间检测）
+  let prevElapsed = 0;
+
   return {
     apply(dt: number): void {
       if (!playing) return;
       const clip = getClip();
+      const prevTime = prevElapsed;
       elapsed += dt;
       if (clip.loop && clip.length > 0) {
         elapsed = ((elapsed % clip.length) + clip.length) % clip.length;
       } else if (elapsed > clip.length) {
         elapsed = clip.length;
         playing = false;
+      }
+
+      // 执行 timeline 事件（v.* 变量赋值、粒子触发等）
+      executeTimeline(clip.timeline, prevTime, elapsed);
+      prevElapsed = elapsed;
+
+      // 动画控制器：每帧评估转换条件，必要时切换 clip
+      if (controllerRuntime) {
+        // 收集当前变量（从 timeline 事件写入的 v.* 变量）
+        // 注意：当前实现中 timeline 事件直接执行 Molang，变量未持久化到外部 Map。
+        // 这里传入空对象，后续实现跨帧变量持久化后补充。
+        const switched = controllerRuntime.update(dt, controllerVariables);
+        if (switched) {
+          // 找到新动画对应的 clip 索引
+          const newAnim = controllerRuntime.currentAnimation;
+          const newIdx = clipNameToIdx.get(newAnim);
+          if (newIdx !== undefined && newIdx !== currentIdx) {
+            currentIdx = newIdx;
+            elapsed = 0;
+            prevElapsed = 0;
+            playing = true;
+            // 跨 clip transition：从当前姿态重新采集 rest
+            for (const [name, node] of boneByName) {
+              let rest = restPose.get(name);
+              if (!rest) {
+                rest = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: new THREE.Vector3() };
+                restPose.set(name, rest);
+              }
+              rest.pos.copy(node.position);
+              rest.quat.copy(node.quaternion);
+              rest.scale.copy(node.scale);
+              blendAlpha.set(name, 0);
+            }
+          }
+        }
       }
 
       const transforms = evaluateClip(clip, elapsed, boneHierarchy, true);
@@ -153,6 +211,7 @@ export function createYsmAnimPlayer(
 
     dispose(): void {
       elapsed = 0;
+      prevElapsed = 0;
       playing = true;
       restPose.clear();
       blendAlpha.clear();
@@ -175,6 +234,7 @@ export function createYsmAnimPlayer(
       if (index < 0 || index >= clips.length) return;
       currentIdx = index;
       elapsed = 0;
+      prevElapsed = 0;
       playing = true;
       // 跨 clip transition：从当前姿态重新采集 rest，alpha 归零。
       // 下一帧从当前姿态插值到新 clip 的目标姿态，实现平滑切入。
@@ -193,6 +253,36 @@ export function createYsmAnimPlayer(
     },
     isAnimActive(): boolean {
       return playing && elapsed < (getClip().length || Infinity);
+    },
+    setController(controller: AnimationController): void {
+      // 创建控制器运行时，回调在状态切换时自动切换 clip
+      controllerRuntime = new AnimationControllerRuntime(
+        controller,
+        (animationName: string, blendTime: number) => {
+          const idx = clipNameToIdx.get(animationName);
+          if (idx !== undefined && idx !== currentIdx) {
+            currentIdx = idx;
+            elapsed = 0;
+            prevElapsed = 0;
+            playing = true;
+            // 跨 clip transition：从当前姿态重新采集 rest
+            for (const [name, node] of boneByName) {
+              let rest = restPose.get(name);
+              if (!rest) {
+                rest = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: new THREE.Vector3() };
+                restPose.set(name, rest);
+              }
+              rest.pos.copy(node.position);
+              rest.quat.copy(node.quaternion);
+              rest.scale.copy(node.scale);
+              blendAlpha.set(name, 0);
+            }
+          }
+        },
+      );
+    },
+    getControllerState(): string | null {
+      return controllerRuntime?.current_state ?? null;
     },
   };
 }

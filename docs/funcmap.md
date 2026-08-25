@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 154 | 618 |
+| 前端·工具 | 155 | 626 |
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **470** | **2019** |
+| **合计** | **471** | **2027** |
 
 ## Go·头像
 
@@ -237,7 +237,7 @@
 | `IsMainModelName()` | `go/geometry/archive:1210` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
 | `ParseComponentsFromZip()` | `go/geometry/archive:1222` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
 | `ParseComponentsFrom7z()` | `go/geometry/archive:1392` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
-| `ParseBedrockGeometry()` | `go/geometry/parse:205` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
+| `ParseBedrockGeometry()` | `go/geometry/parse:235` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
 
@@ -1395,8 +1395,8 @@
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:35` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:77` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:86` | 挂载预览底部根菜单，返回句柄 |
-| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:592` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
-| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:644` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
+| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:594` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
+| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:646` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
@@ -1433,11 +1433,11 @@
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:37` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
-| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:42` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:102` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:400` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:419` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:453` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:43` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:103` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:423` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:442` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:476` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `ALPHA_F_VISIBLE()` | `frontend/src/utils/3d/alpha-index:5` | — |
 | `ALPHA_F_HOLE()` | `frontend/src/utils/3d/alpha-index:6` | — |
 | `ALPHA_F_TRANSLUCENT()` | `frontend/src/utils/3d/alpha-index:7` | — |
@@ -1699,23 +1699,31 @@
 | `setVrmMaterialVisible()` | `frontend/src/utils/3d/vrm-materials:38` | 材质显隐：Material.visible（MToon/标准/基础均支持） |
 | `setVrmMaterialOpacity()` | `frontend/src/utils/3d/vrm-materials:48` | 材质透明度（0-1）：opacity 设置 + transparent 联动 |
 | `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
-| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:26` | — |
-| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:45` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
+| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:31` | — |
+| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:54` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:25` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
 | `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:50` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
+| `ControllerTransition()` | `frontend/src/utils/animation/animation-controller:10` | 状态转换定义 |
+| `ControllerState()` | `frontend/src/utils/animation/animation-controller:20` | 单个状态定义 |
+| `AnimationController()` | `frontend/src/utils/animation/animation-controller:34` | 动画控制器（状态机） |
+| `parseAnimationControllerJSON()` | `frontend/src/utils/animation/animation-controller:50` | 解析 Bedrock Animation Controller JSON |
+| `AnimationControllerRuntime()` | `frontend/src/utils/animation/animation-controller:151` | 动画控制器运行时：维护当前状态，每帧评估转换条件。 |
+| `findControllerForAnimation()` | `frontend/src/utils/animation/animation-controller:253` | 从多个控制器中查找匹配指定动画名的控制器。 |
 | `Vec3()` | `frontend/src/utils/animation/animation:12` | 三维向量 [x, y, z] |
 | `MolangAxes()` | `frontend/src/utils/animation/animation:15` | Molang 轴三元组（null = 该轴为纯数字，取 Keyframe 对应轴值） |
 | `Keyframe()` | `frontend/src/utils/animation/animation:18` | 关键帧 |
 | `BoneChannels()` | `frontend/src/utils/animation/animation:29` | 单骨骼三通道 |
-| `AnimationClip()` | `frontend/src/utils/animation/animation:36` | 动画剪辑 |
-| `BoneTransform()` | `frontend/src/utils/animation/animation:45` | 骨骼变换（evaluateClip 结果值） |
-| `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:55` | 骨骼层级节点 |
-| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:291` | 解析完整的基岩版动画 JSON 字符串 |
-| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:427` | 在指定时间 t 对一组关键帧求值 |
-| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:472` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
-| `evaluateClip()` | `frontend/src/utils/animation/animation:549` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
-| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:682` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
+| `TimelineEvent()` | `frontend/src/utils/animation/animation:37` | Timeline 事件：时间戳 → Molang 表达式（字符串或字符串数组） |
+| `AnimationClip()` | `frontend/src/utils/animation/animation:45` | — |
+| `BoneTransform()` | `frontend/src/utils/animation/animation:56` | 骨骼变换（evaluateClip 结果值） |
+| `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:66` | 骨骼层级节点 |
+| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:302` | 解析完整的基岩版动画 JSON 字符串 |
+| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:481` | 在指定时间 t 对一组关键帧求值 |
+| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:526` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
+| `executeTimeline()` | `frontend/src/utils/animation/animation:603` | 执行 timeline 事件：找出 [prevTime, currentTime] 区间内触发的事件并执行。 |
+| `evaluateClip()` | `frontend/src/utils/animation/animation:635` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:768` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
 | `Easings()` | `frontend/src/utils/animation/molang-lib/easing:2` | — |
 | `Molang()` | `frontend/src/utils/animation/molang-lib/molang:11` | — |
 | `MolangFn()` | `frontend/src/utils/animation/molang:18` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |

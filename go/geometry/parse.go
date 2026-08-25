@@ -53,6 +53,27 @@ func clampTexSize(v float64) int {
 	return i
 }
 
+// isGuiBone 检测骨骼是否为 GUI 装饰骨骼（无几何体 + 名称匹配已知 GUI 模式）。
+// wine_fox 等模型包含 GuiRoot/Backgrounds/gui/curtain 等仅用于屏幕空间覆盖的骨骼，
+// 在 3D 预览中会显示为浮动几何或干扰元素。匹配策略：名称前缀/精确匹配（不区分大小写）。
+func isGuiBone(name string, cubeCount int) bool {
+	// 有几何体的骨骼不是 GUI 骨骼
+	if cubeCount > 0 {
+		return false
+	}
+	lower := strings.ToLower(name)
+	// 精确匹配
+	switch lower {
+	case "gui", "curtain", "white_curtain", "guiroot", "backgrounds", "background1":
+		return true
+	}
+	// 前缀匹配
+	if strings.HasPrefix(lower, "gui") || strings.HasPrefix(lower, "background") {
+		return true
+	}
+	return false
+}
+
 // buildModel 从骨骼数组 + 纹理尺寸构建 BedrockModel（新旧格式共享）
 func buildModel(formatVersion string, texW, texH int, bones []boneJSON) *types.BedrockModel {
 	model := &types.BedrockModel{
@@ -61,6 +82,7 @@ func buildModel(formatVersion string, texW, texH int, bones []boneJSON) *types.B
 		TexHeight: texH,
 	}
 	var cubeTotal int
+	var skippedGUI int
 	for _, b := range bones {
 		cubes := make([]types.Cube2D, 0, len(b.Cubes))
 		for _, c := range b.Cubes {
@@ -91,6 +113,11 @@ func buildModel(formatVersion string, texW, texH int, bones []boneJSON) *types.B
 				Inflate: c.Inflate, Mirror: c.Mirror,
 			})
 		}
+		// 过滤 GUI 装饰骨骼：无几何体 + 名称匹配已知 GUI 模式
+		if isGuiBone(b.Name, len(cubes)) {
+			skippedGUI++
+			continue
+		}
 		var boneRot [3]float64
 		if len(b.Rotation) > 0 {
 			if err := json.Unmarshal(b.Rotation, &boneRot); err != nil {
@@ -105,6 +132,9 @@ func buildModel(formatVersion string, texW, texH int, bones []boneJSON) *types.B
 	}
 	model.BoneCount = len(bones)
 	model.CubeCount = cubeTotal
+	if skippedGUI > 0 {
+		log.Printf("[geometry] 过滤 %d 个 GUI 装饰骨骼", skippedGUI)
+	}
 	return model
 }
 

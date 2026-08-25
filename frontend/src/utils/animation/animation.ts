@@ -33,12 +33,23 @@ export interface BoneChannels {
 }
 
 /** 动画剪辑 */
+/** Timeline 事件：时间戳 → Molang 表达式（字符串或字符串数组） */
+export interface TimelineEvent {
+  time: number;
+  /** 编译后的 Molang 求值闭包列表（多语句按序执行） */
+  actions: MolangFn[];
+  /** 原始表达式（调试用） */
+  raw: string[];
+}
+
 export interface AnimationClip {
   name: string;
   loop: boolean;
   length: number;
   bones: Record<string, BoneChannels>;
   hasMolang?: boolean;
+  /** Timeline 事件（时间戳 → Molang 动作列表） */
+  timeline?: TimelineEvent[];
 }
 
 /** 骨骼变换（evaluateClip 结果值） */
@@ -316,11 +327,13 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
       loop?: boolean | string;
       animation_length?: number;
       bones?: Record<string, unknown>;
+      timeline?: Record<string, unknown>;
     };
 
-    // 跳过无效动画
+    // 跳过无效动画（无 bones 也无 timeline）
     const bones = animObj.bones;
-    if (!bones || typeof bones !== "object") continue;
+    const hasTimeline = animObj.timeline && typeof animObj.timeline === "object";
+    if ((!bones || typeof bones !== "object") && !hasTimeline) continue;
 
     const clip: AnimationClip = {
       name,
@@ -330,7 +343,7 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
       hasMolang: false, // 若任一关键帧含 Molang 则标记
     };
 
-    for (const [boneName, boneData] of Object.entries(bones)) {
+    for (const [boneName, boneData] of Object.entries(bones ?? {})) {
       if (!boneData || typeof boneData !== "object") continue;
       const boneObj = boneData as Record<string, unknown>;
 
@@ -358,9 +371,46 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
       }
     }
 
-    // 如果有骨骼动画数据才加入
-    if (Object.keys(clip.bones).length > 0) {
-      // 计算实际长度（取最大关键帧时间）
+    // 解析 timeline 事件（时间戳 → Molang 动作列表）
+    if (hasTimeline) {
+      const timeline = animObj.timeline!;
+      const events: TimelineEvent[] = [];
+      for (const [timeStr, actionRaw] of Object.entries(timeline)) {
+        const t = Number(timeStr);
+        if (!Number.isFinite(t)) continue;
+
+        // 收集 Molang 表达式（字符串或字符串数组）
+        const exprs: string[] = [];
+        if (typeof actionRaw === "string") {
+          exprs.push(actionRaw);
+        } else if (Array.isArray(actionRaw)) {
+          for (const item of actionRaw) {
+            if (typeof item === "string") exprs.push(item);
+          }
+        }
+        if (exprs.length === 0) continue;
+
+        // 编译所有表达式（编译失败的静默跳过，对齐 Molang 零占位降级口径）
+        const actions: MolangFn[] = [];
+        for (const expr of exprs) {
+          const fn = compileMolang(expr);
+          if (fn) actions.push(fn);
+        }
+        if (actions.length > 0) {
+          events.push({ time: t, actions, raw: exprs });
+          clip.hasMolang = true;
+        }
+      }
+      if (events.length > 0) {
+        // 按时间排序
+        events.sort((a, b) => a.time - b.time);
+        clip.timeline = events;
+      }
+    }
+
+    // 如果有骨骼动画数据或 timeline 事件才加入
+    if (Object.keys(clip.bones).length > 0 || clip.timeline) {
+      // 计算实际长度（取最大关键帧时间 / timeline 时间）
       let maxT = 0;
       for (const chs of Object.values(clip.bones)) {
         for (const ch of BONE_CHANNELS) {
@@ -370,6 +420,10 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
             if (last.time > maxT) maxT = last.time;
           }
         }
+      }
+      if (clip.timeline?.length) {
+        const lastEvent = clip.timeline[clip.timeline.length - 1];
+        if (lastEvent.time > maxT) maxT = lastEvent.time;
       }
       if (!clip.length) clip.length = maxT || 1;
 
@@ -536,6 +590,38 @@ function findKeyframeLowerIndex(keyframes: Keyframe[], t: number): number {
     else hi = mid;
   }
   return lo;
+}
+
+/**
+ * 执行 timeline 事件：找出 [prevTime, currentTime] 区间内触发的事件并执行。
+ * 用于动画播放器每帧调用，实现 v.* 变量赋值和粒子触发等。
+ * @param timeline 排序后的 timeline 事件列表
+ * @param prevTime 上一帧时间
+ * @param currentTime 当前时间
+ * @returns 本次触发的事件原始表达式列表（调试/日志用）
+ */
+export function executeTimeline(
+  timeline: TimelineEvent[] | undefined,
+  prevTime: number,
+  currentTime: number,
+): string[][] | null {
+  if (!timeline?.length) return null;
+  // 找到第一个 > prevTime 的事件索引
+  let start = 0;
+  while (start < timeline.length && timeline[start].time <= prevTime) {
+    start++;
+  }
+  const fired: string[][] = [];
+  for (let i = start; i < timeline.length; i++) {
+    const ev = timeline[i];
+    if (ev.time > currentTime) break;
+    // 执行所有动作
+    for (const fn of ev.actions) {
+      fn(currentTime); // anim_time = 当前时间
+    }
+    fired.push(ev.raw);
+  }
+  return fired.length > 0 ? fired : null;
 }
 
 /**
