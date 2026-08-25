@@ -259,3 +259,58 @@ func TestExtractYsmSummary_ZipTexSizeFromGeometry(t *testing.T) {
 		t.Errorf("TexWidth/TexHeight = %d/%d, want 128/64", summary.Stats.TexWidth, summary.Stats.TexHeight)
 	}
 }
+
+// ===== Name 兜底口径统一（护栏 #3）：metadata.name 为空时两分支一致回退到去扩展名文件名 =====
+
+// noNameYsmJSON 构造 metadata.name 为空（省略字段）的 ysm.json，用于验证 Name 兜底。
+func noNameYsmJSON() string {
+	return `{
+  "spec": 2,
+  "metadata": {
+    "tips": "没有名字的模型",
+    "license": {"type": "CC0"},
+    "authors": [{"name": "佚名"}]
+  },
+  "files": {
+    "player": {
+      "model": [{"path": "geo/main.json"}],
+      "texture": [{"path": "tex/default.png"}]
+    }
+  }
+}`
+}
+
+// 裸 ysm.json：metadata.name 为空时应回退到文件名（去扩展名）。
+// 历史行为：裸 JSON 分支 L197-199 已有兜底。
+func TestExtractYsmSummary_NameFallback_PlainJSON(t *testing.T) {
+	const fileName = "no_name_model"
+	path := filepath.Join(t.TempDir(), fileName+".json")
+	if err := os.WriteFile(path, []byte(noNameYsmJSON()), 0644); err != nil {
+		t.Fatal(err)
+	}
+	summary, err := ExtractYsmSummary(path)
+	if err != nil {
+		t.Fatalf("不应报错: %v", err)
+	}
+	if summary.Name != fileName {
+		t.Errorf("Name = %q, want %q（metadata.name 空时回退到去扩展名文件名）", summary.Name, fileName)
+	}
+}
+
+// ZIP：metadata.name 为空时应与裸 ysm.json 分支一致，回退到文件名（去扩展名）。
+// 历史 bug：ZIP 分支 L325-327 补了兜底但需要验证重构后仍然生效，
+// 且与裸 JSON 分支用同一段公共函数（populateMetadata 内部兜底，不在主流程分叉）。
+func TestExtractYsmSummary_NameFallback_Zip(t *testing.T) {
+	const fileName = "no_name_model"
+	path := testutil.WriteZipFile(t, fileName+".ysm", map[string]string{
+		"ysm.json":      noNameYsmJSON(),
+		"geo/main.json": `{"minecraft:geometry": []}`,
+	})
+	summary, err := ExtractYsmSummary(path)
+	if err != nil {
+		t.Fatalf("不应报错: %v", err)
+	}
+	if summary.Name != fileName {
+		t.Errorf("Name = %q, want %q（ZIP 分支 metadata.name 空时应与裸 JSON 一致回退文件名）", summary.Name, fileName)
+	}
+}

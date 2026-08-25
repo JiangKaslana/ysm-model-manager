@@ -131,32 +131,191 @@ type ysmConfigButton struct {
 }
 
 // ===== 摘要提取入口 =====
+//
+// 重构（第一刀）：原 240 行 ExtractYsmSummary 按职责拆为 1 主 + 6 子函数。
+// 公共维度（metadata / properties 提取）两分支（裸 JSON / ZIP）合入 populateMetadata /
+// populateProperties，消除逐字段重复抄作业；Name 兜底并入公共函数，两分支统一以
+// 「裸 JSON 分支更宽容行为」为准（护栏 #3）；ZIP 专属的 Open+超限守卫、降级扫描、
+// TexSize 扫分别抽子函数，主流程变为纯三段分发（YSGP / JSON / ZIP 有无 ysm.json）。
 
-// ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要
+// populateMetadata 从 root.Metadata 提取 Name/Tips/License/Authors/Links 写入 summary。
+// Name 空值统一回退到 fallbackName（去扩展名的文件名）。Tips 截断由调用方在 ZIP 分支
+// 后补做（裸 JSON 分支无截断，保持历史更宽容行为；调用方显式处理避免公共函数内隐式分叉）。
+// 本函数与 root.Properties 提取的 populateProperties 配对，供裸 JSON / ZIP 两路径共用。
+func populateMetadata(root *ysmRoot, summary *YsmSummary, fallbackName string) {
+	if root == nil || root.Metadata == nil {
+		summary.Name = fallbackName
+		return
+	}
+	md := root.Metadata
+	summary.Name = md.Name
+	summary.Tips = md.Tips
+	if md.License != nil {
+		summary.License = md.License.Type
+	}
+	for _, a := range md.Authors {
+		author := Author{Name: a.Name, Roles: a.Role}
+		if a.Contact != nil {
+			author.Bilibili = a.Contact.Bilibili
+		}
+		summary.Authors = append(summary.Authors, author)
+	}
+	if md.Link != nil {
+		summary.Links = Link{Home: md.Link.Home, Donate: md.Link.Donate}
+	}
+	if summary.Name == "" {
+		summary.Name = fallbackName
+	}
+}
+
+// populateProperties 从 root.Properties 提取 PreviewInfo（DefaultTexture/HeightScale/
+// WidthScale）并调用 appendAnimGroupsAndConfigs 填充 AnimGroups/ConfigMenus。
+// 内部判空；主流程裸 JSON / ZIP 两分支均可无条件调用，不再重复 if != nil。
+func populateProperties(root *ysmRoot, summary *YsmSummary) {
+	if root == nil || root.Properties == nil {
+		return
+	}
+	summary.Preview = PreviewInfo{
+		DefaultTexture: root.Properties.DefaultTexture,
+		HeightScale:    root.Properties.HeightScale,
+		WidthScale:     root.Properties.WidthScale,
+	}
+	appendAnimGroupsAndConfigs(root, summary)
+}
+
+// zipEntriesReader 抽象 ZIP reader 的 Entries()，避免 scanZipBasicStats /
+// extractTexSizeFromZipGeo 依赖 container.ZipReader 具体类型。
+type zipEntriesReader = interface{ Entries() []container.Entry }
+
+// findYsmEntryInZip 在 ZIP entries 中按 basename 查找 ysm.json / model.json 条目。
+// 找不到时返回 nil。
+func findYsmEntryInZip(r zipEntriesReader) container.Entry {
+	for _, f := range r.Entries() {
+		name := strings.ToLower(filepath.Base(f.Name()))
+		if types.IsYsmEntryJSON(name) || name == "model.json" {
+			return f
+		}
+	}
+	return nil
+}
+
+// extractYsmRootFromZip 从 ZIP 内的 ysm.json 条目读取并解析为 ysmRoot。
+// 保留手写 LimitReader+1（未接入 fsutil.ReadLimitedEntry）：调用方需区分「读取失败」
+// 与「超限」两种错误消息，fsutil 版对两者统一返回 nil（ADR-044 策略 A 例外说明）。
+func extractYsmRootFromZip(f container.Entry) (*ysmRoot, error) {
+	rc, err := f.Open()
+	if err != nil {
+		return nil, fmt.Errorf("读取 ysm.json 失败: %w", err)
+	}
+	defer rc.Close()
+
+	const maxYsmJSON = types.MaxReadLimit
+	data, err := io.ReadAll(io.LimitReader(rc, maxYsmJSON+1))
+	if err != nil {
+		return nil, fmt.Errorf("读取 ysm.json 失败: %w", err)
+	}
+	if len(data) > maxYsmJSON {
+		return nil, fmt.Errorf("ysm.json 超过 %dMB 上限，已拒绝解析", maxYsmJSON>>20)
+	}
+
+	var root ysmRoot
+	if err := json.Unmarshal(data, &root); err != nil {
+		return nil, fmt.Errorf("解析 ysm.json 失败: %w", err)
+	}
+	return &root, nil
+}
+
+// scanZipBasicStats 无 ysm.json 的 ZIP 降级扫描：按文件后缀 + JSON 内容特征
+// 统计 Models（含 minecraft:geometry 的 JSON）/ Animations（路径含 animation/
+// controller 且不是几何的）/ Textures（图片后缀）。
+func scanZipBasicStats(r zipEntriesReader) Stats {
+	const maxGeoJSON = 5 << 20
+	var modelCount, texCount, animCount int
+	for _, f := range r.Entries() {
+		if f.IsDir() {
+			continue
+		}
+		low := strings.ToLower(f.Name())
+		if strings.HasSuffix(low, ".json") {
+			rc, err := f.Open()
+			if err != nil {
+				continue
+			}
+			buf := fsutil.ReadLimitedEntry(rc, int64(maxGeoJSON))
+			if buf == nil {
+				continue
+			}
+			if len(buf) > 0 && (bytes.Contains(buf, []byte(`"minecraft:geometry"`)) || bytes.Contains(buf, []byte(`"minecraft:geometry":`))) {
+				modelCount++
+				continue
+			}
+			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
+				animCount++
+			}
+		}
+		if strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg") || strings.HasSuffix(low, ".jpeg") {
+			texCount++
+		}
+	}
+	return Stats{Models: modelCount, Textures: texCount, Animations: animCount}
+}
+
+// extractTexSizeFromZipGeo 在 ZIP 内按 geoPaths（来自 extractFileStats 的声明
+// 模型相对路径）匹配条目、读取 JSON 并提取 TexWidth/TexHeight（首条命中即停）。
+func extractTexSizeFromZipGeo(r zipEntriesReader, geoPaths []string) (int, int) {
+	const maxTexGeo = types.MaxReadLimit
+	for _, geoPath := range geoPaths {
+		for _, f := range r.Entries() {
+			if !strings.HasSuffix(strings.ToLower(f.Name()), strings.ToLower(geoPath)) {
+				continue
+			}
+			rc, err := f.Open()
+			if err != nil {
+				continue
+			}
+			data := fsutil.ReadLimitedEntry(rc, int64(maxTexGeo))
+			if data == nil {
+				continue
+			}
+			if w, h := extractTexSizeFromGeometry(data); w > 0 && h > 0 {
+				return w, h
+			}
+			break
+		}
+	}
+	return 0, 0
+}
+
+// fallbackNameFromSource 从 summary.Source（带扩展名的原始文件名）去扩展名得
+// Name 兜底值，供 populateMetadata 使用。
+func fallbackNameFromSource(source string) string {
+	return strings.TrimSuffix(source, filepath.Ext(source))
+}
+
+// ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要。
+// 重构后主流程只负责三路入口分发 + 组合各子函数结果，各阶段提取逻辑分散到
+// populateMetadata / populateProperties / findYsmEntryInZip / extractYsmRootFromZip
+// / scanZipBasicStats / extractTexSizeFromZipGeo，便于独立单测与复用。
 func ExtractYsmSummary(path string) (YsmSummary, error) {
 	summary := YsmSummary{
 		Schema: "ysm-summary/v1",
 		Source: filepath.Base(path),
 		Format: "ysm",
 	}
-
-	// 文件大小
-	fi, err := os.Stat(path)
-	if err == nil {
+	if fi, err := os.Stat(path); err == nil {
 		summary.Size = fi.Size()
 	}
+	fallbackName := fallbackNameFromSource(summary.Source)
 
-	// YSGP（YSM V2）加密二进制格式 — 无法直接读取内容，返回基本摘要
+	// YSGP（YSM V2）加密二进制 — 无法直接读取内容，仅填 Name / Spec
 	if isYSGP(path) {
-		summary.Format = "ysm"
-		summary.Name = strings.TrimSuffix(summary.Source, filepath.Ext(summary.Source))
+		summary.Name = fallbackName
 		summary.Spec = 2
 		return summary, nil
 	}
 
-	// 裸 ysm.json（解压后的 YSM 模型文件），直接读取 JSON
+	// 分支 1：裸 ysm.json（解压后的 YSM 模型文件）
 	if strings.HasSuffix(strings.ToLower(path), ".json") {
-		// 裸 ysm.json 也设大小上限（与 zip 分支 50MB 对齐），防超大文件整读内存
 		if fi, err := os.Stat(path); err == nil && fi.Size() > types.MaxReadLimit {
 			return summary, fmt.Errorf("ysm.json 超过 %dMB 上限，已拒绝解析", types.MaxReadLimit/(1<<20))
 		}
@@ -165,208 +324,47 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 			return summary, fmt.Errorf("无法读取 JSON: %w", err)
 		}
 		summary.Format = "ysm"
-
-		// 尝试解析 ysm.json 完整结构
 		var root ysmRoot
 		if err := json.Unmarshal(data, &root); err != nil {
-			// 解析失败必须返回结构化错误——原实现 `err == nil && root.Metadata != nil`
-			// 使 Unmarshal 失败时整个 if 跳过、静默降级为「文件名摘要」（返回 nil error），
-			// 违反「解析错误必须返回结构化错误信息」不变量，前端 toast 链路无法触发
 			return summary, fmt.Errorf("ysm.json 解析失败: %w", err)
 		}
-		// 原 `summary.Spec = 2` 硬编码——spec 1 的裸 ysm.json 会被
-		// 报成 2（zip 分支正确用 root.Spec）；统一为解析后的 root.Spec
 		summary.Spec = root.Spec
-		if root.Metadata != nil {
-			summary.Name = root.Metadata.Name
-			summary.Tips = root.Metadata.Tips
-			if root.Metadata.License != nil {
-				summary.License = root.Metadata.License.Type
-			}
-			for _, a := range root.Metadata.Authors {
-				author := Author{Name: a.Name, Roles: a.Role}
-				if a.Contact != nil {
-					author.Bilibili = a.Contact.Bilibili
-				}
-				summary.Authors = append(summary.Authors, author)
-			}
-			if root.Metadata.Link != nil {
-				summary.Links = Link{Home: root.Metadata.Link.Home, Donate: root.Metadata.Link.Donate}
-			}
-		}
-		if summary.Name == "" {
-			summary.Name = strings.TrimSuffix(summary.Source, filepath.Ext(summary.Source))
-		}
-		if root.Properties != nil {
-			summary.Preview.DefaultTexture = root.Properties.DefaultTexture
-			summary.Preview.HeightScale = root.Properties.HeightScale
-			summary.Preview.WidthScale = root.Properties.WidthScale
-		}
-		// 与 .zip 分支共用：提取「其他动画」分组 + 「模型配置/自定义表情」配置菜单
-		appendAnimGroupsAndConfigs(&root, &summary)
-		// 统计 files 中的 model/texture 数量（与 .zip 分支同口径，按声明数组长度计数）
+		populateMetadata(&root, &summary, fallbackName)
+		populateProperties(&root, &summary)
 		summary.Stats, _ = extractFileStats(root.Files)
 		return summary, nil
 	}
 
-	// 打开 ZIP
+	// 分支 2：ZIP
 	r, err := container.OpenZipPath(path)
 	if err != nil {
 		return summary, fmt.Errorf("无法打开文件: %w", err)
 	}
 	defer r.Close()
 
-	// 查找 ysm.json / model.json
-	var ysmFile container.Entry
-	for _, f := range r.Entries() {
-		name := strings.ToLower(filepath.Base(f.Name()))
-		if types.IsYsmEntryJSON(name) || name == "model.json" {
-			ysmFile = f
-			break
-		}
-	}
+	ysmFile := findYsmEntryInZip(r)
 	if ysmFile == nil {
-		// 无 ysm.json 的 ZIP（如直接在 ZIP 内放 main.json + PNG），降级扫描生成基本摘要
+		// 2a：无 ysm.json → 降级扫描（仅填 Name + 基本统计）
 		summary.Format = "zip"
-		summary.Name = strings.TrimSuffix(summary.Source, filepath.Ext(summary.Source))
-		var modelCount, texCount, animCount int
-		for _, f := range r.Entries() {
-			if f.IsDir() {
-				continue
-			}
-			low := strings.ToLower(f.Name())
-			if strings.HasSuffix(low, ".json") {
-				// 判断是否为几何体 JSON（含 minecraft:geometry）
-				rc, err := f.Open()
-				if err != nil {
-					continue
-				}
-				// limit+1 探测截断 + 不丢弃 ReadAll 错误（ADR-033 陷阱）。
-				// ADR-044 策略 A：统一走 fsutil.ReadLimitedEntry（超限/错误返回 nil → 跳过）
-				const maxGeoJSON = 5 << 20
-				buf := fsutil.ReadLimitedEntry(rc, int64(maxGeoJSON))
-				if buf == nil {
-					continue // 读取失败或超过 5MB 上限，跳过该文件
-				}
-				if len(buf) > 0 && (bytes.Contains(buf, []byte(`"minecraft:geometry"`)) || bytes.Contains(buf, []byte(`"minecraft:geometry":`))) {
-					modelCount++
-					continue
-				}
-				// 动画 JSON
-				if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
-					animCount++
-				}
-			}
-			if strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg") || strings.HasSuffix(low, ".jpeg") {
-				texCount++
-			}
-		}
-		summary.Stats = Stats{
-			Models:     modelCount,
-			Textures:   texCount,
-			Animations: animCount,
-		}
+		populateMetadata(nil, &summary, fallbackName)
+		summary.Stats = scanZipBasicStats(r)
 		return summary, nil
 	}
 
-	// 读取并解析
-	rc, err := ysmFile.Open()
+	// 2b：有 ysm.json → 解析 + 完整填充
+	root, err := extractYsmRootFromZip(ysmFile)
 	if err != nil {
-		return summary, fmt.Errorf("读取 ysm.json 失败: %w", err)
+		return summary, err
 	}
-	defer rc.Close()
-
-	// limit+1 探测截断（ADR-033 陷阱）——截断数据 JSON 解析会失败且报错信息误导。
-	// 注：本处保留手写实现（未接入 fsutil.ReadLimitedEntry）——调用点需区分「读取失败」与
-	// 「超限」两种错误消息返回调用方，而 fsutil 版对两者统一返回 nil（ADR-044 策略 A 例外说明）
-	const maxYsmJSON = types.MaxReadLimit
-	data, err := io.ReadAll(io.LimitReader(rc, maxYsmJSON+1))
-	if err != nil {
-		return summary, fmt.Errorf("读取 ysm.json 失败: %w", err)
-	}
-	if len(data) > maxYsmJSON {
-		return summary, fmt.Errorf("ysm.json 超过 %dMB 上限，已拒绝解析", maxYsmJSON>>20)
-	}
-
-	var root ysmRoot
-	if err := json.Unmarshal(data, &root); err != nil {
-		return summary, fmt.Errorf("解析 ysm.json 失败: %w", err)
-	}
-
 	summary.Spec = root.Spec
-
-	// metadata
-	if root.Metadata != nil {
-		summary.Name = root.Metadata.Name
-		summary.Tips = truncate(root.Metadata.Tips, 200)
-		if root.Metadata.License != nil {
-			summary.License = root.Metadata.License.Type
-		}
-		for _, a := range root.Metadata.Authors {
-			author := Author{
-				Name:  a.Name,
-				Roles: a.Role,
-			}
-			if a.Contact != nil {
-				author.Bilibili = a.Contact.Bilibili
-			}
-			summary.Authors = append(summary.Authors, author)
-		}
-		if root.Metadata.Link != nil {
-			summary.Links = Link{
-				Home:   root.Metadata.Link.Home,
-				Donate: root.Metadata.Link.Donate,
-			}
-		}
-	}
-	// zip 分支补 Name 空值兜底——裸 ysm.json 分支
-	// （L194-196）在 metadata.name 为空时回退文件名，zip 分支无此兜底，同一函数
-	// 内两分支不对称（ysm.json 缺 name 时前端显示空模型名）
-	if summary.Name == "" {
-		summary.Name = strings.TrimSuffix(summary.Source, filepath.Ext(summary.Source))
-	}
-
-	// properties: 动画分组 + 配置菜单 (已抽到 appendAnimGroupsAndConfigs 与裸 ysm.json 分支共用)
-	if root.Properties != nil {
-		summary.Preview = PreviewInfo{
-			DefaultTexture: root.Properties.DefaultTexture,
-			HeightScale:    root.Properties.HeightScale,
-			WidthScale:     root.Properties.WidthScale,
-		}
-		appendAnimGroupsAndConfigs(&root, &summary)
-	}
-	// Stats 统计不依赖 properties（有 files 无 properties 的模型同样需要统计）
+	populateMetadata(root, &summary, fallbackName)
+	summary.Tips = truncate(summary.Tips, 200) // ZIP 分支 Tips 限 200（裸 JSON 分支不截）
+	populateProperties(root, &summary)
 	stats, geoPaths := extractFileStats(root.Files)
 	if root.Properties != nil {
-		// 从几何体文件提取纹理尺寸
-		for _, geoPath := range geoPaths {
-			for _, f := range r.Entries() {
-				if strings.HasSuffix(strings.ToLower(f.Name()), strings.ToLower(geoPath)) {
-					rc, err := f.Open()
-					if err != nil {
-						continue
-					}
-					// limit+1 探测截断 + 不丢弃 ReadAll 错误（ADR-033 陷阱）。
-					// ADR-044 策略 A：统一走 fsutil.ReadLimitedEntry（超限/错误返回 nil → 跳过）
-					const maxTexGeo = types.MaxReadLimit
-					data := fsutil.ReadLimitedEntry(rc, int64(maxTexGeo))
-					if data == nil {
-						continue
-					}
-					if w, h := extractTexSizeFromGeometry(data); w > 0 && h > 0 {
-						stats.TexWidth = w
-						stats.TexHeight = h
-					}
-					break
-				}
-			}
-			if stats.TexWidth > 0 {
-				break
-			}
-		}
+		stats.TexWidth, stats.TexHeight = extractTexSizeFromZipGeo(r, geoPaths)
 	}
 	summary.Stats = stats
-
 	return summary, nil
 }
 
