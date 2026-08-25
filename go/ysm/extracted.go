@@ -94,6 +94,23 @@ func modelBaseNoExt(p string) string {
 	return strings.ToLower(base)
 }
 
+// textureDataURI 按文件扩展名派生 data URI MIME（.png→image/png、.jpg/.jpeg→image/jpeg）。
+// .tga 非 Web 图像格式，浏览器解码器不认 → 返回空串，调用方跳过 perComponent data-URI
+// 分支、落回全局 texArr 路径（避免产出 data:image/png;base64,<TGA 字节> 的坏 URI）。
+func textureDataURI(path string, data []byte) string {
+	mime := ""
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png":
+		mime = "image/png"
+	case ".jpg", ".jpeg":
+		mime = "image/jpeg"
+	}
+	if mime == "" {
+		return ""
+	}
+	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
+}
+
 // texBaseNoExt 纹理文件名去目录/去扩展名（小写）。
 func texBaseNoExt(p string) string {
 	base := filepath.ToSlash(p)
@@ -719,46 +736,54 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 								}
 								if strings.HasPrefix(cand, cleanDir+string(filepath.Separator)) || cand == cleanDir {
 									if pngData := readFileLimited(cand); pngData != nil {
-										gj.ComponentTextures = map[string][]string{
-											base: {"data:image/png;base64," + base64.StdEncoding.EncodeToString(pngData)},
-										}
-										texNames = append(texNames, "")
-										gj.SourceName = base
-										for bi := range gj.Bones {
-											for ci := range gj.Bones[bi].Cubes {
-												gj.Bones[bi].Cubes[ci].TexSlot = 0
-												gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
-												gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
+										// 按实际扩展名派生 MIME；.tga 非 Web 格式 → 空串跳过 data-URI 分支，
+										// 落回全局 texArr 路径（避免产出不可解码的 data:image/png;base64,<TGA 字节>）。
+										if uri := textureDataURI(cand, pngData); uri != "" {
+											gj.ComponentTextures = map[string][]string{
+												base: {uri},
 											}
+											texNames = append(texNames, "")
+											gj.SourceName = base
+											for bi := range gj.Bones {
+												for ci := range gj.Bones[bi].Cubes {
+													gj.Bones[bi].Cubes[ci].TexSlot = 0
+													gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
+													gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
+												}
+											}
+											log.Printf("[ysm] 加载模型组件 %q (声明纹理 texIdx=0, texture=%q)", candidate, di.texBase)
+											comps = append(comps, *gj)
+											break
 										}
-										log.Printf("[ysm] 加载模型组件 %q (声明纹理 texIdx=0, texture=%q)", candidate, di.texBase)
-										comps = append(comps, *gj)
-										break
 									}
 								}
 							}
 							if pngPath, ok := pngNameMap[tn]; ok {
 								if pngData := readFileLimited(pngPath); pngData != nil {
-									gj.ComponentTextures = map[string][]string{
-										base: {"data:image/png;base64," + base64.StdEncoding.EncodeToString(pngData)},
-									}
-									texNames = append(texNames, "")
-									gj.SourceName = base
-									for bi := range gj.Bones {
-										for ci := range gj.Bones[bi].Cubes {
-											// TexSlot=0 对齐 zip 路径 buildComponents 口径：
-											// perComponent 组件用自己的第 0 张，全局槽位不再消费
-											gj.Bones[bi].Cubes[ci].TexSlot = 0
-											gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
-											gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
+									// 按实际扩展名派生 MIME；.tga 非 Web 格式 → 空串跳过 data-URI 分支，
+									// 落回全局 texArr 路径（避免产出不可解码的 data:image/png;base64,<TGA 字节>）。
+									if uri := textureDataURI(pngPath, pngData); uri != "" {
+										gj.ComponentTextures = map[string][]string{
+											base: {uri},
 										}
+										texNames = append(texNames, "")
+										gj.SourceName = base
+										for bi := range gj.Bones {
+											for ci := range gj.Bones[bi].Cubes {
+												// TexSlot=0 对齐 zip 路径 buildComponents 口径：
+												// perComponent 组件用自己的第 0 张，全局槽位不再消费
+												gj.Bones[bi].Cubes[ci].TexSlot = 0
+												gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
+												gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
+											}
+										}
+										// 组件专属同名纹理兜底（ADR-114 perComponent）：cube TexSlot 已在上面复位为
+										// 0（本地 0 槽）。不打虚拟全局槽位 len(texOrderNames)+undeclSeq——那会让
+										// arrow 显示成 texIdx=6 的越界幻觉。打实际绑定的纹理文件揭示来源。
+										log.Printf("[ysm] 加载模型组件 %q (组件专属 texIdx=%d, texture=%q)", candidate, 0, filepath.Base(pngPath))
+										comps = append(comps, *gj)
+										break
 									}
-									// 组件专属同名纹理兜底（ADR-114 perComponent）：cube TexSlot 已在上面复位为
-									// 0（本地 0 槽）。不打虚拟全局槽位 len(texOrderNames)+undeclSeq——那会让
-									// arrow 显示成 texIdx=6 的越界幻觉。打实际绑定的纹理文件揭示来源。
-									log.Printf("[ysm] 加载模型组件 %q (组件专属 texIdx=%d, texture=%q)", candidate, 0, filepath.Base(pngPath))
-									comps = append(comps, *gj)
-									break
 								}
 							}
 						}

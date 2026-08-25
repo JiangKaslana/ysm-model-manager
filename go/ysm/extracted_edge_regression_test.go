@@ -11,6 +11,7 @@ package ysm
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"ysm-model-manager/go/types"
@@ -98,9 +99,9 @@ func TestFindComponents_SubdirSameNameTex(t *testing.T) {
 	}
 }
 
-// TestFindComponents_TgaSameNameTex 未声明组件与 .tga 同名纹理应命中 perComponent
-// 兜底（pngNameMap 扩展名口径：.png/.jpg/.tga）。现状 pngNameMap 只认 .png，
-// .tga 同名文件收不到 → ComponentTextures 缺失（红）。
+// TestFindComponents_TgaSameNameTex 未声明组件与 .tga 同名纹理**不**走 perComponent
+// data-URI 分支：.tga 非 Web 图像格式，硬编码成 data:image/png;base64,<TGA 字节> 浏览器
+// 无法解码 → textureDataURI 返回空串，落回全局 texArr 路径（ComponentTextures 为空）。
 func TestFindComponents_TgaSameNameTex(t *testing.T) {
 	dir := t.TempDir()
 	modelsDir := filepath.Join(dir, "models")
@@ -120,7 +121,7 @@ func TestFindComponents_TgaSameNameTex(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(modelsDir, "boat.json"), []byte(geoWithBone("boatBone")), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// 同名纹理为 .tga（pngNameMap 现在只认 .png → 收不到）
+	// 同名纹理为 .tga（非 Web 格式）
 	if err := os.WriteFile(filepath.Join(texDir, "boat.tga"), []byte{1, 2, 3}, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +140,56 @@ func TestFindComponents_TgaSameNameTex(t *testing.T) {
 	if boat == nil {
 		t.Fatal("未找到补扫组件 boat")
 	}
-	if len(boat.ComponentTextures) == 0 {
-		t.Fatal("未声明组件应命中 .tga 同名纹理兜底（ComponentTextures 非空）")
+	if len(boat.ComponentTextures) != 0 {
+		t.Fatalf(".tga 同名纹理不得产出 data URI（浏览器不可解码），实际 ComponentTextures = %v", boat.ComponentTextures)
+	}
+}
+
+// TestFindComponents_JpgSameNameTex 未声明组件与 .jpg 同名纹理应命中 perComponent 兜底，
+// 且 data URI 的 MIME 按实际扩展名派生为 image/jpeg（而非硬编码 image/png）。
+func TestFindComponents_JpgSameNameTex(t *testing.T) {
+	dir := t.TempDir()
+	modelsDir := filepath.Join(dir, "models")
+	texDir := filepath.Join(dir, "textures")
+	for _, d := range []string{modelsDir, texDir} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ysmJSON := `{"files":{"player":{"model":{"main":"models/main.json"},"texture":["textures/skin.png"]}}}`
+	if err := os.WriteFile(filepath.Join(dir, "ysm.json"), []byte(ysmJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelsDir, "main.json"), []byte(geoWithBone("mainBone")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelsDir, "boat.json"), []byte(geoWithBone("boatBone")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 同名纹理为 .jpg
+	if err := os.WriteFile(filepath.Join(texDir, "boat.jpg"), []byte{1, 2, 3}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	comps, _ := FindComponentsInExtractedYSM(filepath.Join(dir, "ysm.json"))
+	if len(comps) != 2 {
+		t.Fatalf("组件数 = %d, 期望 2（main + boat 补扫）", len(comps))
+	}
+	var boat *types.BedrockModel
+	for i := range comps {
+		if comps[i].SourceName == "boat" {
+			boat = &comps[i]
+			break
+		}
+	}
+	if boat == nil {
+		t.Fatal("未找到补扫组件 boat")
+	}
+	ct, ok := boat.ComponentTextures["boat"]
+	if !ok || len(ct) != 1 {
+		t.Fatalf("未声明组件应命中 .jpg 同名纹理兜底，实际 ComponentTextures = %v", boat.ComponentTextures)
+	}
+	if !strings.HasPrefix(ct[0], "data:image/jpeg;base64,") {
+		t.Errorf(".jpg 同名纹理 data URI 应为 image/jpeg，实际前缀 %.40q", ct[0])
 	}
 }
