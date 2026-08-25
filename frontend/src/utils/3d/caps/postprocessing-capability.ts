@@ -108,6 +108,230 @@ export const DEFAULT_POSTPROC_PARAMS: PostprocessingParams = {
 /** SSRPass.OUTPUT 枚举（0=Default 正常显示反射混合），其他调试项 1=Beauty 2=SSR 仅深度 3=Blur 4=Normal 5=Metalness 先不暴露 */
 const SSRPASS_OUTPUT_DEFAULT = 0;
 
+/* ============ getMenuControls 拆分：4 个包级函数（前缀 ppc 防冲突） ============ */
+
+function ppcBuildBasic(cap: PostprocessingCapability): MenuControlDef[] {
+  const params = cap.getParams();
+  return [
+    {
+      id: "pp-enabled",
+      kind: "toggle",
+      labelKey: "preview.postprocessing",
+      fallback: "后处理管线",
+      getValue: () => cap.isEnabled(),
+      setValue: (v) => cap.setEnabled(v as boolean),
+    },
+    {
+      id: "pp-toneMapping",
+      kind: "select",
+      labelKey: "preview.toneMapping",
+      fallback: "色彩映射",
+      group: "preview.postprocessingGroupColor",
+      select: [
+        { value: "none", label: "无" },
+        { value: "linear", label: "线性" },
+        { value: "reinhard", label: "Reinhard" },
+        { value: "aces", label: "ACES Filmic" },
+        { value: "cineon", label: "Cineon" },
+      ],
+      getValue: () => cap.getParams().toneMapping,
+      setValue: (v) => cap.setToneMapping(v as PostprocessingParams["toneMapping"]),
+    },
+    {
+      id: "pp-exposure",
+      kind: "slider",
+      labelKey: "preview.exposure",
+      fallback: "曝光",
+      group: "preview.postprocessingGroupColor",
+      slider: { min: 0.1, max: 3, step: 0.05 },
+      getValue: () => cap.getParams().exposure,
+      setValue: (v) => cap.setExposure(v as number),
+    },
+  ];
+}
+
+function ppcBuildBloom(cap: PostprocessingCapability): MenuControlDef[] {
+  return [
+    {
+      id: "pp-bloom-strength",
+      kind: "slider",
+      labelKey: "preview.bloomStrength",
+      fallback: "辉光强度",
+      group: "preview.postprocessingGroupBloom",
+      slider: { min: 0, max: 3, step: 0.05 },
+      getValue: () => cap.getParams().bloomStrength,
+      setValue: (v) => cap.setBloomStrength(v as number),
+    },
+    {
+      id: "pp-bloom-threshold",
+      kind: "slider",
+      labelKey: "preview.bloomThreshold",
+      fallback: "辉光阈值",
+      group: "preview.postprocessingGroupBloom",
+      slider: { min: 0, max: 1, step: 0.02 },
+      getValue: () => cap.getParams().bloomThreshold,
+      setValue: (v) => cap.setBloomThreshold(v as number),
+    },
+    {
+      id: "pp-bloom-radius",
+      kind: "slider",
+      labelKey: "preview.bloomRadius",
+      fallback: "辉光半径",
+      group: "preview.postprocessingGroupBloom",
+      slider: { min: 0, max: 2, step: 0.02 },
+      getValue: () => cap.getParams().bloomRadius,
+      setValue: (v) => cap.setBloomRadius(v as number),
+    },
+    {
+      id: "pp-bloom-follow",
+      kind: "toggle",
+      labelKey: "preview.bloomFollowVolumetric",
+      fallback: "跟随体积光联动",
+      group: "preview.postprocessingGroupBloom",
+      getValue: () => cap.getParams().bloomFollowVolumetric,
+      setValue: (v) => cap.setBloomFollowVolumetric(v as boolean),
+    },
+  ];
+}
+
+function ppcBuildSSAO(cap: PostprocessingCapability): MenuControlDef[] {
+  return [
+    {
+      id: "pp-ssao-enabled",
+      kind: "toggle",
+      labelKey: "preview.ssao",
+      fallback: "环境光遮蔽 (SSAO)",
+      group: "preview.postprocessingGroupSsao",
+      getValue: () => cap.getParams().ssaoEnabled,
+      setValue: (v) => cap.setSSAOEnabled(v as boolean),
+    },
+    {
+      id: "pp-ssao-radius",
+      kind: "slider",
+      labelKey: "preview.ssaoRadius",
+      fallback: "SSAO 采样半径",
+      group: "preview.postprocessingGroupSsao",
+      slider: { min: 0.5, max: 32, step: 0.5 },
+      getValue: () => cap.getParams().ssaoRadius,
+      setValue: (v) => cap.setSSAORadius(v as number),
+    },
+    {
+      id: "pp-ssao-mindist",
+      kind: "slider",
+      labelKey: "preview.ssaoMinDist",
+      fallback: "SSAO 最小距离",
+      group: "preview.postprocessingGroupSsao",
+      slider: { min: 0.001, max: 0.05, step: 0.001 },
+      getValue: () => cap.getParams().ssaoMinDist,
+      setValue: (v) => cap.setSSAOMinDist(v as number),
+    },
+    {
+      id: "pp-ssao-maxdist",
+      kind: "slider",
+      labelKey: "preview.ssaoMaxDist",
+      fallback: "SSAO 最大距离",
+      group: "preview.postprocessingGroupSsao",
+      slider: { min: 0.01, max: 1, step: 0.01 },
+      getValue: () => cap.getParams().ssaoMaxDist,
+      setValue: (v) => cap.setSSAOMaxDist(v as number),
+    },
+  ];
+}
+
+function ppcBuildSSR(cap: PostprocessingCapability): MenuControlDef[] {
+  return [
+    {
+      id: "pp-reflection-mode",
+      kind: "select",
+      labelKey: "preview.reflectionMode",
+      fallback: "反射模式",
+      group: "preview.postprocessingGroupReflection",
+      select: [
+        { value: "envmap-only", label: "仅环境贴图" },
+        { value: "envmap+ssr", label: "环境贴图 + 屏幕空间" },
+        { value: "ssr-only", label: "仅屏幕空间" },
+      ],
+      getValue: () => cap.getParams().reflectionMode,
+      setValue: (v) => cap.setReflectionMode(v as ReflectionMode),
+    },
+    {
+      id: "pp-reflector-disable-when-ssr",
+      kind: "toggle",
+      labelKey: "preview.reflectorDisableWhenSSR",
+      fallback: "SSR 时自动禁用地面镜面",
+      group: "preview.postprocessingGroupReflection",
+      getValue: () => cap.getParams().reflectorDisableWhenSSR,
+      setValue: (v) => cap.setReflectorDisableWhenSSR(v as boolean),
+    },
+    {
+      id: "pp-ssr-opacity",
+      kind: "slider",
+      labelKey: "preview.ssrOpacity",
+      fallback: "SSR 反射强度",
+      group: "preview.postprocessingGroupSsr",
+      slider: { min: 0, max: 1, step: 0.02 },
+      getValue: () => cap.getParams().ssrOpacity,
+      setValue: (v) => cap.setSSROpacity(v as number),
+    },
+    {
+      id: "pp-ssr-maxdistance",
+      kind: "slider",
+      labelKey: "preview.ssrMaxDistance",
+      fallback: "SSR 最大距离",
+      group: "preview.postprocessingGroupSsr",
+      slider: { min: 10, max: 800, step: 5 },
+      getValue: () => cap.getParams().ssrMaxDistance,
+      setValue: (v) => cap.setSSRMaxDistance(v as number),
+    },
+    {
+      id: "pp-ssr-thickness",
+      kind: "slider",
+      labelKey: "preview.ssrThickness",
+      fallback: "SSR 厚度判定",
+      group: "preview.postprocessingGroupSsr",
+      slider: { min: 0.001, max: 0.1, step: 0.001 },
+      getValue: () => cap.getParams().ssrThickness,
+      setValue: (v) => cap.setSSRThickness(v as number),
+    },
+    {
+      id: "pp-ssr-blur",
+      kind: "toggle",
+      labelKey: "preview.ssrBlur",
+      fallback: "SSR 模糊",
+      group: "preview.postprocessingGroupSsr",
+      getValue: () => cap.getParams().ssrBlur,
+      setValue: (v) => cap.setSSRBlur(v as boolean),
+    },
+    {
+      id: "pp-ssr-distanceAttenuation",
+      kind: "toggle",
+      labelKey: "preview.ssrDistanceAttenuation",
+      fallback: "SSR 距离衰减",
+      group: "preview.postprocessingGroupSsr",
+      getValue: () => cap.getParams().ssrDistanceAttenuation,
+      setValue: (v) => cap.setSSRDistanceAttenuation(v as boolean),
+    },
+    {
+      id: "pp-ssr-fresnel",
+      kind: "toggle",
+      labelKey: "preview.ssrFresnel",
+      fallback: "SSR 菲涅尔",
+      group: "preview.postprocessingGroupSsr",
+      getValue: () => cap.getParams().ssrFresnel,
+      setValue: (v) => cap.setSSRFresnel(v as boolean),
+    },
+    {
+      id: "pp-ssr-bouncing",
+      kind: "toggle",
+      labelKey: "preview.ssrBouncing",
+      fallback: "SSR 多重弹射（慢）",
+      group: "preview.postprocessingGroupSsr",
+      getValue: () => cap.getParams().ssrBouncing,
+      setValue: (v) => cap.setSSRBouncing(v as boolean),
+    },
+  ];
+}
+
 /** 模型类别后处理预设 */
 export const POSTPROC_PRESETS: Record<string, Partial<PostprocessingParams>> = {
   default: { ...DEFAULT_POSTPROC_PARAMS },
@@ -208,26 +432,41 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
     return !!useVolumetric;
   }
 
-  private buildComposer(): void {
-    this.disposeComposer();
+  private createComposerBase(): EffectComposer {
     const logicalSize = this.renderer.getSize(new THREE.Vector2());
     const w = Math.max(logicalSize.x, 1);
     const h = Math.max(logicalSize.y, 1);
-    this.composer = new EffectComposer(this.renderer);
-    this.composer.setPixelRatio(previewPixelRatio(window.devicePixelRatio));
-    this.composer.setSize(w, h);
+    const composer = new EffectComposer(this.renderer);
+    composer.setPixelRatio(previewPixelRatio(window.devicePixelRatio));
+    composer.setSize(w, h);
 
     this.renderPass = new RenderPass(this.scene, this.camera);
-    this.composer.addPass(this.renderPass);
+    composer.addPass(this.renderPass);
 
-    if (this.params.ssaoEnabled) {
-      this.ssaoPass = new SSAOPass(this.scene, this.camera, w, h, 32);
-      this.ssaoPass.kernelRadius = this.params.ssaoRadius;
-      this.ssaoPass.minDistance = this.params.ssaoMinDist;
-      this.ssaoPass.maxDistance = this.params.ssaoMaxDist;
-      this.ssaoPass.output = (SSAOPass as unknown as { OUTPUT: { Default: number } }).OUTPUT?.Default ?? 0;
-      this.composer.addPass(this.ssaoPass);
-    }
+    this.outputPass = new OutputPass();
+    composer.addPass(this.outputPass);
+
+    return composer;
+  }
+
+  private attachSSAOPass(composer: EffectComposer): void {
+    if (!this.params.ssaoEnabled) return;
+    const logicalSize = this.renderer.getSize(new THREE.Vector2());
+    const w = Math.max(logicalSize.x, 1);
+    const h = Math.max(logicalSize.y, 1);
+    this.ssaoPass = new SSAOPass(this.scene, this.camera, w, h, 32);
+    this.ssaoPass.kernelRadius = this.params.ssaoRadius;
+    this.ssaoPass.minDistance = this.params.ssaoMinDist;
+    this.ssaoPass.maxDistance = this.params.ssaoMaxDist;
+    this.ssaoPass.output = (SSAOPass as unknown as { OUTPUT: { Default: number } }).OUTPUT?.Default ?? 0;
+    const renderPassIndex = composer.passes.indexOf(this.renderPass!);
+    composer.passes.splice(renderPassIndex + 1, 0, this.ssaoPass);
+  }
+
+  private attachSSRAndBloomPasses(composer: EffectComposer, useSSR: boolean): void {
+    const logicalSize = this.renderer.getSize(new THREE.Vector2());
+    const w = Math.max(logicalSize.x, 1);
+    const h = Math.max(logicalSize.y, 1);
 
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(w, h),
@@ -235,10 +474,9 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
       this.params.bloomRadius,
       this.params.bloomThreshold,
     );
-    this.composer.addPass(this.bloomPass);
+    const outputPassIndex = composer.passes.indexOf(this.outputPass!);
+    composer.passes.splice(outputPassIndex, 0, this.bloomPass);
 
-    // SSR 放在 Bloom 之后，保证发光物的反射也能带上 bloom 溢出
-    const useSSR = this.params.reflectionMode !== "envmap-only";
     if (useSSR) {
       this.ssrPass = new SSRPass({
         renderer: this.renderer,
@@ -246,7 +484,6 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
         camera: this.camera,
         width: w,
         height: h,
-        // selects: null = 全场景物体参与反射（非 selective 模式）；groundReflector: null = 不用内置地面反射器
         selects: null,
         groundReflector: null,
         isBouncing: this.params.ssrBouncing,
@@ -258,14 +495,18 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
       this.ssrPass.blur = this.params.ssrBlur;
       this.ssrPass.distanceAttenuation = this.params.ssrDistanceAttenuation;
       this.ssrPass.fresnel = this.params.ssrFresnel;
-      // envmap+ssr：SSR 混合比例按 ssrOpacity；ssr-only：直接 1.0 覆盖（屏外黑边靠用户接受度或后期降级到 envmap+ssr）
       if (this.params.reflectionMode === "ssr-only") this.ssrPass.opacity = 1;
-      this.composer.addPass(this.ssrPass);
+      const bloomIndex = composer.passes.indexOf(this.bloomPass!);
+      composer.passes.splice(bloomIndex + 1, 0, this.ssrPass);
     }
+  }
 
-    this.outputPass = new OutputPass();
-    this.composer.addPass(this.outputPass);
-
+  private buildComposer(): void {
+    this.disposeComposer();
+    const useSSR = this.params.reflectionMode !== "envmap-only";
+    this.composer = this.createComposerBase();
+    this.attachSSAOPass(this.composer);
+    this.attachSSRAndBloomPasses(this.composer, useSSR);
     this.applyReflectorSync();
   }
 
@@ -406,6 +647,10 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
     return this.enabled;
   }
 
+  getParams(): PostprocessingParams {
+    return this.params;
+  }
+
   setPreset(modelType: string): void {
     const preset = POSTPROC_PRESETS[modelType] ?? POSTPROC_PRESETS.default;
     // 反射模式（SSR 三档）是用户显式选择：预设只做合理默认，不覆盖 loadState 恢复的持久化值
@@ -503,207 +748,10 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
 
   getMenuControls(): MenuControlDef[] {
     return [
-      {
-        id: "pp-enabled",
-        kind: "toggle",
-        labelKey: "preview.postprocessing",
-        fallback: "后处理管线",
-        getValue: () => this.isEnabled(),
-        setValue: (v) => this.setEnabled(v as boolean),
-      },
-      {
-        id: "pp-toneMapping",
-        kind: "select",
-        labelKey: "preview.toneMapping",
-        fallback: "色彩映射",
-        group: "preview.postprocessingGroupColor",
-        select: [
-          { value: "none", label: "无" },
-          { value: "linear", label: "线性" },
-          { value: "reinhard", label: "Reinhard" },
-          { value: "aces", label: "ACES Filmic" },
-          { value: "cineon", label: "Cineon" },
-        ],
-        getValue: () => this.params.toneMapping,
-        setValue: (v) => this.setToneMapping(v as PostprocessingParams["toneMapping"]),
-      },
-      {
-        id: "pp-exposure",
-        kind: "slider",
-        labelKey: "preview.exposure",
-        fallback: "曝光",
-        group: "preview.postprocessingGroupColor",
-        slider: { min: 0.1, max: 3, step: 0.05 },
-        getValue: () => this.params.exposure,
-        setValue: (v) => this.setExposure(v as number),
-      },
-      {
-        id: "pp-bloom-strength",
-        kind: "slider",
-        labelKey: "preview.bloomStrength",
-        fallback: "辉光强度",
-        group: "preview.postprocessingGroupBloom",
-        slider: { min: 0, max: 3, step: 0.05 },
-        getValue: () => this.params.bloomStrength,
-        setValue: (v) => this.setBloomStrength(v as number),
-      },
-      {
-        id: "pp-bloom-threshold",
-        kind: "slider",
-        labelKey: "preview.bloomThreshold",
-        fallback: "辉光阈值",
-        group: "preview.postprocessingGroupBloom",
-        slider: { min: 0, max: 1, step: 0.02 },
-        getValue: () => this.params.bloomThreshold,
-        setValue: (v) => this.setBloomThreshold(v as number),
-      },
-      {
-        id: "pp-bloom-radius",
-        kind: "slider",
-        labelKey: "preview.bloomRadius",
-        fallback: "辉光半径",
-        group: "preview.postprocessingGroupBloom",
-        slider: { min: 0, max: 2, step: 0.02 },
-        getValue: () => this.params.bloomRadius,
-        setValue: (v) => this.setBloomRadius(v as number),
-      },
-      {
-        id: "pp-bloom-follow",
-        kind: "toggle",
-        labelKey: "preview.bloomFollowVolumetric",
-        fallback: "跟随体积光联动",
-        group: "preview.postprocessingGroupBloom",
-        getValue: () => this.params.bloomFollowVolumetric,
-        setValue: (v) => this.setBloomFollowVolumetric(v as boolean),
-      },
-      {
-        id: "pp-ssao-enabled",
-        kind: "toggle",
-        labelKey: "preview.ssao",
-        fallback: "环境光遮蔽 (SSAO)",
-        group: "preview.postprocessingGroupSsao",
-        getValue: () => this.params.ssaoEnabled,
-        setValue: (v) => this.setSSAOEnabled(v as boolean),
-      },
-      {
-        id: "pp-ssao-radius",
-        kind: "slider",
-        labelKey: "preview.ssaoRadius",
-        fallback: "SSAO 采样半径",
-        group: "preview.postprocessingGroupSsao",
-        slider: { min: 0.5, max: 32, step: 0.5 },
-        getValue: () => this.params.ssaoRadius,
-        setValue: (v) => this.setSSAORadius(v as number),
-      },
-      {
-        id: "pp-ssao-mindist",
-        kind: "slider",
-        labelKey: "preview.ssaoMinDist",
-        fallback: "SSAO 最小距离",
-        group: "preview.postprocessingGroupSsao",
-        slider: { min: 0.001, max: 0.05, step: 0.001 },
-        getValue: () => this.params.ssaoMinDist,
-        setValue: (v) => this.setSSAOMinDist(v as number),
-      },
-      {
-        id: "pp-ssao-maxdist",
-        kind: "slider",
-        labelKey: "preview.ssaoMaxDist",
-        fallback: "SSAO 最大距离",
-        group: "preview.postprocessingGroupSsao",
-        slider: { min: 0.01, max: 1, step: 0.01 },
-        getValue: () => this.params.ssaoMaxDist,
-        setValue: (v) => this.setSSAOMaxDist(v as number),
-      },
-      {
-        id: "pp-reflection-mode",
-        kind: "select",
-        labelKey: "preview.reflectionMode",
-        fallback: "反射模式",
-        group: "preview.postprocessingGroupReflection",
-        select: [
-          { value: "envmap-only", label: "仅环境贴图" },
-          { value: "envmap+ssr", label: "环境贴图 + 屏幕空间" },
-          { value: "ssr-only", label: "仅屏幕空间" },
-        ],
-        getValue: () => this.params.reflectionMode,
-        setValue: (v) => this.setReflectionMode(v as ReflectionMode),
-      },
-      {
-        id: "pp-reflector-disable-when-ssr",
-        kind: "toggle",
-        labelKey: "preview.reflectorDisableWhenSSR",
-        fallback: "SSR 时自动禁用地面镜面",
-        group: "preview.postprocessingGroupReflection",
-        getValue: () => this.params.reflectorDisableWhenSSR,
-        setValue: (v) => this.setReflectorDisableWhenSSR(v as boolean),
-      },
-      {
-        id: "pp-ssr-opacity",
-        kind: "slider",
-        labelKey: "preview.ssrOpacity",
-        fallback: "SSR 反射强度",
-        group: "preview.postprocessingGroupSsr",
-        slider: { min: 0, max: 1, step: 0.02 },
-        getValue: () => this.params.ssrOpacity,
-        setValue: (v) => this.setSSROpacity(v as number),
-      },
-      {
-        id: "pp-ssr-maxdistance",
-        kind: "slider",
-        labelKey: "preview.ssrMaxDistance",
-        fallback: "SSR 最大距离",
-        group: "preview.postprocessingGroupSsr",
-        slider: { min: 10, max: 800, step: 5 },
-        getValue: () => this.params.ssrMaxDistance,
-        setValue: (v) => this.setSSRMaxDistance(v as number),
-      },
-      {
-        id: "pp-ssr-thickness",
-        kind: "slider",
-        labelKey: "preview.ssrThickness",
-        fallback: "SSR 厚度判定",
-        group: "preview.postprocessingGroupSsr",
-        slider: { min: 0.001, max: 0.1, step: 0.001 },
-        getValue: () => this.params.ssrThickness,
-        setValue: (v) => this.setSSRThickness(v as number),
-      },
-      {
-        id: "pp-ssr-blur",
-        kind: "toggle",
-        labelKey: "preview.ssrBlur",
-        fallback: "SSR 模糊",
-        group: "preview.postprocessingGroupSsr",
-        getValue: () => this.params.ssrBlur,
-        setValue: (v) => this.setSSRBlur(v as boolean),
-      },
-      {
-        id: "pp-ssr-distanceAttenuation",
-        kind: "toggle",
-        labelKey: "preview.ssrDistanceAttenuation",
-        fallback: "SSR 距离衰减",
-        group: "preview.postprocessingGroupSsr",
-        getValue: () => this.params.ssrDistanceAttenuation,
-        setValue: (v) => this.setSSRDistanceAttenuation(v as boolean),
-      },
-      {
-        id: "pp-ssr-fresnel",
-        kind: "toggle",
-        labelKey: "preview.ssrFresnel",
-        fallback: "SSR 菲涅尔",
-        group: "preview.postprocessingGroupSsr",
-        getValue: () => this.params.ssrFresnel,
-        setValue: (v) => this.setSSRFresnel(v as boolean),
-      },
-      {
-        id: "pp-ssr-bouncing",
-        kind: "toggle",
-        labelKey: "preview.ssrBouncing",
-        fallback: "SSR 多重弹射（慢）",
-        group: "preview.postprocessingGroupSsr",
-        getValue: () => this.params.ssrBouncing,
-        setValue: (v) => this.setSSRBouncing(v as boolean),
-      },
+      ...ppcBuildBasic(this),
+      ...ppcBuildBloom(this),
+      ...ppcBuildSSAO(this),
+      ...ppcBuildSSR(this),
     ];
   }
 
