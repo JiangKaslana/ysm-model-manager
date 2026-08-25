@@ -789,6 +789,64 @@ func collectMergedFiles(entries []container.Entry, maidNs string) (geoFiles []ge
 	return geoFiles, animJSONs, pngs, pngNames
 }
 
+// sortByModelOrder 将 geoFiles 按声明序排序：main/player 模型先、投射物后，未声明项稳定落尾。
+// 查询键与 orderMap 键同口径（"\\"→"/" 归一化 + 小写化）：Windows 工具产出的条目名可能
+// 含反斜杠/混合大小写，未归一化会让声明序排序失效（code review P3）。
+func sortByModelOrder(geoFiles []geoEntry, modelOrder []string) {
+	if len(modelOrder) == 0 {
+		return
+	}
+	orderMap := make(map[string]int, len(modelOrder))
+	for i, p := range modelOrder {
+		// key 统一小写：L0 路径已小写（modelAbs[len(maidNs):]），查询键是 zip 条目原始
+		// 大小写——大小写敏感会 miss → 声明序排序失效。
+		orderMap[strings.ToLower(filepath.ToSlash(p))] = i
+	}
+	sort.SliceStable(geoFiles, func(i, j int) bool {
+		ai, oki := orderMap[strings.ToLower(filepath.ToSlash(geoFiles[i].name))]
+		aj, okj := orderMap[strings.ToLower(filepath.ToSlash(geoFiles[j].name))]
+		if oki && okj {
+			return ai < aj
+		}
+		return oki
+	})
+}
+
+// sortByTexOrder 纹理按声明序排序：pngs 与 pngNames 同步重排（同一 orderMap；两切片的
+// 比较器同口径，未声明纹理稳定落尾 hasI 分支）。
+// 返回 orderMap（texOrder 去扩展名 → 声明下标）；调用方须在 tex 排序后、buildSubModels
+// 之前拿到它——L0 SubModel.TexSlot 需按排序后槽位换算，此先后为隐式时序约束，勿松动。
+// key 口径：texOrder 条目是「小写 basename 含扩展名」，查询 key 是 pngNames（已去扩展名），
+// 故先 TrimSuffix 再入 map，否则 key 永不命中（原死代码陷阱，已修）。
+func sortByTexOrder(texOrder []string, pngs [][]byte, pngNames []string) map[string]int {
+	orderMap := make(map[string]int, len(texOrder))
+	if len(texOrder) == 0 {
+		return orderMap
+	}
+	for i, n := range texOrder {
+		bn := strings.TrimSuffix(n, ".png")
+		bn = strings.TrimSuffix(bn, ".jpg")
+		orderMap[bn] = i
+	}
+	sort.SliceStable(pngs, func(i, j int) bool {
+		oi, hasI := orderMap[strings.ToLower(pngNames[i])]
+		oj, hasJ := orderMap[strings.ToLower(pngNames[j])]
+		if hasI && hasJ {
+			return oi < oj
+		}
+		return hasI
+	})
+	sort.SliceStable(pngNames, func(i, j int) bool {
+		oi, hasI := orderMap[strings.ToLower(pngNames[i])]
+		oj, hasJ := orderMap[strings.ToLower(pngNames[j])]
+		if hasI && hasJ {
+			return oi < oj
+		}
+		return hasI
+	})
+	return orderMap
+}
+
 // parseModelFromEntries 共享主体：ysm.json 解析 + model/texture 顺序 + geo/png/anim 收集，
 // 构建 BedrockModel。logTag 用于日志前缀（"zip" / "7z"）。
 //
@@ -910,25 +968,8 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	// 移除第一人称手臂模型占位：避免 arm.json 占据 texIdx 槽位导致 main 纹理错位
 	modelOrder = filterArmModels(modelOrder)
 
-	if len(modelOrder) > 0 {
-		orderMap := make(map[string]int, len(modelOrder))
-		for i, p := range modelOrder {
-			// key 统一小写：L0 路径 l0ModelOrder 已小写（modelAbs[len(maidNs):]），
-			// 查询键 geoFiles[i].name 是 zip 条目原始大小写——大小写敏感会 miss
-			// → 声明序排序失效（code review P3，Windows 混合大小写 zip）。
-			orderMap[strings.ToLower(filepath.ToSlash(p))] = i
-		}
-		sort.SliceStable(geoFiles, func(i, j int) bool {
-			// 查询键须与 orderMap 键同口径（"\\"→"/" 归一化 + 小写化）：Windows 工具
-			// 产出的归档条目名可能含反斜杠/混合大小写，原实现未归一化导致声明序排序失效
-			ai, oki := orderMap[strings.ToLower(filepath.ToSlash(geoFiles[i].name))]
-			aj, okj := orderMap[strings.ToLower(filepath.ToSlash(geoFiles[j].name))]
-			if oki && okj {
-				return ai < aj
-			}
-			return oki
-		})
-	}
+	// geoFiles 声明序排序（已收编 sortByModelOrder）
+	sortByModelOrder(geoFiles, modelOrder)
 
 	// 建立模型文件→纹理索引映射
 	texIdxMap := make(map[string]int)
@@ -1026,35 +1067,8 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 		}
 	}
 
-	// orderMap 的 key 必须与查询 key 同口径——
-	// texOrder 条目是「小写 basename 含扩展名」（如 tex1.png），而查询 key 是
-	// `strings.ToLower(pngNames[i])`（pngNames 已 TrimSuffix 去扩展名，如 tex1），
-	// 原实现 key 永不命中 → 「纹理按声明顺序排序」形同死代码，TexSlot 绑定错位。
-	// 声明提到 if 外：L0 SubModel.TexSlot 需按排序后槽位换算（审核 P3）
-	orderMap := make(map[string]int, len(texOrder))
-	if len(texOrder) > 0 {
-		for i, n := range texOrder {
-			bn := strings.TrimSuffix(n, ".png")
-			bn = strings.TrimSuffix(bn, ".jpg")
-			orderMap[bn] = i
-		}
-		sort.SliceStable(pngs, func(i, j int) bool {
-			oi, hasI := orderMap[strings.ToLower(pngNames[i])]
-			oj, hasJ := orderMap[strings.ToLower(pngNames[j])]
-			if hasI && hasJ {
-				return oi < oj
-			}
-			return hasI
-		})
-		sort.SliceStable(pngNames, func(i, j int) bool {
-			oi, hasI := orderMap[strings.ToLower(pngNames[i])]
-			oj, hasJ := orderMap[strings.ToLower(pngNames[j])]
-			if hasI && hasJ {
-				return oi < oj
-			}
-			return hasI
-		})
-	}
+	// 纹理声明序排序（已收编 sortByTexOrder；orderMap 供 L0 SubModel.TexSlot 按排序后槽位换算）
+	orderMap := sortByTexOrder(texOrder, pngs, pngNames)
 	// 纹理名与 pngs 同序（同一循环收集 + 同一 orderMap 排序），供前端纹理列表显示
 	if geo != nil {
 		geo.TextureNames = pngNames
