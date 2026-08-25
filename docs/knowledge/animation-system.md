@@ -53,7 +53,7 @@ invariant_anchors:
 `animation.ts`（解析 + 插值）：
 - 类型：`Vec3`、`Keyframe`（time/post/pre/lerp）、`BoneChannels`（rotation/position/scale）、`AnimationClip`（name/loop/length/bones/hasMolang）、`BoneTransform`、`BoneHierarchyNode`
 - `parseBedrockAnimationJSON(jsonStr): { clips, errors }` — 解析 .animation.json；JSON 错误/缺 animations 字段进 errors；任一关键帧含 Molang 字符串则 clip.hasMolang = true
-- `evaluateKeyframes(keyframes, t): Vec3 | null` — 二分查找 + 线性插值（step 模式直接取当前帧 post）
+- `evaluateKeyframes(keyframes, t): Vec3 | null` — 二分查找 + 线性插值；step 模式直接取当前帧 post；catmullrom 模式取前后各一邻帧做 uniform Catmull-Rom（Hermite 等价，C1 连续）三次样条（`sampleCatmullRom`；官方 wine_fox 大量用 `lerp_mode: catmullrom`，此前被一律降级为 linear 是"动作僵硬/轨迹怪"根因，已支持）
 - `evaluateClip(clip, time, boneHierarchy?, localOnly?): Map<string, BoneTransform>` — 整 clip 求值；循环动画时间取模；`localOnly` 只返回局部变换（Three.js 场景树自己传播时用），否则按拓扑排序把父级变换累积到子级
 
 `animate.ts`：

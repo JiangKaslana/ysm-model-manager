@@ -19,7 +19,7 @@ export interface Keyframe {
   time: number;
   post: Vec3;
   pre: Vec3;
-  lerp: "linear" | "step";
+  lerp: "linear" | "step" | "catmullrom";
   /** Molang 动态轴（L4）：非 null 轴在求值时以 anim_time 上下文覆盖 post/pre 对应轴 */
   postMolang?: MolangAxes;
   preMolang?: MolangAxes;
@@ -147,7 +147,7 @@ function parseKeyValue(v: unknown): ParsedKeyValue | null {
 function extractKeyframe(kv: unknown): {
   post: Vec3;
   pre: Vec3;
-  lerp: "linear" | "step";
+  lerp: "linear" | "step" | "catmullrom";
   postMolang?: MolangAxes;
   preMolang?: MolangAxes;
 } | null {
@@ -164,9 +164,13 @@ function extractKeyframe(kv: unknown): {
     const post = obj.post != null ? parseKeyValue(obj.post) : null;
     const pre = obj.pre != null ? parseKeyValue(obj.pre) : post;
     if (!post) return null;
-    // lerp_mode 合法值只有 linear/step，非 step 一律按 linear
-    const lerp: "linear" | "step" =
-      obj.lerp_mode === "step" ? "step" : "linear";
+    // lerp_mode 合法值 linear/step/catmullrom；非 step/catmullrom 一律按 linear
+    const lerp: "linear" | "step" | "catmullrom" =
+      obj.lerp_mode === "step"
+        ? "step"
+        : obj.lerp_mode === "catmullrom"
+          ? "catmullrom"
+          : "linear";
     const preVal = pre ?? post;
     return { post: post.vec, pre: preVal.vec, lerp, postMolang: post.molang, preMolang: preVal.molang };
   }
@@ -389,6 +393,32 @@ function resolveFramePost(kf: Keyframe, t: number): Vec3 {
 }
 
 /**
+ * uniform Catmull-Rom 三次样条采样（Hermite 等价形式，C1 连续）。
+ * 经过两端控制点 p1/p2，切点由相邻点决定：m0=(p2-p0)/2、m1=(p3-p1)/2。
+ * s∈[0,1] 为区间内的归一化位置（沿用 Bedrock/常见 loader 的按索引参数化口径）。
+ * 逐轴计算，避免中间分配。
+ */
+function sampleCatmullRom(p0: Vec3, p1: Vec3, p2: Vec3, p3: Vec3, s: number): Vec3 {
+  const s2 = s * s;
+  const s3 = s2 * s;
+  const m0 = [0, 0, 0] as Vec3;
+  const m1 = [0, 0, 0] as Vec3;
+  for (let a = 0; a < 3; a++) {
+    m0[a] = (p2[a] - p0[a]) / 2;
+    m1[a] = (p3[a] - p1[a]) / 2;
+  }
+  const out: Vec3 = [0, 0, 0];
+  for (let a = 0; a < 3; a++) {
+    out[a] =
+      (2 * p1[a] - 2 * p2[a] + m0[a] + m1[a]) * s3 +
+      (-3 * p1[a] + 3 * p2[a] - 2 * m0[a] - m1[a]) * s2 +
+      m0[a] * s +
+      p1[a];
+  }
+  return out;
+}
+
+/**
  * 在指定时间 t 对一组关键帧求值
  * @param keyframes 排序后的关键帧数组
  * @param t 时间（秒，即 Molang 上下文的 query.anim_time）
@@ -414,10 +444,21 @@ export function evaluateKeyframes(keyframes: Keyframe[], t: number): Vec3 | null
   // step 插值：直接返回当前帧的 post 值
   if (a.lerp === "step") return [...resolveFramePost(a, t)];
 
-  // 线性插值（端点先 Molang 求值再 lerp，对齐 GeckoLib/ModernYSM 口径）
   const dt = b.time - a.time;
   if (dt <= 0) return [...resolveFramePost(a, t)];
   const frac = (t - a.time) / dt;
+
+  // catmullrom：取前后各一邻帧做 C1 三次样条（标准 uniform Catmull-Rom）。
+  // 区间端点本身即控制点；lo/hi 已在首尾帧内，p0/p3 越界时钳制到端点帧。
+  if (a.lerp === "catmullrom") {
+    const p0 = resolveFramePost(keyframes[Math.max(0, lo - 1)], t);
+    const p1 = resolveFramePost(a, t);
+    const p2 = resolveFramePost(b, t);
+    const p3 = resolveFramePost(keyframes[Math.min(keyframes.length - 1, hi + 1)], t);
+    return sampleCatmullRom(p0, p1, p2, p3, frac);
+  }
+
+  // 线性插值（端点先 Molang 求值再 lerp，对齐 GeckoLib/ModernYSM 口径）
   const ap = resolveFramePost(a, t);
   const bp = resolveFramePost(b, t);
   return [
@@ -457,9 +498,27 @@ export function evaluateKeyframesInto(keyframes: Keyframe[], t: number, out: Vec
     resolvePost(a, out);
     return true;
   }
+  const fraction = (t - a.time) / (b.time - a.time);
+
+  // catmullrom：与 evaluateKeyframes 同口径的三次样条（热路径冷分支，允许一次分配）
+  if (a.lerp === "catmullrom") {
+    const p0: Vec3 = [0, 0, 0];
+    const p3: Vec3 = [0, 0, 0];
+    resolvePost(keyframes[Math.max(0, lo - 1)], p0);
+    resolvePost(keyframes[Math.min(keyframes.length - 1, hi + 1)], p3);
+    const p1: Vec3 = [0, 0, 0];
+    resolvePost(a, p1);
+    const p2: Vec3 = [0, 0, 0];
+    resolvePost(b, p2);
+    const r = sampleCatmullRom(p0, p1, p2, p3, fraction);
+    out[0] = r[0];
+    out[1] = r[1];
+    out[2] = r[2];
+    return true;
+  }
+
   const ap: Vec3 = [0, 0, 0];
   const bp: Vec3 = [0, 0, 0];
-  const fraction = (t - a.time) / (b.time - a.time);
   resolvePost(a, ap);
   resolvePost(b, bp);
   out[0] = ap[0] + (bp[0] - ap[0]) * fraction;

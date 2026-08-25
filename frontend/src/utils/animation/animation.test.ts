@@ -411,3 +411,60 @@ describe("旋转通道口径转换（度→弧度，X/Y 取负 — 对齐上游 
     expect(clip.bones.b!.rotation![0].post).toEqual([0, 0, 0]);
   });
 });
+
+describe("catmullrom 插值（官方模型 lerp_mode 不再降级 linear）", () => {
+  // 四点 0/1/2/3：p0=[0,0,0] p1=[0,10,0] p2=[10,20,0] p3=[20,10,0]
+  const CAT: Keyframe[] = [
+    { time: 0, post: [0, 0, 0], pre: [0, 0, 0], lerp: "catmullrom" },
+    { time: 1, post: [0, 10, 0], pre: [0, 10, 0], lerp: "catmullrom" },
+    { time: 2, post: [10, 20, 0], pre: [10, 20, 0], lerp: "catmullrom" },
+    { time: 3, post: [20, 10, 0], pre: [20, 10, 0], lerp: "catmullrom" },
+  ];
+
+  it("中点是 C1 样条值而非线性中点（抬升超过 [5,15,0]）", () => {
+    // s=0.5 标准 uniform Catmull-Rom：x=4.375, y=16.25（linear 为 [5,15,0]）
+    expect(evaluateKeyframes(CAT, 1.5)).toEqual([4.375, 16.25, 0]);
+  });
+
+  it("经过两端控制点（s=0 → p1，s=1 → p2）", () => {
+    expect(evaluateKeyframes(CAT, 1)).toEqual([0, 10, 0]);
+    expect(evaluateKeyframes(CAT, 2)).toEqual([10, 20, 0]);
+  });
+
+  it("首尾越界钳制到端点帧 post", () => {
+    expect(evaluateKeyframes(CAT, -1)).toEqual([0, 0, 0]);
+    expect(evaluateKeyframes(CAT, 5)).toEqual([20, 10, 0]);
+  });
+
+  it("首/尾帧的邻界钳制到端点（2 帧猫样条无邻点时仍可求值）", () => {
+    const two: Keyframe[] = [
+      { time: 0, post: [0, 0, 0], pre: [0, 0, 0], lerp: "catmullrom" },
+      { time: 1, post: [1, 1, 1], pre: [1, 1, 1], lerp: "catmullrom" },
+    ];
+    expect(evaluateKeyframes(two, 0.5)).toEqual([0.5, 0.5, 0.5]);
+  });
+
+  it("parse 认 lerp_mode: catmullrom（不再按 linear 降级）", () => {
+    const json = JSON.stringify({
+      animations: {
+        a: {
+          bones: {
+            b: {
+              rotation: {
+                "0": { post: [0, 0, 0], lerp_mode: "catmullrom" },
+                "1": { post: [0, 30, 0], lerp_mode: "catmullrom" },
+              },
+            },
+          },
+        },
+      },
+    });
+    const r = parseBedrockAnimationJSON(json);
+    expect(r.errors).toEqual([]);
+    const kfs = r.clips[0].bones.b!.rotation!;
+    expect(kfs[0].lerp).toBe("catmullrom");
+    expect(kfs[1].lerp).toBe("catmullrom");
+    // 旋转通道仍走度→弧度换算（X/Y 取负），不因 catmullrom 破坏
+    expect(kfs[1].post).toEqual([0, -30 * (Math.PI / 180), 0]);
+  });
+});

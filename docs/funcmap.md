@@ -626,8 +626,8 @@
 | `SetDecoder()` | `go/ysm/decode_inject:25` | SetDecoder 注入 .ysm 解码器（internal/app init 阶段调用，替换 FindCLI 模式） |
 | `DecodeYSM()` | `go/ysm/decode_inject:32` | DecodeYSM 解码 .ysm 字节；解码器未注入或解码失败返回 nil |
 | `DecodedFile()` | `go/ysm/decode_inject:11` | DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径） |
-| `FindGeometryInExtractedYSM()` | `go/ysm/extracted:60` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
-| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:403` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
+| `FindGeometryInExtractedYSM()` | `go/ysm/extracted:111` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
+| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:459` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
 | `AnalyzeYSMHeader()` | `go/ysm/header:172` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
 | `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:325` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
 | `YSMHeader()` | `go/ysm/header:17` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |
@@ -1711,11 +1711,11 @@
 | `AnimationClip()` | `frontend/src/utils/animation/animation:36` | 动画剪辑 |
 | `BoneTransform()` | `frontend/src/utils/animation/animation:45` | 骨骼变换（evaluateClip 结果值） |
 | `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:55` | 骨骼层级节点 |
-| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:287` | 解析完整的基岩版动画 JSON 字符串 |
-| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:397` | 在指定时间 t 对一组关键帧求值 |
-| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:431` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
-| `evaluateClip()` | `frontend/src/utils/animation/animation:490` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
-| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:623` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
+| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:291` | 解析完整的基岩版动画 JSON 字符串 |
+| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:427` | 在指定时间 t 对一组关键帧求值 |
+| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:472` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
+| `evaluateClip()` | `frontend/src/utils/animation/animation:549` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:682` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
 | `Easings()` | `frontend/src/utils/animation/molang-lib/easing:2` | — |
 | `Molang()` | `frontend/src/utils/animation/molang-lib/molang:11` | — |
 | `MolangFn()` | `frontend/src/utils/animation/molang:18` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |
