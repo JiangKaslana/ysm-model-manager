@@ -163,12 +163,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   const fillers: Record<string, (list: HTMLElement, menu?: SlideMenuHandle) => void> = {
     environment: (list, menu) => renderEnvLevel(list, ctx, menu),
-    camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
     roles: (list, menu) => fillRoles(list, ctx, hideMenu, makeRow, makePanelView, menu!, (items) => menuHandleOut?.setAdapterItems(items)),
-    lighting: (list) => fillLighting(list, ctx),
-    shadow: (list) => fillShadow(list, ctx),
-    postproc: (list) => fillPostprocessing(list, ctx),
-    settings: (list) => fillSettings(list, ctx),
   };
   const runners: Record<string, () => void> = {
     close: () => ctx.close(),
