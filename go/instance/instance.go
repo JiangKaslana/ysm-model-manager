@@ -99,15 +99,212 @@ func cloneSyncItems(items []types.ResourceSyncItem) []types.ResourceSyncItem {
 	return out
 }
 
+// fileSize 安全取文件大小（Stat 失败返回 0）——原 BuildSyncItems 内 sizeOf 闭包升格，
+// 后续 RepoAudit/sync.go 内若需大小统计可复用，避免各写 4 行 os.Stat 样板。
+func fileSize(path string) int64 {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return fi.Size()
+}
+
+// buildDirLevelChildren 为 dirLevelSync 类型的单个文件夹构建子文件条目列表。
+// 原 BuildSyncItems L168-200 buildChildrenForDir 闭包升格：仓库侧是权威源，
+// globalPath 不存在时返回 nil（连夹都不存在自然无子项可预览）；子文件禁用
+// 检测同步口径（.disabled/.ban → ⛔）。返回列表子项 Status 继承 DiffFolderContentsScan
+// 结果——Synced/Missing/Optional 已在 diff 阶段按路径成对判定。
+func buildDirLevelChildren(globalPath, instPath, rtype, rIcon, groupGlobalDir string) []types.ResourceSyncItem {
+	if _, err := os.Stat(globalPath); err != nil {
+		return nil
+	}
+	// DiffFolderContentsScan：复用 scanner 已缓存的仓库根扫描结果（groupGlobalDir）
+	// 反推全局侧文件列表，消除每个模型夹的全局子树重复 Walk（实例侧量级小保持原 Walk）。
+	diffs := ysmsync.DiffFolderContentsScan(globalPath, instPath, rtype, scanner.ScanEntriesWithHit, groupGlobalDir)
+	children := make([]types.ResourceSyncItem, 0, len(diffs))
+	for _, d := range diffs {
+		childStatus := d.Status
+		childIcon := rIcon
+		lowName := strings.ToLower(filepath.Base(d.AbsPath))
+		if types.IsDisableSuffix(lowName) {
+			childStatus = types.SyncStatusDisabled
+			childIcon = "⛔"
+		}
+		children = append(children, types.ResourceSyncItem{
+			Path:   d.AbsPath,
+			Name:   d.RelPath, // 前端子项展示用相对路径
+			Status: childStatus,
+			Type:   rtype,
+			Icon:   childIcon,
+			Size:   d.Size,
+		})
+	}
+	return children
+}
+
+// resolveItemMeta 解析同步条目的元信息：是否是 dirLevel 允许的条目/目录入口、
+// 禁用判定（⛔）/legacy 硬链接（🔗）/文件夹（📁）图标与状态。
+// 返回值：(是否合法条目, 目录入口 bool, 最终 status, 最终 icon)
+// 三分支（Synced/Missing/Extra）统一走同一判定链，根除历史上「仅 Synced 分支做
+// 禁用检测」导致 Extra/Missing 夹上 .disabled 伪装可推送的口径漂移。
+func resolveItemMeta(
+	p, rtype string,
+	isDirLevelType bool,
+	defaultStatus types.SyncStatus,
+	isLegacy func(string) bool,
+) (valid bool, isDirEntry bool, status types.SyncStatus, icon string) {
+	if isDirLevelType {
+		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+			isDirEntry = true
+		}
+	}
+	// 放行条件：扩展名命中 → 资源包夹 → dirLevel 的目录入口（三者任一）
+	if !types.IsTypeModelFile(p, rtype) && !fsutil.IsResourcePackFolder(p) && !isDirEntry {
+		return false, false, defaultStatus, ""
+	}
+	lowName := strings.ToLower(filepath.Base(p))
+	isDisabled := types.IsDisableSuffix(lowName)
+	status = defaultStatus
+	icon = "" // 空=由调用方按 rtype 填默认
+	if isDirEntry {
+		icon = "📁"
+	}
+	if isDisabled {
+		status = types.SyncStatusDisabled
+		icon = "⛔"
+	} else if isLegacy != nil && isLegacy(p) {
+		status = types.SyncStatusLegacy
+		icon = "🔗"
+	}
+	return true, isDirEntry, status, icon
+}
+
+// appendOneItem 组装 ResourceSyncItem 并 append 到 typeItems：
+//   - dirLevel 目录：调用 buildDirLevelChildren 拿子项 + diverged 聚合（仅 synced 夹提升）
+//   - 文件：直接平铺，无 children
+//
+// 是原 appendItem 闭包 L234-271 的后半段升格；前缀判定（合法/禁用/图标）由 resolveItemMeta
+// 负责，本函数只接收已经通过的结果，确保「过滤→组装」职责分层。
+func appendOneItem(
+	typeItems *[]types.ResourceSyncItem,
+	p, rtype, rIcon, globalDir, instDir string,
+	isDirLevelType bool,
+	isDirEntry bool,
+	status types.SyncStatus,
+	defaultStatus types.SyncStatus,
+	metaIcon string,
+	groupGlobalDir string,
+) {
+	if metaIcon == "" {
+		metaIcon = rIcon
+	}
+	var children []types.ResourceSyncItem
+	isDir := isDirEntry
+	if isDirLevelType && isDirEntry {
+		instPath := p
+		if strings.HasPrefix(p, globalDir) {
+			rel := strings.TrimPrefix(p, globalDir)
+			instPath = filepath.Join(instDir, rel)
+		}
+		children = buildDirLevelChildren(p, instPath, rtype, rIcon, groupGlobalDir)
+		// diverged 提升规则（code review P2）：仅当「原 status 就是 synced（未被
+		// disabled/legacy 覆盖）+ 子项有非 synced 差异」才升；missing/optional 夹
+		// 保持自身状态，避免「整体缺失」误标成「部分差异」。
+		if len(children) > 0 && defaultStatus == types.SyncStatusSynced && status == defaultStatus {
+			hasDiff := false
+			for _, c := range children {
+				if c.Status != types.SyncStatusSynced {
+					hasDiff = true
+					break
+				}
+			}
+			if hasDiff {
+				status = types.SyncStatusDiverged
+				metaIcon = "🗂️"
+			}
+		}
+	}
+	*typeItems = append(*typeItems, types.ResourceSyncItem{
+		Path:     p,
+		Name:     filepath.Base(p),
+		Status:   status,
+		Type:     rtype,
+		Icon:     metaIcon,
+		Size:     fileSize(p),
+		IsDir:    isDir,
+		Children: children,
+	})
+}
+
+// processOneResourceType 处理单个资源类型：
+//   - 目录判定 + 分流（dirLevel Scan / fileLevel SyncResources）
+//   - Synced/Missing/Extra 三分支遍历（三分支共用 resolveItemMeta+appendOneItem）
+//   - dirLevel 结果做 nestDirLevelTree 树化
+//
+// 原 BuildSyncItems L132-296 主循环内体（164 行）完整升格，rtypes 外循环只负责迭代类型。
+func processOneResourceType(
+	rt ResourceTypeInfo,
+	insVersionDir string,
+	filesRoots map[string]string,
+) []types.ResourceSyncItem {
+	subDir := types.SubDirMap(rt.ID)
+	if subDir == "" {
+		return nil
+	}
+	globalDir := filesRoots[rt.ID]
+	if globalDir == "" {
+		return nil
+	}
+	instDir := types.FindInstDir(insVersionDir, subDir, rt.ID)
+	isDirLevel := types.IsDirLevelSync(rt.ID)
+
+	// ADR-064 分流：dirLevel 走 SyncResourcesDirLevelScan（注入 scanner 缓存复用），
+	// fileLevel 走 SyncResources（相对路径成对对比，不会丢同名不同目录文件）
+	var result types.ResourceSyncResult
+	if isDirLevel {
+		result = ysmsync.SyncResourcesDirLevelScan(globalDir, instDir, rt.ID, scanner.ScanEntriesWithHit)
+	} else {
+		result = ysmsync.SyncResources(globalDir, instDir, rt.ID)
+	}
+
+	var typeItems []types.ResourceSyncItem
+	// appendItem 统一出口：三分支共用 resolveItemMeta+appendOneItem，过滤/禁用/
+	// 图标/子项 全程同口径。
+	appendItem := func(p string, defaultStatus types.SyncStatus, isLegacy func(string) bool) {
+		valid, isDirEntry, status, icon := resolveItemMeta(p, rt.ID, isDirLevel, defaultStatus, isLegacy)
+		if !valid {
+			return
+		}
+		appendOneItem(&typeItems, p, rt.ID, rt.Icon, globalDir, instDir, isDirLevel, isDirEntry, status, defaultStatus, icon, globalDir)
+	}
+
+	for _, p := range result.Synced {
+		appendItem(p, types.SyncStatusSynced, nil)
+	}
+	for _, p := range result.Missing {
+		appendItem(p, types.SyncStatusMissing, nil)
+	}
+	for _, p := range result.Extra {
+		appendItem(p, types.SyncStatusOptional, func(p string) bool {
+			return ysmsync.GetLinkType(p) == types.LinkHard
+		})
+	}
+
+	if isDirLevel {
+		typeItems = nestDirLevelTree(typeItems, globalDir, instDir, rt.ID)
+	}
+	return typeItems
+}
+
 // BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入）
 // subtype 指定子类型目录名（如 EntityPlayer/SceneModel），仅 MMD 分组类型有效；
 // 非空时路径限定到 subtype 子目录，避免扫全目录（清单式扫路径限定目录，与仓库侧同构）。
 func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, filesRoots map[string]string, subtype string) []types.ResourceSyncItem {
-	// 导出函数无 nil 守卫——直接解引用 ins.VersionDir 会 panic。
-	// 当前唯一调用方保证非 nil，但防御范式（ADR-044②）要求导出入口自守卫
+	// 导出入口自守卫（ADR-044② 防御范式）：唯一调用方保证非 nil，但导出函数必须防 panic
 	if ins == nil {
 		return nil
 	}
+	// 阶段 ①：30s TTL 短缓存命中（scanner 失效钩子 InvalidateSyncItemsCache 自动清空）
 	key := buildSyncItemsKey(ins, rtypes, filesRoots, subtype)
 	if v, ok := syncItemsCache.Load(key); ok {
 		entry := v.(*syncItemsCacheEntry)
@@ -116,184 +313,17 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		}
 		syncItemsCache.Delete(key)
 	}
-	// 各资源类型允许的扩展名过滤统一走 types.IsTypeModelFile（ADR-064 收敛：
-	// 原 extMatch 内联同义实现；差异仅空扩展集分支——BuildSyncItems 的类型均有
-	// ScanDir 与扩展名，不会触发，语义等价）
-	sizeOf := func(path string) int64 {
-		fi, err := os.Stat(path)
-		if err != nil {
-			return 0
-		}
-		return fi.Size()
-	}
 
+	// 阶段 ②：逐类型处理（processOneResourceType 升格，外循环只负责 append）
+	// subtype 参数仅参与 buildSyncItemsKey 缓存区分——清单式扫路径限定目录的实际
+	// 分支由 processOneResourceType 内部 instDir=FindInstDir 决定（subtype 版本已
+	// 在调用方写入 ins.VersionDir 后缀，此处透明读取），保持现状口径不新增。
 	var items []types.ResourceSyncItem
-
 	for _, rt := range rtypes {
-		subDir := types.SubDirMap(rt.ID)
-		if subDir == "" {
-			continue
-		}
-		// 全局目录
-		globalDir := filesRoots[rt.ID]
-		if globalDir == "" {
-			continue
-		}
-		// 整合包子目录——先试标准目录，再兜底扫描
-		instDir := types.FindInstDir(ins.VersionDir, subDir, rt.ID)
-
-		// ADR-064 审核修复：dir-level 类型（ysm/MMD/蓝图）展示与操作同走
-		// SyncResourcesDirLevel（文件夹粒度），否则展示文件条目、操作却是整个文件夹，
-		// UI 粒度不一致误导；file-level 类型走 SyncResources（相对路径对比）
-		var result types.ResourceSyncResult
-		if types.IsDirLevelSync(rt.ID) {
-			// 注入 scanner.ScanEntriesWithHit 复用刷新已缓存的扫描结果，
-			// 消除 8 个 MMD 子类型 ×(1+N 整合包) 对同一仓库树的重复 Walk
-			result = ysmsync.SyncResourcesDirLevelScan(globalDir, instDir, rt.ID, scanner.ScanEntriesWithHit)
-		} else {
-			result = ysmsync.SyncResources(globalDir, instDir, rt.ID)
-		}
-
-		// appendItem 组装同步条目：类型/资源包文件夹过滤 + .disabled/.ban 禁用判定 +
-		// icon 选择，收敛 Synced/Missing/Extra 三分支逐字重复（索引 6.8c）。
-		// defaultStatus 为分支默认状态；isLegacy 仅 Extra 分支传（旧仓库硬链接检测），其余传 nil。
-		isDirLevel := types.IsDirLevelSync(rt.ID)
-
-		// per-type 收集 扁平单元；dirLevel 类型在循环末尾树化（nestDirLevelTree），
-		// 中间目录重建为容器节点——仓库怎么来，整合包就怎么来（镜像磁盘层级）
-		var typeItems []types.ResourceSyncItem
-
-		// buildChildrenForDir 为 dirLevelSync 类型的文件夹构建子条目列表
-		// 通过 DiffFolderContents 获取文件夹内容级差异
-		buildChildrenForDir := func(globalPath, instPath string) []types.ResourceSyncItem {
-			// 仓库是权威源：只要仓库侧文件夹存在即可构建子项（供 missing 夹预览
-			// 待推送文件）。实例侧缺失时 DiffFolderContents 对其扫描为空 → 全局文件全标
-			// missing——仓库怎么来，整合包就怎么来。
-			if _, err1 := os.Stat(globalPath); err1 != nil {
-				return nil
-			}
-			// DiffFolderContents 返回全局侧文件清单（synced 条目含在结果中——前端
-			// 子文件列表需全量展示）；实例侧目录不存在时自然降级为全部 missing
-			// 复用 scanner 已缓存的组根扫描结果（globalDir）反推全局侧文件，
-			// 消除每个模型夹的全局子树 Walk（实例侧保持 Walk，量级小）
-			diffs := ysmsync.DiffFolderContentsScan(globalPath, instPath, rt.ID, scanner.ScanEntriesWithHit, globalDir)
-			children := make([]types.ResourceSyncItem, 0, len(diffs))
-			for _, d := range diffs {
-				childStatus := d.Status
-				childIcon := rt.Icon
-				// 子文件禁用检测
-				lowName := strings.ToLower(filepath.Base(d.AbsPath))
-				if types.IsDisableSuffix(lowName) {
-					childStatus = types.SyncStatusDisabled
-					childIcon = "⛔"
-				}
-				children = append(children, types.ResourceSyncItem{
-					Path:   d.AbsPath,
-					Name:   d.RelPath, // 使用相对路径作为名称，便于前端展示
-					Status: childStatus,
-					Type:   rt.ID,
-					Icon:   childIcon,
-					Size:   d.Size,
-				})
-			}
-			return children
-		}
-
-		appendItem := func(p string, defaultStatus types.SyncStatus, isLegacy func(string) bool) {
-			// 目录级类型：SyncResourcesDirLevel 返回的文件夹条目（如 hello_new_generation_core）
-			// 无扩展名，需按目录放行——展示粒度与操作粒度一致
-			isDirEntry := false
-			if isDirLevel {
-				if fi, err := os.Stat(p); err == nil && fi.IsDir() {
-					isDirEntry = true
-				}
-			}
-			if !types.IsTypeModelFile(p, rt.ID) &&
-				!fsutil.IsResourcePackFolder(p) && !isDirEntry {
-				return
-			}
-			// 三分支口径一致：先识别 .disabled/.ban 禁用标记（实例侧遗留的禁用文件不应显示
-			// 为可推送的 Optional/普通 missing），再检测硬链接（旧仓库遗留，Extra 专用）
-			lowName := strings.ToLower(filepath.Base(p))
-			isDisabled := types.IsDisableSuffix(lowName)
-			status := defaultStatus
-			icon := rt.Icon
-			// 文件夹用 📁，扁平文件才用类型图标（💎）——避免「真模型夹/容器」误显示为
-			// 独立模型图标。disabled/legacy 仍各自覆盖
-			if isDirEntry {
-				icon = "📁"
-			}
-			if isDisabled {
-				status = types.SyncStatusDisabled
-				icon = "⛔"
-			} else if isLegacy != nil && isLegacy(p) {
-				status = types.SyncStatusLegacy
-				icon = "🔗"
-			}
-
-			// 为 dirLevelSync 的文件夹构建子条目列表 + diverged 聚合状态
-			var children []types.ResourceSyncItem
-			isDir := isDirEntry
-			if isDirLevel && isDirEntry {
-				// 计算实例侧对应的文件夹路径
-				instPath := p
-				if strings.HasPrefix(p, globalDir) {
-					rel := strings.TrimPrefix(p, globalDir)
-					instPath = filepath.Join(instDir, rel)
-				}
-				children = buildChildrenForDir(p, instPath)
-				// 仅「两侧都在但内容有差异」的夹聚合为 diverged（继承 missing 可操作）：
-				// 对 synced 夹，子项有非 synced → diverged；missing/optional 夹保持自身状态——
-				// 整体缺失/整体多余不降级成「部分差异」，但子项清单照常展示（仓库是权威源）
-				if len(children) > 0 {
-					hasDiff := false
-					for _, c := range children {
-						if c.Status != types.SyncStatusSynced {
-							hasDiff = true
-							break
-						}
-					}
-					// code review P2：diverged 提升不覆盖 Disabled/Legacy（status 仍为默认才
-					// 提升）；且仅 synced 夹提升——missing 夹（子项全 missing）与 optional 夹
-					// 保持自身状态，避免「整体缺失」误标成「部分差异」
-					if hasDiff && defaultStatus == types.SyncStatusSynced && status == defaultStatus {
-						status = types.SyncStatusDiverged
-						icon = "🗂️"
-					}
-				}
-			}
-
-			typeItems = append(typeItems, types.ResourceSyncItem{
-				Path: p, Name: filepath.Base(p),
-				Status: status, Type: rt.ID, Icon: icon, Size: sizeOf(p),
-				IsDir: isDir, Children: children,
-			})
-		}
-
-		for _, p := range result.Synced {
-			appendItem(p, types.SyncStatusSynced, nil)
-		}
-		for _, p := range result.Missing {
-			// Missing 分支补 disabled 检测——原仅 Synced 分支
-			// 识别 .disabled/.ban，全局仓库禁用模型（m.ysm.ban）在实例缺失时显示为
-			// 普通 missing（可推送外观）而非 disabled，三分支口径已统一
-			appendItem(p, types.SyncStatusMissing, nil)
-		}
-		for _, p := range result.Extra {
-			appendItem(p, types.SyncStatusOptional, func(p string) bool {
-				return ysmsync.GetLinkType(p) == types.LinkHard
-			})
-		}
-		// 兜底 Walk（IsScanInstance）已移除——ADR-064 阶段二：SyncResources 相对路径
-		// 对比全树递归收集所有受支持文件（含嵌套），同名不同目录不再 map 去重丢失，
-		// 原兜底（SyncResources 丢同名文件时补全）已无新增条目可补，删除防重复列示。
-
-		// dirLevel 类型：重建展示树，中间目录变容器节点，镜像磁盘层级
-		if isDirLevel {
-			typeItems = nestDirLevelTree(typeItems, globalDir, instDir, rt.ID)
-		}
-		items = append(items, typeItems...)
+		items = append(items, processOneResourceType(rt, ins.VersionDir, filesRoots)...)
 	}
+
+	// 阶段 ③：写缓存（clone 一次防调用方改返回值污染缓存；读端也 clone 一次）
 	syncItemsCache.Store(key, &syncItemsCacheEntry{
 		items:     cloneSyncItems(items),
 		expiresAt: time.Now().Add(syncItemsCacheTTL),
