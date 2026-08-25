@@ -384,7 +384,22 @@ export class AppTree extends WebComponentBase {
 
         const nextKey = fileRows[nextIdx].key;
         selectSingle(nextKey);
-        this._renderTree();
+
+        // P2 优化：精准更新 DOM selected class，避免全量 _renderTree 重建
+        if (selectState.lastKey) {
+          const oldEl = container.querySelector(`[data-fullpath="${CSS.escape(selectState.lastKey)}"]`);
+          if (oldEl) {
+            oldEl.classList.remove("selected");
+            oldEl.setAttribute("aria-selected", "false");
+          }
+        }
+        selectState.lastKey = nextKey;
+        const newEl = container.querySelector(`[data-fullpath="${CSS.escape(nextKey)}"]`);
+        if (newEl) {
+          newEl.classList.add("selected");
+          newEl.setAttribute("aria-selected", "true");
+        }
+
         updateSelectCount(this._root);
         bus.emit("model:select", { path: nextKey });
         rememberModelPath(nextKey);

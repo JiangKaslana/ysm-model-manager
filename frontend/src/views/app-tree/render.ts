@@ -50,6 +50,34 @@ export function setRenderMode(mode: RenderMode): void {
   safeSet(RENDER_MODE_KEY, mode);
 }
 
+// ——— 自底向上标注文件夹 hasEnabled/hasDisabled（一次遍历，消除 flattenVisible 内 dirEntries 重复递归） ———
+const dirFlags = new WeakMap<TreeNode, { hasEnabled: boolean; hasDisabled: boolean }>();
+function annotateDirNodes(node: TreeNode): void {
+  for (const k of Object.keys(node)) {
+    const child = node[k] as TreeNode;
+    if (child._e) continue; // 文件节点，跳过
+    annotateDirNodes(child);
+    let hasEnabled = false;
+    let hasDisabled = false;
+    const stack: TreeNode[] = [child];
+    while (stack.length) {
+      const n = stack.pop()!;
+      for (const ck of Object.keys(n)) {
+        const cv = n[ck] as TreeNode;
+        if (cv._e) {
+          if (cv._e.banned) hasDisabled = true;
+          else hasEnabled = true;
+          if (hasEnabled && hasDisabled) break;
+        } else {
+          stack.push(cv);
+        }
+      }
+      if (hasEnabled && hasDisabled) break;
+    }
+    dirFlags.set(child, { hasEnabled, hasDisabled });
+  }
+}
+
 // ——— 树构建（与原版一致） ———
 export function buildTree(
   entries: TreeEntry[],
@@ -92,22 +120,8 @@ export function buildTree(
     const fn = parts[parts.length - 1];
     if (fn) node[fn] = { _e: e };
   });
+  annotateDirNodes(root);
   return root;
-}
-
-/** P2b：短路判定子树内是否存在 banned === 目标值的条目（命中即停，不收集数组）。
- *  替代 dirEntries().some()——旧实现为算两个布尔对每个文件夹递归展开全子树建
- *  数组，深层嵌套 O(n·depth)；短路版最坏仍是 O(n·depth) 但常数大幅下降且提前终止。 */
-function hasFlag(node: TreeNode, banned: boolean): boolean {
-  for (const k of Object.keys(node)) {
-    const v = node[k] as TreeNode;
-    if (v._e) {
-      if (!!v._e.banned === banned) return true;
-    } else if (hasFlag(v, banned)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 // ——— 扁平化：将嵌套树拍平为一维行数组 ———
@@ -184,8 +198,9 @@ export function flattenVisible(
       const isLocked = k.startsWith("_");
       const shouldOpen = hasSearch || !!dirOpen[full];
       const sub = node[k] as TreeNode;
-      const hasEnabled = hasFlag(sub, false);
-      const hasDisabled = hasFlag(sub, true);
+      const flags = dirFlags.get(sub);
+      const hasEnabled = !!flags?.hasEnabled;
+      const hasDisabled = !!flags?.hasDisabled;
       // 根据模式选择模板（aria-level 最小为 1）
       const ariaLevel = depth + 1;
       const html =

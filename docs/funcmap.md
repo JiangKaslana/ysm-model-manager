@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 153 | 614 |
+| 前端·工具 | 153 | 612 |
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **469** | **2015** |
+| **合计** | **469** | **2013** |
 
 ## Go·头像
 
@@ -1375,12 +1375,12 @@
 | `buildPerceptionControls()` | `frontend/src/utils/3d/adapters/perception-controls:37` | 在感知面板内渲染开关行（对齐 camera-controls.ts 范式）。 |
 | `PostprocessingLike()` | `frontend/src/utils/3d/adapters/postprocessing:8` | 后处理对外最小契约（PostprocessingCapability 实现此接口） |
 | `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu-cap-controls:14` | — |
-| `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:25` | — |
-| `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:26` | — |
-| `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:28` | — |
-| `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:55` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
-| `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:61` | — |
-| `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:81` | core 固定菜单项（不依赖适配器注入）： - roles：模型组唯一 core 项（已加载角色管理 + 底部内嵌加载入口 fillSwitch； 2026-08-21 合并：独立 |
+| `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:30` | — |
+| `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:31` | — |
+| `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:33` | — |
+| `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:60` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
+| `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:66` | — |
+| `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:86` | core 固定菜单项（不依赖适配器注入）： - roles：模型组唯一 core 项（已加载角色管理 + 底部内嵌加载入口 fillSwitch； 2026-08-21 合并：独立 |
 | `buildEnvSchema()` | `frontend/src/utils/3d/adapters/preview-menu-env:56` | — |
 | `renderEnvLevel()` | `frontend/src/utils/3d/adapters/preview-menu-env:136` | — |
 | `PreviewStatePath()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:14` | 状态路径：类型化字符串（沿用 MikuMikuAR 契约；ysm 侧 state 映射表尚未建立时为占位） |
@@ -1395,10 +1395,8 @@
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:33` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:72` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:81` | 挂载预览底部根菜单，返回句柄 |
-| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:583` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
-| `nodeToDef()` | `frontend/src/utils/3d/adapters/preview-menu:598` | 逆向映射：PreviewMenuNode → PreviewMenuItemDef（供 setAdapterItems 转换适配器节点为内部 def） |
-| `previewItemToNode()` | `frontend/src/utils/3d/adapters/preview-menu:628` | — |
-| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:693` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
+| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:580` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
+| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:632` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
@@ -2206,14 +2204,14 @@
 | `loadEntries()` | `frontend/src/views/app-tree/loader:67` | 从 Go 后端加载仓库文件列表，返回格式化的 entries 扁平化架构下每个 MMD 子类型为独立顶级类型，直接用 subdir 作为类型 ID 查表 |
 | `TreeRow()` | `frontend/src/views/app-tree/render:22` | 扁平化行（虚拟滚动数据单元） |
 | `TreeNode()` | `frontend/src/views/app-tree/render:32` | buildTree 嵌套节点（文件夹 = 子节点对象，文件 = { _e: entry }） |
-| `RenderMode()` | `frontend/src/views/app-tree/render:40` | 渲染模式 |
-| `getRenderMode()` | `frontend/src/views/app-tree/render:46` | Get render mode from localStorage, default to 'grid' |
-| `setRenderMode()` | `frontend/src/views/app-tree/render:51` | Set render mode to localStorage |
-| `buildTree()` | `frontend/src/views/app-tree/render:85` | — |
-| `flattenVisible()` | `frontend/src/views/app-tree/render:147` | — |
-| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:298` | 断开虚拟滚动相关监听 |
-| `renderTree()` | `frontend/src/views/app-tree/render:307` | — |
-| `updateStat()` | `frontend/src/views/app-tree/render:375` | — |
+| `RenderMode()` | `frontend/src/views/app-tree/render:38` | 渲染模式 |
+| `getRenderMode()` | `frontend/src/views/app-tree/render:44` | Get render mode from localStorage, default to 'grid' |
+| `setRenderMode()` | `frontend/src/views/app-tree/render:49` | Set render mode to localStorage |
+| `buildTree()` | `frontend/src/views/app-tree/render:82` | — |
+| `flattenVisible()` | `frontend/src/views/app-tree/render:130` | — |
+| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:282` | 断开虚拟滚动相关监听 |
+| `renderTree()` | `frontend/src/views/app-tree/render:291` | — |
+| `updateStat()` | `frontend/src/views/app-tree/render:358` | — |
 | `fileRowCommon()` | `frontend/src/views/app-tree/row-common:11` | 文件行公共计算：path 转义、开关状态、禁用 class、类型图标、缩进 |
 | `folderRowCommon()` | `frontend/src/views/app-tree/row-common:34` | 文件夹行公共计算：图标、颜色、箭头、开关 class、显示名、缩进 |
 | `listFileRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:8` | 文件行 HTML（紧凑列表模式：icon + name + size，无 hover actions、无 date、无 tag dot） |
