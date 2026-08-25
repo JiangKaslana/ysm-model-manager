@@ -223,6 +223,14 @@ function srAppendLabels(
         rightSpan.className = 'field-value';
         rightSpan.textContent = extra.rightLabel;
         row.appendChild(rightSpan);
+        // 原代码 sublabel 在 rightLabel 分支外、两种情况下都 append；重构时提前
+        // return 会丢 sublabel——恢复为分支内也 append（行为保持）。
+        if (sublabel) {
+            const sub = document.createElement('span');
+            sub.className = 'slide-sublabel' + (extra?.inlineSub ? ' slide-sublabel-inline' : '');
+            sub.textContent = sublabel;
+            row.appendChild(sub);
+        }
         return;
     }
     // 普通 label：variant（danger/accent）+ wrap-2
