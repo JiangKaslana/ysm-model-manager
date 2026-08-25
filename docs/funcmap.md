@@ -96,7 +96,7 @@
 | `ExitCodeOf()` | `go/cli/shared:53` | ExitCodeOf 根据错误类型返回退出码 |
 | `PrintError()` | `go/cli/shared:62` | PrintError 输出错误到 stderr |
 | `ParseCommandArgs()` | `go/cli/shared:71` | ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数 返回: filesRoot, jsonMode, commandArgs（不含全 |
-| `outputBuffer.String()` | `go/cli/shared:207` | — |
+| `outputBuffer.String()` | `go/cli/shared:191` | — |
 | `ErrParam()` | `go/cli/shared:23` | ErrParam 参数错误（exit code 2） |
 | `ErrRuntime()` | `go/cli/shared:38` | ErrRuntime 运行时业务错误（exit code 1） |
 
