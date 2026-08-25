@@ -219,9 +219,14 @@ function makeCtx() {
   };
 }
 
-function registeredItems(ctx: ReturnType<typeof makeCtx>["ctx"]) {
-  return (ctx.menu as unknown as { setAdapterItems: ReturnType<typeof vi.fn> }).setAdapterItems.mock
-    .calls[0][0] as Array<{
+/** 从 built 对象读取注入的菜单项 */
+function registeredItems(built: { menuItems?: Array<{ id: string; kind: string; dockGroup?: string; render?: (list: HTMLElement) => void }> }): Array<{
+  id: string;
+  kind: string;
+  dockGroup?: string;
+  render?: (list: HTMLElement) => void;
+}> {
+  return (built.menuItems ?? []) as Array<{
     id: string;
     kind: string;
     dockGroup?: string;
@@ -275,7 +280,7 @@ describe("buildVrmScene 主路径", () => {
     expect(loadingEl.parentNode).toBeNull();
 
     // 菜单项注入
-    const items = registeredItems(ctx);
+    const items = registeredItems(built);
     const ids = items.map((i) => i.id);
     expect(ids).toContain("model");
     expect(ids).toContain("shot");
@@ -405,7 +410,7 @@ describe("VRMA 动作加载", () => {
       hoisted.listPathsMock,
     );
 
-    const items = registeredItems(ctx);
+    const items = registeredItems(built);
     expect(items.find((i) => i.id === "vrma-play")).toBeUndefined();
     built.dispose();
   });
@@ -494,7 +499,7 @@ describe("VRMA 多动作切换", () => {
     );
 
     // 菜单项含 vrma-play
-    const items = registeredItems(ctx);
+    const items = registeredItems(built);
     const playItem = items.find((i: { id: string; dockGroup?: string }) => i.id === "vrma-play");
     expect(playItem).toBeDefined();
     expect(playItem?.dockGroup).toBe("motion");
@@ -527,7 +532,7 @@ describe("VRMA 多动作切换", () => {
     );
 
     // 菜单项含 vrma-play，且 render 会调用 fillPlayPanel
-    const items2 = registeredItems(ctx2);
+    const items2 = registeredItems(built2);
     const playItem2 = items2.find((i: { id: string }) => i.id === "vrma-play");
     expect(playItem2).toBeDefined();
 
@@ -562,7 +567,7 @@ describe("VRMA 多动作切换", () => {
     expect(scene.children).toContain(vrm.scene);
     expect(built.update).toBeDefined();
     // 无动作
-    const items = registeredItems(ctx);
+    const items = registeredItems(built);
     expect(items.find((i: { id: string }) => i.id === "vrma-play")).toBeUndefined();
     built.dispose();
   });

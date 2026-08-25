@@ -113,9 +113,12 @@ function makeCtx() {
 }
 
 /** 最近一次 setAdapterItems 收到的适配器项 */
-function registeredItems(ctx: ReturnType<typeof makeCtx>["ctx"]) {
-  return (ctx.menu as unknown as { setAdapterItems: ReturnType<typeof vi.fn> }).setAdapterItems.mock
-    .calls[0][0] as Array<{
+function registeredItems(built: { menuItems?: Array<{ id: string; kind: string; render?: (list: HTMLElement, close: () => void) => void }> }): Array<{
+  id: string;
+  kind: string;
+  render?: (list: HTMLElement, close: () => void) => void;
+}> {
+  return (built.menuItems ?? []) as Array<{
     id: string;
     kind: string;
     render?: (list: HTMLElement, close: () => void) => void;
@@ -329,7 +332,7 @@ describe("buildMmdScene 主路径", () => {
     expect(hoisted.buildAnimMock).toHaveBeenCalledTimes(1);
 
     // 播放面板（ADR-076 v2 Phase 2：经菜单项 render；初始播放态 → 文案"暂停"）
-    const playItem = registeredItems(ctx).find((i) => i.id === "play");
+    const playItem = registeredItems(built).find((i) => i.id === "play");
     expect(playItem).toBeDefined();
     const list = document.createElement("div");
     playItem!.render!(list, () => {});
@@ -418,7 +421,7 @@ describe("buildMmdScene 主路径", () => {
     expect(hoisted.buildAnimMock).toHaveBeenCalledTimes(1);
 
     // 仅 1 个 clip → 播放面板无 select（播放按钮仍在）
-    const playItem = registeredItems(ctx).find((i) => i.id === "play");
+    const playItem = registeredItems(built).find((i) => i.id === "play");
     expect(playItem).toBeDefined();
     const list = document.createElement("div");
     playItem!.render!(list, () => {});
@@ -439,7 +442,7 @@ describe("buildMmdScene 主路径", () => {
     const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), makeMmdPanels());
     expect(hoisted.vmdParseMock).not.toHaveBeenCalled();
     // play 始终注册（支持用户配置自定义动作库，空态引导选择）
-    const playItem = registeredItems(ctx).find((i) => i.id === "play");
+    const playItem = registeredItems(built).find((i) => i.id === "play");
     expect(playItem).toBeDefined();
     // 空 mixer 的 updateWithMixer 无害
     built.update!(0.016);
@@ -884,7 +887,7 @@ describe("VMD select 切换：骨骼复位 + action 归零重播", () => {
       expect(hoisted.buildAnimMock).toHaveBeenCalledTimes(2);
 
       // 通过下拉切换动作 0 → 1
-      const playItem = registeredItems(ctx).find((i) => i.id === "play");
+      const playItem = registeredItems(built).find((i) => i.id === "play");
       expect(playItem).toBeDefined();
       const list = document.createElement("div");
       playItem!.render!(list, () => {});
