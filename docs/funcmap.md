@@ -1222,9 +1222,9 @@
 | `COLLAPSIBLE()` | `frontend/src/ui/dom-contract:29` | collapsible（folder）组件契约 |
 | `SLIDER_BAR_CLASS()` | `frontend/src/ui/dom-contract:37` | 滑动条本体 class（slider / colorSlider / modeSlider 共用 .cs-bar） |
 | `createIcon()` | `frontend/src/ui/icons:10` | 创建一个图标元素（可能返回 null，调用方应走兜底层）。 |
-| `addColorSliderRow()` | `frontend/src/ui/ui-advanced-rows:30` | — |
-| `addVector3SliderRow()` | `frontend/src/ui/ui-advanced-rows:171` | — |
-| `addModeSlider()` | `frontend/src/ui/ui-advanced-rows:337` | — |
+| `addColorSliderRow()` | `frontend/src/ui/ui-advanced-rows:37` | — |
+| `addVector3SliderRow()` | `frontend/src/ui/ui-advanced-rows:209` | — |
+| `addModeSlider()` | `frontend/src/ui/ui-advanced-rows:406` | — |
 | `cardContainer()` | `frontend/src/ui/ui-card:10` | Card container helper: removes render-card bg, wraps content in an lcard. |
 | `addCollapsible()` | `frontend/src/ui/ui-collapsible:24` | 通用折叠面板组件 |
 | `addSectionTitle()` | `frontend/src/ui/ui-collapsible:137` | 区块标题（section-title），用于 cardContainer 内的视觉分组。 |
