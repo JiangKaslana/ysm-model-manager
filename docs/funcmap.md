@@ -320,12 +320,12 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `NewLogger()` | `go/logs/logs:74` | NewLogger 创建日志管理器 configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）—— 由调用方（internal/app）注入，与 c |
-| `Logger.Add()` | `go/logs/logs:180` | Add 添加一条导入日志（兼容旧调用） |
-| `Logger.AddOp()` | `go/logs/logs:185` | AddOp 添加一条指定操作类型的日志 |
-| `Logger.Flush()` | `go/logs/logs:245` | Flush 立即落盘（取消防抖窗口）：批量写入后调用方需要立即可重启加载（测试）或 退出前确保审计完整时使用。内存态 no-op。 |
-| `Logger.GetAll()` | `go/logs/logs:256` | GetAll 获取所有日志 |
-| `Logger.Clear()` | `go/logs/logs:265` | Clear 清空日志 |
+| `NewLogger()` | `go/logs/logs:78` | NewLogger 创建日志管理器 configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）—— 由调用方（internal/app）注入，与 c |
+| `Logger.Add()` | `go/logs/logs:193` | Add 添加一条导入日志（兼容旧调用） |
+| `Logger.AddOp()` | `go/logs/logs:198` | AddOp 添加一条指定操作类型的日志 |
+| `Logger.Flush()` | `go/logs/logs:259` | Flush 立即落盘（取消防抖窗口）：批量写入后调用方需要立即可重启加载（测试）或 退出前确保审计完整时使用。内存态 no-op。同步语义不变——返回即已落盘， 仅磁盘 IO 移出 |
+| `Logger.GetAll()` | `go/logs/logs:270` | GetAll 获取所有日志 |
+| `Logger.Clear()` | `go/logs/logs:279` | Clear 清空日志（同步落盘语义不变：返回即磁盘已为空，防快速退出后旧日志复活） |
 | `Logger()` | `go/logs/logs:56` | Logger 导入日志管理器 |
 | `NewRuntimeBuffer()` | `go/logs/runtime:22` | NewRuntimeBuffer 创建环形缓冲 |
 | `RuntimeBuffer.Write()` | `go/logs/runtime:30` | Write 实现 io.Writer：每次调用记录一条运行时日志（标准库 log 一行即一次 Write） |

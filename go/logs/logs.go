@@ -60,6 +60,10 @@ type Logger struct {
 	// saveTimer 防抖合并写定时器（ADR-082 续）：批量高频 addOp（如 sync 逐文件安装
 	// InstallModelTo）每次 save 都全量重写 JSON（O(N²) 写放大），窗口内合并为一次落盘
 	saveTimer *time.Timer
+	// saveMu 落盘串行化锁：写盘在 l.mu 之外进行时保证写序与快照序一致——
+	// save 内锁序恒为 saveMu→mu，后拿 saveMu 者取到的快照必不早于先落盘者，
+	// 杜绝并发 Flush/防抖回调乱序完成导致旧快照覆盖新快照
+	saveMu sync.Mutex
 }
 
 // saveDebounce 落盘防抖窗口：窗口内多条 addOp 合并为一次 save。
@@ -150,13 +154,22 @@ func (l *Logger) cleanupStaleCorrupt() {
 	}
 }
 
-// save 将日志写入磁盘。
-// 注意：调用方必须已持有 l.mu 锁（由 Add / Clear 保证）。
+// save 将当前日志快照写入磁盘。
+// 不要求持有 l.mu（且禁止持 mu 调用——save 内部要拿 mu，非重入会死锁）：
+// 先经 saveMu 串行化，再在 l.mu 下拷贝快照后立即释放，Marshal+WriteFileAtomic
+// 全程不持 l.mu——Add/GetAll 等内存操作不被磁盘 IO 阻塞（锁内 IO 反模式修复，
+// 原「调用方必须持有 l.mu」契约下 Sync 刷盘期间 GetAll 也被堵）。
 func (l *Logger) save() {
 	if l.path == "" {
 		return // 内存态：save no-op（平台数据根缺失）
 	}
-	data, err := json.MarshalIndent(l.logs, "", "  ")
+	l.saveMu.Lock()
+	defer l.saveMu.Unlock()
+	l.mu.Lock()
+	snapshot := make([]types.ImportLog, len(l.logs))
+	copy(snapshot, l.logs)
+	l.mu.Unlock()
+	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		log.Printf("[logs] 序列化日志失败: %v", err)
 		return
@@ -234,21 +247,22 @@ func (l *Logger) scheduleSave() {
 	}
 	l.saveTimer = time.AfterFunc(saveDebounce, func() {
 		l.mu.Lock()
-		defer l.mu.Unlock()
 		l.saveTimer = nil
-		l.save()
+		l.mu.Unlock()
+		l.save() // 锁外落盘：save 内部自取 saveMu→mu，持 mu 调用会死锁
 	})
 }
 
 // Flush 立即落盘（取消防抖窗口）：批量写入后调用方需要立即可重启加载（测试）或
-// 退出前确保审计完整时使用。内存态 no-op。
+// 退出前确保审计完整时使用。内存态 no-op。同步语义不变——返回即已落盘，
+// 仅磁盘 IO 移出 l.mu 临界区（与并发 Add 的交错由 saveMu 串行化兜住写序）。
 func (l *Logger) Flush() {
 	l.mu.Lock()
-	defer l.mu.Unlock()
 	if l.saveTimer != nil {
 		l.saveTimer.Stop()
 		l.saveTimer = nil
 	}
+	l.mu.Unlock()
 	l.save()
 }
 
@@ -261,14 +275,14 @@ func (l *Logger) GetAll() []types.ImportLog {
 	return cp
 }
 
-// Clear 清空日志
+// Clear 清空日志（同步落盘语义不变：返回即磁盘已为空，防快速退出后旧日志复活）
 func (l *Logger) Clear() {
 	l.mu.Lock()
-	defer l.mu.Unlock()
 	l.logs = []types.ImportLog{}
 	if l.saveTimer != nil {
 		l.saveTimer.Stop()
 		l.saveTimer = nil
 	}
+	l.mu.Unlock()
 	l.save()
 }
