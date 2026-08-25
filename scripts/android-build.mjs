@@ -182,9 +182,12 @@ for (const arch of arches) {
   const archFlags = rustBackend
     ? [`-extldflags=-L${RUST_LIB_DIR} -l:libysm_model_manager_wails_bridge.a`]
     : [];
+  const goTags = (production ? ['production', 'android'] : ['android', 'debug'])
+    .concat(rustBackend ? ['rust_backend'] : [])
+    .join(',');
   const archBuildFlags = production
-    ? ['-tags', 'production,android', '-trimpath', '-buildvcs=false', `-ldflags=-w -s ${ldflag}`, ...archFlags]
-    : ['-tags', 'android,debug', '-buildvcs=false', '-gcflags=all=-l', `-ldflags=${ldflag}`, ...archFlags];
+    ? ['-tags', goTags, '-trimpath', '-buildvcs=false', `-ldflags=-w -s ${ldflag}`, ...archFlags]
+    : ['-tags', goTags, '-buildvcs=false', '-gcflags=all=-l', `-ldflags=${ldflag}`, ...archFlags];
   const r = run('go', ['build', '-buildmode=c-shared', `-overlay=${OVERLAY}`, ...archBuildFlags, '-o', out, '.'], {
     cwd: ROOT,
     timeout: 0,

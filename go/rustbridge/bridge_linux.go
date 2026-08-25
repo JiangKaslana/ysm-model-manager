@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"runtime"
 	"unsafe"
+
+	"ysm-model-manager/go/types"
 )
 
 // Linux 使用 CGO 静态链接：Rust .a 由 build/linux/compile-rust.mjs 编译，
@@ -72,7 +74,7 @@ func Scan(root string, registryJSON []byte) (ScanResponse, error) {
 		return ScanResponse{}, errors.New(response.Error)
 	}
 	if response.Entries == nil {
-		response.Entries = []interface{}{}
+		response.Entries = []types.ModelEntry{}
 	}
 	return response, nil
 }
@@ -116,7 +118,7 @@ func ScanManifest(root string, registryJSON, manifestJSON []byte) (ScanResponse,
 		return ScanResponse{}, errors.New(response.Error)
 	}
 	if response.Entries == nil {
-		response.Entries = []interface{}{}
+		response.Entries = []types.ModelEntry{}
 	}
 	return response, nil
 }

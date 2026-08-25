@@ -12,7 +12,7 @@ tasks:
       - task: compile:rust
     cmds:
       - mkdir -p "{{.BIN_DIR}}"
-      - go build -tags production,rust_backend -trimpath -buildvcs=false -ldflags="-w -s -X ysm-model-manager/go/version.Version={{.APP_VERSION}}" -extldflags="-L{{.ROOT_DIR}}/go/rustbridge/static-lib" -o "{{.BIN_DIR}}/{{.APP_NAME}}" .
+      - go build -tags production,rust_backend -trimpath -buildvcs=false -ldflags="-w -s -X ysm-model-manager/go/version.Version={{.APP_VERSION}}" -extldflags="-L{{.ROOT_DIR}}/go/rustbridge/static-lib {{.ROOT_DIR}}/go/rustbridge/static-lib/libysm_model_manager_wails_bridge.a" -o "{{.BIN_DIR}}/{{.APP_NAME}}" .
     env:
       GOOS: darwin
       CGO_ENABLED: '{{.CGO_ENABLED | default "1"}}'

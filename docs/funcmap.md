@@ -386,10 +386,10 @@
 |------|--------|------|
 | `Scan()` | `go/rustbridge/bridge_android:44` | — |
 | `ScanManifest()` | `go/rustbridge/bridge_android:84` | — |
-| `Scan()` | `go/rustbridge/bridge_darwin:42` | — |
-| `ScanManifest()` | `go/rustbridge/bridge_darwin:80` | — |
-| `Scan()` | `go/rustbridge/bridge_linux:42` | — |
-| `ScanManifest()` | `go/rustbridge/bridge_linux:80` | — |
+| `Scan()` | `go/rustbridge/bridge_darwin:44` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_darwin:82` | — |
+| `Scan()` | `go/rustbridge/bridge_linux:44` | — |
+| `ScanManifest()` | `go/rustbridge/bridge_linux:82` | — |
 | `Scan()` | `go/rustbridge/bridge_windows:27` | — |
 | `ScanManifest()` | `go/rustbridge/bridge_windows:72` | ScanManifest 使用 Go 预枚举的文件清单调用 Rust，跳过 Rust 侧的文件系统发现（jwalk）。 |
 | `ScanError()` | `go/rustbridge/types:7` | — |
@@ -1392,11 +1392,11 @@
 | `collectPreviewLeafNodes()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:110` | 递归收集全部叶子节点（folder 展开；供测试/审计遍历） |
 | `collectPreviewNodeIds()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:123` | 递归收集全部节点 id（供 id 唯一性契约测试） |
 | `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu` | — |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:44` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:83` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:92` | 挂载预览底部根菜单，返回句柄 |
-| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:591` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
-| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:643` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:34` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:77` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:86` | 挂载预览底部根菜单，返回句柄 |
+| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:585` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
+| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:637` | 通用声明式渲染器（方案 A 第 2 步）：将 PreviewMenuNode[] 递归渲染进容器。 |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
