@@ -2223,12 +2223,12 @@
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
 | `AuthorInfo()` | `frontend/src/views/app-tree/authors:5` | 作者统计（Go ListModelAuthors 返回） |
 | `loadAuthors()` | `frontend/src/views/app-tree/authors:13` | 从 Go 端加载作者列表 |
-| `bindBusEvents()` | `frontend/src/views/app-tree/bus-handlers:16` | — |
+| `bindBusEvents()` | `frontend/src/views/app-tree/bus-handlers:25` | — |
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
-| `updateSelectCount()` | `frontend/src/views/app-tree/events:19` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:132` | — |
+| `updateSelectCount()` | `frontend/src/views/app-tree/events:417` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:521` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:61` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |
@@ -2239,17 +2239,17 @@
 | `getRenderMode()` | `frontend/src/views/app-tree/render:44` | Get render mode from localStorage, default to 'grid' |
 | `setRenderMode()` | `frontend/src/views/app-tree/render:49` | Set render mode to localStorage |
 | `buildTree()` | `frontend/src/views/app-tree/render:82` | — |
-| `flattenVisible()` | `frontend/src/views/app-tree/render:130` | — |
-| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:282` | 断开虚拟滚动相关监听 |
-| `renderTree()` | `frontend/src/views/app-tree/render:291` | — |
-| `updateStat()` | `frontend/src/views/app-tree/render:358` | — |
+| `flattenVisible()` | `frontend/src/views/app-tree/render:285` | — |
+| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:336` | 断开虚拟滚动相关监听 |
+| `renderTree()` | `frontend/src/views/app-tree/render:345` | — |
+| `updateStat()` | `frontend/src/views/app-tree/render:412` | — |
 | `fileRowCommon()` | `frontend/src/views/app-tree/row-common:11` | 文件行公共计算：path 转义、开关状态、禁用 class、类型图标、缩进 |
 | `folderRowCommon()` | `frontend/src/views/app-tree/row-common:34` | 文件夹行公共计算：图标、颜色、箭头、开关 class、显示名、缩进 |
 | `listFileRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:8` | 文件行 HTML（紧凑列表模式：icon + name + size，无 hover actions、无 date、无 tag dot） |
 | `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:27` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:34` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
-| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:60` | — |
+| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:370` | — |
 | `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:42` | — |
 | `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:236` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |

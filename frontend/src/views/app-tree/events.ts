@@ -15,7 +15,405 @@ import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 
 const ENABLE_MULTI_SELECT = true;
 
-// 更新底部"已选 N 个文件"统计（被工具栏复用，避免重复实现）
+// ===== 类型提级：AtTeCtx 收纳上下文 =====
+interface AtTeCtx {
+  container: HTMLElement;
+  vm: AppTree;
+  disposed: boolean;
+}
+
+// ===== 闭包升格：辅助函数（atTe* 前缀） =====
+function atTeFindRow(container: HTMLElement, path: string): HTMLElement | null {
+  const rows = container._vsRows || [];
+  const idx = rows.findIndex((r) => r.key === path);
+  if (idx === -1) return null;
+  const selector = `[data-fullpath="${CSS.escape(path)}"], [data-path="${CSS.escape(path)}"]`;
+  return container.querySelector(selector);
+}
+
+function atTeStartRename(ctx: AtTeCtx, path: string): void {
+  if (ctx.disposed) return;
+  const row = atTeFindRow(ctx.container, path);
+  if (!row) return;
+  const nmEl = row.querySelector(".nm") as HTMLElement | null;
+  if (!nmEl) return;
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.className = "rename-inp";
+  inp.value = nmEl.textContent?.replace(/^\S+\s/, "") || "";
+  nmEl.replaceWith(inp);
+  inp.focus();
+  inp.select();
+  const save = () => {
+    const newName = inp.value.trim();
+    if (!newName) {
+      ctx.vm._renderTree();
+      return;
+    }
+    (bus as any).emit("file:rename", { path, newName });
+  };
+  inp.addEventListener("keydown", (ke) => {
+    if (ke.key === "Enter") {
+      ke.preventDefault();
+      save();
+    } else if (ke.key === "Escape") {
+      ctx.vm._renderTree();
+    }
+  });
+  inp.addEventListener("blur", save);
+}
+
+function atTeGetRtype(vm: AppTree): string {
+  return vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM;
+}
+
+// ===== 事件段 1：DnD 拖入（dragover/drop + switchExternal/switchTo） =====
+function atTeBindDragDrop(ctx: AtTeCtx): void {
+  const { container } = ctx;
+  container.addEventListener("dragover", (e: DragEvent) => {
+    if (ctx.disposed) return;
+    if (!e.dataTransfer?.types.includes("Files")) return;
+    e.preventDefault();
+  });
+  container.addEventListener("drop", (e: DragEvent) => {
+    if (ctx.disposed) return;
+    if (!e.dataTransfer?.files?.length) return;
+    e.preventDefault();
+    const target = e.target as HTMLElement | null;
+    const row = target?.closest(".fh, .fh-list, .fl, .fl-list") as HTMLElement | null;
+    const dir = row?.dataset.dir || "";
+    (bus as any).emit("tree:drop-files", {
+      files: Array.from(e.dataTransfer.files),
+      dir,
+      rtype: atTeGetRtype(ctx.vm),
+    });
+  });
+}
+
+// ===== 事件段 2：行复选框多选（文件夹/文件开关 ck） =====
+function atTeBindSelCheckboxes(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement): boolean {
+  const { vm } = ctx;
+  const fhCk = target.closest(".fh .ck, .fh-list .ck");
+  if (fhCk) {
+    e.stopPropagation();
+    toggleFolderBatch(fhCk.closest(".fh, .fh-list") as HTMLElement, vm);
+    return true;
+  }
+  const flCk = target.closest(".fl .ck, .fl-list .ck") as HTMLElement | null;
+  if (flCk) {
+    e.stopPropagation();
+    if (!can("ToggleEnable")) {
+      bus.emit("toast:show", {
+        msg: "网页版不支持启用/禁用模型",
+        duration: 3000,
+        type: "warn",
+      });
+      return true;
+    }
+    if (vm._toggleBusy || vm._batchBusy) {
+      bus.emit("toast:show", {
+        msg: "⏳ 操作进行中，请稍候",
+        duration: 1500,
+        type: "info",
+      });
+      return true;
+    }
+    vm._toggleBusy = true;
+    const fullPath = flCk.dataset.fullpath || flCk.dataset.path;
+    const fl = flCk.closest(".fl, .fl-list") as HTMLElement | null;
+    flashBtn(fl);
+    getApp()
+      .then(({ ToggleEnable }) => ToggleEnable(fullPath || ""))
+      .then(async () => {
+        const gen = vm._gen;
+        await vm._load();
+        if (gen !== vm._gen) return;
+        vm._renderTree();
+        if (atTeGetRtype(vm) === RESOURCE_TYPES.YSM) {
+          bus.emit("sync:toggle:status");
+        }
+        bus.emit("stats:refresh");
+      })
+      .catch((err) => {
+        console.warn("[tree] ToggleEnable 失败:", fullPath, err);
+        bus.emit("toast:show", {
+          msg:
+            "❌ 切换失败: " +
+            (fullPath ? fullPath.split(/[/\\]/).pop() : ""),
+          duration: 3000,
+          type: "error",
+        });
+      })
+      .finally(() => {
+        vm._toggleBusy = false;
+      });
+    return true;
+  }
+  return false;
+}
+
+// ===== 事件段 3：行点击分派（目录展开/文件选中/悬停操作） =====
+function atTeBindRowClick(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement): boolean {
+  const { container, vm } = ctx;
+  const fh = target.closest(".fh, .fh-list") as HTMLElement | null;
+  if (fh) {
+    e.stopPropagation();
+    const dir = fh.dataset.dir;
+    if (!dir) return true;
+    const isOpen = vm._dirOpen[dir];
+    vm._dirOpen[dir] = !isOpen;
+    if (isOpen) {
+      const prefix = (dir + "/").replace(/\\/g, "/");
+      for (const key of Object.keys(vm._dirOpen)) {
+        const nk = key.replace(/\\/g, "/");
+        if (nk !== dir && nk.startsWith(prefix)) delete vm._dirOpen[key];
+      }
+    }
+    safeSet("at_dirs", JSON.stringify(vm._dirOpen));
+    vm._renderTree();
+    if (!isOpen) {
+      bus.emit("model:select", { path: dir, isDir: true });
+      rememberModelPath(null);
+    }
+    return true;
+  }
+
+  const haPreview = target.closest(".ha-preview") as HTMLElement | null;
+  if (haPreview) {
+    e.stopPropagation();
+    const path = haPreview.dataset.path;
+    const name = path?.split(/[/\\]/).pop() || "";
+    import("../../utils/dom/display.ts").then(({ parseModelName }) => {
+      const { author } = parseModelName(name);
+      if (author) {
+        const url =
+          "https://search.bilibili.com/all?keyword=" + encodeURIComponent(author);
+        if (isViewerMode()) {
+          window.open(url, "_blank", "noopener");
+          return;
+        }
+        getApp()
+          .then(({ OpenInBrowser }) => OpenInBrowser(url))
+          .catch((err) => {
+            console.warn("[tree] OpenInBrowser 失败:", err);
+            bus.emit("toast:show", {
+              msg: "❌ 打开浏览器失败",
+              duration: 3000,
+              type: "error",
+            });
+          });
+      } else {
+        bus.emit("toast:show", {
+          msg: "未解析到作者名",
+          duration: 2000,
+          type: "warn",
+        });
+      }
+    }).catch((err) => {
+      console.warn("[tree] 加载 display 模块失败:", err);
+      bus.emit("toast:show", {
+        msg: "❌ 加载解析模块失败",
+        duration: 3000,
+        type: "error",
+      });
+    });
+    return true;
+  }
+
+  const haCopy = target.closest(".ha-copy") as HTMLElement | null;
+  if (haCopy) {
+    e.stopPropagation();
+    const path = haCopy.dataset.path;
+    const name = path?.split(/[/\\]/).pop() || "";
+    navigator.clipboard
+      ?.writeText(name)
+      .then(() => {
+        bus.emit("toast:show", {
+          msg: "📋 已复制: " + name,
+          duration: 1500,
+          type: "info",
+        });
+      })
+      .catch(() => {
+        bus.emit("toast:show", {
+          msg: "❌ " + t("tree.copyFailed"),
+          duration: 2000,
+          type: "error",
+        });
+      });
+    return true;
+  }
+
+  const fl = target.closest(".fl, .fl-list") as HTMLElement | null;
+  if (fl && e.button === 0) {
+    e.stopPropagation();
+    const fullPath = fl.dataset.fullpath || fl.dataset.path;
+    if (!fullPath) return true;
+    const isCtrl = e.ctrlKey || e.metaKey;
+    const isShift = e.shiftKey;
+    if (isShift) {
+      e.preventDefault();
+      document.getSelection()?.removeAllRanges();
+      if (!selectState.lastKey) return true;
+      const allPaths = (container._vsRows || [])
+        .filter((r) => r.type === "file")
+        .map((r) => r.key);
+      const startIdx = allPaths.indexOf(selectState.lastKey);
+      const endIdx = allPaths.indexOf(fullPath);
+      if (startIdx !== -1 && endIdx !== -1) {
+        const [min, max] = [
+          Math.min(startIdx, endIdx),
+          Math.max(startIdx, endIdx),
+        ];
+        for (let i = min; i <= max; i++) {
+          selectState.keys.add(allPaths[i]);
+        }
+      }
+      selectState.lastKey = fullPath;
+      vm._renderTree();
+      updateSelectCount(vm._root);
+      return true;
+    }
+    if (isCtrl) {
+      toggleSelect(fullPath);
+      vm._renderTree();
+      updateSelectCount(vm._root);
+      return true;
+    }
+    selectSingle(fullPath);
+    vm._renderTree();
+    updateSelectCount(vm._root);
+    bus.emit("model:select", { path: fullPath });
+    rememberModelPath(fullPath);
+    return true;
+  }
+  return false;
+}
+
+// ===== 事件段 4：双击 =====
+function atTeBindRowDoubleClick(ctx: AtTeCtx): void {
+  const { container, vm } = ctx;
+  container.addEventListener("dblclick", (e: MouseEvent) => {
+    if (ctx.disposed) return;
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    const fl = target.closest(".fl, .fl-list") as HTMLElement | null;
+    if (!fl) return;
+    const fullPath = fl.dataset.fullpath || fl.dataset.path;
+    if (!fullPath) return;
+    e.stopPropagation();
+    atTeStartRename(ctx, fullPath);
+  });
+}
+
+// ===== 事件段 5：右键菜单（显示+定位） =====
+function atTeBindContextMenu(ctx: AtTeCtx): void {
+  const { container, vm } = ctx;
+  container.addEventListener("contextmenu", (e: MouseEvent) => {
+    if (ctx.disposed) return;
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    const fh = target.closest(".fh, .fh-list") as HTMLElement | null;
+    if (fh) {
+      e.preventDefault();
+      e.stopPropagation();
+      bus.emit("ctx:show", {
+        x: e.clientX,
+        y: e.clientY,
+        type: "dir",
+        dir: fh.dataset.dir,
+        rtype: atTeGetRtype(vm),
+      });
+      return;
+    }
+    const fl = target.closest(".fl, .fl-list") as HTMLElement | null;
+    if (fl) {
+      e.preventDefault();
+      e.stopPropagation();
+      const fullPath = fl.dataset.fullpath || fl.dataset.path;
+      const nameEl = fl.querySelector(".nm");
+      const name = nameEl?.textContent?.replace(/^\S+\s/, "") || "";
+      const selectedPaths = (container._vsRows || [])
+        .filter((r) => r.type === "file" && selectState.keys.has(r.key))
+        .map((r) => r.key);
+      if (
+        ENABLE_MULTI_SELECT &&
+        selectedPaths.length > 0 &&
+        selectedPaths.includes(fullPath || "")
+      ) {
+        bus.emit("ctx:show", {
+          x: e.clientX,
+          y: e.clientY,
+          type: "batch",
+          count: selectedPaths.length,
+          paths: selectedPaths,
+          rtype: atTeGetRtype(vm),
+        });
+        return;
+      }
+      const banned = !fl.querySelector(".ck")?.classList.contains("on");
+      bus.emit("ctx:show", {
+        x: e.clientX,
+        y: e.clientY,
+        type: "file",
+        path: fullPath || "",
+        banned,
+        name,
+        rtype: atTeGetRtype(vm),
+      });
+    }
+  });
+}
+
+// ===== 事件段 6：输入框 rename（keydown Enter/blur 保存） =====
+function atTeBindRenameInput(ctx: AtTeCtx): void {
+  const { container, vm } = ctx;
+  container.addEventListener("keydown", (e: Event) => {
+    if (ctx.disposed) return;
+    const ke = e as KeyboardEvent;
+    const target = ke.target as HTMLElement | null;
+    if (!target || !target.classList.contains("rename-inp")) return;
+    if (ke.key === "Enter") {
+      ke.preventDefault();
+      (target as HTMLInputElement).blur();
+    } else if (ke.key === "Escape") {
+      vm._renderTree();
+    }
+  });
+  container.addEventListener("focusout", (e: FocusEvent) => {
+    if (ctx.disposed) return;
+    const target = e.target as HTMLElement | null;
+    if (!target || !target.classList.contains("rename-inp")) return;
+    const inp = target as HTMLInputElement;
+    const newName = inp.value.trim();
+    if (!newName) {
+      vm._renderTree();
+      return;
+    }
+    const row = inp.closest(".fl, .fl-list") as HTMLElement | null;
+    const path = row?.dataset.fullpath || row?.dataset.path || "";
+    if (path) (bus as any).emit("file:rename", { path, newName });
+  });
+}
+
+// ===== 事件段 7：搜索框过滤 =====
+function atTeBindSearchFilter(ctx: AtTeCtx): void {
+  const { vm } = ctx;
+  const srch = vm._root.getElementById("srch") as HTMLInputElement | null;
+  if (!srch) return;
+  let debounceTimer: number | null = null;
+  srch.addEventListener("input", () => {
+    if (ctx.disposed) return;
+    vm._search = srch.value || "";
+    if (debounceTimer) window.clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(() => {
+      if (ctx.disposed) return;
+      vm._renderTree();
+    }, 150);
+  });
+}
+
+// ===== 导出：更新底部选中统计 =====
 export function updateSelectCount(root: ShadowRoot): void {
   const stat = root?.getElementById("ftr-stat");
   if (!stat) return;
@@ -28,7 +426,7 @@ export function updateSelectCount(root: ShadowRoot): void {
   }
 }
 
-// 递归收集文件夹下所有条目
+// ===== 递归收集文件夹下所有条目 =====
 function collectDirEntries(
   entries: TreeEntry[],
   prefix: string,
@@ -44,9 +442,9 @@ function collectDirEntries(
   return result;
 }
 
+// ===== 文件夹批量启用/禁用 =====
 async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> {
   if (vm._batchBusy || vm._toggleBusy) {
-    // 防御范式①：busy 命中必回提示，禁止静默吞事件（与单文件/批量 toggle 一致）
     bus.emit("toast:show", {
       msg: "⏳ 操作进行中，请稍候",
       duration: 1500,
@@ -54,7 +452,6 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
     });
     return;
   }
-  // 能力门控：web 已实现 ToggleEnable（IDB ban 标记）→ 解锁；Android viewer 无此能力 → 封禁
   if (!can("ToggleEnable")) {
     bus.emit("toast:show", {
       msg: "网页版不支持启用/禁用模型",
@@ -88,16 +485,11 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
     }
   }
   if (ok > 0) {
-    // 直接更新本地 banned 状态（ScanModelEntries 有 30s 缓存，_load 会拿到旧数据）
     for (const e of targets) {
       if (!e.banned && !enable) e.banned = true;
       else if (e.banned && enable) e.banned = false;
     }
     vm._renderTree();
-    // 仅 YSM 树触发 sync:toggle:status：SyncModelToggleStatus 锁 YSM 仓库根
-    // （sync.ts requireMcRoot + GetRepoRoot(YSM)），非 YSM 树（resourcepack/MMD 等）
-    // toggle 走 McRoot/CustomRoots，触发只会弹「请先配置目录」或对 YSM 做无谓
-    // WalkDir+Rename（feef02b3 P3 审核回归）。
     if ((vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM) === RESOURCE_TYPES.YSM) {
       bus.emit("sync:toggle:status");
     }
@@ -115,9 +507,6 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
     type: fail > 0 ? "warn" : "success",
   });
   } catch (err) {
-    // P2 修复（审核，ADR-044 ①）：async handler 最外层 catch 出口——原仅 try/finally
-    // 无 catch，getApp() reject 时 Promise 被 click handler 丢弃 → unhandledrejection
-    // 且用户零反馈（对比 bus-handlers runBatchToggle 已补 catch，此处是同一范式漏网）
     bus.emit("toast:show", {
       msg: "❌ " + friendlyError(err, "批量启用/禁用失败"),
       duration: 5000,
@@ -128,284 +517,20 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
   }
 }
 
-// ——— 事件委托：一次性绑定，虚拟滚动替换 innerHTML 后仍然有效 ———
+// ===== 主函数：纯分派，原签名不变 =====
 export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
-  // 点击事件委托
+  const ctx: AtTeCtx = { container, vm, disposed: false };
+
+  atTeBindDragDrop(ctx);
+  atTeBindRowDoubleClick(ctx);
+  atTeBindContextMenu(ctx);
+  atTeBindRenameInput(ctx);
+  atTeBindSearchFilter(ctx);
+
   container.addEventListener("click", (e: MouseEvent) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
-    // 文件夹开关
-    const fhCk = target.closest(".fh .ck, .fh-list .ck");
-    if (fhCk) {
-      e.stopPropagation();
-      toggleFolderBatch(fhCk.closest(".fh, .fh-list") as HTMLElement, vm);
-      return;
-    }
-
-    // 文件夹展开/折叠
-    const fh = target.closest(".fh, .fh-list") as HTMLElement | null;
-    if (fh) {
-      e.stopPropagation();
-      const dir = fh.dataset.dir;
-      if (!dir) return;
-      const isOpen = vm._dirOpen[dir];
-      vm._dirOpen[dir] = !isOpen;
-      // 折叠父文件夹时递归清除所有子文件夹的展开状态
-      if (isOpen) {
-        const prefix = (dir + "/").replace(/\\/g, "/");
-        for (const key of Object.keys(vm._dirOpen)) {
-          const nk = key.replace(/\\/g, "/");
-          if (nk !== dir && nk.startsWith(prefix)) delete vm._dirOpen[key];
-        }
-      }
-      safeSet("at_dirs", JSON.stringify(vm._dirOpen));
-      vm._renderTree();
-      // 折叠时通知预览清空；展开时通知预览显示整合包
-      if (!isOpen) {
-        bus.emit("model:select", { path: dir, isDir: true });
-        rememberModelPath(null);
-      }
-      return;
-    }
-
-    // 文件开关
-    const flCk = target.closest(".fl .ck, .fl-list .ck") as HTMLElement | null;
-    if (flCk) {
-      e.stopPropagation();
-      // 能力门控：web 已实现 ToggleEnable → 解锁；Android viewer 封禁
-      if (!can("ToggleEnable")) {
-        bus.emit("toast:show", {
-          msg: "网页版不支持启用/禁用模型",
-          duration: 3000,
-          type: "warn",
-        });
-        return;
-      }
-      // 并发守卫：与批量 toggle 共用槽位，防连点翻转状态 + reload 竞态
-      if (vm._toggleBusy || vm._batchBusy) {
-        bus.emit("toast:show", {
-          msg: "⏳ 操作进行中，请稍候",
-          duration: 1500,
-          type: "info",
-        });
-        return;
-      }
-      vm._toggleBusy = true;
-      const fullPath = flCk.dataset.fullpath || flCk.dataset.path;
-      const fl = flCk.closest(".fl, .fl-list") as HTMLElement | null;
-      flashBtn(fl);
-      getApp()
-        .then(({ ToggleEnable }) => ToggleEnable(fullPath || ""))
-        .then(async () => {
-          const gen = vm._gen; // P2-1 代际捕获：_load 期间 root 切换/新加载 → 丢弃过期渲染
-          await vm._load();
-          if (gen !== vm._gen) return;
-          vm._renderTree();
-          // 同 toggleFolderBatch：仅 YSM 树触发 sync（feef02b3 P3 审核回归）
-          if ((vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM) === RESOURCE_TYPES.YSM) {
-            bus.emit("sync:toggle:status");
-          }
-          bus.emit("stats:refresh");
-        })
-        .catch((err) => {
-          console.warn("[tree] ToggleEnable 失败:", fullPath, err);
-          bus.emit("toast:show", {
-            msg:
-              "❌ 切换失败: " +
-              (fullPath ? fullPath.split(/[/\\]/).pop() : ""),
-            duration: 3000,
-            type: "error",
-          });
-        })
-        .finally(() => {
-          vm._toggleBusy = false;
-        });
-      return;
-    }
-
-    // 悬停快捷操作（在文件选中前检查，因为它们也在 .fl 内部）
-    const haPreview = target.closest(".ha-preview") as HTMLElement | null;
-    if (haPreview) {
-      e.stopPropagation();
-      const path = haPreview.dataset.path;
-      const name = path?.split(/[/\\]/).pop() || "";
-      import("../../utils/dom/display.ts").then(({ parseModelName }) => {
-        const { author } = parseModelName(name);
-        if (author) {
-          const url =
-            "https://search.bilibili.com/all?keyword=" + encodeURIComponent(author);
-          // 网页版（ADR-049）：无系统浏览器概念，OpenInBrowser 桌面专属未实现，
-          // 直接用 window.open 开新标签搜索
-          if (isViewerMode()) {
-            window.open(url, "_blank", "noopener");
-            return;
-          }
-          getApp()
-            .then(({ OpenInBrowser }) => OpenInBrowser(url))
-            .catch((err) => {
-              console.warn("[tree] OpenInBrowser 失败:", err);
-              bus.emit("toast:show", {
-                msg: "❌ 打开浏览器失败",
-                duration: 3000,
-                type: "error",
-              });
-            });
-        } else {
-          bus.emit("toast:show", {
-            msg: "未解析到作者名",
-            duration: 2000,
-            type: "warn",
-          });
-        }
-      }).catch((err) => {
-        console.warn("[tree] 加载 display 模块失败:", err);
-        bus.emit("toast:show", {
-          msg: "❌ 加载解析模块失败",
-          duration: 3000,
-          type: "error",
-        });
-      });
-      return;
-    }
-
-    // 悬停快捷操作：📋 复制文件名
-    const haCopy = target.closest(".ha-copy") as HTMLElement | null;
-    if (haCopy) {
-      e.stopPropagation();
-      const path = haCopy.dataset.path;
-      const name = path?.split(/[/\\]/).pop() || "";
-      // P3 修复：与 skeleton 复制按钮同源——剪贴板写入失败不假成功
-      navigator.clipboard
-        ?.writeText(name)
-        .then(() => {
-          bus.emit("toast:show", {
-            msg: "📋 已复制: " + name,
-            duration: 1500,
-            type: "info",
-          });
-        })
-        .catch(() => {
-          bus.emit("toast:show", {
-            msg: "❌ " + t("tree.copyFailed"),
-            duration: 2000,
-            type: "error",
-          });
-        });
-      return;
-    }
-
-    // 左键点击文件 → 多选
-    const fl = target.closest(".fl, .fl-list") as HTMLElement | null;
-    if (fl && e.button === 0) {
-      e.stopPropagation();
-      const fullPath = fl.dataset.fullpath || fl.dataset.path;
-      if (!fullPath) return;
-
-      const isCtrl = e.ctrlKey || e.metaKey;
-      const isShift = e.shiftKey;
-
-      if (isShift) {
-        e.preventDefault();
-        document.getSelection()?.removeAllRanges();
-        if (!selectState.lastKey) return;
-        const allPaths = (container._vsRows || [])
-          .filter((r) => r.type === "file")
-          .map((r) => r.key);
-        const startIdx = allPaths.indexOf(selectState.lastKey);
-        const endIdx = allPaths.indexOf(fullPath);
-        if (startIdx !== -1 && endIdx !== -1) {
-          const [min, max] = [
-            Math.min(startIdx, endIdx),
-            Math.max(startIdx, endIdx),
-          ];
-          for (let i = min; i <= max; i++) {
-            selectState.keys.add(allPaths[i]);
-          }
-        }
-        selectState.lastKey = fullPath;
-        vm._renderTree();
-        updateSelectCount(vm._root);
-        return;
-      }
-
-      if (isCtrl) {
-        toggleSelect(fullPath);
-        vm._renderTree();
-        updateSelectCount(vm._root);
-        return;
-      }
-
-      // 纯单击（收敛到 data.ts 的方法，避免外部直接写 selectState）
-      selectSingle(fullPath);
-      vm._renderTree();
-      updateSelectCount(vm._root);
-      bus.emit("model:select", { path: fullPath });
-      rememberModelPath(fullPath);
-      return;
-    }
-  });
-
-  // 右键事件委托
-  container.addEventListener("contextmenu", (e: MouseEvent) => {
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
-    const fh = target.closest(".fh, .fh-list") as HTMLElement | null;
-    if (fh) {
-      e.preventDefault();
-      e.stopPropagation();
-      bus.emit("ctx:show", {
-        x: e.clientX,
-        y: e.clientY,
-        type: "dir",
-        dir: fh.dataset.dir,
-        // 右键移动/复制跟随当前树类型（resolveDstDir 按 rtype 路由，code review P3）
-        rtype: vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM,
-      });
-      return;
-    }
-
-    const fl = target.closest(".fl, .fl-list") as HTMLElement | null;
-    if (fl) {
-      e.preventDefault();
-      e.stopPropagation();
-      const fullPath = fl.dataset.fullpath || fl.dataset.path;
-      const nameEl = fl.querySelector(".nm");
-      const name = nameEl?.textContent?.replace(/^\S+\s/, "") || "";
-
-      // 获取当前选中的文件路径列表
-      const selectedPaths = (container._vsRows || [])
-        .filter((r) => r.type === "file" && selectState.keys.has(r.key))
-        .map((r) => r.key);
-
-      // 如果右键的文件已在选中集中，显示多选菜单；否则只显示单文件菜单
-      // 右键绝不修改选中状态
-      if (
-        ENABLE_MULTI_SELECT &&
-        selectedPaths.length > 0 &&
-        selectedPaths.includes(fullPath || "")
-      ) {
-        bus.emit("ctx:show", {
-          x: e.clientX,
-          y: e.clientY,
-          type: "batch",
-          count: selectedPaths.length,
-          paths: selectedPaths,
-          rtype: vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM,
-        });
-        return;
-      }
-
-      // 单个文件菜单
-      const banned = !fl.querySelector(".ck")?.classList.contains("on");
-      bus.emit("ctx:show", {
-        x: e.clientX,
-        y: e.clientY,
-        type: "file",
-        path: fullPath || "",
-        banned,
-        name,
-        rtype: vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM,
-      });
-    }
+    if (atTeBindSelCheckboxes(ctx, e, target)) return;
+    if (atTeBindRowClick(ctx, e, target)) return;
   });
 }
