@@ -533,26 +533,28 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, menu: SlideMenuHandl
             "width:22px;height:22px;flex-shrink:0;background:rgba(255,255,255,0.08);border:none;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;margin-left:auto";
           append.onclick = (ev): void => {
             ev.stopPropagation();
-            // 追加（keepInScene 同台）：不清场景、不关菜单——完成后局部刷新列表（✓ 高亮归位）
+            // 追加（keepInScene 同台）：不清场景、不关菜单
+            // 注意：不调 menu.refresh()——全量重建会清空列表滚动位置 + 详情面板状态。
+            // ✓ 高亮在下次打开面板时自动归位（getCurrentPath 已更新）。
+            // 跨类型 switchExternal 整段重建 overlay 时刷新也是 no-op，此处统一忽略。
             const r = !sameType && ctx.switchExternal
               ? ctx.switchExternal(p, ctx.getSiblings(), { keepInScene: true })
               : ctx.switchTo(p, { keepInScene: true });
-            if (r && typeof (r as Promise<void>).then === "function") {
-              // 失败已由 mount 层 .catch(logWarn) 记录，这里吞掉避免 unhandled rejection
-              void (r as Promise<void>).then(() => menu.refresh()).catch(() => {});
-            }
+            // 失败已由 mount 层 .catch(logWarn) 记录，吞掉避免 unhandled rejection
+            if (r && typeof (r as Promise<void>).then === "function") void (r as Promise<void>).catch(() => {});
           };
           row.appendChild(append);
         }
         row.onclick = (): void => {
-          // 替换：不关菜单、不清场景——切换完成后局部刷新列表（renderRows 重读新当前路径）
+          // 替换：不关菜单、不清场景
+          // 注意：不调 menu.refresh()——全量重建会清空列表滚动位置 + 详情面板状态。
+          // ✓ 高亮在下次打开面板时自动归位（getCurrentPath 已更新）。
+          // 跨类型 switchExternal 整段重建 overlay 时刷新也是 no-op，此处统一忽略。
           const r = !sameType && ctx.switchExternal
             ? ctx.switchExternal(p, ctx.getSiblings())
             : ctx.switchTo(p);
-          if (r && typeof (r as Promise<void>).then === "function") {
-            // 失败已由 mount 层 .catch(logWarn) 记录，这里吞掉避免 unhandled rejection
-            void (r as Promise<void>).then(() => menu.refresh()).catch(() => {});
-          }
+          // 失败已由 mount 层 .catch(logWarn) 记录，吞掉避免 unhandled rejection
+          if (r && typeof (r as Promise<void>).then === "function") void (r as Promise<void>).catch(() => {});
         };
         listBody.appendChild(row);
       });

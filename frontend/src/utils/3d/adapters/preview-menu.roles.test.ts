@@ -231,27 +231,19 @@ describe("角色面板（roles）", () => {
     }
   });
 
-  it("替换角色：点击行不关菜单，switchTo 完成后局部刷新列表（✓ 归位到新模型）", async () => {
-    // 可控异步 switchTo：resolve 后 getCurrentPath 指向新路径，验证 refresh 重渲染
+  it("替换角色：点击行不关菜单，不调 menu.refresh()（保留滚动位置 + 详情面板状态）", async () => {
     let currentPath = "/m/a.ysm";
-    let resolveSwitch: (() => void) | null = null;
     const switchTo = vi.fn((p: string) => {
-      return new Promise<void>((resolve) => {
-        resolveSwitch = () => {
-          currentPath = p;
-          resolve();
-        };
-      });
+      currentPath = p;
+      return Promise.resolve();
     });
-    // 回归防护：curType 为空串（空白页加载场景）时 .ysm 候选必须判同源走 switchTo，
-    // 不得误判跨源触发 switchExternal（cleanupPreview 整段销毁 = 「替换后界面被关」根因）
     const switchExternal = vi.fn();
     const handle = mountPreviewRootMenu(
       overlay,
       makeCtx({
         getCurrentPath: () => currentPath,
         getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
-        getCurrentRtype: () => "", // 模拟空白页加载：opts.rtype 空串
+        getCurrentRtype: () => "",
         switchTo,
         switchExternal,
       }),
@@ -260,31 +252,17 @@ describe("角色面板（roles）", () => {
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    const itemA = [...overlay.querySelectorAll('[data-testid="preview-switch-item"]')].find(
-      (el) => el.textContent?.includes("a.ysm"),
-    ) as HTMLElement | undefined;
     const itemB = [...overlay.querySelectorAll('[data-testid="preview-switch-item"]')].find(
       (el) => el.textContent?.includes("b.ysm"),
     ) as HTMLElement | undefined;
-    expect(itemA).toBeDefined();
     expect(itemB).toBeDefined();
-    // 点 b 行替换：菜单保持打开（不 closePopup）、switchTo 被调、switchExternal 不被调
+    // 点 b 行替换：菜单保持打开、switchTo 被调、switchExternal 不被调
     itemB!.click();
     expect(popup.style.display).toBe("flex");
     expect(switchTo).toHaveBeenCalledWith("/m/b.ysm");
     expect(switchExternal).not.toHaveBeenCalled();
-    // switchTo resolve 后：列表局部刷新，新当前项 b 变 ✓（原 a 行恢复 📦）
-    resolveSwitch!();
-    await Promise.resolve();
-    await Promise.resolve();
-    const itemANew = [...overlay.querySelectorAll('[data-testid="preview-switch-item"]')].find(
-      (el) => el.textContent?.includes("a.ysm"),
-    ) as HTMLElement | undefined;
-    const itemBNew = [...overlay.querySelectorAll('[data-testid="preview-switch-item"]')].find(
-      (el) => el.textContent?.includes("b.ysm"),
-    ) as HTMLElement | undefined;
-    expect(itemBNew?.querySelector("span")?.textContent).toBe("✓");
-    expect(itemANew?.querySelector("span")?.textContent).toBe("📦");
+    // 不调 menu.refresh()：列表 DOM 保持不变（保留滚动位置）
+    // ✓ 高亮在下次打开面板时自动归位（getCurrentPath 已更新）
     handle.dispose();
   });
 });
