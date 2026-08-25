@@ -39,7 +39,7 @@ invariant_anchors:
 
 - `walk.go` — 文件/目录遍历、目录后序遍历、计数、空目录清理，内置 `.recycle` 回收站跳过开关
 - `write.go` — `WriteFileAtomic`（tmp+rename 原子落地 + Sync 落盘检查 + `Chmod FilePerms`）；`ReadLimitedEntry`（limit+1 探测截断，ADR-033 修复）
-- `copy.go` — `CopyFile`（同目录 tmp+rename 原子复制 + Sync + `Chmod FilePerms` + MkdirAll）；`CopyDirRecursive`（参数化 symlink 策略 / 防覆盖 / 失败回滚）
+- `copy.go` — `CopyFile`（同目录 tmp+rename 原子复制 + Sync + `Chmod FilePerms` + MkdirAll + **目录源前置拒绝 + 读毕早关 src**）；`CopyDirRecursive`（参数化 symlink 策略 / 防覆盖 / 失败回滚）；`StepError` 步骤类型化错误（中性步骤名 `StepStat/Open/CreateTmp/Copy/Sync/Close/Chmod/Rename/...`，经 `errors.As` 取步骤，`Error()` 透传内层、`errors.Is` 穿透——ADR-044 策略 A：机制归 fsutil、UX 文案归调用方如 installer.mapStepToAppError）
 - `perms.go` — `DirPerms`(0755) / `FilePerms`(0644) 全仓权限单点（os.MkdirAll/os.WriteFile 全仓 27 处手写字面量已收敛至此）
 - `bom.go` — `UTF8BOM` / `StripBOM`（PowerShell 等工具写出的 JSON/文本 BOM 剥离单点，ysm/fileops/packs/internal-app 共 7 处已收敛）
 - `hardlink_other.go` / `hardlink_windows.go` — `IsHardLink`（nlink>1 判定，目录排除防 ADR-038 D3.4 误删）
@@ -65,6 +65,7 @@ invariant_anchors:
 ## 不变量
 
 - `WriteFileAtomic`/`CopyFile` 落盘模式：tmp+rename 原子替换，失败清理 tmp 不留残渣；落地前 `Sync` 防崩溃丢数据；`Chmod FilePerms`(0644)
+- `CopyFile` 各失败点均包 `*StepError`：`Error()` 透传内层文本、`errors.Is` 命中 sentinel（既有调用方文本断言零影响）；需区分步骤的调用方经 `errors.As` 取 `Step`（STATE 归 installer 等上层映射为 `AppError`）
 - `ReadLimitedEntry` limit<=0 或 ==MaxInt64 一律 nil；limit+1 溢出为负时 `io.ReadAll` 读 0 字节静默返回空切片，统一判 nil；读取错误同样返回 nil（调用方跳过该条目）
 - `walk.go` skipRecycle 大小写不敏感；单文件/目录读取失败不中断整体，WalkDir 错误打日志后跳过
 - `CopyDirRecursive` 遇符号链接按参数决定复制/跳过，不默认跟随
