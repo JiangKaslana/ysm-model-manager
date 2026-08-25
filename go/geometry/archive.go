@@ -206,7 +206,23 @@ type projEntry struct {
 // filterArmModels 做；组件版需要 arm 作为独立组件）。entries 现为 container.Entry（ADR-068）。
 // 新增返回值 modelTexName：模型路径(ToSlash)→声明纹理名(小写basename去扩)，用于组件版
 // 按 basename 直接查表，避免 texOrder 去重后索引漂移。
-func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []string, geoFiles []geoEntry, pngs [][]byte, pngNames, animJSONs []string, modelTexName map[string]string) {
+// collectedArchive 归档条目的分类收集产物，收敛 collectArchiveFiles 的 7 个位置返回值。
+// 包内私有：跨包复用类型才进 go/types/，此结构仅 archive.go 内部消费。
+type collectedArchive struct {
+	modelOrder   []string
+	texOrder     []string
+	geoFiles     []geoEntry
+	pngs         [][]byte
+	pngNames     []string
+	animJSONs    []string
+	modelTexName map[string]string
+}
+
+func collectArchiveFiles(entries []container.Entry) collectedArchive {
+	var modelOrder, texOrder []string
+	var geoFiles []geoEntry
+	var pngs [][]byte
+	var pngNames, animJSONs []string
 	// ysm.json 统一解析（结构解码共享；口径后处理留在本函数，清单版：player.texture 去扩展名）
 	md := parseYsmArchive(entries, "[geometry]")
 
@@ -328,7 +344,15 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			}
 		}
 	}
-	return modelOrder, texOrder, geoFiles, pngs, pngNames, animJSONs, md.ModelTexName
+	return collectedArchive{
+		modelOrder:   modelOrder,
+		texOrder:     texOrder,
+		geoFiles:     geoFiles,
+		pngs:         pngs,
+		pngNames:     pngNames,
+		animJSONs:    animJSONs,
+		modelTexName: md.ModelTexName,
+	}
 }
 
 // maidManifestItem 对应 L0 maid_model.json model[] / model_list[] 的单条
@@ -1233,8 +1257,8 @@ func parseComponentsFromArchive(data []byte, size int64, sevenZip bool) ([]types
 		return nil, nil, err
 	}
 	defer r.Close()
-	modelOrder, texOrder, geoFiles, pngs, pngNames, _, modelTexName := collectArchiveFiles(r.Entries())
-	models, texNames, err := buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames, modelTexName)
+	collected := collectArchiveFiles(r.Entries())
+	models, texNames, err := buildComponents(collected.geoFiles, collected.modelOrder, collected.texOrder, collected.pngs, collected.pngNames, collected.modelTexName)
 	if err != nil {
 		return nil, nil, err
 	}
