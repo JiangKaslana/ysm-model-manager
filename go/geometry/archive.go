@@ -906,6 +906,109 @@ func buildSubModels(geo *types.BedrockModel, maidManifest []maidManifestItem, re
 	}
 }
 
+// mergeGeoFiles 解析全部 geoFiles 并合并骨骼进单个 BedrockModel，配 tex 槽位绑定。
+// 纯数据变换，不改顺序：解析序 = geoFiles 传入序（调用方须先 sortByModelOrder）。
+//   - 每个 cube 记来源文件的 tex 尺寸（CubeTexW/H）；geo 级 TexWidth/Height 取最大。
+//   - texIdxMap：模型 basename → texOrder 槽位（声明纹理名命中优先，modelOrder 序号兜底钳制）。
+//     查询/构建键同口径（"\\"→"/" 归一化 + 小写化 + 去 .json/.geo.json 后缀），Windows
+//     混合大小写 zip 不归一化会让 texIdxMap 永不命中 → TexSlot 绑定失效（code review P3）。
+func mergeGeoFiles(geoFiles []geoEntry, modelOrder, texOrder []string, projModels []projEntry) *types.BedrockModel {
+	// 建立模型文件→纹理索引映射
+	texIdxMap := make(map[string]int)
+	texCount := len(texOrder)
+	if texCount == 0 {
+		texCount = len(modelOrder)
+	}
+	// modelTexName: 模型 basename → 声明的纹理名（小写 basename 去扩展名）。
+	// texIdxMap 构建时用它查 texOrder 位置分配 texSlot，而非按 modelOrder 序号
+	// 截断——避免 plane.json（共用 texture.png）被截断到 arrow.png 槽位。
+	modelTexName := make(map[string]string, len(projModels))
+	for _, pm := range projModels {
+		mp := pm.model
+		if idx := strings.LastIndex(mp, "/"); idx >= 0 {
+			mp = mp[idx+1:]
+		}
+		if idx := strings.LastIndex(mp, "\\"); idx >= 0 {
+			mp = mp[idx+1:]
+		}
+		mp = strings.TrimSuffix(strings.TrimSuffix(mp, ".geo.json"), ".json")
+		// texName: 小写 basename 去扩展名（收敛自内联，口径与 texBasenameNoExt 同）
+		// key 统一小写：查询端 bn 来自 modelOrder（L0 路径已小写），projModel 声明
+		// 可能含大写——大小写敏感会让声明纹理名查表 miss → texSlot 绑定失效。
+		modelTexName[strings.ToLower(mp)] = texBasenameNoExt(pm.texName)
+	}
+	if len(modelOrder) > 0 {
+		for i, p := range modelOrder {
+			p = filepath.ToSlash(p)
+			if idx := strings.LastIndex(p, "/"); idx >= 0 {
+				p = p[idx+1:]
+			}
+			bn := strings.ToLower(strings.TrimSuffix(strings.TrimSuffix(p, ".json"), ".geo.json"))
+			// 优先按声明的纹理名查 texOrder 位置；查不到再按 modelOrder 序号兜底
+			ti := -1
+			if texName, ok := modelTexName[bn]; ok && texName != "" {
+				for j, tn := range texOrder {
+					if tn == texName {
+						ti = j
+						break
+					}
+				}
+			}
+			if ti < 0 {
+				ti = i
+				if ti >= texCount {
+					ti = texCount - 1
+				}
+			}
+			texIdxMap[bn] = ti
+		}
+	}
+
+	var geo *types.BedrockModel
+	for _, gf := range geoFiles {
+		g := ParseBedrockGeometry(gf.data)
+		if g == nil || g.BoneCount == 0 {
+			continue
+		}
+		// 每个 cube 记住来源文件 tex 维度
+		for bi := range g.Bones {
+			for ci := range g.Bones[bi].Cubes {
+				g.Bones[bi].Cubes[ci].CubeTexW = g.TexWidth
+				g.Bones[bi].Cubes[ci].CubeTexH = g.TexHeight
+			}
+		}
+		// 按模型文件位置设置 cube 纹理索引
+		// geoName 须先归一化 "\\"→"/" 再取 basename，且统一小写（与 texIdxMap 构建端 bn 同口径）。
+		geoName := filepath.ToSlash(gf.name)
+		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
+			geoName = geoName[idx+1:]
+		}
+		geoName = strings.ToLower(strings.TrimSuffix(strings.TrimSuffix(geoName, ".json"), ".geo.json"))
+		ti, hasTex := texIdxMap[geoName]
+		if hasTex {
+			for bi := range g.Bones {
+				for ci := range g.Bones[bi].Cubes {
+					g.Bones[bi].Cubes[ci].TexSlot = ti
+				}
+			}
+		}
+		if geo == nil {
+			geo = g
+		} else {
+			geo.Bones = append(geo.Bones, g.Bones...)
+			geo.BoneCount += g.BoneCount
+			geo.CubeCount += g.CubeCount
+			if g.TexWidth > geo.TexWidth {
+				geo.TexWidth = g.TexWidth
+			}
+			if g.TexHeight > geo.TexHeight {
+				geo.TexHeight = g.TexHeight
+			}
+		}
+	}
+	return geo
+}
+
 // parseModelFromEntries 共享主体：ysm.json 解析 + model/texture 顺序 + geo/png/anim 收集，
 // 构建 BedrockModel。logTag 用于日志前缀（"zip" / "7z"）。
 //
@@ -1030,101 +1133,8 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	// geoFiles 声明序排序（已收编 sortByModelOrder）
 	sortByModelOrder(geoFiles, modelOrder)
 
-	// 建立模型文件→纹理索引映射
-	texIdxMap := make(map[string]int)
-	texCount := len(texOrder)
-	if texCount == 0 {
-		texCount = len(modelOrder)
-	}
-	// modelTexName: 模型 basename → 声明的纹理名（小写 basename 去扩展名）。
-	// texIdxMap 构建时用它查 texOrder 位置分配 texSlot，而非按 modelOrder 序号
-	// 截断——避免 plane.json（共用 texture.png）被截断到 arrow.png 槽位。
-	modelTexName := make(map[string]string, len(projModels))
-	for _, pm := range projModels {
-		mp := pm.model
-		if idx := strings.LastIndex(mp, "/"); idx >= 0 {
-			mp = mp[idx+1:]
-		}
-		if idx := strings.LastIndex(mp, "\\"); idx >= 0 {
-			mp = mp[idx+1:]
-		}
-		mp = strings.TrimSuffix(strings.TrimSuffix(mp, ".geo.json"), ".json")
-		// texName: 小写 basename 去扩展名（收敛自内联，口径与 texBasenameNoExt 同）
-		// key 统一小写：查询端 bn 来自 modelOrder（L0 路径已小写），projModel 声明
-		// 可能含大写——大小写敏感会让声明纹理名查表 miss → texSlot 绑定失效
-		// （code review P3，Windows 混合大小写 zip）。
-		modelTexName[strings.ToLower(mp)] = texBasenameNoExt(pm.texName)
-	}
-	if len(modelOrder) > 0 {
-		for i, p := range modelOrder {
-			p = filepath.ToSlash(p)
-			if idx := strings.LastIndex(p, "/"); idx >= 0 {
-				p = p[idx+1:]
-			}
-			bn := strings.ToLower(strings.TrimSuffix(strings.TrimSuffix(p, ".json"), ".geo.json"))
-			// 优先按声明的纹理名查 texOrder 位置；查不到再按 modelOrder 序号兜底
-			ti := -1
-			if texName, ok := modelTexName[bn]; ok && texName != "" {
-				for j, tn := range texOrder {
-					if tn == texName {
-						ti = j
-						break
-					}
-				}
-			}
-			if ti < 0 {
-				ti = i
-				if ti >= texCount {
-					ti = texCount - 1
-				}
-			}
-			texIdxMap[bn] = ti
-		}
-	}
-
-	for _, gf := range geoFiles {
-		g := ParseBedrockGeometry(gf.data)
-		if g == nil || g.BoneCount == 0 {
-			continue
-		}
-		// 每个 cube 记住来源文件 tex 维度
-		for bi := range g.Bones {
-			for ci := range g.Bones[bi].Cubes {
-				g.Bones[bi].Cubes[ci].CubeTexW = g.TexWidth
-				g.Bones[bi].Cubes[ci].CubeTexH = g.TexHeight
-			}
-		}
-		// 按模型文件位置设置 cube 纹理索引
-		// geoName 须先归一化 "\\"→"/" 再取 basename，且统一小写（与 texIdxMap 构建端
-		// bn 同口径）：条目名含反斜杠/混合大小写时原实现取不到 basename 或大小写不匹配
-		// → texIdxMap 永不命中 → TexSlot 绑定失效（code review P3，Windows 混合大小写 zip）
-		geoName := filepath.ToSlash(gf.name)
-		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
-			geoName = geoName[idx+1:]
-		}
-		geoName = strings.ToLower(strings.TrimSuffix(strings.TrimSuffix(geoName, ".json"), ".geo.json"))
-		ti, hasTex := texIdxMap[geoName]
-		if hasTex {
-			for bi := range g.Bones {
-				for ci := range g.Bones[bi].Cubes {
-					g.Bones[bi].Cubes[ci].TexSlot = ti
-				}
-			}
-		}
-		if geo == nil {
-			geo = g
-		} else {
-			geo.Bones = append(geo.Bones, g.Bones...)
-			geo.BoneCount += g.BoneCount
-			geo.CubeCount += g.CubeCount
-			if g.TexWidth > geo.TexWidth {
-				geo.TexWidth = g.TexWidth
-			}
-			if g.TexHeight > geo.TexHeight {
-				geo.TexHeight = g.TexHeight
-			}
-		}
-	}
+	// 建立模型文件→纹理索引映射并合并骨骼至 bedModel（已收编 mergeGeoFiles）
+	geo = mergeGeoFiles(geoFiles, modelOrder, texOrder, projModels)
 
 	// 纹理声明序排序（已收编 sortByTexOrder；orderMap 供 L0 SubModel.TexSlot 按排序后槽位换算）
 	orderMap := sortByTexOrder(texOrder, pngs, pngNames)
