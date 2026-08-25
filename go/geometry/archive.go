@@ -906,6 +906,64 @@ func buildSubModels(geo *types.BedrockModel, maidManifest []maidManifestItem, re
 	}
 }
 
+// deriveModelTexOrder 派生 model/tex 声明序（② 阶段）：
+// texOrder 先 player.texture、后 projectiles/vehicles/arrow（模型版口径：保留扩展名）；
+// modelOrder player 模型先、投射物模型后，与 texOrder 同序，保证 texIdxMap 位置绑定不错位。
+// 口径后处理复刻原内联（不在此改）：
+//   - player.texture：uv 对象剥反斜杠、裸字符串不剥（历史不对称，isUV 标记形态）；
+//     仅小写、不去扩展名。
+//   - projectiles 纹理：texBasenameNoExt（去目录+小写+去扩展名）单点复用；vehicles 段
+//     horse+mule 都指向同张图时去重，避免重复追加导致后续纹理 texSlot 偏移（minecart 采样到 boat.png）。
+//
+// texCategories 与 texOrder 严格同序（player/投射物分类），供前端纹理列表按序显示。
+// projModels 只收 model 非空的条目。
+func deriveModelTexOrder(md ysmArchiveData) (modelOrder, texOrder, texCategories []string, projModels []projEntry) {
+	projModels = make([]projEntry, 0, len(md.ProjModels))
+	// texOrder：player.texture 先、projectiles/vehicles/arrow 后（模型版口径：保留扩展名）。
+	for _, t := range md.PlayerTexs {
+		tn := t.path
+		if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+			tn = tn[idx+1:]
+		}
+		if t.isUV {
+			if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+				tn = tn[idx+1:]
+			}
+		}
+		texOrder = append(texOrder, strings.ToLower(tn))
+		texCategories = append(texCategories, "player")
+	}
+	for _, pm := range md.ProjModels {
+		if pm.texName != "" {
+			tn := texBasenameNoExt(pm.texName)
+			alreadyIn := false
+			for _, ex := range texOrder {
+				if ex == tn {
+					alreadyIn = true
+					break
+				}
+			}
+			if !alreadyIn {
+				texOrder = append(texOrder, tn)
+				cat := pm.section
+				if cat == "" {
+					cat = "projectile"
+				}
+				texCategories = append(texCategories, cat)
+			}
+		}
+		if pm.model != "" {
+			projModels = append(projModels, pm)
+		}
+	}
+	// modelOrder：player 模型先、投射物模型后（与 texOrder 同序）
+	modelOrder = append(modelOrder, md.ModelOrder...)
+	for _, pm := range projModels {
+		modelOrder = append(modelOrder, pm.model)
+	}
+	return modelOrder, texOrder, texCategories, projModels
+}
+
 // mergeGeoFiles 解析全部 geoFiles 并合并骨骼进单个 BedrockModel，配 tex 槽位绑定。
 // 纯数据变换，不改顺序：解析序 = geoFiles 传入序（调用方须先 sortByModelOrder）。
 //   - 每个 cube 记来源文件的 tex 尺寸（CubeTexW/H）；geo 级 TexWidth/Height 取最大。
@@ -1053,60 +1111,8 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 		}
 	}
 
-	var modelOrder []string
-	var texOrder []string
-	var texCategories []string
-	// modelTexName: 模型路径 → 声明的纹理名（小写 basename 去扩展名）。
-	// texIdxMap 构建时用它查 texOrder 位置分配 texSlot，而非按 modelOrder 序号
-	// 截断——避免 plane.json（共用 texture.png）被截断到 arrow.png 槽位。
-	projModels := make([]projEntry, 0, len(md.ProjModels))
-
-	// texOrder：player.texture 先、projectiles/vehicles/arrow 后（模型版口径：保留扩展名）。
-	// uv 对象剥反斜杠、裸字符串不剥（复刻原内联不对称）；仅小写，不去扩展名。
-	for _, t := range md.PlayerTexs {
-		tn := t.path
-		if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-			tn = tn[idx+1:]
-		}
-		if t.isUV {
-			if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-				tn = tn[idx+1:]
-			}
-		}
-		texOrder = append(texOrder, strings.ToLower(tn))
-		texCategories = append(texCategories, "player")
-	}
-	for _, pm := range md.ProjModels {
-		if pm.texName != "" {
-			tn := texBasenameNoExt(pm.texName)
-			// 去重：vehicles 段 horse+mule 都指向 foxcar.png，
-			// 重复追加会导致后续纹理 texSlot 偏移（minecart 采样到 boat.png）
-			alreadyIn := false
-			for _, ex := range texOrder {
-				if ex == tn {
-					alreadyIn = true
-					break
-				}
-			}
-			if !alreadyIn {
-				texOrder = append(texOrder, tn)
-				cat := pm.section
-				if cat == "" {
-					cat = "projectile"
-				}
-				texCategories = append(texCategories, cat)
-			}
-		}
-		if pm.model != "" {
-			projModels = append(projModels, pm)
-		}
-	}
-
-	// modelOrder：player 模型先、投射物模型后（与 texOrder 同序，texIdxMap 位置绑定不错位）
-	modelOrder = append(modelOrder, md.ModelOrder...)
-	for _, pm := range projModels {
-		modelOrder = append(modelOrder, pm.model)
-	}
+	// model/tex 声明序派生（② 阶段）：player 纹理先、投射物后；modelOrder 与 texOrder 同序
+	modelOrder, texOrder, texCategories, projModels := deriveModelTexOrder(*md)
 
 	var geoFiles []geoEntry
 
