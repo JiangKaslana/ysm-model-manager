@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"ysm-model-manager/go/types"
 )
 
 // TestFindComponents_BackslashTexDecl 反斜杠裸字符串纹理声明应正确取 basename（切 '\\'）。
@@ -45,5 +47,99 @@ func TestFindComponents_BackslashTexDecl(t *testing.T) {
 	// 反斜杠裸声明 → 声明纹理槽 0 → texNames[0] 应为去扩展名 basename "skin"
 	if len(texNames) != 1 || texNames[0] != "skin" {
 		t.Fatalf("texNames = %v, 期望 [skin]（反斜杠裸路径应切 basename）", texNames)
+	}
+}
+
+// TestFindComponents_SubdirSameNameTex 未声明组件与纹理**子目录**同名文件应命中
+// perComponent 兜底（pngNameMap 递归化契约）。现状 pngNameMap 只扫 textures/ 一层、
+// 只认 .png，子目录里的同名纹理收不到 → ComponentTextures 缺失（红）。
+func TestFindComponents_SubdirSameNameTex(t *testing.T) {
+	dir := t.TempDir()
+	modelsDir := filepath.Join(dir, "models")
+	subTex := filepath.Join(dir, "textures", "variants")
+	for _, d := range []string{modelsDir, subTex} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// main 已声明（占 texture 声明 slot 0），arrow 未声明 → 由补扫进入、按名走 pngNameMap
+	ysmJSON := `{"files":{"player":{"model":{"main":"models/main.json"},"texture":["textures/skin.png"]}}}`
+	if err := os.WriteFile(filepath.Join(dir, "ysm.json"), []byte(ysmJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelsDir, "main.json"), []byte(geoWithBone("mainBone")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelsDir, "arrow.json"), []byte(geoWithBone("arrowBone")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 同名纹理在 textures/variants/ 子目录（不在 textures/ 根）
+	if err := os.WriteFile(filepath.Join(subTex, "arrow.png"), []byte{1, 2, 3}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	comps, _ := FindComponentsInExtractedYSM(filepath.Join(dir, "ysm.json"))
+	// main + arrow（补扫）
+	if len(comps) != 2 {
+		t.Fatalf("组件数 = %d, 期望 2", len(comps))
+	}
+	var arrow *types.BedrockModel
+	for i := range comps {
+		if comps[i].SourceName == "arrow" {
+			arrow = &comps[i]
+			break
+		}
+	}
+	if arrow == nil {
+		t.Fatal("未找到补扫组件 arrow")
+	}
+	if len(arrow.ComponentTextures) == 0 {
+		t.Fatal("未声明组件应命中子目录同名纹理兜底（ComponentTextures 非空）")
+	}
+}
+
+// TestFindComponents_TgaSameNameTex 未声明组件与 .tga 同名纹理应命中 perComponent
+// 兜底（pngNameMap 扩展名口径：.png/.jpg/.tga）。现状 pngNameMap 只认 .png，
+// .tga 同名文件收不到 → ComponentTextures 缺失（红）。
+func TestFindComponents_TgaSameNameTex(t *testing.T) {
+	dir := t.TempDir()
+	modelsDir := filepath.Join(dir, "models")
+	texDir := filepath.Join(dir, "textures")
+	for _, d := range []string{modelsDir, texDir} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ysmJSON := `{"files":{"player":{"model":{"main":"models/main.json"},"texture":["textures/skin.png"]}}}`
+	if err := os.WriteFile(filepath.Join(dir, "ysm.json"), []byte(ysmJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelsDir, "main.json"), []byte(geoWithBone("mainBone")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelsDir, "boat.json"), []byte(geoWithBone("boatBone")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 同名纹理为 .tga（pngNameMap 现在只认 .png → 收不到）
+	if err := os.WriteFile(filepath.Join(texDir, "boat.tga"), []byte{1, 2, 3}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	comps, _ := FindComponentsInExtractedYSM(filepath.Join(dir, "ysm.json"))
+	if len(comps) != 2 {
+		t.Fatalf("组件数 = %d, 期望 2（main + boat 补扫）", len(comps))
+	}
+	var boat *types.BedrockModel
+	for i := range comps {
+		if comps[i].SourceName == "boat" {
+			boat = &comps[i]
+			break
+		}
+	}
+	if boat == nil {
+		t.Fatal("未找到补扫组件 boat")
+	}
+	if len(boat.ComponentTextures) == 0 {
+		t.Fatal("未声明组件应命中 .tga 同名纹理兜底（ComponentTextures 非空）")
 	}
 }

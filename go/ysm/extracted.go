@@ -217,6 +217,39 @@ func parsePlayerModel(data []byte) *playerModel {
 	return pm
 }
 
+// texFile 已发现的纹理文件（全路径 + 小写 basename 含扩展名）。
+type texFile struct {
+	path string
+	name string // 小写 basename（含扩展名，如 skin.png）
+}
+
+// collectTextureFiles 递归收集解压目录下的纹理文件（.png/.jpg/.tga），
+// 排除 gui/ 子目录（YSM 的 gui_background/封面等非模型贴图，曾污染全局 texArr
+// 导致 plane 等共享皮肤组件错绑——wine_fox 17_mini 根因，geometry/组件两消费方
+// 共用同一遍历避免两次 WalkDir 口径漂移）。返回按遍历序（深度优先稳定序）。
+func collectTextureFiles(texDir string) []texFile {
+	var files []texFile
+	if d, err := os.Stat(texDir); err == nil && d.IsDir() {
+		filepath.WalkDir(texDir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				if strings.EqualFold(d.Name(), "gui") {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			ext := strings.ToLower(filepath.Ext(d.Name()))
+			if ext == ".png" || ext == ".jpg" || ext == ".tga" {
+				files = append(files, texFile{path: path, name: strings.ToLower(d.Name())})
+			}
+			return nil
+		})
+	}
+	return files
+}
+
 // FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理
 // ysmJsonPath: ysm.json 的完整路径
 // 返回: 合并后的 BedrockModel（不含纹理 base64），纹理原始字节
@@ -398,37 +431,11 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 		geoJSON = geometry.ParseBedrockGeometry(wrapped)
 	}
 
-	// 搜索纹理（递归遍历 textures/ 下所有子目录）
+	// 搜索纹理（collectTextureFiles 递归遍历 textures/ 下所有子目录，排除 gui/）
 	var texData [][]byte
 	texDir := filepath.Join(dir, "textures")
-	var texFiles []struct {
-		path string
-		name string
-	}
-	if d, err := os.Stat(texDir); err == nil && d.IsDir() {
-		filepath.WalkDir(texDir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if d.IsDir() {
-				// 排除 gui/：YSM 的 gui_background/封面等非模型贴图（background.png），
-				// 曾污染全局 texArr 导致 plane 等共享皮肤组件错绑（wine_fox 17_mini 根因）
-				if strings.EqualFold(d.Name(), "gui") {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			ext := strings.ToLower(filepath.Ext(d.Name()))
-			if ext == ".png" || ext == ".jpg" || ext == ".tga" {
-				texFiles = append(texFiles, struct {
-					path string
-					name string
-				}{path, strings.ToLower(d.Name())})
-			}
-			return nil
-		})
-	}
-	// 也搜索同目录纹理
+	texFiles := collectTextureFiles(texDir)
+	// 也搜索同目录纹理（保持现状兜底：只扫 ysm.json 所在目录一层，收 .png/.jpg）
 	if len(texFiles) == 0 {
 		entries, _ := os.ReadDir(dir)
 		for _, e := range entries {
@@ -437,10 +444,7 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 			}
 			ext := strings.ToLower(filepath.Ext(e.Name()))
 			if ext == ".png" || ext == ".jpg" {
-				texFiles = append(texFiles, struct {
-					path string
-					name string
-				}{filepath.Join(dir, e.Name()), strings.ToLower(e.Name())})
+				texFiles = append(texFiles, texFile{path: filepath.Join(dir, e.Name()), name: strings.ToLower(e.Name())})
 			}
 		}
 	}
@@ -639,17 +643,16 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 	// texNames[i] = 组件实际贴图名（texSlot 指向声明序则用声明名，否则组件 basename）——
 	// 前端 R1 存在性校验：期望名必须存在于 texArr 实际清单（共享槽位不再误报）。
 	texNames := make([]string, 0, len(orderedNames))
-	// textures/ 同名纹理索引（小写 basename → 文件路径）：未声明组件按 YSM 游戏语义
-	// 用**同名纹理**（ADR-114 perComponent，前端按组件名取图）——此前解压目录路径缺
-	// 这层关联，arrow 等投射物在前端 texArr 越界被静默兜底贴错皮肤（wine_fox 根因）。
+	// textures/ 同名纹理索引（小写去扩展名 basename → 文件路径）：未声明组件按 YSM
+	// 游戏语义用**同名纹理**（ADR-114 perComponent，前端按组件名取图）——此前解压目录
+	// 路径缺这层关联，arrow 等投射物在前端 texArr 越界被静默兜底贴错皮肤（wine_fox 根因）。
+	// 收集复用公共 collectTextureFiles：**递归**子目录 + 排除 gui/ + 收 .png/.jpg/.tga
+	// （扩展名口径与 Geometry 消费方对齐，此前只认单层 .png，子目录同名与 .tga 落空）。
 	pngNameMap := make(map[string]string)
-	if entries, err := os.ReadDir(filepath.Join(dir, "textures")); err == nil {
-		for _, e := range entries {
-			if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ".png") {
-				continue
-			}
-			ext := filepath.Ext(e.Name())
-			pngNameMap[strings.ToLower(strings.TrimSuffix(e.Name(), ext))] = filepath.Join(dir, "textures", e.Name())
+	for _, tf := range collectTextureFiles(filepath.Join(dir, "textures")) {
+		key := strings.TrimSuffix(tf.name, filepath.Ext(tf.name))
+		if _, exists := pngNameMap[key]; !exists {
+			pngNameMap[key] = tf.path
 		}
 	}
 	undeclSeq := 0
