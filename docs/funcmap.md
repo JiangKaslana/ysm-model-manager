@@ -16,7 +16,7 @@
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 13 |
 | Go·文件系统 | 10 | 22 |
-| Go·几何 | 2 | 10 |
+| Go·几何 | 2 | 11 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 10 |
 | go/instance | 1 | 4 |
@@ -49,7 +49,7 @@
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **474** | **2037** |
+| **合计** | **474** | **2038** |
 
 ## Go·头像
 
@@ -242,15 +242,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ExtractFirstPNGFromZip()` | `go/geometry/archive:77` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
-| `ExtractFirstPNGFrom7z()` | `go/geometry/archive:87` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:1303` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
-| `ParseFrom7z()` | `go/geometry/archive:1309` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
-| `ParseFromZipEntry()` | `go/geometry/archive:1322` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
-| `ParseFrom7zEntry()` | `go/geometry/archive:1327` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
-| `IsMainModelName()` | `go/geometry/archive:1393` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:1405` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1616` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
+| `IsArmModelName()` | `go/geometry/archive:37` | IsArmModelName 判断模型文件是否为第一人称手持视角的独立手臂几何 （arm.json / arm.geo.json）。 |
+| `ExtractFirstPNGFromZip()` | `go/geometry/archive:80` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
+| `ExtractFirstPNGFrom7z()` | `go/geometry/archive:90` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
+| `ParseFromZip()` | `go/geometry/archive:1306` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:1312` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `ParseFromZipEntry()` | `go/geometry/archive:1325` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
+| `ParseFrom7zEntry()` | `go/geometry/archive:1330` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
+| `IsMainModelName()` | `go/geometry/archive:1396` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:1408` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:1619` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
 | `ParseBedrockGeometry()` | `go/geometry/parse:238` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
@@ -641,8 +642,8 @@
 | `SetDecoder()` | `go/ysm/decode_inject:25` | SetDecoder 注入 .ysm 解码器（internal/app init 阶段调用，替换 FindCLI 模式） |
 | `DecodeYSM()` | `go/ysm/decode_inject:32` | DecodeYSM 解码 .ysm 字节；解码器未注入或解码失败返回 nil |
 | `DecodedFile()` | `go/ysm/decode_inject:11` | DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径） |
-| `FindGeometryInExtractedYSM()` | `go/ysm/extracted:471` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
-| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:774` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
+| `FindGeometryInExtractedYSM()` | `go/ysm/extracted:461` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
+| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:773` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
 | `AnalyzeYSMHeader()` | `go/ysm/header:172` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
 | `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:325` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
 | `YSMHeader()` | `go/ysm/header:17` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |

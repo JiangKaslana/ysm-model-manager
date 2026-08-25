@@ -1382,6 +1382,115 @@ func TestAvgBenchStages(t *testing.T) {
 	}
 }
 
+// ===== 审查修复锁：按阶段名配对 + 分级函数单一实现 =====
+
+// 不等长迭代必须按「阶段名」配对平均——某次文件读取失败只返回 1 阶段时
+// （runSingleModelBench 提前 return），旧索引配对会把后续迭代错位进缺失阶段的均值，
+// 且 printAverageStages 裸取 stages[i] 会 index out of range panic。
+func TestAvgBenchStages_NamePairingRaggedIterations(t *testing.T) {
+	all := [][]singleBenchStage{
+		{
+			{Name: "① 文件读取", Duration: 10 * time.Millisecond},
+			{Name: "② JSON 解析", Duration: 100 * time.Millisecond},
+		},
+		{
+			{Name: "① 文件读取", Duration: 30 * time.Millisecond}, // 失败迭代：只有读取阶段
+		},
+	}
+	avg := avgBenchStages(all) // 不得 panic
+	if len(avg) != 2 {
+		t.Fatalf("应含 2 阶段, got %d", len(avg))
+	}
+	if avg[0].Name != "① 文件读取" || avg[0].Duration != 20*time.Millisecond {
+		t.Errorf("① 应仅按名配对均值 20ms, got %s %v", avg[0].Name, avg[0].Duration)
+	}
+	if avg[1].Name != "② JSON 解析" || avg[1].Duration != 100*time.Millisecond {
+		t.Errorf("② 只出现一次, 均值应为自身 100ms, got %s %v", avg[1].Name, avg[1].Duration)
+	}
+}
+
+func TestAvgBenchStages_Empty(t *testing.T) {
+	if got := avgBenchStages(nil); got != nil {
+		t.Errorf("空输入应返回 nil, got %v", got)
+	}
+}
+
+func TestStageMarkAndStatus(t *testing.T) {
+	cases := []struct {
+		ms     float64
+		mark   string
+		status string
+	}{
+		{5, "✅", "ok"},
+		{10, "✅", "ok"},
+		{11, "🟢", "slow"},
+		{50, "🟢", "slow"},
+		{51, "🟡 注意", "warn"},
+		{100, "🟡 注意", "warn"},
+		{101, "🔴 瓶颈", "bottleneck"},
+	}
+	for _, tc := range cases {
+		if got := stageMark(tc.ms); got != tc.mark {
+			t.Errorf("stageMark(%v) = %q, 期望 %q", tc.ms, got, tc.mark)
+		}
+		if got := stageStatus(tc.ms); got != tc.status {
+			t.Errorf("stageStatus(%v) = %q, 期望 %q", tc.ms, got, tc.status)
+		}
+	}
+}
+
+func TestSpeedEmoji(t *testing.T) {
+	cases := []struct {
+		speedup float64
+		want    string
+	}{
+		{2.0, "🟢"}, {1.5, "🟢"}, {1.49, "🟡"}, {1.2, "🟡"}, {1.19, "🔴"}, {0.5, "🔴"},
+	}
+	for _, tc := range cases {
+		if got := speedEmoji(tc.speedup); got != tc.want {
+			t.Errorf("speedEmoji(%v) = %q, 期望 %q", tc.speedup, got, tc.want)
+		}
+	}
+}
+
+func TestCollectTestFiles(t *testing.T) {
+	dir := t.TempDir()
+	writeFileAt := func(p, content string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFileAt(filepath.Join(dir, "a.json"), "{}")
+	writeFileAt(filepath.Join(dir, "big.json"), strings.Repeat("x", 3*1024*1024)) // 超 maxSizeMB=2
+	writeFileAt(filepath.Join(dir, "skip.txt"), "x")                              // 扩展名不收
+	writeFileAt(filepath.Join(dir, "sub", "b.json"), "{}")
+
+	got := map[string]bool{}
+	for _, f := range collectTestFiles(dir, 2) {
+		rel, _ := filepath.Rel(dir, f)
+		got[filepath.ToSlash(rel)] = true
+	}
+	if !got["a.json"] || !got["sub/b.json"] {
+		t.Errorf("应递归收集 a.json 与 sub/b.json, got %v", got)
+	}
+	if got["big.json"] || got["skip.txt"] {
+		t.Errorf("超限/非目标扩展名不应收集, got %v", got)
+	}
+
+	// 上限截断：35 个候选只收 30
+	limitDir := t.TempDir()
+	for i := 0; i < 35; i++ {
+		writeFileAt(filepath.Join(limitDir, fmt.Sprintf("f%02d.json", i)), "{}")
+	}
+	if n := len(collectTestFiles(limitDir, 10)); n != 30 {
+		t.Errorf("候选 35 应在上限 30 截断, got %d", n)
+	}
+}
+
 func TestCompareSingleBenchBaseline(t *testing.T) {
 	dir := t.TempDir()
 	base := []benchStageMs{

@@ -112,13 +112,7 @@ func runConcurrentBench(ctx *CmdContext) error {
 		parallelResults = append(parallelResults, result)
 
 		speedupStr := fmt.Sprintf("%.1fx", result.Speedup)
-		if result.Speedup >= 1.5 {
-			speedupStr = "🟢 " + speedupStr
-		} else if result.Speedup >= 1.2 {
-			speedupStr = "🟡 " + speedupStr
-		} else {
-			speedupStr = "🔴 " + speedupStr
-		}
+		speedupStr = speedEmoji(result.Speedup) + " " + speedupStr
 
 		fmt.Printf("   Workers=%d: %.2fms (加速比: %s)\n",
 			result.WorkerCount,
@@ -220,23 +214,29 @@ func benchParallelAnalyze(a *app.App, models []string, workers int) concurrentBe
 	}
 }
 
-// collectTestFiles 收集测试文件
-func collectTestFiles(root string, maxSize int64) []string {
-	var files []string
-	count := 0
+// benchFileLimit 文件读取基准的候选数上限——准备阶段是诊断前置步骤，不应被海量目录拖垮。
+const benchFileLimit = 30
 
-	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+// collectTestFiles 收集测试文件：maxSizeMB 过滤超大文件，条目数达 benchFileLimit 即止。
+func collectTestFiles(root string, maxSizeMB int64) []string {
+	var files []string
+
+	filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
+			return nil // 测试数据收集尽力而为，坏路径跳过
+		}
+		if d.IsDir() {
 			return nil
 		}
-		if !info.IsDir() && info.Size() > 0 && info.Size() < maxSize*1024*1024 {
-			ext := strings.ToLower(filepath.Ext(path))
-			if ext == ".ysm" || ext == ".json" || ext == ".zip" || ext == ".7z" {
-				files = append(files, path)
-				count++
-				if count >= 30 {
-					return filepath.SkipAll
-				}
+		info, ierr := d.Info()
+		if ierr != nil || info.Size() == 0 || info.Size() >= maxSizeMB*1024*1024 {
+			return nil
+		}
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".ysm", ".json", ".zip", ".7z":
+			files = append(files, path)
+			if len(files) >= benchFileLimit {
+				return filepath.SkipAll
 			}
 		}
 		return nil
@@ -295,17 +295,18 @@ func printConcurrentReport(serial concurrentBenchResult, parallel []concurrentBe
 		"🟢 基准")
 
 	for _, p := range parallel {
-		var status string
+		var label string
 		switch {
 		case p.Speedup >= 2.0:
-			status = "🟢 优秀"
+			label = "优秀"
 		case p.Speedup >= 1.5:
-			status = "🟢 良好"
+			label = "良好"
 		case p.Speedup >= 1.2:
-			status = "🟡 一般"
+			label = "一般"
 		default:
-			status = "🔴 无提升"
+			label = "无提升"
 		}
+		status := speedEmoji(p.Speedup) + " " + label
 
 		fmt.Printf("   %-20s %-15s %-12s %s\n",
 			fmt.Sprintf("并行(%d workers)", p.WorkerCount),
@@ -337,16 +338,6 @@ func printConcurrentReport(serial concurrentBenchResult, parallel []concurrentBe
 		fmt.Println("   🔴 并发无明显提升")
 		fmt.Println("   💡 原因: 单线程已能跑满，或 I/O 成为瓶颈")
 	}
-
-	fmt.Println()
-	fmt.Println("📚 Go 并发知识点:")
-	fmt.Println("   - goroutine: 轻量级协程，创建成本低（KB 级）")
-	fmt.Println("   - channel: goroutine 间通信，支持缓冲/无缓冲")
-	fmt.Println("   - sync.WaitGroup: 等待一组 goroutine 完成")
-	fmt.Println("   - 工作池模式: 固定数量 worker 处理任务队列")
-	fmt.Println()
-	fmt.Println("   本次使用的模式: 工作池 + channel + WaitGroup")
-	fmt.Println("   优势: 控制并发数，避免 goroutine 爆炸")
 }
 
 // singleBenchStage 单模型测试阶段
@@ -396,20 +387,14 @@ func runSingleBench(ctx *CmdContext) error {
 	fmt.Println(strings.Repeat("=", 70))
 
 	var allStages [][]singleBenchStage
-	totalStart := time.Now()
+	totalDuration := time.Duration(0)
 
-	for iter := 0; iter < *iterations; iter++ {
+	allStages, totalDuration = runSingleBenchSamples(ctx.App, *modelPath, ctx.FilesRoot, *iterations, func(iter int, stages []singleBenchStage) {
 		if *iterations > 1 {
 			fmt.Printf("\n📝 迭代 %d/%d\n", iter+1, *iterations)
 		}
-
-		stages := runSingleModelBench(ctx.App, *modelPath, ctx.FilesRoot)
-		allStages = append(allStages, stages)
-
 		printSingleModelStages(stages)
-	}
-
-	totalDuration := time.Since(totalStart)
+	})
 
 	fmt.Println()
 	fmt.Println(strings.Repeat("=", 70))
@@ -429,18 +414,7 @@ func runSingleBench(ctx *CmdContext) error {
 	printOptimizationHints(allStages[0])
 
 	// C-1：基准对比 / 保存（供 CI 判定性能退化，复用 file-bench --baseline 语义）
-	if *baseline != "" {
-		if err := compareSingleBenchBaseline(*baseline, avg, *thresholdPct); err != nil {
-			return err
-		}
-	}
-	if *saveBaseline != "" {
-		if err := saveBenchBaseline(*saveBaseline, avg); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return applyBenchBaseline(*baseline, *saveBaseline, *thresholdPct, avg)
 }
 
 // singleBenchJSON 单模型基准测试 JSON 输出结构（AI 友好）
@@ -471,15 +445,8 @@ func stagesToJSON(avg []singleBenchStage) ([]benchStageJSON, string) {
 	var bottleneckName string
 	var maxMs float64
 	for _, s := range avg {
-		ms := float64(s.Duration.Microseconds()) / 1000
-		status := "ok"
-		if ms > 100 {
-			status = "bottleneck"
-		} else if ms > 50 {
-			status = "warn"
-		} else if ms > 10 {
-			status = "slow"
-		}
+		ms := msOf(s)
+		status := stageStatus(ms)
 		isBottleneck := ms > maxMs
 		if isBottleneck {
 			maxMs = ms
@@ -499,20 +466,12 @@ func stagesToJSON(avg []singleBenchStage) ([]benchStageJSON, string) {
 
 // runSingleBenchJSON 单模型基准测试 JSON 模式：静默运行，输出结构化数据
 func runSingleBenchJSON(ctx *CmdContext, modelPath string, iterations int, baseline, saveBaseline string, thresholdPct float64) error {
-	var allStages [][]singleBenchStage
-	totalStart := time.Now()
-
 	var modelSize int64
 	if info, err := os.Stat(modelPath); err == nil {
 		modelSize = info.Size()
 	}
 
-	for iter := 0; iter < iterations; iter++ {
-		stages := runSingleModelBench(ctx.App, modelPath, ctx.FilesRoot)
-		allStages = append(allStages, stages)
-	}
-
-	totalDuration := time.Since(totalStart)
+	allStages, totalDuration := runSingleBenchSamples(ctx.App, modelPath, ctx.FilesRoot, iterations, nil)
 	avg := avgBenchStages(allStages)
 
 	// 检测模型格式
@@ -540,18 +499,7 @@ func runSingleBenchJSON(ctx *CmdContext, modelPath string, iterations int, basel
 	fmt.Println(string(data))
 
 	// 基准对比 / 保存
-	if baseline != "" {
-		if err := compareSingleBenchBaseline(baseline, avg, thresholdPct); err != nil {
-			return err
-		}
-	}
-	if saveBaseline != "" {
-		if err := saveBenchBaseline(saveBaseline, avg); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return applyBenchBaseline(baseline, saveBaseline, thresholdPct, avg)
 }
 
 // detectModelFormat 根据文件扩展名检测模型格式
@@ -629,21 +577,33 @@ type benchStageMs struct {
 	Ms   float64 `json:"ms"`
 }
 
-// avgBenchStages 计算多次迭代的各阶段平均耗时
+// avgBenchStages 计算多次迭代的各阶段平均耗时。
+// 按「阶段名」配对而非索引：某次迭代读取失败只返回 1 阶段（runSingleModelBench
+// 提前 return）时，索引配对会把后续阶段错位进缺失阶段的均值；名字配对下
+// 各迭代同名归组、缺失阶段不计入该阶段均值，长度不齐也不会越界。
+// 输出保持阶段首次出现的顺序。
 func avgBenchStages(allStages [][]singleBenchStage) []singleBenchStage {
 	if len(allStages) == 0 {
 		return nil
 	}
-	n := len(allStages)
-	out := make([]singleBenchStage, len(allStages[0]))
-	for i := range allStages[0] {
-		var total time.Duration
-		for _, s := range allStages {
-			if i < len(s) {
-				total += s[i].Duration
+	var order []string
+	totals := map[string]time.Duration{}
+	counts := map[string]int{}
+	for _, stages := range allStages {
+		for _, s := range stages {
+			if counts[s.Name] == 0 {
+				order = append(order, s.Name)
 			}
+			totals[s.Name] += s.Duration
+			counts[s.Name]++
 		}
-		out[i] = singleBenchStage{Name: allStages[0][i].Name, Duration: total / time.Duration(n)}
+	}
+	out := make([]singleBenchStage, 0, len(order))
+	for _, name := range order {
+		out = append(out, singleBenchStage{
+			Name:     name,
+			Duration: totals[name] / time.Duration(counts[name]),
+		})
 	}
 	return out
 }
@@ -651,6 +611,46 @@ func avgBenchStages(allStages [][]singleBenchStage) []singleBenchStage {
 // msOf 阶段耗时转毫秒
 func msOf(s singleBenchStage) float64 {
 	return float64(s.Duration.Microseconds()) / 1000
+}
+
+// stageMark 阶段耗时的 emoji 分级单一实现：>100ms 瓶颈 / >50 注意 / >10 偏慢 / 其余健康。
+func stageMark(ms float64) string {
+	switch {
+	case ms > 100:
+		return "🔴 瓶颈"
+	case ms > 50:
+		return "🟡 注意"
+	case ms > 10:
+		return "🟢"
+	default:
+		return "✅"
+	}
+}
+
+// stageStatus JSON 口径的阶段状态分级（与 stageMark 同阈值，供 AI 消费）。
+func stageStatus(ms float64) string {
+	switch {
+	case ms > 100:
+		return "bottleneck"
+	case ms > 50:
+		return "warn"
+	case ms > 10:
+		return "slow"
+	default:
+		return "ok"
+	}
+}
+
+// speedEmoji 并发加速比信号灯色点：≥1.5 绿 / ≥1.2 黄 / 否则红（行内与表格两处共享，防阈值漂移）。
+func speedEmoji(speedup float64) string {
+	switch {
+	case speedup >= 1.5:
+		return "🟢"
+	case speedup >= 1.2:
+		return "🟡"
+	default:
+		return "🔴"
+	}
 }
 
 // compareSingleBenchBaseline 与基准 JSON 对比：任一阶段退化超 thresholdPct % 返回错误（供 CI 判定）
@@ -718,6 +718,36 @@ func saveBenchBaseline(path string, stages []singleBenchStage) error {
 		return newRuntimeErrf("写入基准失败 %s: %v", path, err)
 	}
 	fmt.Printf("\n💾 基准已保存到: %s\n", path)
+	return nil
+}
+
+// runSingleBenchSamples text/json 双模式的唯一采集路径：N 次迭代运行并计时，
+// perIter 钩子供 text 模式逐迭代打印（json 静默传 nil），杜绝迭代循环双维护。
+func runSingleBenchSamples(a *app.App, modelPath, filesRoot string, iterations int, perIter func(iter int, stages []singleBenchStage)) ([][]singleBenchStage, time.Duration) {
+	var allStages [][]singleBenchStage
+	totalStart := time.Now()
+	for iter := 0; iter < iterations; iter++ {
+		stages := runSingleModelBench(a, modelPath, filesRoot)
+		allStages = append(allStages, stages)
+		if perIter != nil {
+			perIter(iter, stages)
+		}
+	}
+	return allStages, time.Since(totalStart)
+}
+
+// applyBenchBaseline 基准对比/保存后处理（CI 性能退化门禁语义，text/json 共享）。
+func applyBenchBaseline(baseline, saveBaseline string, thresholdPct float64, avg []singleBenchStage) error {
+	if baseline != "" {
+		if err := compareSingleBenchBaseline(baseline, avg, thresholdPct); err != nil {
+			return err
+		}
+	}
+	if saveBaseline != "" {
+		if err := saveBenchBaseline(saveBaseline, avg); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -836,21 +866,10 @@ func printSingleModelStages(stages []singleBenchStage) {
 
 	var totalMs float64
 	for _, s := range stages {
-		ms := float64(s.Duration.Microseconds()) / 1000
+		ms := msOf(s)
 		totalMs += ms
 
-		bottleneck := ""
-		if ms > 100 {
-			bottleneck = " 🔴 瓶颈"
-		} else if ms > 50 {
-			bottleneck = " 🟡 注意"
-		} else if ms > 10 {
-			bottleneck = " 🟢"
-		} else {
-			bottleneck = " ✅"
-		}
-
-		fmt.Printf("   %-20s %10.2fms %s\n", s.Name, ms, bottleneck)
+		fmt.Printf("   %-20s %10.2fms %s\n", s.Name, ms, " "+stageMark(ms))
 		if s.Notes != "" {
 			fmt.Printf("   %-20s        %s\n", "", s.Notes)
 		}
@@ -863,39 +882,19 @@ func printSingleModelStages(stages []singleBenchStage) {
 	fmt.Printf("   %-20s %10.2fms\n", "总计", totalMs)
 }
 
-// printAverageStages 打印多次迭代的平均值
+// printAverageStages 打印多次迭代的平均值（直接复用 avgBenchStages 的按名配对结果，
+// 不再裸取 stages[i]——不等长迭代（读取失败提前 return）下索引取值会越界 panic）
 func printAverageStages(allStages [][]singleBenchStage) {
-	stageCount := len(allStages[0])
-	var avgDurations []float64
-
-	for i := 0; i < stageCount; i++ {
-		var total float64
-		for _, stages := range allStages {
-			total += float64(stages[i].Duration.Microseconds()) / 1000
-		}
-		avgDurations = append(avgDurations, total/float64(len(allStages)))
-	}
+	avg := avgBenchStages(allStages)
 
 	fmt.Println("   📊 平均耗时（跨迭代）:")
 	fmt.Println("   " + strings.Repeat("-", 55))
 
 	var totalAvg float64
-	for i, stages := range allStages[0] {
-		ms := avgDurations[i]
+	for _, s := range avg {
+		ms := msOf(s)
 		totalAvg += ms
-
-		bottleneck := ""
-		if ms > 100 {
-			bottleneck = "🔴 瓶颈"
-		} else if ms > 50 {
-			bottleneck = "🟡 注意"
-		} else if ms > 10 {
-			bottleneck = "🟢"
-		} else {
-			bottleneck = "✅"
-		}
-
-		fmt.Printf("   %-20s %10.2fms %s\n", stages.Name, ms, bottleneck)
+		fmt.Printf("   %-20s %10.2fms %s\n", s.Name, ms, stageMark(ms))
 	}
 
 	fmt.Println("   " + strings.Repeat("-", 55))
