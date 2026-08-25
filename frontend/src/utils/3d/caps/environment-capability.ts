@@ -275,6 +275,127 @@ function pickHdrFile(): Promise<File | null> {
   });
 }
 
+function ecBuildBasic(cap: EnvironmentCapability): MenuControlDef[] {
+  return [
+    {
+      id: "env-enabled",
+      kind: "toggle",
+      labelKey: "preview.environment",
+      fallback: "环境贴图",
+      getValue: () => cap.isEnabled(),
+      setValue: (v) => cap.setEnabled(v as boolean),
+    },
+    {
+      id: "env-preset",
+      kind: "preset-thumb",
+      labelKey: "preview.envPresetThumbnail",
+      fallback: "预设预览",
+      group: "preview.envGroupPreset",
+      thumb: {
+        size: 64,
+        options: ((): Array<{ value: string; label: string; getThumb: () => string | null }> => {
+          const keys = Object.keys(ENV_PRESETS) as Array<Exclude<EnvPresetId, "custom">>;
+          return keys.map((id) => ({
+            value: id,
+            label: ENV_PRESETS[id].label,
+            getThumb: () => cap.getPresetThumbnail(id, 64),
+          }));
+        })(),
+        activeValue: () => cap.getPresetId(),
+        onSelect: (v) => cap.setPresetId(v as EnvPresetId),
+      },
+      getValue: () => "",
+      setValue: () => { /* 由 thumb.onSelect 处理 */ },
+    },
+    {
+      id: "env-use-as-background",
+      kind: "toggle",
+      labelKey: "preview.envUseAsBackground",
+      fallback: "用作背景",
+      group: "preview.envGroupBackground",
+      hintKey: "preview.envUseAsBackgroundHint",
+      getValue: () => cap.isUseAsBackground(),
+      setValue: (v) => cap.setUseAsBackground(v as boolean),
+    },
+    {
+      id: "env-intensity",
+      kind: "slider",
+      labelKey: "preview.envIntensity",
+      fallback: "反射强度",
+      group: "preview.envGroupBackground",
+      slider: { min: 0, max: 3, step: 0.05 },
+      getValue: () => cap.getIntensity(),
+      setValue: (v) => cap.setIntensity(v as number),
+    },
+  ];
+}
+
+function ecBuildCustomHdr(cap: EnvironmentCapability): MenuControlDef[] {
+  return [
+    {
+      id: "env-hdr-preview",
+      kind: "image",
+      labelKey: "preview.envHdrPreview",
+      fallback: "HDR 预览",
+      group: "preview.envGroupCustomHdr",
+      getValue: () => cap.getCustomHdrThumbnail(),
+      setValue: () => { /* 只读 */ },
+    },
+    {
+      id: "env-pick-hdr",
+      kind: "button",
+      labelKey: "preview.envPickHdr",
+      fallback: "自定义 HDR",
+      group: "preview.envGroupCustomHdr",
+      button: {
+        textKey: "preview.envPickHdrBtn",
+        variant: "primary",
+        action: async () => cap.onPickCustomHdr(),
+        disabled: () => cap.isCustomHdrLoading(),
+        getHint: () => {
+          if (cap.isCustomHdrLoading()) return "加载中…";
+          const n = cap.getCustomHdrName();
+          return n ? `已加载：${n}` : "";
+        },
+        hintKey: "preview.envPickHdrHint",
+      },
+      getValue: () => "",
+      setValue: () => { /* ignore */ },
+    },
+    {
+      id: "env-clear-hdr",
+      kind: "button",
+      labelKey: "preview.envClearHdr",
+      fallback: "清除自定义 HDR",
+      group: "preview.envGroupCustomHdr",
+      button: {
+        textKey: "preview.envClearHdrBtn",
+        variant: "ghost",
+        action: () => cap.onClearCustomHdr(),
+        disabled: () => !cap.hasCustomHdr(),
+        hintKey: "preview.envClearHdrHint",
+        getHint: () => (cap.hasCustomHdr() ? "已清空将回到工作室预设" : ""),
+      },
+      getValue: () => "",
+      setValue: () => { /* ignore */ },
+    },
+  ];
+}
+
+function ecBuildHistogram(cap: EnvironmentCapability): MenuControlDef[] {
+  return [
+    {
+      id: "env-histogram",
+      kind: "histogram",
+      labelKey: "preview.envHistogram",
+      fallback: "亮度直方图",
+      group: "preview.envGroupBackground",
+      getValue: () => cap.getLuminanceHistogram(),
+      setValue: () => { /* 只读 */ },
+    },
+  ];
+}
+
 export class EnvironmentCapability implements SceneCapability {
   readonly id = "environment";
   readonly labelKey = "preview.environment";
@@ -501,42 +622,7 @@ export class EnvironmentCapability implements SceneCapability {
     this.scene.background = this.backgroundSrcTex;
   }
 
-  private buildEnvironment(): void {
-    this.disposeEnvironment();
-    if (!this.enabled) {
-      this.scene.environment = this.prevEnvironment;
-      this.applyBackground(null);
-      return;
-    }
-
-    // preset=custom 分支
-    if (this.params.preset === "custom") {
-      if (this.customHdrTex) {
-        // ——命中缓存：PMREM 从 DataTexture equirect 编码——
-        this.pmrem = new THREE.PMREMGenerator(this.renderer);
-        this.pmrem.compileEquirectangularShader();
-        // 经验 637368：每次更新都重新生成 PMREM，避免重复赋值导致缓存紊乱；
-        // customHdrTex 是源 DataTexture，不会被 fromEquirectangular dispose，下次还能复用。
-        const rt = this.pmrem.fromEquirectangular(this.customHdrTex);
-        this.envRT = rt;
-        this.envTexture = rt.texture;
-        this.scene.environment = this.envTexture;
-        // background：直接拿 customHdrTex 当背景（sharp 原图，不拿 PMREM 模糊版）
-        this.applyBackground(this.customHdrTex);
-        return;
-      }
-      // ——没有 custom HDR 缓存：告警一次 + 静默回退 studio（避免反射黑，教训 433477-4）——
-      if (!this.customHdrWarnedMissing) {
-        this.customHdrWarnedMissing = true;
-        const logger = (globalThis as unknown as { __ysmRingLog?: (mod: string, msg: string, lvl?: "info" | "warn" | "error") => void }).__ysmRingLog;
-        if (logger) logger("env", "未加载 HDR 文件，已自动回退到「工作室」预设。请点击「选择 HDR 文件」加载 .hdr。", "warn");
-        else console.warn("[EnvironmentCapability] preset=custom 但无 HDR 缓存，回退 studio 预设");
-      }
-      // 改写 preset 并走到下面程序化分支
-      this.params.preset = "studio";
-    }
-
-    // ——程序化 Canvas 2D equirect 分支（sky / studio / sunset / night / forest）——
+  private buildPresetEquirectTex(): THREE.Texture | null {
     const preset = ENV_PRESETS[this.params.preset as Exclude<EnvPresetId, "custom">] ?? ENV_PRESETS.sky;
     const W = this.params.resolution;
     const H = Math.floor(W / 2);
@@ -546,27 +632,54 @@ export class EnvironmentCapability implements SceneCapability {
     drawEnvEquirect(canvas, preset);
 
     const tex = new THREE.CanvasTexture(canvas);
-    tex.mapping = THREE.EquirectangularReflectionMapping; // 硬教训：mapping 必配
+    tex.mapping = THREE.EquirectangularReflectionMapping;
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.needsUpdate = true;
+    return tex;
+  }
 
+  private buildCustomHdrTex(): THREE.Texture | null {
+    if (this.params.preset !== "custom") return null;
+    if (this.customHdrTex) return this.customHdrTex;
+    if (!this.customHdrWarnedMissing) {
+      this.customHdrWarnedMissing = true;
+      const logger = (globalThis as unknown as { __ysmRingLog?: (mod: string, msg: string, lvl?: "info" | "warn" | "error") => void }).__ysmRingLog;
+      if (logger) logger("env", "未加载 HDR 文件，已自动回退到「工作室」预设。请点击「选择 HDR 文件」加载 .hdr。", "warn");
+      else console.warn("[EnvironmentCapability] preset=custom 但无 HDR 缓存，回退 studio 预设");
+    }
+    this.params.preset = "studio";
+    return null;
+  }
+
+  private pmremToSceneEnv(srcTex: THREE.Texture | null): void {
+    if (!srcTex) return;
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
     this.pmrem.compileEquirectangularShader();
-    const rt = this.pmrem.fromEquirectangular(tex);
+    const rt = this.pmrem.fromEquirectangular(srcTex);
     this.envRT = rt;
     this.envTexture = rt.texture;
-
-    // 挂到 scene.environment（PBR 材质自动取）
     this.scene.environment = this.envTexture;
-
-    // background：用 CanvasTexture（未 dispose 版，sharp 原图，不拿 PMREM 模糊版）
-    // useAsBackground=false 时 applyBackground 会立即 dispose 这个临时纹理
-    this.applyBackground(tex);
-
-    // 只有没被 backgroundSrcTex 引用时才 dispose 临时 CanvasTexture（用着的话引用在 disposeEnvironment 里释放）
-    if (this.backgroundSrcTex !== tex) {
-      tex.dispose();
+    this.applyBackground(srcTex);
+    if (srcTex !== this.customHdrTex && this.backgroundSrcTex !== srcTex) {
+      srcTex.dispose();
     }
+  }
+
+  private buildEnvironment(): void {
+    this.disposeEnvironment();
+    if (!this.enabled) {
+      this.scene.environment = this.prevEnvironment;
+      this.applyBackground(null);
+      return;
+    }
+    let srcTex: THREE.Texture | null = null;
+    if (this.params.preset === "custom") {
+      srcTex = this.buildCustomHdrTex();
+    }
+    if (!srcTex) {
+      srcTex = this.buildPresetEquirectTex();
+    }
+    this.pmremToSceneEnv(srcTex);
   }
 
   /**
@@ -722,118 +835,7 @@ export class EnvironmentCapability implements SceneCapability {
   /* -------- 菜单控件（声明式驱动）-------- */
 
   getMenuControls(): MenuControlDef[] {
-    return [
-      // 总开关：无 group，直接挂面板顶部
-      {
-        id: "env-enabled",
-        kind: "toggle",
-        labelKey: "preview.environment",
-        fallback: "环境贴图",
-        getValue: () => this.isEnabled(),
-        setValue: (v) => this.setEnabled(v as boolean),
-      },
-      // 预设缩略图网格
-      {
-        id: "env-preset",
-        kind: "preset-thumb",
-        labelKey: "preview.envPresetThumbnail",
-        fallback: "预设预览",
-        group: "preview.envGroupPreset",
-        thumb: {
-          size: 64,
-          options: ((): Array<{ value: string; label: string; getThumb: () => string | null }> => {
-            const keys = Object.keys(ENV_PRESETS) as Array<Exclude<EnvPresetId, "custom">>;
-            return keys.map((id) => ({
-              value: id,
-              label: ENV_PRESETS[id].label,
-              getThumb: () => this.getPresetThumbnail(id, 64),
-            }));
-          })(),
-          activeValue: () => this.getPresetId(),
-          onSelect: (v) => this.setPresetId(v as EnvPresetId),
-        },
-        getValue: () => "",
-        setValue: () => { /* 由 thumb.onSelect 处理 */ },
-      },
-      // 自定义 HDR 组
-      {
-        id: "env-hdr-preview",
-        kind: "image",
-        labelKey: "preview.envHdrPreview",
-        fallback: "HDR 预览",
-        group: "preview.envGroupCustomHdr",
-        getValue: () => this.getCustomHdrThumbnail(),
-        setValue: () => { /* 只读 */ },
-      },
-      {
-        id: "env-pick-hdr",
-        kind: "button",
-        labelKey: "preview.envPickHdr",
-        fallback: "自定义 HDR",
-        group: "preview.envGroupCustomHdr",
-        button: {
-          textKey: "preview.envPickHdrBtn",
-          variant: "primary",
-          action: async () => this.onPickCustomHdr(),
-          disabled: () => this.isCustomHdrLoading(),
-          getHint: () => {
-            if (this.isCustomHdrLoading()) return "加载中…";
-            const n = this.getCustomHdrName();
-            return n ? `已加载：${n}` : "";
-          },
-          hintKey: "preview.envPickHdrHint",
-        },
-        getValue: () => "",
-        setValue: () => { /* ignore */ },
-      },
-      {
-        id: "env-clear-hdr",
-        kind: "button",
-        labelKey: "preview.envClearHdr",
-        fallback: "清除自定义 HDR",
-        group: "preview.envGroupCustomHdr",
-        button: {
-          textKey: "preview.envClearHdrBtn",
-          variant: "ghost",
-          action: () => this.onClearCustomHdr(),
-          disabled: () => !this.hasCustomHdr(),
-          hintKey: "preview.envClearHdrHint",
-          getHint: () => (this.hasCustomHdr() ? "已清空将回到工作室预设" : ""),
-        },
-        getValue: () => "",
-        setValue: () => { /* ignore */ },
-      },
-      // 背景与强度组
-      {
-        id: "env-use-as-background",
-        kind: "toggle",
-        labelKey: "preview.envUseAsBackground",
-        fallback: "用作背景",
-        group: "preview.envGroupBackground",
-        hintKey: "preview.envUseAsBackgroundHint",
-        getValue: () => this.isUseAsBackground(),
-        setValue: (v) => this.setUseAsBackground(v as boolean),
-      },
-      {
-        id: "env-intensity",
-        kind: "slider",
-        labelKey: "preview.envIntensity",
-        fallback: "反射强度",
-        group: "preview.envGroupBackground",
-        slider: { min: 0, max: 3, step: 0.05 },
-        getValue: () => this.getIntensity(),
-        setValue: (v) => this.setIntensity(v as number),
-      },
-      {
-        id: "env-histogram",
-        kind: "histogram",
-        labelKey: "preview.envHistogram",
-        fallback: "亮度直方图",
-        group: "preview.envGroupBackground",
-        getValue: () => this.getLuminanceHistogram(),
-        setValue: () => { /* 只读 */ },
-      },
-    ];
+    return [...ecBuildBasic(this), ...ecBuildCustomHdr(this), ...ecBuildHistogram(this)];
   }
 
   /* -------- 持久化 -------- */

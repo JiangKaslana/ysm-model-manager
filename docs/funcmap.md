@@ -244,13 +244,13 @@
 |------|--------|------|
 | `ExtractFirstPNGFromZip()` | `go/geometry/archive:77` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
 | `ExtractFirstPNGFrom7z()` | `go/geometry/archive:87` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:1276` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
-| `ParseFrom7z()` | `go/geometry/archive:1282` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
-| `ParseFromZipEntry()` | `go/geometry/archive:1295` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
-| `ParseFrom7zEntry()` | `go/geometry/archive:1300` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
-| `IsMainModelName()` | `go/geometry/archive:1366` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:1378` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1577` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
+| `ParseFromZip()` | `go/geometry/archive:1308` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:1314` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `ParseFromZipEntry()` | `go/geometry/archive:1327` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
+| `ParseFrom7zEntry()` | `go/geometry/archive:1332` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
+| `IsMainModelName()` | `go/geometry/archive:1398` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:1410` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:1621` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 parseComponentsFromArchi |
 | `ParseBedrockGeometry()` | `go/geometry/parse:238` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
@@ -1496,7 +1496,7 @@
 | `DEFAULT_ENV_PARAMS()` | `frontend/src/utils/3d/caps/environment-capability:138` | — |
 | `ENV_PRESET_BY_MODEL()` | `frontend/src/utils/3d/caps/environment-capability:147` | 模型类别环境默认 preset（YSM 方块=sky，VRM/MMD=studio 柔光更友好，体素=forest） |
 | `drawEnvEquirect()` | `frontend/src/utils/3d/caps/environment-capability:158` | 给 canvas 2D ctx 填充 equirectangular 环境贴图（程序化） |
-| `EnvironmentCapability()` | `frontend/src/utils/3d/caps/environment-capability:278` | — |
+| `EnvironmentCapability()` | `frontend/src/utils/3d/caps/environment-capability:399` | — |
 | `FogMode()` | `frontend/src/utils/3d/caps/fog-capability:15` | — |
 | `FogParams()` | `frontend/src/utils/3d/caps/fog-capability:17` | — |
 | `DEFAULT_FOG_PARAMS()` | `frontend/src/utils/3d/caps/fog-capability:30` | — |
@@ -1526,16 +1526,16 @@
 | `LightParams()` | `frontend/src/utils/3d/caps/light-capability:75` | — |
 | `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:103` | — |
 | `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:113` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
-| `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:229` | ============ LightCapability ============ |
+| `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:343` | — |
 | `ReflectionMode()` | `frontend/src/utils/3d/caps/postprocessing-capability:33` | 反射模式三档：envmap-only 纯环境贴图、envmap+ssr SSR+屏外 fallback、ssr-only 纯 SSR（屏外会变黑） |
 | `PostprocessingParams()` | `frontend/src/utils/3d/caps/postprocessing-capability:35` | — |
 | `DEFAULT_POSTPROC_PARAMS()` | `frontend/src/utils/3d/caps/postprocessing-capability:85` | — |
-| `POSTPROC_PRESETS()` | `frontend/src/utils/3d/caps/postprocessing-capability:112` | 模型类别后处理预设 |
-| `PostprocessingCapability()` | `frontend/src/utils/3d/caps/postprocessing-capability:151` | — |
+| `POSTPROC_PRESETS()` | `frontend/src/utils/3d/caps/postprocessing-capability:336` | 模型类别后处理预设 |
+| `PostprocessingCapability()` | `frontend/src/utils/3d/caps/postprocessing-capability:375` | — |
 | `ReflectorParams()` | `frontend/src/utils/3d/caps/reflector-capability:18` | — |
 | `DEFAULT_REFLECTOR_PARAMS()` | `frontend/src/utils/3d/caps/reflector-capability:34` | — |
 | `REFLECTOR_PRESETS()` | `frontend/src/utils/3d/caps/reflector-capability:45` | 模型类别反光预设：反光强度按材质风格适配（toon 不要强反射，PBR 角色中等，方块/体素弱） |
-| `ReflectorCapability()` | `frontend/src/utils/3d/caps/reflector-capability:77` | — |
+| `ReflectorCapability()` | `frontend/src/utils/3d/caps/reflector-capability:125` | — |
 | `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability-registry:20` | 能力工厂：接收 scene/renderer/camera，返回能力实例 |
 | `SceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:27` | 注册表：管理所有场景能力的工厂和实例 |
 | `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:106` | 全局单例（模块级单例 + 运行时状态隔离） |
@@ -1546,12 +1546,12 @@
 | `ShadowParams()` | `frontend/src/utils/3d/caps/shadow-capability:24` | ============ 参数类型 ============ |
 | `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:39` | — |
 | `SHADOW_PRESETS()` | `frontend/src/utils/3d/caps/shadow-capability:49` | 预设（setPreset 套用到不同模型类别） |
-| `ShadowCapability()` | `frontend/src/utils/3d/caps/shadow-capability:94` | ============ ShadowCapability ============ |
+| `ShadowCapability()` | `frontend/src/utils/3d/caps/shadow-capability:168` | ============ ShadowCapability ============ |
 | `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:28` | — |
 | `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:49` | — |
 | `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:64` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
 | `MODEL_SKY_PRESETS()` | `frontend/src/utils/3d/caps/sky-capability:72` | 按模型类别的散射/曝光预设（ADR-073 #3）。 |
-| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:81` | — |
+| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:164` | — |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:40` | 遍历场景图释放所有 Mesh 的 geometry 和 material。 |
 | `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:59` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
