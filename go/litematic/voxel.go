@@ -182,19 +182,7 @@ func buildRegionInfo(region map[string]any) (*regionInfo, error) {
 		return nil, nil
 	}
 
-	palette := make([]string, len(paletteList))
-	for i, elem := range paletteList {
-		if elemMap, ok := elem.(map[string]any); ok {
-			nameTag := getAny(elemMap, "Name")
-			if name, ok := nameTag.(string); ok {
-				palette[i] = MapColor(name)
-			} else {
-				palette[i] = "#000000"
-			}
-		} else {
-			palette[i] = "#000000"
-		}
-	}
+	palette := paletteColorsFromNames(extractPaletteNames(paletteList))
 
 	sizeCompound := getCompound(region, "Size")
 	if sizeCompound == nil {
@@ -319,19 +307,7 @@ func BuildNbtVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, e
 	}
 	sx, sy, sz := int(sxTag), int(syTag), int(szTag)
 
-	paletteColors := make([]string, len(paletteList))
-	for i, elem := range paletteList {
-		if elemMap, ok := elem.(map[string]any); ok {
-			nameTag := getAny(elemMap, "Name")
-			if name, ok := nameTag.(string); ok {
-				paletteColors[i] = MapColor(name)
-			} else {
-				paletteColors[i] = "#7F7F7F"
-			}
-		} else {
-			paletteColors[i] = "#7F7F7F"
-		}
-	}
+	paletteColors := paletteColorsFromNames(extractPaletteNames(paletteList))
 
 	// 方块生成器：顺序推进 blocks 列表，跳过 air/invalid（状态由闭包捕获）
 	bi := 0
@@ -453,19 +429,7 @@ func buildBedrockVoxelData(subLevels []any, maxBlocks int) (*types.LitematicVoxe
 			}
 		}
 		// block_palette：Name → MapColor（缺失 Name / 非 compound 元素兜底灰）
-		paletteList := getList(sub, "block_palette")
-		palette := make([]string, 0, len(paletteList))
-		for _, elem := range paletteList {
-			if em, ok := elem.(map[string]any); ok {
-				if name, ok := getString(em, "Name"); ok {
-					palette = append(palette, MapColor(name))
-				} else {
-					palette = append(palette, "#7F7F7F")
-				}
-			} else {
-				palette = append(palette, "#7F7F7F")
-			}
-		}
+		palette := paletteColorsFromNames(extractPaletteNames(getList(sub, "block_palette")))
 		infos = append(infos, subInfo{originX: minX, originY: minY, originZ: minZ, palette: palette, blocks: blocks})
 	}
 	if !hasBounds {

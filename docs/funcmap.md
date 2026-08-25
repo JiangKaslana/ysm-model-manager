@@ -10,7 +10,7 @@
 | Go·头像 | 4 | 11 |
 | go/cli | 4 | 29 |
 | go/config | 1 | 3 |
-| go/container | 1 | 27 |
+| go/container | 1 | 30 |
 | Go·去重 | 2 | 16 |
 | Go·下载 | 1 | 16 |
 | go/executil | 2 | 2 |
@@ -19,17 +19,17 @@
 | Go·几何 | 2 | 10 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 10 |
-| go/instance | 1 | 3 |
+| go/instance | 1 | 4 |
 | go/internal | 1 | 3 |
-| Go·Litematic | 4 | 9 |
+| Go·Litematic | 6 | 9 |
 | Go·日志 | 2 | 12 |
 | Go·包管理 | 1 | 3 |
 | Go·路径 | 1 | 6 |
 | Go·回收站 | 2 | 19 |
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 5 | 10 |
-| go/scanner | 1 | 10 |
-| Go·同步 | 9 | 37 |
+| go/scanner | 1 | 11 |
+| Go·同步 | 9 | 38 |
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
@@ -49,7 +49,7 @@
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **472** | **2031** |
+| **合计** | **474** | **2037** |
 
 ## Go·头像
 
@@ -113,31 +113,34 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `zipEntry.Name()` | `go/container/container:44` | — |
-| `zipEntry.IsDir()` | `go/container/container:45` | — |
-| `zipEntry.UncompressedSize64()` | `go/container/container:46` | — |
-| `zipEntry.Open()` | `go/container/container:47` | — |
-| `zipContainer.Entries()` | `go/container/container:56` | — |
-| `zipContainer.Close()` | `go/container/container:68` | — |
-| `sevenzipEntry.Name()` | `go/container/container:80` | — |
-| `sevenzipEntry.IsDir()` | `go/container/container:81` | — |
-| `sevenzipEntry.UncompressedSize64()` | `go/container/container:82` | — |
-| `sevenzipEntry.Open()` | `go/container/container:83` | — |
-| `sevenzipContainer.Entries()` | `go/container/container:92` | — |
-| `sevenzipContainer.Close()` | `go/container/container:100` | — |
-| `dirEntry.Name()` | `go/container/container:116` | — |
-| `dirEntry.IsDir()` | `go/container/container:117` | — |
-| `dirEntry.UncompressedSize64()` | `go/container/container:118` | — |
-| `dirEntry.Open()` | `go/container/container:125` | — |
-| `Open()` | `go/container/container:47` | — |
-| `OpenZipPath()` | `go/container/container:166` | OpenZipPath 按路径打开 zip 容器。 |
-| `OpenZipBytes()` | `go/container/container:175` | OpenZipBytes 从内存打开 zip 容器。 |
-| `Open7zPath()` | `go/container/container:184` | Open7zPath 按路径打开 7z 容器。 |
-| `Open7zBytes()` | `go/container/container:193` | Open7zBytes 从内存打开 7z 容器。 |
-| `dirContainer.Entries()` | `go/container/container:238` | — |
-| `dirContainer.Close()` | `go/container/container:239` | — |
-| `OpenDir()` | `go/container/container:242` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
-| `ZipMatchesEntries()` | `go/container/container:254` | ZipMatchesEntries 打开 zip 容器并枚举条目名，任一命中 match 即返回 true。 |
+| `zipEntry.Name()` | `go/container/container:47` | — |
+| `zipEntry.IsDir()` | `go/container/container:48` | — |
+| `zipEntry.UncompressedSize64()` | `go/container/container:49` | — |
+| `zipEntry.Open()` | `go/container/container:50` | — |
+| `zipContainer.Entries()` | `go/container/container:59` | — |
+| `zipContainer.Close()` | `go/container/container:71` | — |
+| `zipContainer.Incomplete()` | `go/container/container:78` | — |
+| `sevenzipEntry.Name()` | `go/container/container:85` | — |
+| `sevenzipEntry.IsDir()` | `go/container/container:86` | — |
+| `sevenzipEntry.UncompressedSize64()` | `go/container/container:87` | — |
+| `sevenzipEntry.Open()` | `go/container/container:88` | — |
+| `sevenzipContainer.Entries()` | `go/container/container:97` | — |
+| `sevenzipContainer.Close()` | `go/container/container:105` | — |
+| `sevenzipContainer.Incomplete()` | `go/container/container:112` | — |
+| `dirEntry.Name()` | `go/container/container:123` | — |
+| `dirEntry.IsDir()` | `go/container/container:124` | — |
+| `dirEntry.UncompressedSize64()` | `go/container/container:125` | — |
+| `dirEntry.Open()` | `go/container/container:136` | — |
+| `Open()` | `go/container/container:50` | — |
+| `OpenZipPath()` | `go/container/container:177` | OpenZipPath 按路径打开 zip 容器。 |
+| `OpenZipBytes()` | `go/container/container:186` | OpenZipBytes 从内存打开 zip 容器。 |
+| `Open7zPath()` | `go/container/container:195` | Open7zPath 按路径打开 7z 容器。 |
+| `Open7zBytes()` | `go/container/container:204` | Open7zBytes 从内存打开 7z 容器。 |
+| `dirContainer.Entries()` | `go/container/container:264` | — |
+| `dirContainer.Close()` | `go/container/container:265` | — |
+| `dirContainer.Incomplete()` | `go/container/container:266` | — |
+| `OpenDir()` | `go/container/container:269` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
+| `ZipMatchesEntries()` | `go/container/container:281` | ZipMatchesEntries 打开 zip 容器并枚举条目名，任一命中 match 即返回 true。 |
 | `Entry()` | `go/container/container:26` | Entry 统一容器条目（zip.File / sevenzip.File / 目录文件）。 |
 | `Reader()` | `go/container/container:34` | Reader 容器读取器。 |
 
@@ -290,8 +293,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `InvalidateSyncItemsCache()` | `go/instance/instance:47` | InvalidateSyncItemsCache 清空全部整合包同步结果缓存。 |
-| `BuildSyncItems()` | `go/instance/instance:301` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
+| `RegisterInvalidationHook()` | `go/instance/instance:44` | RegisterInvalidationHook 把同步结果缓存挂到 scanner 失效钩子上。 |
+| `InvalidateSyncItemsCache()` | `go/instance/instance:52` | InvalidateSyncItemsCache 清空全部整合包同步结果缓存。 |
+| `BuildSyncItems()` | `go/instance/instance:320` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
 | `ResourceTypeInfo()` | `go/instance/instance:21` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
 
 ## go/internal
@@ -309,12 +313,12 @@
 | `MapColor()` | `go/litematic/block_colors:10` | MapColor 返回 minecraft 方块名对应的近似十六进制颜色。 |
 | `ResolveBlockName()` | `go/litematic/block_ids:12` | ResolveBlockName 把旧版数字 ID（schematic v1）解析为注册名。 |
 | `ResolveBlockZH()` | `go/litematic/block_ids:26` | ResolveBlockZH 把注册名映射为中文名（自动去除 minecraft: 前缀）。 |
-| `ParseMeta()` | `go/litematic/parser:14` | — |
-| `ParseSchematicSummary()` | `go/litematic/parser:173` | — |
-| `ParseNbtStructure()` | `go/litematic/parser:267` | — |
+| `ParseMeta()` | `go/litematic/parser:30` | ParseMeta 解析 litematic 格式（Litematic/Minihud 保存的投影）元数据。 |
+| `ParseSchematicSummary()` | `go/litematic/schematic:10` | ParseSchematicSummary 解析 WorldEdit schematic（.schem）摘要。 |
+| `ParseNbtStructure()` | `go/litematic/structure:6` | ParseNbtStructure 解析 Java 版 structure NBT（.nbt 结构方块保存）摘要。 |
 | `BuildVoxelData()` | `go/litematic/voxel:92` | BuildVoxelData 构建体素渲染数据（按颜色分组） |
-| `BuildNbtVoxelData()` | `go/litematic/voxel:286` | — |
-| `BuildSchematicVoxelData()` | `go/litematic/voxel:528` | — |
+| `BuildNbtVoxelData()` | `go/litematic/voxel:274` | — |
+| `BuildSchematicVoxelData()` | `go/litematic/voxel:492` | — |
 
 ## Go·日志
 
@@ -410,15 +414,16 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `SetErrorSink()` | `go/scanner/scanner:89` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
-| `OnCacheInvalidated()` | `go/scanner/scanner:149` | OnCacheInvalidated 注册一个扫描缓存失效回调。回调会在 InvalidateCache 或 InvalidatePath 完成清理后同步调用，适合清理依赖 sca |
-| `InvalidateCache()` | `go/scanner/scanner:168` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
-| `InvalidatePath()` | `go/scanner/scanner:184` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
-| `ScanEntries()` | `go/scanner/scanner:216` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
-| `ScanEntriesWithHit()` | `go/scanner/scanner:223` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:450` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:490` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:520` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:601` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `EffectiveCacheTTL()` | `go/scanner/scanner:131` | EffectiveCacheTTL 导出当前生效的扫描缓存 TTL，供派生缓存（go/instance 同步结果、 go/sync 扫描缓存）写缓存时取同一刷新周期——30s 刷新 |
+| `OnCacheInvalidated()` | `go/scanner/scanner:156` | OnCacheInvalidated 注册一个扫描缓存失效回调。回调会在 InvalidateCache 或 InvalidatePath 完成清理后同步调用，适合清理依赖 sca |
+| `InvalidateCache()` | `go/scanner/scanner:175` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
+| `InvalidatePath()` | `go/scanner/scanner:191` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
+| `ScanEntries()` | `go/scanner/scanner:223` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
+| `ScanEntriesWithHit()` | `go/scanner/scanner:230` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
+| `ComputeFileHash()` | `go/scanner/scanner:457` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:497` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:527` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:608` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -431,7 +436,8 @@
 | `ResolutionStrategy()` | `go/sync/conflict:24` | ResolutionStrategy 冲突解决策略 |
 | `FileConflict()` | `go/sync/conflict:36` | FileConflict 文件冲突详情 |
 | `ConflictReport()` | `go/sync/conflict:58` | ConflictReport 冲突报告 |
-| `InvalidateSyncScanCaches()` | `go/sync/sync_cache:54` | InvalidateSyncScanCaches 清空全部同步目录扫描结果缓存。 |
+| `RegisterInvalidationHook()` | `go/sync/sync_cache:30` | RegisterInvalidationHook 把同步扫描缓存挂到 scanner 失效钩子上。 |
+| `InvalidateSyncScanCaches()` | `go/sync/sync_cache:61` | InvalidateSyncScanCaches 清空全部同步目录扫描结果缓存。 |
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
 | `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:375` | SyncResourcesDirLevel 文件夹级同步（默认 filepath.Walk，行为不变，供测试/旧调用方使用）。 |
@@ -809,15 +815,15 @@
 | `App.BackupWorkshopCreators()` | `internal/app/app_workshop:311` | — |
 | `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:326` | — |
 | `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:368` | — |
-| `NewApp()` | `internal/app/app:61` | — |
-| `App.SetApp()` | `internal/app/app:87` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
-| `App.GetYSMRepoRoot()` | `internal/app/app:90` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录 |
-| `App.SetMainWindow()` | `internal/app/app:102` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
-| `App.ServiceStartup()` | `internal/app/app:105` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
-| `App.ServiceShutdown()` | `internal/app/app:199` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
-| `App.OpenInBrowser()` | `internal/app/app:234` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
-| `App.GetAppVersion()` | `internal/app/app:239` | GetAppVersion 返回当前版本号 |
-| `App()` | `internal/app/app:28` | — |
+| `NewApp()` | `internal/app/app:63` | — |
+| `App.SetApp()` | `internal/app/app:89` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
+| `App.GetYSMRepoRoot()` | `internal/app/app:92` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录 |
+| `App.SetMainWindow()` | `internal/app/app:104` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
+| `App.ServiceStartup()` | `internal/app/app:107` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
+| `App.ServiceShutdown()` | `internal/app/app:206` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
+| `App.OpenInBrowser()` | `internal/app/app:241` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
+| `App.GetAppVersion()` | `internal/app/app:246` | GetAppVersion 返回当前版本号 |
+| `App()` | `internal/app/app:30` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
 | `App.SetAllowedCommands()` | `internal/app/cli_bridge:15` | SetAllowedCommands 注入可用 CLI 命令列表（由 main.go 调用 cli.GetAllowedCommands() 提供） 避免 app→cli 循环依赖 |
 | `App.ExecuteCLI()` | `internal/app/cli_bridge:31` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
