@@ -1446,8 +1446,8 @@
 | `b64ToBytes()` | `frontend/src/utils/3d/base64:6` | base64 → Uint8Array（Go []byte 的 base64 序列化） |
 | `bytesToArrayBuffer()` | `frontend/src/utils/3d/base64:15` | Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView&lt;ArrayBuffer&gt;，规避 SharedArrayBuffer 泛型） |
 | `bytesToBase64()` | `frontend/src/utils/3d/base64:20` | Uint8Array → base64（分块防栈溢出，对齐 atob 解码口径） |
-| `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
-| `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
+| `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:7` | getBoneList 返回的扁平骨骼信息 |
+| `getBoneList()` | `frontend/src/utils/3d/bone-list:21` | 从 spec 提取骨骼列表，支持按组件索引： - modelIdx 缺省 0 → 第一组件（main，动画驱动）——向后兼容 v1 单组件语义 - modelIdx &gt;= 0  → |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
 | `getMeshBoneId()` | `frontend/src/utils/3d/bone-raycast:53` | Mesh → 所属骨骼名（沿父链向上查找 has isGroup 且 name 在 nameMap 中的节点）。 |
 | `assembleBoneSelectInfo()` | `frontend/src/utils/3d/bone-raycast:68` | 骨骼选中信息组装。 |
@@ -2105,7 +2105,7 @@
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:25` | — |
 | `resolveSiblingsByType()` | `frontend/src/views/app-preview/siblings:13` | 解析某资源类型的同目录候选主文件路径列表。 |
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
-| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:18` | — |
+| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:19` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
 | `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:19` | 创建 2D 骨骼画布并异步加载纹理 |
 | `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:44` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |

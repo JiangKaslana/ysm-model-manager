@@ -36,12 +36,12 @@
 | `sync/` | 整合包同步 〔源码 9: conflict.go sync.go sync_cache.go sync_diff.go sync_dirlevel.go sync_discovery.go sync_hash.go sy… · 测试 13〕 |
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
 | `texture_cache/` | 纹理缓存管理（KTX2/PNG 缓存，支持后台编码与快速命中） 〔源码 1: texture_cache.go · 测试 2〕 |
-| `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 6〕 |
+| `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 7〕 |
 | `types/` | 共享类型 + 注册表 〔源码 7: bedrock.go config.go extensions.go findinst.go location.go resource.go types.go · 测试 16〕 |
 | `updater/` | 自动更新 〔源码 3: updater.go updater_other.go updater_windows.go · 测试 8〕 |
 | `version/` | 版本号 〔源码 1: version.go · 测试 1〕 |
 | `watcher/` | 文件监听 〔源码 1: watcher.go · 测试 2〕 |
-| `ysm/` | YSM 解析 + 摘要 〔源码 8: cli.go decode_inject.go extracted.go header.go parse.go summary.go texsize.go ysm.go · 测试 16〕 |
+| `ysm/` | YSM 解析 + 摘要 〔源码 8: cli.go decode_inject.go extracted.go header.go parse.go summary.go texsize.go ysm.go · 测试 15〕 |
 
 <!-- /GEN: go-structure -->
 

@@ -315,7 +315,14 @@ func expandBoxUV(uv [2]float64, sx, sy, sz, texW, texH float64, faces *[6][8]flo
 		{u + sz + sz + sx, v + sz, sx, sy, 4}, {u + sz, v + sz, sx, sy, 5},
 	}
 	for _, d := range data {
-		faces[d.f] = [8]float64{d.fu / texW, d.fv / texH, (d.fu + d.fw) / texW, (d.fv + d.fh) / texH, d.fu / texW, d.fv / texH, (d.fu + d.fw) / texW, (d.fv + d.fh) / texH}
+		// 四角 quad：顶点序 (u0,v0)(u1,v0)(u0,v1)(u1,v1)——对齐前端 cube-mesh.ts 与
+		// spec-builder.ts；此前写成对角重复 [u0,v0,u1,v1,u0,v0,u1,v1]，导致每面
+		// UV 退化为对角线性渐变（纹理被压成一条对角线 → 糊/纯色/方向怪异）。
+		// 前两个顶点是面上的 u0、后两个是 u1（v0 行在前、v1 行在后）。
+		faces[d.f] = [8]float64{
+			d.fu / texW, d.fv / texH, (d.fu + d.fw) / texW, d.fv / texH,
+			d.fu / texW, (d.fv + d.fh) / texH, (d.fu + d.fw) / texW, (d.fv + d.fh) / texH,
+		}
 	}
 	return true
 }
@@ -344,7 +351,12 @@ func parseFaceUV(faceUVStr string, faces *[6][8]float64, texW, texH float64) boo
 		if len(fd.UvSize) >= 2 {
 			fw, fh = fd.UvSize[0], fd.UvSize[1]
 		}
-		faces[fi] = [8]float64{fu / texW, fv / texH, (fu + fw) / texW, (fv + fh) / texH, fu / texW, fv / texH, (fu + fw) / texW, (fv + fh) / texH}
+		// 四角 quad：顶点序 (u0,v0)(u1,v0)(u0,v1)(u1,v1)——同 expandBoxUV 修复（对角
+		// 重复会导致面内 UV 退化为对角渐变，纹理糊/纯色/方向怪异）。
+		faces[fi] = [8]float64{
+			fu / texW, fv / texH, (fu + fw) / texW, fv / texH,
+			fu / texW, (fv + fh) / texH, (fu + fw) / texW, (fv + fh) / texH,
+		}
 		parsed = true
 	}
 	return parsed
