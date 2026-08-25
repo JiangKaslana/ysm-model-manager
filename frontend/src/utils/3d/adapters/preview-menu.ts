@@ -179,9 +179,9 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       if (node.visibleWhen && !node.visibleWhen()) continue;
       if (node.kind === "sectionTitle") {
         const st = document.createElement("div");
+        st.className = "section-title";
         st.dataset.testid = node.id;
         st.textContent = node.labelKey ? tr(node.labelKey, node.fallback ?? node.id) : node.id;
-        st.style.cssText = "padding:12px 10px 4px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
         list.appendChild(st);
         continue;
       }
@@ -194,11 +194,10 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       }
       if (node.kind === "field") {
         const row = document.createElement("div");
-        row.className = "stat-row";
+        row.className = "slide-item field-row";
         row.dataset.testid = "preview-" + node.id;
-        row.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0";
-        const k = document.createElement("span"); k.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id;
-        const v = document.createElement("span"); v.style.cssText = "color:rgba(255,255,255,0.9)"; v.textContent = String(node.value ?? (node.labelKey ? tr(node.labelKey, node.id) : node.id));
+        const k = document.createElement("span"); k.className = "field-label"; k.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id;
+        const v = document.createElement("span"); v.className = "field-value"; v.textContent = String(node.value ?? (node.labelKey ? tr(node.labelKey, node.id) : node.id));
         row.append(k, v);
         list.appendChild(row);
         continue;
@@ -700,11 +699,10 @@ export function renderMenu(
     // field: 键值对行（统计/信息展示）
     if (node.kind === "field") {
       const row = document.createElement("div");
-      row.className = "stat-row";
+      row.className = "slide-item field-row";
       row.dataset.testid = "preview-" + node.id;
-      row.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0";
-      const k = document.createElement("span"); k.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id;
-      const v = document.createElement("span"); v.style.cssText = "color:rgba(255,255,255,0.9)"; v.textContent = String(node.value ?? (node.labelKey ? tr(node.labelKey, node.id) : node.id));
+      const k = document.createElement("span"); k.className = "field-label"; k.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id;
+      const v = document.createElement("span"); v.className = "field-value"; v.textContent = String(node.value ?? (node.labelKey ? tr(node.labelKey, node.id) : node.id));
       row.append(k, v);
       container.appendChild(row);
       continue;
@@ -714,9 +712,8 @@ export function renderMenu(
       const row = document.createElement("div");
       row.className = "slide-item";
       row.dataset.testid = "preview-" + node.id;
-      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer";
-      if (node.icon) { const ic = document.createElement("span"); ic.textContent = node.icon; ic.style.cssText = "font-size:14px"; row.appendChild(ic); }
-      const lb = document.createElement("span"); lb.className = "slide-label"; lb.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id; lb.style.cssText = "flex:1;font-size:13px"; row.appendChild(lb);
+      if (node.icon) { const ic = document.createElement("span"); ic.className = "slide-icon"; ic.textContent = node.icon; row.appendChild(ic); }
+      const lb = document.createElement("span"); lb.className = "slide-label"; lb.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id; row.appendChild(lb);
       row.addEventListener("click", (ev: MouseEvent): void => {
         ev.stopPropagation();
         void node.action?.({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
@@ -729,10 +726,9 @@ export function renderMenu(
       const row = document.createElement("div");
       row.className = "slide-item";
       row.dataset.testid = "preview-" + node.id;
-      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer";
-      if (node.icon) { const ic = document.createElement("span"); ic.textContent = node.icon; ic.style.cssText = "font-size:14px;flex-shrink:0"; row.appendChild(ic); }
-      const lb = document.createElement("span"); lb.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-size:12px"; lb.textContent = node.labelKey ? tr(node.labelKey, String(node.value || node.id)) : String(node.value || node.id); row.appendChild(lb);
-      if (node.value && typeof node.value === "string") { const meta = document.createElement("span"); meta.style.cssText = "font-size:10px;color:rgba(255,255,255,0.4);flex-shrink:0"; meta.textContent = node.value; row.appendChild(meta); }
+      if (node.icon) { const ic = document.createElement("span"); ic.className = "slide-icon"; ic.textContent = node.icon; row.appendChild(ic); }
+      const lb = document.createElement("span"); lb.className = "slide-label"; lb.style.cssText = "font-size:12px"; lb.textContent = node.labelKey ? tr(node.labelKey, String(node.value || node.id)) : String(node.value || node.id); row.appendChild(lb);
+      if (node.value && typeof node.value === "string") { const meta = document.createElement("span"); meta.className = "slide-sublabel"; meta.textContent = node.value; row.appendChild(meta); }
       row.addEventListener("click", (ev: MouseEvent): void => {
         ev.stopPropagation();
         void node.action?.({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
@@ -753,8 +749,7 @@ export function renderMenu(
       const st = document.createElement("div");
       st.dataset.testid = node.id;
       st.textContent = node.labelKey ? tr(node.labelKey, node.fallback ?? node.id) : node.id;
-      st.style.cssText =
-        "padding:6px 10px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+      st.className = "section-title";
       container.appendChild(st);
       continue;
     }
