@@ -6,6 +6,7 @@
 package geometry
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -480,5 +481,70 @@ func TestMaidL0_ModelForeignNs_TreatedAsModelId(t *testing.T) {
 	}
 	if model.SubModels[0].SourcePath != "assets/mypack/models/entity/hero.json" {
 		t.Errorf("SourcePath = %q, 期望候选字典命中的 hero.json", model.SubModels[0].SourcePath)
+	}
+}
+
+// ===== L0 升格纯工具函数单测（TDD，先补绿再动刀）=====
+
+func TestL0_StripNsPrefix_AllBranches(t *testing.T) {
+	// 动态构造"当前平台原生绝对路径"：避免写死 Unix / Windows 任一方的格式。
+	// （filepath.IsAbs 在 Windows 上对 "/tmp/x.json" 返回 false，不能拿来写死。）
+	cwd, err := filepath.Abs(".")
+	if err != nil {
+		t.Fatalf("filepath.Abs 失败: %v", err)
+	}
+	platformAbs := cwd[:1] + `:\platform\abs.json` // 占位，稍后用 IsAbs 动态校验
+	// 如果当前平台不是 volume-absolute 形式（C:\），退回到 Unix 绝对路径。
+	if !filepath.IsAbs(platformAbs) {
+		platformAbs = "/platform/abs.json"
+	}
+	platformAbsValue := "mypack:" + platformAbs
+	wantPlatformAbs := platformAbsValue // 绝对路径后缀，不剥
+
+	tests := []struct {
+		name   string
+		value  string
+		nsBase string
+		want   string
+	}{
+		{"空值透传", "", "mypack", ""},
+		{"nsBase 空透传", "models/a.json", "", "models/a.json"},
+		{"前缀匹配·非绝对路径·剥", "droneeee:models/entity/x.json", "droneeee", "models/entity/x.json"},
+		{"前缀匹配·后缀原生绝对路径·不剥", platformAbsValue, "mypack", wantPlatformAbs},
+		{"前缀不匹配·不剥", "other:models/a.json", "mypack", "other:models/a.json"},
+		{"无冒号·透传", "models/a.json", "mypack", "models/a.json"},
+		{"前缀匹配·下一段开头带冒号", "ns:sub:rest", "ns", "sub:rest"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := l0StripNsPrefix(tt.value, tt.nsBase)
+			if got != tt.want {
+				t.Errorf("l0StripNsPrefix(%q, %q) = %q, want %q", tt.value, tt.nsBase, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestL0_ExtractName_AllBranches(t *testing.T) {
+	tests := []struct {
+		name     string
+		modelID  string
+		fallback string
+		want     string
+	}{
+		{"modelID 空·回退 fallback", "", "fb", "fb"},
+		{"标准 ns:name", "mypack:hero", "fb", "hero"},
+		{"无冒号·整体作 name", "hero", "fb", "hero"},
+		{"多冒号·只切第一段", "a:b:c", "fb", "b:c"},
+		{"冒号开头·空前缀", ":ghost", "fb", "ghost"},
+		{"冒号结尾·空 name", "mypack:", "fb", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := l0ExtractName(tt.modelID, tt.fallback)
+			if got != tt.want {
+				t.Errorf("l0ExtractName(%q, %q) = %q, want %q", tt.modelID, tt.fallback, got, tt.want)
+			}
+		})
 	}
 }
