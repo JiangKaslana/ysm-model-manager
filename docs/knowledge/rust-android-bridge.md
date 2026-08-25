@@ -1,5 +1,5 @@
 ---
-kind: architecture
+kind: rust-android-bridge
 name: Rust Scanner Bridge 全平台支持
 tier: architecture
 category: core
