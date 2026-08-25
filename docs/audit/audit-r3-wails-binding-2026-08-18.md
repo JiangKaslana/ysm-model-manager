@@ -53,6 +53,8 @@
 | 风险 | 极低：当前架构下 `configFunc` 仅在启动期设置一次，后续只读。 |
 | 修复建议 | 暂时保持现状；如未来引入配置热重载，改为 `sync.RWMutex` 保护。 |
 
+> ✅ **已处置**（`89df39ba`，ADR-091 D12）：四包各自的 `configFunc`/`SetConfigFunc` 已删除，收敛到 `go/config` 统一单持有点（`atomic.Pointer[Provider]`，internal/app 经 `config.Set(a.LoadAppConfig)` 注入，各 helper 读 `config.Get()`）。Store/Load 原子无并发读写竞争，且 `go/config` 含 `-race` 后台测试。本记录为历史审计快照，代码侧符号 `configFunc` 已不存在，重扫命中即过期。
+
 ---
 
 ## 良好实践（亮点）
