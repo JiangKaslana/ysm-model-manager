@@ -219,14 +219,16 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   const renderPanel = (list: HTMLElement, def: PreviewMenuItemDef): void => {
     list.innerHTML = "";
     try {
-      // 优先用声明式 Schema 渲染
+      // 统一路径：优先声明式 Schema，其次通过 previewItemToNode 转换 def 为节点
       if (schemaBuilders[def.id]) {
-        const nodes = schemaBuilders[def.id]!(menu);
-        renderSchemaContent(list, nodes);
-        return;
+        renderSchemaContent(list, schemaBuilders[def.id]!(menu));
+      } else if (def.render || def.run) {
+        // 适配器注入项等：转成节点后用 renderSchemaContent 渲染
+        const node = previewItemToNode(def);
+        renderSchemaContent(list, [node]);
+      } else {
+        fillers[def.id]?.(list, menu);
       }
-      if (def.render) def.render(list, hideMenu);
-      else fillers[def.id]?.(list, menu);
     } catch (err) {
       console.error("[preview-menu] renderPanel FAILED", def.id, err);
       const errRow = document.createElement("div");

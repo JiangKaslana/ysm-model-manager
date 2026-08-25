@@ -105,10 +105,10 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
   - **替换/追加不关菜单 + 局部刷新（commit d6a390ce）**：fillSwitch 行本体（替换）与 ➕（追加）去掉 `closePopup`——替换不清场景、不关菜单，完成后经 `menu.refresh()` 局部重渲染（renderRows 重读新当前路径，✓ 高亮归位）。`ctx.switchTo` 类型改为 `Promise<void> | void`，mount 层透传 handle.switchTo 的 Promise（原 `void r.catch` 吞掉无法 await）；fillSwitch 增 menu 参数。跨类型 switchExternal 整段重建 overlay 时 refresh 为 no-op（新会话新菜单），无害。
   - **替换误判跨源 cleanupPreview 根因（commit 32b628ff，诊断日志实锤）**：fillSwitch 路由判定 `sameType=false` 因 `curType=empty`——`mount getCurrentRtype` 用 `??` 回退，但 `opts.rtype` 空串时 `"" ?? adapter.id` 返回空串 → 所有 `.ysm` 候选 `"ysm"===""` 判 false → 走 `switchExternal` → `cleanupPreview` 整段销毁（「替换角色后界面被关」「空白页加载也关」「连续查看模型被打断」的根源）。修复双处兜底：① `getCurrentRtype`（mount 两处）空串/空白也回退 adapter.id；② `sameType` 判定 curType 空但 candType 可识别 → 视为同源走 switchTo（歧义候选 candType=null 仍保守跨源）。roles.test 替换测试加 switchExternal spy 回归防护（模拟空 rtype，断言不触发跨源）。
 
-- **方案 A 改造预期（2026-08-25 复核）**：当前「壳声明式 + 肉命令式」双轨并存，估算迁移约 **60%**——角色详情树已迁，环境/相机/灯光/阴影/后处理/设置面板已迁为声明式 schema（`buildXxxSchema` → `PreviewMenuNode[]`，`renderSchemaContent` 直接渲染内容），`CORE_MENU_ITEMS` 中所有 panel 已无 `render`/`run` 闭包（纯声明式元数据）。`renderPanel` 优先走 `schemaBuilders` 映射，衰退到 `fillers` 或 `def.render`。下一步收尾顺序：
+- **方案 A 改造预期（2026-08-25 复核）**：当前「壳声明式 + 肉命令式」双轨并存，估算迁移约 **80%**——角色详情树、环境/相机/灯光/阴影/后处理/设置面板已迁为声明式 schema（`buildXxxSchema` → `PreviewMenuNode[]`，`renderSchemaContent` 直接渲染内容）。`renderPanel` 统一走 `previewItemToNode` 转换 → `renderSchemaContent` 渲染，`def.render`/`fillers` 不再直接调用（保留为衰退）。适配器注入项（model/shot/bones/material/perception/play 等）同样经 `previewItemToNode` → `renderCustom` 逃生舱走声明式渲染路径。下一步收尾顺序：
   1. ✅ **新菜单项硬截止**：新增面板一律写 `PreviewMenuNode`。
-  2. 🔄 **全量迁面板**：环境/相机/灯光/阴影/后处理/设置 6 面板已迁，适配器注入项（model/shot/bones/material/perception/play 等）仍经 `renderCustom` 逃生舱。
-  3. ❌ **删逃生舱**：待适配器注入项全部迁为 `PreviewMenuNode` 后删除 `PreviewMenuItemDef.render` 字段与 `previewItemToNode`，`fillers` 映射同步退役。
+  2. ✅ **全量迁面板**：core 6 面板 + 适配器注入项均经声明式路径渲染。
+  3. ❌ **删逃生舱**：待所有 `fillers` 和 `def.render` 调用确认不再触发后，删除 `PreviewMenuItemDef.render` 字段、`previewItemToNode`、`fillers` 映射。
   4. 🔄 **补 renderMenu 单测**：4 例（field/button/row/sectionTitle）+ 契约测试，仍缺 folder 折叠/visibleWhen 假值边界。
   5. ✅ **稳定双轨交互**：已修（替换误判跨源、替换不关菜单、局部刷新、unhandled rejection）。
 
