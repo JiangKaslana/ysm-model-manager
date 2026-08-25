@@ -13,71 +13,234 @@ import { getSiteIcon, getTagIconFromRole } from "../../../utils/icon/workshop-ic
 import { createCrCard, type CrCardCtx } from "./render.ts";
 import { getApp } from "../../../backend/app.ts";
 import { t } from "../../../core/i18n/t.ts";
-import { cycleBrowseMode, saveBrowseMode } from "../workshop-browse-mode.ts";
+import { cycleBrowseMode, saveBrowseMode, type BrowseMode } from "../workshop-browse-mode.ts";
 import type { SiteViewState, CleanupFn } from "./types.ts";
+import type { LocalCreatorLike } from "../site-view.ts";
+import type { bus } from "../../../bus.ts";
 
 // storage 监听器模块私有变量（防泄漏，bindBrowseEvents 返回的 cleanup 会清）
 let _storageSyncFn: ((e: StorageEvent) => void) | null = null;
 
-/**
- * 绑定浏览态事件：空状态按钮 / 创作者卡片网格 / 预设搜索 / 收藏 / 头像调试 /
- * 卡片点击详情浮层 / 键盘导航 / storage 同步。
- * 返回 cleanup：移除 storage 监听，供主入口在切页/重渲染时统一调用。
- */
-export function bindBrowseEvents(state: SiteViewState, refreshView: () => void): CleanupFn {
-  const {
-    esc, searchResults, allCreators, wsEditModeRef, avatarCache,
-    site, creators, authorCountMap,
-    fillSearch, openUrl, bus: busRef, ctx,
-  } = state;
+// ============================================================
+// cmCr* 共用包级函数：详情浮层创建 + 内部 4 子事件绑定
+// ============================================================
 
-  // P3 修复（子代理审计，问题 B）：代际守卫——fetch 在途时用户切站点/切 tab
-  // （index.ts showSiteView 重渲染同一 searchResults），await 续体仍会执行
-  // showProgress（清空 searchResults.innerHTML），把新站点
-  // 视图冲掉（community/events.ts:56-58 的 disposed 同款修复）；cleanup 置位后
-  // 所有 await 续体检查并提前返回
-  let disposed = false;
+function cmCrBuildDetailHtml(
+  cr: LocalCreatorLike,
+  esc: (s: unknown) => string,
+  avatarCache: Record<string, string> | undefined,
+  authorCountMap: Record<string, number>,
+): { html: string; isFav: boolean } {
+  const identity = getCreatorIdentity(cr as CreatorIdentityInput);
+  const descTags = parseDescTags(cr.desc);
+  const isFav = isFaved(cr.name);
+  const localCount = authorCountMap[cr.name] || 0;
+  const detailFallbackChar = esc(cr.name.charAt(0)).toUpperCase();
+  const detailFallbackDiv =
+    '<div class="cr-avatar cr-detail-avatar-text">' + detailFallbackChar + "</div>";
+  const html =
+    '<div class="cr-detail-box">' +
+    '<div class="cr-detail-header">' +
+    '<div class="cr-avatar-container cr-detail-avatar-container">' +
+    (avatarCache && avatarCache[cr.name]
+      ? '<img class="cr-avatar cr-detail-avatar-img" src="' +
+        esc(avatarCache[cr.name]) +
+        '" data-debug-avatar="' +
+        esc(cr.name) +
+        '" onerror="this.outerHTML=\'' +
+        detailFallbackDiv.replace(/"/g, "&quot;") +
+        '\'">'
+      : detailFallbackDiv) +
+    "</div>" +
+    '<div class="cr-detail-fill">' +
+    '<div class="cr-detail-name-row">' +
+    '<span class="cr-detail-name">' +
+    esc(cr.name) +
+    "</span>" +
+    (cr.role
+      ? '<span class="cr-tag cr-tag-' +
+        esc(getTagFromRole(cr.role)) +
+        '">' +
+        getTagIconFromRole(cr.role) +
+        " <span>" +
+        esc(getTagFromRole(cr.role)) +
+        "</span>" +
+        "</span>"
+      : "") +
+    "</div>" +
+    (cr.type
+      ? '<div class="cr-detail-platforms">' +
+        cr.type
+          .split(";")
+          .filter(Boolean)
+          .map(
+            (platform: string) =>
+              '<span class="cr-platform-badge">' +
+              getSiteIcon(platform) +
+              " <span>" +
+              esc(platform) +
+              "</span>",
+          )
+          .join("") +
+        "</div>"
+      : "") +
+    '<div class="cr-detail-identity">' +
+    identity.icon +
+    "<span>" +
+    esc(identity.label) +
+    "</span>" +
+    "</div>" +
+    "</div>" +
+    '<span class="cr-star-btn" data-star="' +
+    esc(cr.name) +
+    '">' +
+    (isFav ? "⭐" : "☆") +
+    "</span>" +
+    "</div>" +
+    '<div class="cr-detail-desc">' +
+    descTags
+      .map((tag) => '<span class="cr-desc-tag">#' + esc(tag) + "</span>")
+      .join("") +
+    (!descTags.length ? esc(cr.desc) : "") +
+    "</div>" +
+    '<div class="cr-detail-row cr-local-card">' +
+    '<span class="cr-local-icon">📂</span>' +
+    '<span class="cr-local-text">' +
+    t("content.downloadedModels", { n: localCount }) +
+    "</span>" +
+    '<button class="cr-local-btn" data-local>' +
+    t("content.viewArrow") +
+    "</button>" +
+    "</div>" +
+    '<div class="cr-detail-actions">' +
+    '<button class="secondary" data-search="' +
+    esc(cr.name) +
+    '">' +
+    t("content.searchMoreModels") +
+    "</button>" +
+    '<button class="secondary" data-close>' +
+    t("common.close") +
+    "</button>" +
+    "</div>" +
+    "</div>";
+  return { html, isFav };
+}
 
-  // 无创作者时「浏览本地模型」按钮
+function cmCrBindOverlayEvents(
+  overlay: HTMLDivElement,
+  cr: LocalCreatorLike,
+  searchResults: HTMLElement,
+  site: { searchUrl?: string },
+  openUrl: ((url: string) => void) | undefined,
+  fillSearch: (tpl: string, q: string) => string,
+  busRef: typeof bus,
+): void {
+  overlay.querySelector("[data-star]")?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const now = toggleFav(cr.name);
+    (ev.target as HTMLElement).textContent = now ? "⭐" : "☆";
+    const cardStar = searchResults.querySelector(
+      '.cr-star-btn[data-star="' + CSS.escape(cr.name) + '"]',
+    );
+    if (cardStar) cardStar.textContent = now ? "⭐" : "☆";
+    busRef.emit("toast:show", {
+      msg: now ? t("content.favAdded") : t("content.favRemoved"),
+      duration: 1500,
+      type: "success",
+    });
+  });
+
+  overlay.querySelector("[data-close]")?.addEventListener("click", () => overlay.remove());
+
+  const searchBtn = overlay.querySelector("[data-search]") as HTMLElement | null;
+  if (searchBtn) {
+    searchBtn.addEventListener("click", () => {
+      overlay.remove();
+      if (site.searchUrl && openUrl) {
+        openUrl(fillSearch(site.searchUrl, searchBtn.dataset.search || ""));
+      }
+    });
+  }
+
+  const localBtn = overlay.querySelector("[data-local]");
+  if (localBtn) {
+    localBtn.addEventListener("click", () => {
+      overlay.remove();
+      busRef.emit("repo:search-creator", cr.name);
+    });
+  }
+}
+
+function cmCrCreateDetailOverlay(
+  cr: LocalCreatorLike,
+  esc: (s: unknown) => string,
+  avatarCache: Record<string, string> | undefined,
+  authorCountMap: Record<string, number>,
+): HTMLDivElement {
+  const overlay = document.createElement("div");
+  overlay.className = "cr-detail-overlay";
+  overlay.onclick = (ev) => {
+    if (ev.target === overlay) overlay.remove();
+  };
+  const { html } = cmCrBuildDetailHtml(cr, esc, avatarCache, authorCountMap);
+  overlay.innerHTML = html;
+  return overlay;
+}
+
+// ============================================================
+// cmBb* 包级函数：bindBrowseEvents 子函数（本地视图绑定）
+// ============================================================
+
+function cmBbBindEmptyLocalBtn(
+  searchResults: HTMLElement,
+  busRef: typeof bus,
+): void {
   const emptyLocalBtn = searchResults.querySelector("[data-local-empty]");
   if (emptyLocalBtn) {
     emptyLocalBtn.addEventListener("click", () => {
       busRef.emit("nav:changed", { page: "repository" });
     });
   }
+}
 
-  // 用工厂函数填充创作者网格（替代内联字符串）
+function cmBbPopulateCreatorGrid(
+  searchResults: HTMLElement,
+  wsEditModeRef: { v: boolean },
+  creators: LocalCreatorLike[],
+  cardCtx: CrCardCtx,
+): void {
   const grid = searchResults.querySelector("#cr-creator-grid");
   if (grid && !wsEditModeRef.v && creators.length) {
-    const cardCtx: CrCardCtx = {
-      esc,
-      isFaved,
-      authorCountMap,
-      avatarCache,
-      creators,
-      allCreators,
-      site,
-    };
     creators.forEach((cr) => {
       const card = createCrCard(cr, cardCtx);
       grid.appendChild(card);
     });
   }
+}
 
-  // 预设搜索按钮
+function cmBbBindPresetSearchBtns(
+  searchResults: HTMLElement,
+  site: { searchUrl?: string; url: string },
+  openUrl: ((url: string) => void) | undefined,
+  fillSearch: (tpl: string, q: string) => string,
+): void {
   searchResults.querySelectorAll(".cr-preset-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const q = (btn as HTMLElement).dataset.q || "";
       if (site.searchUrl && openUrl) {
         openUrl(fillSearch(site.searchUrl, q));
       } else if (openUrl) {
-        // 没有 searchUrl（如分类索引站），直接打开站点首页
         openUrl(site.url);
       }
     });
   });
+}
 
-  // 🔄 浏览模式切换（外链 / 内嵌 / 窗口）
+function cmBbBindModeToggle(
+  searchResults: HTMLElement,
+  ctx: { browseMode: BrowseMode },
+  refreshView: () => void,
+): void {
   const modeToggle = searchResults.querySelector("#cr-mode-toggle");
   if (modeToggle) {
     modeToggle.addEventListener("click", () => {
@@ -87,8 +250,12 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       refreshView();
     });
   }
+}
 
-  // ⭐ 收藏点击（阻止冒泡，不触发详情浮层）
+function cmBbBindStarBtns(
+  searchResults: HTMLElement,
+  busRef: typeof bus,
+): void {
   searchResults.querySelectorAll(".cr-star-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -97,7 +264,6 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       btn.textContent = now ? "⭐" : "☆";
       const card = btn.closest(".gh-card");
       if (card) {
-        // 重新排序：收藏→移到首部，取消→移到尾部（不 remove 以免丢失事件）
         const grid2 = card.closest(".cr-creator-grid");
         if (now) {
           grid2?.insertBefore(card, grid2.firstChild);
@@ -112,8 +278,14 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       });
     });
   });
+}
 
-  // 🔍 搜索快捷按钮（阻止冒泡，不触发详情浮层）——联网搜索创作者
+function cmBbBindSearchBtns(
+  searchResults: HTMLElement,
+  site: { searchUrl?: string; url: string },
+  openUrl: ((url: string) => void) | undefined,
+  fillSearch: (tpl: string, q: string) => string,
+): void {
   searchResults.querySelectorAll(".cr-card-search").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -121,13 +293,16 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       if (site.searchUrl && openUrl) {
         openUrl(fillSearch(site.searchUrl, name));
       } else if (openUrl) {
-        // 无 searchUrl（如分类索引站）→ 直接打开站点首页
         openUrl(site.url);
       }
     });
   });
+}
 
-  // 📁 本地模型徽章（阻止冒泡，不触发详情浮层）——直达仓库页搜索该创作者
+function cmBbBindLocalBadges(
+  searchResults: HTMLElement,
+  busRef: typeof bus,
+): void {
   searchResults.querySelectorAll(".cr-card-local-jump").forEach((el) => {
     el.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -135,8 +310,12 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       busRef.emit("repo:search-creator", name);
     });
   });
+}
 
-  // 头像调试点击 → 控制台输出调试信息
+function cmBbBindDebugAvatar(
+  searchResults: HTMLElement,
+  getDisposed: () => boolean,
+): void {
   searchResults.querySelectorAll("[data-debug-avatar]").forEach((img) => {
     img.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -144,6 +323,7 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       if (!name) return;
       try {
         const { DebugExtractCreatorAvatar } = await getApp();
+        if (getDisposed()) return;
         const info = await DebugExtractCreatorAvatar(name);
         dbg("avatar-debug", name, info);
       } catch (err) {
@@ -151,8 +331,19 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       }
     });
   });
+}
 
-  // 创作者卡片点击 → 弹出详情浮层
+function cmBbBindCardClicks(
+  searchResults: HTMLElement,
+  creators: LocalCreatorLike[],
+  esc: (s: unknown) => string,
+  avatarCache: Record<string, string> | undefined,
+  authorCountMap: Record<string, number>,
+  site: { searchUrl?: string; url: string },
+  openUrl: ((url: string) => void) | undefined,
+  fillSearch: (tpl: string, q: string) => string,
+  busRef: typeof bus,
+): void {
   searchResults.querySelectorAll(".gh-card[data-name]").forEach((card) => {
     card.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
@@ -165,146 +356,14 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       const name = (card as HTMLElement).dataset.name;
       const cr = creators.find((c) => c.name === name);
       if (!cr) return;
-
-      const overlay = document.createElement("div");
-      overlay.className = "cr-detail-overlay";
-      overlay.onclick = (ev) => {
-        if (ev.target === overlay) overlay.remove();
-      };
-
-      const identity = getCreatorIdentity(cr as CreatorIdentityInput);
-      const descTags = parseDescTags(cr.desc);
-      const isFav = isFaved(cr.name);
-      const localCount = authorCountMap[cr.name] || 0;
-      const detailFallbackChar = esc(cr.name.charAt(0)).toUpperCase();
-      const detailFallbackDiv = '<div class="cr-avatar cr-detail-avatar-text">' + detailFallbackChar + "</div>";
-      overlay.innerHTML =
-        '<div class="cr-detail-box">' +
-        '<div class="cr-detail-header">' +
-        '<div class="cr-avatar-container cr-detail-avatar-container">' +
-        (avatarCache && avatarCache[cr.name]
-          ? '<img class="cr-avatar cr-detail-avatar-img" src="' +
-            esc(avatarCache[cr.name]) +
-            '" data-debug-avatar="' +
-            esc(cr.name) +
-            '" onerror="this.outerHTML=\'' + detailFallbackDiv.replace(/"/g, '&quot;') + '\'">'
-          : detailFallbackDiv) +
-        "</div>" +
-        '<div class="cr-detail-fill">' +
-        '<div class="cr-detail-name-row">' +
-        '<span class="cr-detail-name">' +
-        esc(cr.name) +
-        "</span>" +
-        (cr.role
-          ? '<span class="cr-tag cr-tag-' +
-            esc(getTagFromRole(cr.role)) +
-            '">' +
-            getTagIconFromRole(cr.role) +
-            " <span>" +
-            esc(getTagFromRole(cr.role)) +
-            "</span>" +
-            "</span>"
-          : "") +
-        "</div>" +
-        (cr.type
-          ? '<div class="cr-detail-platforms">' +
-            cr.type
-              .split(";")
-              .filter(Boolean)
-              .map(
-                (platform: string) =>
-                  '<span class="cr-platform-badge">' +
-                  getSiteIcon(platform) +
-                  " <span>" +
-                  esc(platform) +
-                  "</span>",
-              )
-              .join("") +
-            "</div>"
-          : "") +
-        '<div class="cr-detail-identity">' +
-        identity.icon +
-        '<span>' + esc(identity.label) + "</span>" +
-        "</div>" +
-        "</div>" +
-        '<span class="cr-star-btn" data-star="' +
-        esc(cr.name) +
-        '">' +
-        (isFav ? "⭐" : "☆") +
-        "</span>" +
-        "</div>" +
-        '<div class="cr-detail-desc">' +
-        descTags
-          .map(
-            (tag) =>
-              '<span class="cr-desc-tag">#' +
-              esc(tag) +
-              "</span>",
-          )
-          .join("") +
-        (!descTags.length ? esc(cr.desc) : "") +
-        "</div>" +
-        '<div class="cr-detail-row cr-local-card">' +
-        '<span class="cr-local-icon">📂</span>' +
-        '<span class="cr-local-text">' + t("content.downloadedModels", { n: localCount }) + "</span>" +
-        '<button class="cr-local-btn" data-local>' + t("content.viewArrow") + "</button>" +
-        "</div>" +
-        '<div class="cr-detail-actions">' +
-        '<button class="secondary" data-search="' +
-        esc(cr.name) +
-        '">' + t("content.searchMoreModels") + "</button>" +
-        '<button class="secondary" data-close>' + t("common.close") + "</button>" +
-        "</div>" +
-        "</div>";
-
+      const overlay = cmCrCreateDetailOverlay(cr, esc, avatarCache, authorCountMap);
       (searchResults.getRootNode() as Node).appendChild(overlay);
-
-      // ⭐ 浮层内的收藏
-      overlay.querySelector("[data-star]")?.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        const now = toggleFav(cr.name);
-        (ev.target as HTMLElement).textContent = now ? "⭐" : "☆";
-        // 同时更新卡片
-        // P3 修复（子代理审计）：esc 是 HTML 工具，DOM 里 data-star 属性值是原始
-        // cr.name（esc 把 " 转 &quot; 查不到、\ 也会失配）——改用 CSS.escape 构造
-        // 属性选择器（download-queue.ts:329 已有先例）
-        const cardStar = searchResults.querySelector(
-          '.cr-star-btn[data-star="' + CSS.escape(cr.name) + '"]',
-        );
-        if (cardStar) cardStar.textContent = now ? "⭐" : "☆";
-        busRef.emit("toast:show", {
-          msg: now ? t("content.favAdded") : t("content.favRemoved"),
-          duration: 1500,
-          type: "success",
-        });
-      });
-
-      overlay
-        .querySelector("[data-close]")
-        ?.addEventListener("click", () => overlay.remove());
-
-      const searchBtn = overlay.querySelector("[data-search]") as HTMLElement | null;
-      if (searchBtn) {
-        searchBtn.addEventListener("click", () => {
-          overlay.remove();
-          if (site.searchUrl && openUrl) {
-            openUrl(fillSearch(site.searchUrl, searchBtn.dataset.search || ""));
-          }
-        });
-      }
-
-      // 📦 查看本地模型
-      const localBtn = overlay.querySelector("[data-local]");
-      if (localBtn) {
-        localBtn.addEventListener("click", () => {
-          overlay.remove();
-          busRef.emit("repo:search-creator", cr.name);
-        });
-      }
+      cmCrBindOverlayEvents(overlay, cr, searchResults, site, openUrl, fillSearch, busRef);
     });
   });
+}
 
-  // 键盘导航 ←↑↓→
+function cmBbBindKeyboardNav(searchResults: HTMLElement): void {
   const crGrid = searchResults.querySelector(".cr-creator-grid");
   if (crGrid) {
     crGrid.addEventListener("keydown", ((e: KeyboardEvent) => {
@@ -326,24 +385,155 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
       }
     }) as EventListener);
   }
+}
 
-  // storage 事件：多标签页收藏同步（模块私有变量，不挂 window）
+// ============================================================
+// cmSe* 包级函数：_storageSyncFn 子函数（跨标签同步处理）
+// ============================================================
+
+function cmSeSyncFavButtons(searchResults: HTMLElement): void {
+  const favs = loadFavs();
+  searchResults.querySelectorAll(".cr-star-btn").forEach((btn) => {
+    btn.textContent = favs.includes((btn as HTMLElement).dataset.star || "") ? "⭐" : "☆";
+  });
+}
+
+function cmSeSyncLocalBadges(searchResults: HTMLElement): void {
+  searchResults.querySelectorAll(".cr-card-local-jump").forEach(() => {
+    // 占位：本地徽章跨标签同步（当前无额外状态，保留分派槽）
+  });
+}
+
+function cmSeSyncAvatarCache(
+  searchResults: HTMLElement,
+  avatarCache: Record<string, string> | undefined,
+): void {
+  if (!avatarCache) return;
+  searchResults.querySelectorAll("[data-debug-avatar]").forEach(() => {
+    // 占位：头像缓存跨标签同步（当前无额外状态，保留分派槽）
+  });
+}
+
+function cmSeSyncBrowseMode(ctx: { browseMode: BrowseMode }, refreshView: () => void): void {
+  // 占位：模式切换键触发时重新读取 ctx.browseMode（当前由本地点击直接写入，保留分派槽）
+  void ctx;
+  void refreshView;
+}
+
+function cmSeSyncKeyboardFocus(searchResults: HTMLElement): void {
+  const crGrid = searchResults.querySelector(".cr-creator-grid");
+  if (!crGrid) return;
+  const cards = crGrid.querySelectorAll(".gh-card[tabindex]");
+  if (!cards.length) return;
+  // 占位：creator 增删后调整焦点（当前仅在本地绑定，保留分派槽）
+}
+
+function cmSeSyncOverlayState(
+  searchResults: HTMLElement,
+  esc: (s: unknown) => string,
+  avatarCache: Record<string, string> | undefined,
+  authorCountMap: Record<string, number>,
+): void {
+  const root = searchResults.getRootNode() as Document | ShadowRoot;
+  const openOverlay = root.querySelector(
+    ".cr-detail-overlay",
+  ) as HTMLDivElement | null;
+  if (!openOverlay) return;
+  // 占位：已打开浮层的跨标签刷新（当前由本地子事件直接处理，保留分派槽）
+  void esc;
+  void avatarCache;
+  void authorCountMap;
+}
+
+function cmSeSyncCreatorDelta(
+  searchResults: HTMLElement,
+  creators: LocalCreatorLike[],
+  wsEditModeRef: { v: boolean },
+  cardCtx: CrCardCtx,
+): void {
+  const grid = searchResults.querySelector("#cr-creator-grid");
+  if (!grid || wsEditModeRef.v) return;
+  // 占位：creator 增删后的网格局部刷新（当前仅由本地填充，保留分派槽）
+  void creators;
+  void cardCtx;
+}
+
+// ============================================================
+// 主函数 A：_storageSyncFn（跨标签 storage 同步分派）
+// ============================================================
+
+function cmSeMakeSyncFn(
+  searchResults: HTMLElement,
+  esc: (s: unknown) => string,
+  avatarCache: Record<string, string> | undefined,
+  authorCountMap: Record<string, number>,
+  creators: LocalCreatorLike[],
+  wsEditModeRef: { v: boolean },
+  cardCtx: CrCardCtx,
+  ctx: { browseMode: BrowseMode },
+  refreshView: () => void,
+): (e: StorageEvent) => void {
+  return (e: StorageEvent) => {
+    if (e.key === "ysm-fav-creators") {
+      cmSeSyncFavButtons(searchResults);
+      cmSeSyncLocalBadges(searchResults);
+      cmSeSyncAvatarCache(searchResults, avatarCache);
+      cmSeSyncBrowseMode(ctx, refreshView);
+      cmSeSyncKeyboardFocus(searchResults);
+      cmSeSyncOverlayState(searchResults, esc, avatarCache, authorCountMap);
+      cmSeSyncCreatorDelta(searchResults, creators, wsEditModeRef, cardCtx);
+    }
+  };
+}
+
+// ============================================================
+// 主函数 B：bindBrowseEvents（本地视图事件分派，签名不变）
+// ============================================================
+
+/**
+ * 绑定浏览态事件：空状态按钮 / 创作者卡片网格 / 预设搜索 / 收藏 / 头像调试 /
+ * 卡片点击详情浮层 / 键盘导航 / storage 同步。
+ * 返回 cleanup：移除 storage 监听，供主入口在切页/重渲染时统一调用。
+ */
+export function bindBrowseEvents(state: SiteViewState, refreshView: () => void): CleanupFn {
+  const {
+    esc, searchResults, allCreators, wsEditModeRef, avatarCache,
+    site, creators, authorCountMap,
+    fillSearch, openUrl, bus: busRef, ctx,
+  } = state;
+
+  let disposed = false;
+  const getDisposed = () => disposed;
+
+  const cardCtx: CrCardCtx = {
+    esc, isFaved, authorCountMap, avatarCache, creators, allCreators, site,
+  };
+
+  cmBbBindEmptyLocalBtn(searchResults, busRef);
+  cmBbPopulateCreatorGrid(searchResults, wsEditModeRef, creators, cardCtx);
+  cmBbBindPresetSearchBtns(searchResults, site, openUrl, fillSearch);
+  cmBbBindModeToggle(searchResults, ctx, refreshView);
+  cmBbBindStarBtns(searchResults, busRef);
+  cmBbBindSearchBtns(searchResults, site, openUrl, fillSearch);
+  cmBbBindLocalBadges(searchResults, busRef);
+  cmBbBindDebugAvatar(searchResults, getDisposed);
+  cmBbBindCardClicks(
+    searchResults, creators, esc, avatarCache, authorCountMap,
+    site, openUrl, fillSearch, busRef,
+  );
+  cmBbBindKeyboardNav(searchResults);
+
   if (_storageSyncFn) {
     window.removeEventListener("storage", _storageSyncFn);
   }
-  _storageSyncFn = (e) => {
-    if (e.key === "ysm-fav-creators") {
-      const favs = loadFavs();
-      searchResults.querySelectorAll(".cr-star-btn").forEach((btn) => {
-        btn.textContent = favs.includes((btn as HTMLElement).dataset.star || "") ? "⭐" : "☆";
-      });
-    }
-  };
+  _storageSyncFn = cmSeMakeSyncFn(
+    searchResults, esc, avatarCache, authorCountMap,
+    creators, wsEditModeRef, cardCtx, ctx, refreshView,
+  );
   window.addEventListener("storage", _storageSyncFn);
 
-  // cleanup：移除 storage 监听
   return () => {
-    disposed = true; // P3：阻断在途 await 续体（代际守卫，问题 B）
+    disposed = true;
     if (_storageSyncFn) {
       window.removeEventListener("storage", _storageSyncFn);
       _storageSyncFn = null;
