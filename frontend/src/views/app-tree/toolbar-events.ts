@@ -23,13 +23,47 @@ import { openAdvFilterDialog, pickWebFilesAndImport } from "./toolbar-search.ts"
 
 type $Id = (id: string) => HTMLElement | null;
 
-// 填充作者下拉（hover 或 click 都触发，避免鼠标快速点击时未填充）
+interface AtTlCtx {
+  root: ShadowRoot;
+  vm: AppTree;
+  $: $Id;
+}
+
+async function atTlShowConfirm(
+  vm: AppTree,
+  api: () => Promise<string | null>,
+  importByType: (rtype: string, path: string) => Promise<string>,
+  rtype: string,
+  successMsg: string,
+): Promise<void> {
+  const path = await api();
+  if (!path) return;
+  const errMsg = await importByType(rtype, path);
+  if (errMsg) {
+    bus.emit("toast:show", {
+      msg: "❌ 导入失败: " + errMsg,
+      duration: 4000,
+      type: "warn",
+    });
+    return;
+  }
+  const gen = vm._gen;
+  await vm._load();
+  if (gen !== vm._gen) return;
+  vm._renderTree();
+  bus.emit("toast:show", {
+    msg: "✅ " + successMsg,
+    duration: 2000,
+    type: "success",
+  });
+}
+
 function fillAuthorMenu(
   menuAuthors: HTMLElement,
   vm: AppTree,
   $: $Id,
 ): void {
-  if (menuAuthors.children.length) return; // 已填充
+  if (menuAuthors.children.length) return;
   const authors: Array<AuthorInfo | string> = vm._authors || [];
   if (!authors.length) {
     menuAuthors.innerHTML =
@@ -56,38 +90,68 @@ function fillAuthorMenu(
   });
 }
 
-// 绑定工具栏事件
-export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
-  const $: $Id = (id) => root.getElementById(id);
-
-  // 全选 / 反选 — 基于当前过滤后可见的行
+function atTlBindSelectAll(ctx: AtTlCtx): void {
+  const { vm, $ } = ctx;
   const selAllBtn = $("sel-all");
-  if (selAllBtn) {
-    selAllBtn.addEventListener("click", () => {
-      // 原代码 vm._root._vsRows 取的是 ShadowRoot 上从未设置的属性（_vsRows 设在 #tree 上）→ 全选恒失效
-      const rows = vm._root.getElementById("tree")?._vsRows || [];
-      const visible = rows.filter((r) => r.type === "file");
-      const keys = visible.map((r) => r.key).filter(Boolean);
-      const allSelected = keys.every((k) => selectState.keys.has(k));
-      keys.forEach((k) => {
-        if (allSelected) selectState.keys.delete(k);
-        else selectState.keys.add(k);
-      });
-      // P2 修复（审核发现）：全选/反选只写 selectState 不重渲染——行高亮 .selected 由
-      // renderTree 渲染期生成，状态变了 UI 不刷新（幽灵路径，陷阱 #13）；补 _renderTree
-      vm._renderTree();
-      // 复用 events.ts 里的实现（避免重复定义）
-      updateSelectCount(root);
-      flashBtn(selAllBtn);
+  if (!selAllBtn) return;
+  selAllBtn.addEventListener("click", () => {
+    const rows = vm._root.getElementById("tree")?._vsRows || [];
+    const visible = rows.filter((r) => r.type === "file");
+    const keys = visible.map((r) => r.key).filter(Boolean);
+    const allSelected = keys.every((k) => selectState.keys.has(k));
+    keys.forEach((k) => {
+      if (allSelected) selectState.keys.delete(k);
+      else selectState.keys.add(k);
     });
-  }
+    vm._renderTree();
+    updateSelectCount(ctx.root);
+    flashBtn(selAllBtn);
+  });
+}
 
+function atTlBindRepoSwitch(ctx: AtTlCtx): void {
+  const { $ } = ctx;
   $("btn-repo")?.addEventListener("click", () => {
     bus.emit("nav:changed", { page: "settings" });
   });
+}
 
-  // 搜索框实时过滤（P1：150ms debounce，防万级条目每个字符全量 buildTree+渲染）
-  // _search 立即更新（后续其他渲染读取到最新值），仅 _renderTree 延迟合并。
+function atTlBindNewFolder(_ctx: AtTlCtx): void {
+}
+
+function atTlBindDeleteSel(_ctx: AtTlCtx): void {
+}
+
+function atTlBindRenameSel(_ctx: AtTlCtx): void {
+}
+
+function atTlBindScan(_ctx: AtTlCtx): void {
+}
+
+function atTlBindSortToggle(ctx: AtTlCtx): void {
+  const { vm, $ } = ctx;
+  $("sort")?.addEventListener("change", () => {
+    vm._sort = ($("sort") as HTMLSelectElement | null)?.value || "name";
+    vm._renderTree();
+  });
+}
+
+function atTlBindViewMode(ctx: AtTlCtx): void {
+  const { vm, $ } = ctx;
+  const viewModeBtn = $("btn-view-mode");
+  if (!viewModeBtn) return;
+  viewModeBtn.textContent = vm._renderMode === "list" ? "▦" : "☰";
+  viewModeBtn.addEventListener("click", () => {
+    vm._renderMode = (vm._renderMode === "list" ? "grid" : "list") as RenderMode;
+    setRenderMode(vm._renderMode);
+    viewModeBtn.textContent = vm._renderMode === "list" ? "▦" : "☰";
+    vm._renderTree();
+    flashBtn(viewModeBtn);
+  });
+}
+
+function atTlBindSearch(ctx: AtTlCtx): void {
+  const { vm, $ } = ctx;
   let srchTimer: ReturnType<typeof setTimeout> | null = null;
   $("srch")?.addEventListener("input", () => {
     vm._search = ($("srch") as HTMLInputElement | null)?.value || "";
@@ -97,28 +161,10 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
       vm._renderTree();
     }, 150);
   });
+}
 
-  // 排序下拉（name/size/date，renderTree 已支持，此前缺绑定导致控件无效）
-  $("sort")?.addEventListener("change", () => {
-    vm._sort = ($("sort") as HTMLSelectElement | null)?.value || "name";
-    vm._renderTree();
-  });
-
-  // 视图模式切换（grid ⇄ list）
-  const viewModeBtn = $("btn-view-mode");
-  if (viewModeBtn) {
-    // 初始按钮图标：当前模式对应的「切换目标」图标
-    viewModeBtn.textContent = vm._renderMode === "list" ? "▦" : "☰";
-    viewModeBtn.addEventListener("click", () => {
-      vm._renderMode = (vm._renderMode === "list" ? "grid" : "list") as RenderMode;
-      setRenderMode(vm._renderMode);
-      viewModeBtn.textContent = vm._renderMode === "list" ? "▦" : "☰";
-      vm._renderTree();
-      flashBtn(viewModeBtn);
-    });
-  }
-
-  // 高级筛选按钮：触发弹窗版筛选器
+function atTlBindAdvFilter(ctx: AtTlCtx): void {
+  const { vm, $ } = ctx;
   const advBtn = $("btn-adv-filter");
   advBtn?.addEventListener("click", () => {
     dbg("adv-filter", "btn:click");
@@ -130,8 +176,6 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
       });
     });
   });
-
-  // 高级筛选：清除（inline 面板"清除"按钮 — 快速清空所有筛选）
   $("af-clear")?.addEventListener("click", () => {
     [
       "af-minBones",
@@ -152,48 +196,107 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
     vm._filterPaths = null;
     vm._renderTree();
   });
+}
 
-  // 作者下拉菜单 — hover 或 click 都触发填充（避免快速点击时未填充）
+function atTlBindAuthorMenu(ctx: AtTlCtx): void {
+  const { vm, $ } = ctx;
   const menuAuthors = $("menu-authors");
-  if (menuAuthors) {
-    const ddWrap = menuAuthors.closest(".dd-wrap");
-    if (ddWrap) {
-      ddWrap.addEventListener("pointerenter", () =>
-        fillAuthorMenu(menuAuthors, vm, $),
-      );
-      ddWrap.addEventListener("click", () =>
-        fillAuthorMenu(menuAuthors, vm, $),
-      );
-    }
-  }
+  if (!menuAuthors) return;
+  const ddWrap = menuAuthors.closest(".dd-wrap");
+  if (!ddWrap) return;
+  ddWrap.addEventListener("pointerenter", () =>
+    fillAuthorMenu(menuAuthors, vm, $),
+  );
+  ddWrap.addEventListener("click", () =>
+    fillAuthorMenu(menuAuthors, vm, $),
+  );
+}
 
-  // 批量按钮下拉菜单
+function atTlBindBatchMenu(ctx: AtTlCtx): void {
+  const { $ } = ctx;
   const menuBatch = $("menu-batch");
-  if (menuBatch) {
-    menuBatch.querySelectorAll("[data-batch]").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const action = (btn as HTMLElement).dataset.batch;
-        if (action === "enable-all") bus.emit("batch:enable-all");
-        else if (action === "disable-all") bus.emit("batch:disable-all");
-      });
-    });
-  }
-
-  // 「⋮ 更多」下拉菜单
-  const menuMore = $("menu-more");
-  if (menuMore) {
-    menuMore.addEventListener("click", (e) => {
-      const target = e.target as HTMLElement | null;
-      const item = target ? target.closest("[data-more]") : null;
-      if (!item) return;
+  if (!menuBatch) return;
+  menuBatch.querySelectorAll("[data-batch]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const action = (item as HTMLElement).dataset.more;
-      // 绑定层/文件选择器/加载失败统一兜底（genindex 内层 try/finally 仍负责按钮恢复）
-      void (async (): Promise<void> => {
+      const action = (btn as HTMLElement).dataset.batch;
+      if (action === "enable-all") bus.emit("batch:enable-all");
+      else if (action === "disable-all") bus.emit("batch:disable-all");
+    });
+  });
+}
+
+async function atTlHandleImportFile(ctx: AtTlCtx): Promise<void> {
+  const { vm } = ctx;
+  const rtype = vm._rootAttr || RESOURCE_TYPES.YSM;
+  if (isViewerMode()) {
+    await pickWebFilesAndImport(rtype, () => vm._load(), () => vm._renderTree());
+    return;
+  }
+  const { SelectImportFile, ImportByType } = await getApp();
+  const exts = getExts(rtype);
+  const extFilter = exts.length ? exts.map((e) => "*" + e).join(";") : "*.*";
+  await atTlShowConfirm(
+    vm,
+    () =>
+      SelectImportFile(
+        rtype + " 文件|" + extFilter,
+        "选择" + rtype + "文件",
+      ),
+    ImportByType,
+    rtype,
+    "导入成功",
+  );
+}
+
+async function atTlHandleImportDir(ctx: AtTlCtx): Promise<void> {
+  const { vm } = ctx;
+  const rtype = vm._rootAttr || RESOURCE_TYPES.YSM;
+  if (resolveWebMode()) {
+    const gen = vm._gen;
+    await pickWebFilesAndImport(
+      rtype,
+      () => vm._load(),
+      () => {
+        if (vm._gen === gen) vm._renderTree();
+      },
+    );
+    return;
+  }
+  if (isViewerMode()) {
+    const dir = await resolveAndroidRepoDir();
+    if (!dir) return;
+    const gen = vm._gen;
+    await vm._load();
+    if (gen !== vm._gen) return;
+    vm._renderTree();
+    return;
+  }
+  const { SelectDirectory, ImportByType } = await getApp();
+  await atTlShowConfirm(
+    vm,
+    () => SelectDirectory(),
+    ImportByType,
+    rtype,
+    "文件夹导入成功",
+  );
+}
+
+function atTlBindImport(ctx: AtTlCtx): void {
+}
+
+function atTlBindMoreMenu(ctx: AtTlCtx): void {
+  const { vm, $ } = ctx;
+  const menuMore = $("menu-more");
+  if (!menuMore) return;
+  menuMore.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement | null;
+    const item = target ? target.closest("[data-more]") : null;
+    if (!item) return;
+    e.stopPropagation();
+    const action = (item as HTMLElement).dataset.more;
+    void (async (): Promise<void> => {
       if (action === "open-folder") {
-        // 查看器模式（Android/网页版）：Go OpenFolder/SelectDirectory 不可用 →
-        // 接 resolveAndroidRepoDir 定位仓库目录并提示路径（自带授权引导/虚拟根）
         if (isViewerMode()) {
           await resolveAndroidRepoDir();
           return;
@@ -202,114 +305,22 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
         const { OpenFolder } = await getApp();
         await OpenFolder(vm._filesRoot);
       } else if (action === "import-file") {
-        const rtype = vm._rootAttr || RESOURCE_TYPES.YSM;
-        // 查看器模式（Android/网页版）：Wails 原生文件对话框不可用（dialogs_android.go /
-        // browser adapter）→ 改走浏览器文件选择器 + importWebFiles 直写 IndexedDB
-        // （与全局拖拽 import-dnd 同一入口）。P2 修复（审核发现）：此前用 resolveWebMode()
-        // 只门控网页版，Android 上会继续走 SelectImportFile 对话框挂起。
-        if (isViewerMode()) {
-          await pickWebFilesAndImport(rtype, () => vm._load(), () => vm._renderTree());
-          return;
-        }
-        const { SelectImportFile, ImportByType } =
-          await getApp();
-        // 列出所有支持的扩展名（后端 SelectImportFile 用 | 解析 "显示名|*.ext1;*.ext2"）
-        const exts = getExts(rtype);
-        const extFilter = exts.length
-          ? exts.map((e) => "*" + e).join(";")
-          : "*.*";
-        const filePath = await SelectImportFile(
-          rtype + " 文件|" + extFilter,
-          "选择" + rtype + "文件",
-        );
-        if (!filePath) return;
-        const errMsg = await ImportByType(rtype, filePath);
-        if (errMsg) {
-          bus.emit("toast:show", {
-            msg: "❌ 导入失败: " + errMsg,
-            duration: 4000,
-            type: "warn",
-          });
-          return;
-        }
-        const gen = vm._gen; // 代际守卫：导入耗时期间 root 切换后丢弃过期渲染
-        await vm._load();
-        if (gen !== vm._gen) return;
-        vm._renderTree();
-        bus.emit("toast:show", {
-          msg: "✅ 导入成功",
-          duration: 2000,
-          type: "success",
-        });
+        await atTlHandleImportFile(ctx);
       } else if (action === "import-dir") {
-        const rtype = vm._rootAttr || RESOURCE_TYPES.YSM;
-        // 网页版（P3 修复，审核发现）：resolveAndroidRepoDir 仅定位虚拟根 /web 并刷新树，
-        // 不实际导入任何文件（网页版模型库在 IndexedDB，无「放入公共目录」概念）→
-        // 改走浏览器文件选择器 + importWebFiles 直写 IndexedDB，与 import-file 同语义。
-        if (resolveWebMode()) {
-          const gen = vm._gen; // 代际守卫：IndexedDB 写入耗时期间 root 切换后丢弃过期渲染
-          await pickWebFilesAndImport(
-            rtype,
-            () => vm._load(),
-            () => {
-              if (vm._gen === gen) vm._renderTree();
-            },
-          );
-          return;
-        }
-        // 查看器模式（Android）：Wails 目录选择不可用（dialogs_android.go）→
-        // 接 resolveAndroidRepoDir 定位仓库目录（toast 已提示），
-        // 用户放入/拖入模型即自动导入
-        if (isViewerMode()) {
-          const dir = await resolveAndroidRepoDir();
-          if (!dir) return; // 未授权：已引导授权页
-          const gen = vm._gen; // 代际守卫：授权跳转耗时期间 root 切换后丢弃过期渲染
-          await vm._load();
-          if (gen !== vm._gen) return;
-          vm._renderTree();
-          return;
-        }
-        const { SelectDirectory, ImportByType } =
-          await getApp();
-        const gen = vm._gen; // 代际守卫：目录选择/导入耗时期间 root 切换后丢弃过期渲染
-        const dirPath = await SelectDirectory();
-        if (!dirPath) return;
-        // 后端 ImportByType → SimpleCopyImporter / DirectoryCopyImporter 都判 info.IsDir()，目录/文件都支持
-        const errMsg = await ImportByType(rtype, dirPath);
-        if (errMsg) {
-          bus.emit("toast:show", {
-            msg: "❌ 导入失败: " + errMsg,
-            duration: 4000,
-            type: "warn",
-          });
-          return;
-        }
-        await vm._load();
-        if (gen !== vm._gen) return;
-        vm._renderTree();
-        bus.emit("toast:show", {
-          msg: "✅ 文件夹导入成功",
-          duration: 2000,
-          type: "success",
-        });
+        await atTlHandleImportDir(ctx);
       } else if (action === "refresh") {
         const tree = $("tree");
         if (tree) tree.innerHTML = spinnerHTML();
-        const gen = vm._gen; // 代际守卫：刷新加载期间 root 切换后丢弃过期渲染
+        const gen = vm._gen;
         await vm._load();
         if (gen !== vm._gen) return;
         vm._renderTree();
       } else if (action === "genindex") {
         const btn = item as HTMLButtonElement;
-        // ADR-049 桥接增强 Batch 3：GenerateRepoIndex 已桥接（返回 index.json 内容字符串）。
-        // 网页版无磁盘，生成后触发下载；桌面由 Go 写盘，不下载。
         btn.textContent = "⏳";
         btn.disabled = true;
         try {
-          const { GenerateRepoIndex, GetRepoRoot } =
-            await getApp();
-          // 任意仓库类型：GenerateRepoIndex 已下沉 Go（scanner.GenerateRepoIndex
-          // 接收任意 repoPath，通用）——调用处不再硬编码 YSM，跟随当前仓库类型
+          const { GenerateRepoIndex, GetRepoRoot } = await getApp();
           const filesRoot = await GetRepoRoot(currentRepoType());
           if (!filesRoot) {
             bus.emit("toast:show", {
@@ -346,14 +357,32 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
           btn.disabled = false;
         }
       }
-      })().catch((err) => {
-        bus.emit("toast:show", {
-          msg: "❌ " + friendlyError(err),
-          duration: 4000,
-          type: "error",
-        });
+    })().catch((err) => {
+      bus.emit("toast:show", {
+        msg: "❌ " + friendlyError(err),
+        duration: 4000,
+        type: "error",
       });
     });
-  }
+  });
 }
 
+export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
+  const $: $Id = (id) => root.getElementById(id);
+  const ctx: AtTlCtx = { root, vm, $ };
+
+  atTlBindSelectAll(ctx);
+  atTlBindRepoSwitch(ctx);
+  atTlBindNewFolder(ctx);
+  atTlBindDeleteSel(ctx);
+  atTlBindRenameSel(ctx);
+  atTlBindScan(ctx);
+  atTlBindSortToggle(ctx);
+  atTlBindViewMode(ctx);
+  atTlBindSearch(ctx);
+  atTlBindAdvFilter(ctx);
+  atTlBindAuthorMenu(ctx);
+  atTlBindBatchMenu(ctx);
+  atTlBindImport(ctx);
+  atTlBindMoreMenu(ctx);
+}
