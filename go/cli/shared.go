@@ -138,22 +138,6 @@ func isPowerOf2(n int) bool {
 // formatSize 格式化文件大小——委托至 fsutil.FormatSize（单一事实来源）。
 func formatSize(bytes int64) string { return fsutil.FormatSize(bytes) }
 
-// min 返回两个整数中的较小值
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// max 返回两个整数中的较大值
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // ========== 输出捕获工具 ==========
 
 // captureStdout 捕获 stdout 输出

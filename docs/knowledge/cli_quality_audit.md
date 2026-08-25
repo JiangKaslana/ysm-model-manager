@@ -126,6 +126,16 @@ restoreFunc()         // 显式调用
 - 每修一类，顺手清掉所有同构调用点（本次：20 处吞错一次清完）
 - 沉淀到 audit-framework 反模式表（锚点可 grep 的模式）
 
+## 复审裁决记录
+
+### 2026-08-25 外部审计三条
+
+| 审计建议 | 裁决 | 理由 |
+|---------|------|------|
+| cli 包 8659 行最大包过重，拆 core/cache/perf/resource 子包 | **不采纳** | 已按职责拆 28 个文件（cache.go/perf.go/resource.go…），符合 go/AGENTS.md「不按行数机械切包」；再拆会切断 shared.go helper 共享与 DispatchCommand 注册表引用，断链风险 > 收益。「行数大」≠「包过重」 |
+| shared.go:142 自定义 min/max 与内置并存 | **已修** | go.mod 为 go 1.25.0，内置 min/max（1.21+）全覆盖；删除自定义定义，mmd.go / model.go / cli_test.go 共 11 处调用自动落内置，零行为变化 |
+| captureStdout 篡改全局 os.Stdout | **保留** | `--json` 模式核心机制：捕获命令全部输出包装 JSON 响应给前端/gate（cli.go RunCLI）。CLI 入口单线程分发场景安全，已有双重防护（defer restoreStdout panic 兜底 + 显式 restore 防 String() 死锁，见规律三）。长治久安方向 = 命令输出流参数化（注入 io.Writer），但需改所有命令签名，收益不成比例，记待办不动 |
+
 ## 快速排查 Checklist
 
 ### 阻塞级（必查）
