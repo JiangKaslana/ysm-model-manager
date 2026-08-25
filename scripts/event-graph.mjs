@@ -1,167 +1,166 @@
 #!/usr/bin/env node
 /**
- * event-graph.mjs — Bus 事件发射↔订阅映射生成器。
- *
- * 扫描 frontend/src/ 下所有 .ts（排除 .test.），提取：
- *   - bus.emit("eventName", ...)   → 发射方
- *   - bus.on("eventName", ...)     → 订阅方
- *   - bus.once("eventName", ...)   → 一次性订阅方
- *   - bus.off("eventName", ...)    → 退订方（仅统计，不纳入映射）
- *
- * 输出：docs/event-graph.md
- *
- * 用法：
- *   node scripts/event-graph.mjs                # 写入 docs/event-graph.md
- *   node scripts/event-graph.mjs --check        # 只对比不写盘（doctor 守护）
- *   node scripts/event-graph.mjs --json         # JSON 摘要（CI 消费）
- *
- * 零依赖（仅 node:fs / node:path + scripts/_lib/scan-files.mjs）。
- * 设计意图：event-graph 工具脚本
- * 退出码：0（无 process.exit 调用）
+ * event-graph.mjs — Bus 事件契约守护者。
+ * 从 bus.ts 的 BusEvents 接口提取权威事件清单，扫描 frontend/src/ 和 index.html，
+ * 报告未声明事件 / 孤儿发射 / 鬼订阅 / 跨行调用。
+ * 用法：node scripts/event-graph.mjs [--check] [--json] [--strict]
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { getRoot, relPosix, walk } from './_lib/scan-files.mjs';
+import { getRoot, relPosix } from './_lib/scan-files.mjs';
 
 const ROOT = getRoot();
 const SRC_DIR = path.join(ROOT, 'frontend', 'src');
+const INDEX_HTML = path.join(ROOT, 'frontend', 'index.html');
+const BUS_TS = path.join(SRC_DIR, 'bus.ts');
 const OUT = path.join(ROOT, 'docs', 'event-graph.md');
-
 const ARGS = new Set(process.argv.slice(2));
 const CHECK = ARGS.has('--check');
 const JSON_OUT = ARGS.has('--json');
+const STRICT = ARGS.has('--strict');
 
-// ── 正则提取 ──
+function readBusEvents() {
+  const text = fs.readFileSync(BUS_TS, 'utf-8');
+  const events = new Set();
+  const re = /"([^"]+)"\s*:/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const ev = m[1];
+    const lineStart = text.lastIndexOf('\n', m.index) + 1;
+    const line = text.slice(lineStart, text.indexOf('\n', m.index)).trim();
+    if (line.startsWith('//') || line.startsWith('*') || line.startsWith('-')) continue;
+    events.add(ev);
+  }
+  return events;
+}
 
-/** 匹配 bus.emit("name", ...) / bus.on("name", ...) 等，捕获事件名和文件:行。 */
-const BUS_CALL_RE = /bus\.(emit|on|once|off)\(\s*['"]([^'"]+)['"]/g;
-
-/** 剥离注释（保留字符串，事件名在字符串字面量里）。 */
-function stripComments(text) {
+function stripNoise(text) {
   return text
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/\/\/.*$/gm, ' ');
 }
 
-// ── 扫描 ──
-
-function collectFiles() {
-  const files = walk(SRC_DIR);
-  return files.filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.spec.ts'));
+function collectSrcFiles() {
+  const files = [];
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (ent.name.startsWith('.')) continue;
+      const p = path.join(dir, ent.name);
+      if (ent.isDirectory()) walk(p);
+      else if (/\.(ts|js)$/.test(ent.name) && !ent.name.endsWith('.test.ts') && !ent.name.endsWith('.spec.ts')) {
+        files.push(p);
+      }
+    }
+  };
+  walk(SRC_DIR);
+  return files;
 }
 
-function scanCalls(files) {
-  /** @type {Map<string, { emit: string[], on: string[], once: string[] }>} */
+function scanFiles(files, includeHtml) {
   const eventMap = new Map();
-
-  for (const f of files) {
-    const text = fs.readFileSync(f, 'utf-8');
-    const cleaned = stripComments(text);
-    const lines = cleaned.split('\n');
-    const rel = relPosix(f);
-
+  function add(event, method, file, line) {
+    if (!eventMap.has(event)) eventMap.set(event, { emit: [], on: [], once: [], off: [] });
+    eventMap.get(event)[method].push({ file, line });
+  }
+  function scanFile(filePath, rel) {
+    const text = stripNoise(fs.readFileSync(filePath, 'utf-8'));
+    const lines = text.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      const lineRe = /(?:^|[^A-Za-z0-9_$])([A-Za-z_$][\w$]*)\.(emit|on|once|off)\s*\(\s*['"]([^'"]+)['"]/g;
       let m;
-      const re = new RegExp(BUS_CALL_RE.source, 'g');
-      while ((m = re.exec(line)) !== null) {
-        const method = m[1]; // emit | on | once | off
-        const event = m[2];
-        if (!eventMap.has(event)) {
-          eventMap.set(event, { emit: [], on: [], once: [], off: [] });
+      while ((m = lineRe.exec(line)) !== null) add(m[3], m[2], rel, i + 1);
+      if (/\.((?:emit|on|once|off)\s*\(\s*)$/.test(line.trimEnd())) {
+        if (i + 1 < lines.length) {
+          const next = lines[i + 1].trimStart();
+          const crossM = next.match(/^(['"])([^'"]+)\1/);
+          if (crossM) {
+            const parentM = line.match(/([A-Za-z_$][\w$]*)\.(emit|on|once|off)$/);
+            if (parentM) add(crossM[2], parentM[2], rel, i + 1);
+          }
         }
-        const entry = { file: rel, line: i + 1 };
-        if (method === 'emit') eventMap.get(event).emit.push(entry);
-        else if (method === 'on') eventMap.get(event).on.push(entry);
-        else if (method === 'once') eventMap.get(event).once.push(entry);
-        else if (method === 'off') eventMap.get(event).off.push(entry);
       }
     }
   }
-
-  return eventMap;
+  for (const f of files) scanFile(f, relPosix(f));
+  if (includeHtml && fs.existsSync(INDEX_HTML)) scanFile(INDEX_HTML, relPosix(INDEX_HTML));
+  return { eventMap };
 }
 
-// ── 渲染 ──
+function checkContract(eventMap, declaredEvents) {
+  const undeclared = [], orphans = [], ghosts = [];
+  for (const [ev, d] of eventMap) {
+    if (!declaredEvents.has(ev) && !undeclared.includes(ev)) undeclared.push(ev);
+    if (d.emit.length > 0 && d.on.length === 0 && d.once.length === 0 && !orphans.includes(ev)) orphans.push(ev);
+    if ((d.on.length > 0 || d.once.length > 0) && d.emit.length === 0 && !ghosts.includes(ev)) ghosts.push(ev);
+  }
+  return { undeclared, orphans, ghosts };
+}
 
-function renderMarkdown(eventMap) {
-  const lines = [];
-  lines.push('# Bus 事件映射表');
-  lines.push('');
-  lines.push('> **自动生成** — 由 `scripts/event-graph.mjs` 生成。');
-  lines.push('> 改事件名 / payload 时，先看此表定位影响面。');
-  lines.push('');
-
-  // 总览
+function renderMarkdown(eventMap, anomalies) {
+  const out = [];
+  out.push('# Bus 事件契约报告');
+  out.push('');
+  out.push('> **自动生成** — 由 `scripts/event-graph.mjs` 生成。');
+  out.push('> 基于 `frontend/src/bus.ts` 的 `BusEvents` 接口校验所有调用方。');
+  out.push('');
+  if (anomalies.undeclared.length || anomalies.orphans.length || anomalies.ghosts.length) {
+    out.push('## \u26a0\ufe0f 异常摘要');
+    out.push('');
+    if (anomalies.undeclared.length) {
+      out.push('### 未声明事件（不在 BusEvents 中，可能是 typo 或漏声明）');
+      out.push('');
+      for (const ev of anomalies.undeclared) { const d = eventMap.get(ev); out.push(`- \`${ev}\` — emit×${d.emit.length} on×${d.on.length}`); }
+      out.push('');
+    }
+    if (anomalies.orphans.length) {
+      out.push('### 孤儿发射（emit 了但无 on/once 订阅方）');
+      out.push('');
+      for (const ev of anomalies.orphans) { const d = eventMap.get(ev); out.push(`- \`${ev}\` — emit×${d.emit.length}`); }
+      out.push('');
+    }
+    if (anomalies.ghosts.length) {
+      out.push('### 鬼订阅（有 on/once 但从未被 emit）');
+      out.push('');
+      for (const ev of anomalies.ghosts) { const d = eventMap.get(ev); out.push(`- \`${ev}\` — on×${d.on.length}`); }
+      out.push('');
+    }
+  } else {
+    out.push('## \u2705 无异常');
+    out.push('');
+    out.push("所有调用均在 BusEvents 契约内，无孤儿发射 / 鬼订阅 / 未声明事件。");
+    out.push('');
+  }
   const events = [...eventMap.keys()].sort();
-  lines.push('## 总览');
-  lines.push('');
-  lines.push('| 事件 | 发射方 | 订阅方 | 一次性订阅 | 退订方 |');
-  lines.push('|------|--------|--------|-----------|--------|');
+  out.push('## 事件总览');
+  out.push('');
+  out.push('| 事件 | 发射方 | 订阅方 | 一次性订阅 | 退订方 | 状态 |');
+  out.push('|------|--------|--------|-----------|--------|------|');
   for (const ev of events) {
     const d = eventMap.get(ev);
-    lines.push(`| \`${ev}\` | ${d.emit.length} | ${d.on.length} | ${d.once.length} | ${d.off.length} |`);
+    let status = "\u2705";
+    if (anomalies.undeclared.includes(ev)) status = "\u26a0\ufe0f 未声明";
+    else if (d.emit.length > 0 && d.on.length === 0 && d.once.length === 0) status = "\ud83d\udd07 孤儿发射";
+    else if (d.emit.length === 0 && (d.on.length > 0 || d.once.length > 0)) status = "\ud83d\udc7b 鬼订阅";
+    out.push(`| \`${ev}\` | ${d.emit.length} | ${d.on.length} | ${d.once.length} | ${d.off.length} | ${status} |`);
   }
-  lines.push('');
-
-  // 详细映射
-  lines.push('## 事件详情');
-  lines.push('');
-
+  out.push('');
+  out.push('## 调用详情');
+  out.push('');
   for (const ev of events) {
     const d = eventMap.get(ev);
-    lines.push(`### \`${ev}\``);
-    lines.push('');
-
-    if (d.emit.length) {
-      lines.push('**发射方（emit）：**');
-      lines.push('');
-      lines.push('| 文件 | 行 |');
-      lines.push('|------|----|');
-      for (const e of d.emit) {
-        lines.push(`| \`${e.file}\` | ${e.line} |`);
-      }
-      lines.push('');
-    }
-
-    if (d.on.length) {
-      lines.push('**订阅方（on）：**');
-      lines.push('');
-      lines.push('| 文件 | 行 |');
-      lines.push('|------|----|');
-      for (const e of d.on) {
-        lines.push(`| \`${e.file}\` | ${e.line} |`);
-      }
-      lines.push('');
-    }
-
-    if (d.once.length) {
-      lines.push('**一次性订阅（once）：**');
-      lines.push('');
-      lines.push('| 文件 | 行 |');
-      lines.push('|------|----|');
-      for (const e of d.once) {
-        lines.push(`| \`${e.file}\` | ${e.line} |`);
-      }
-      lines.push('');
-    }
-
-    if (d.off.length) {
-      lines.push('**退订方（off）：**');
-      lines.push('');
-      lines.push('| 文件 | 行 |');
-      lines.push('|------|----|');
-      for (const e of d.off) {
-        lines.push(`| \`${e.file}\` | ${e.line} |`);
-      }
-      lines.push('');
-    }
+    out.push(`### \`${ev}\``);
+    out.push('');
+    if (d.emit.length) { out.push("**发射方：**"); out.push("| 文件 | 行 |"); out.push("|------|----|"); for (const e of d.emit) out.push(`| \`${e.file}\` | ${e.line} |`); out.push(""); }
+    if (d.on.length) { out.push("**订阅方（on）：**"); out.push("| 文件 | 行 |"); out.push("|------|----|"); for (const e of d.on) out.push(`| \`${e.file}\` | ${e.line} |`); out.push(""); }
+    if (d.once.length) { out.push("**一次性订阅（once）：**"); out.push("| 文件 | 行 |"); out.push("|------|----|"); for (const e of d.once) out.push(`| \`${e.file}\` | ${e.line} |`); out.push(""); }
+    if (d.off.length) { out.push("**退订方：**"); out.push("| 文件 | 行 |"); out.push("|------|----|"); for (const e of d.off) out.push(`| \`${e.file}\` | ${e.line} |`); out.push(""); }
   }
-
-  return lines.join('\n');
+  return out.join('\n');
 }
 
-function renderJSON(eventMap) {
+function renderJSON(eventMap, anomalies) {
   const events = [...eventMap.keys()].sort();
   const data = {};
   for (const ev of events) {
@@ -173,39 +172,69 @@ function renderJSON(eventMap) {
       off: d.off.map((e) => `${e.file}:${e.line}`),
     };
   }
-  return JSON.stringify({ _summary: { events: events.length }, events: data }, null, 2);
+  return JSON.stringify({
+    _summary: { events: events.length, undeclared: anomalies.undeclared, orphans: anomalies.orphans, ghosts: anomalies.ghosts },
+    events: data,
+  }, null, 2);
 }
 
-// ── 主流程 ──
+function printAnomalyReport(anomalies) {
+  if (!anomalies.undeclared.length && !anomalies.orphans.length && !anomalies.ghosts.length) {
+    console.warn("[event-graph] \u2705 无异常");
+    return;
+  }
+  console.warn('');
+  console.warn('\u2550'.repeat(37));
+  console.warn(' Bus 事件契约检查报告');
+  console.warn('\u2550'.repeat(37));
+  if (anomalies.undeclared.length) {
+    console.warn('\u26a0\ufe0f  未声明事件（需审查是否 typo 或漏声明）：');
+    for (const ev of anomalies.undeclared) console.warn(`   ${ev}`);
+  }
+  if (anomalies.orphans.length) {
+    console.warn('\ud83d\udd07 孤儿发射（emit 无 on/once）：');
+    for (const ev of anomalies.orphans) console.warn(`   ${ev}`);
+  }
+  if (anomalies.ghosts.length) {
+    console.warn('\ud83d\udc7b 鬼订阅（on/once 无 emit）：');
+    for (const ev of anomalies.ghosts) console.warn(`   ${ev}`);
+  }
+  console.warn('\u2550'.repeat(37));
+  console.warn("说明：未声明事件是硬错误（建议修复）；孤儿/鬼订阅可能是有意设计，仅作记录。--strict 会把未声明事件升级为 exit(1)。");
+}
 
 function main() {
-  if (!fs.existsSync(SRC_DIR)) {
-    console.error('✖ frontend/src 不存在');
+  if (!fs.existsSync(BUS_TS)) { console.error('\u274c frontend/src/bus.ts 不存在'); process.exit(1); }
+  if (!fs.existsSync(SRC_DIR)) { console.error('\u274c frontend/src 不存在'); process.exit(1); }
+  const declaredEvents = readBusEvents();
+  console.warn(`[event-graph] BusEvents 权威清单：${declaredEvents.size} 个事件`);
+  const files = collectSrcFiles();
+  console.warn(`[event-graph] 扫描源码文件：${files.length} 个`);
+  const { eventMap } = scanFiles(files, true);
+  console.warn(`[event-graph] 扫描到事件：${eventMap.size} 个`);
+  const anomalies = checkContract(eventMap, declaredEvents);
+  console.warn(`[event-graph] 异常：未声明 ${anomalies.undeclared.length}，孤儿发射 ${anomalies.orphans.length}，鬼订阅 ${anomalies.ghosts.length}`);
+  if (STRICT && anomalies.undeclared.length > 0) {
+    console.error('');
+    console.error('\u274c --strict 下发现未声明事件，阻断退出：');
+    for (const ev of anomalies.undeclared) console.error(`  ${ev}`);
     process.exit(1);
   }
-
-  const files = collectFiles();
-  const eventMap = scanCalls(files);
-  const md = renderMarkdown(eventMap);
-  const json = renderJSON(eventMap);
-
-  if (JSON_OUT) {
-    console.log(json);
-    return;
-  }
-
+  if (JSON_OUT) { console.log(renderJSON(eventMap, anomalies)); return; }
   if (CHECK) {
     const existing = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf-8') : '';
+    const md = renderMarkdown(eventMap, anomalies);
     if (existing !== md) {
-      console.error('✖ docs/event-graph.md 过期，运行 `node scripts/event-graph.mjs` 刷新。');
+      console.error('\u274c docs/event-graph.md 过期，运行 `node scripts/event-graph.mjs` 刷新。');
+      printAnomalyReport(anomalies);
       process.exit(1);
     }
-    console.log('✅ docs/event-graph.md 最新。');
+    console.log('\u2705 docs/event-graph.md 最新。');
+    printAnomalyReport(anomalies);
     return;
   }
-
-  fs.writeFileSync(OUT, md, 'utf-8');
-  console.log(`📦 已写入 ${OUT}（${eventMap.size} 个事件）`);
+  fs.writeFileSync(OUT, renderMarkdown(eventMap, anomalies), 'utf-8');
+  console.log(`\ud83d\udce6 已写入 ${OUT}（${eventMap.size} 个事件）`);
+  printAnomalyReport(anomalies);
 }
-
 main();

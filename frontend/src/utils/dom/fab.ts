@@ -2,6 +2,7 @@
 // 用途：替代 skeleton.ts 内联 style.cssText 控制栏，集中治理样式 + 双端响应式。
 // 挂载点：3D overlay 挂 document.body（light DOM），全局 CSS 经 ensureFabStyles 注入 head 一次。
 // 触发 FAB 在预览面板 Shadow DOM 内（.preview-fab 见 css.ts，因 Shadow DOM 隔离需本地样式）。
+import { attachTooltip } from "./tooltip.ts";
 
 export const YSW_FAB_CSS = `
 /* ===== 3D 全屏 overlay 根容器（#ysm-overlay-3d，light DOM） ===== */
@@ -98,13 +99,15 @@ export interface IconButtonOpts {
  * icon 支持两种形态：
  *   - Unicode 文本字面量（如 "✕" "\u{1F4F7}"）→ 直接写入 .preview-ic span
  *   - CSS 类名字符串（如 "cam" "rot" "close"）→ 注入 .preview-ic--{name} class 到 .preview-ic span
+ * title 走自定义 tooltip（tooltip.ts 单例，~350ms 即显），不设原生 title 防双气泡；
+ * 可达性由 aria-label 承担。
  */
 export function createIconButton(opts: IconButtonOpts): HTMLButtonElement {
   const btn = document.createElement("button");
   btn.className = opts.className || "ysm-ovl-btn";
   if (opts.title) {
-    btn.title = opts.title;
     btn.setAttribute("aria-label", opts.title);
+    attachTooltip(btn, opts.title);
   }
   if (opts.icon) {
     const ic = document.createElement("span");

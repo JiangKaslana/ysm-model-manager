@@ -14,6 +14,7 @@ import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { t } from "../../core/i18n/t.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { promoteTitleIfPresent } from "../../utils/dom/tooltip.ts";
 import { setActive3DClose } from "./skeleton.ts";
 import { registerAndroidBackHandler } from "../../utils/dom/android-bridge.ts";
 import type { PreviewCtx } from "./utils.ts";
@@ -236,7 +237,10 @@ export async function showMaidPreview(
     });
     // FAB 接线（含选中的 subModelIdx + 默认 texSlot）
     const btn3d = ctx.root.getElementById("btn-3d-preview");
-    if (btn3d) btn3d.onclick = () => { void _toggle3D(); };
+    if (btn3d) {
+      promoteTitleIfPresent(btn3d);
+      btn3d.onclick = () => { void _toggle3D(); };
+    }
   };
 
   await ctx.loadPreviewImage(path);

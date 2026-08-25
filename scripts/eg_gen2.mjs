@@ -1,0 +1,1 @@
+﻿console.log("hello from eg_gen2")

@@ -71,10 +71,22 @@ describe("createIconButton — 图标按钮工厂", () => {
     expect(btn.className).toBe("my-btn");
   });
 
-  it("title → title 属性 + aria-label 可达性", () => {
-    const btn = createIconButton({ title: "关闭" });
-    expect(btn.title).toBe("关闭");
-    expect(btn.getAttribute("aria-label")).toBe("关闭");
+  it("title → aria-label + 自定义 tooltip（不设原生 title 防双气泡）", async () => {
+    vi.useFakeTimers();
+    try {
+      const btn = createIconButton({ title: "关闭" });
+      document.body.appendChild(btn);
+      expect(btn.getAttribute("aria-label")).toBe("关闭");
+      expect(btn.title).toBe("");
+      btn.dispatchEvent(new Event("mouseenter"));
+      vi.advanceTimersByTime(500);
+      const tip = document.querySelector<HTMLElement>(".ysw-tooltip")!;
+      expect(tip).not.toBeNull();
+      expect(tip.textContent).toBe("关闭");
+      expect(tip.classList.contains("ysw-tooltip--show")).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("Unicode emoji icon → .preview-ic textContent 形态（不走 CSS 类）", () => {
@@ -129,5 +141,20 @@ describe("createIconButton — 图标按钮工厂", () => {
     expect(btn.querySelector(".preview-ic--close")).not.toBeNull();
     expect(btn.textContent).toBe("关闭");
     expect(btn.getAttribute("aria-label")).toBe("关闭预览");
+  });
+
+  it("title tooltip 挂载点在 document.body（跨 Shadow DOM 可用）", async () => {
+    vi.useFakeTimers();
+    try {
+      const btn = createIconButton({ title: "提示" });
+      document.body.appendChild(btn);
+      btn.dispatchEvent(new Event("mouseenter"));
+      vi.advanceTimersByTime(500);
+      const tip = document.querySelector<HTMLElement>(".ysw-tooltip");
+      expect(tip).not.toBeNull();
+      expect(document.body.contains(tip!)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

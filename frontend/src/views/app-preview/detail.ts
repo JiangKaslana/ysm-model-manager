@@ -6,6 +6,7 @@
 import { summaryCardHTML, type YsmSummary } from "../../utils/format/summarize.ts";
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { promoteTitleIfPresent } from "../../utils/dom/tooltip.ts";
 import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { getApp } from "../../backend/app.ts";
@@ -175,6 +176,7 @@ export async function showResourcePack(
 <button class="preview-fab" id="btn-pack-model-3d" title="方块/物品模型 3D 预览" aria-label="方块/物品模型 3D 预览"><span class="preview-ic">&#x1F3D7;&#xFE0F;</span></button>`;
     const fab = ctx.root.querySelector("#btn-pack-model-3d") as HTMLButtonElement;
     if (fab) {
+      promoteTitleIfPresent(fab);
       fab.onclick = (): void => { createPack3D(path).catch((e) => console.warn("[preview] pack3D:", e)); };
     }
   } catch (e) {

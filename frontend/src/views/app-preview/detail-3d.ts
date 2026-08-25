@@ -6,6 +6,7 @@
 import { getApp } from "../../backend/app.ts";
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { promoteTitleIfPresent } from "../../utils/dom/tooltip.ts";
 import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { readVrmMeta } from "../../utils/3d/adapters/vrm-adapter.ts";
 import { createVrm3D } from "./vrm-3d.ts";
@@ -81,6 +82,7 @@ export async function showVrmMeta(
     }
     const fab = ctx.root.querySelector<HTMLElement>("#btn-vrm-3d");
     if (fab) {
+      promoteTitleIfPresent(fab);
       fab.onclick = (): void => {
         void createVrm3D(path);
       };
@@ -113,6 +115,7 @@ export async function showMmdPreview(
 </div>`;
   const fab = ctx.root.querySelector<HTMLElement>("#btn-mmd-3d");
   if (fab) {
+    promoteTitleIfPresent(fab);
     fab.onclick = (): void => {
       // 3D 内换模型（ADR-066 §5.6）：先取同类型候选列表，随 siblings 传入渲染 topBar 切换下拉
       void (async () => {
@@ -142,6 +145,7 @@ export async function showFbxPreview(
 </div>`;
   const fab = ctx.root.querySelector<HTMLElement>("#btn-fbx-3d");
   if (fab) {
+    promoteTitleIfPresent(fab);
     fab.onclick = (): void => {
       // 3D 内换模型（ADR-066 §5.6）：先取同类型 FBX 候选列表，随 siblings 传入渲染 topBar 切换下拉
       void (async () => {
@@ -172,6 +176,7 @@ export async function showScenePreview(
 </div>`;
   const fab = ctx.root.querySelector<HTMLElement>("#btn-scene-3d");
   if (fab) {
+    promoteTitleIfPresent(fab);
     fab.onclick = (): void => {
       void (async () => {
         const siblings = await resolveSceneSiblings();
@@ -229,6 +234,7 @@ export async function showMorphPreview(
   // 应用 FAB
   const fab = ctx.root.querySelector<HTMLElement>("#btn-morph-apply");
   if (fab) {
+    promoteTitleIfPresent(fab);
     fab.onclick = (): void => {
       // 广播 morph:apply 事件，由当前活跃的 3D 预览器消费（若有）
       bus.emit("morph:apply", { path });
@@ -295,6 +301,7 @@ export async function showStagePreview(
   // 加载舞台 FAB
   const fab = ctx.root.querySelector<HTMLElement>("#btn-stage-load");
   if (fab) {
+    promoteTitleIfPresent(fab);
     fab.onclick = (): void => {
       bus.emit("stage:load", { path });
       bus.emit("toast:show", {
