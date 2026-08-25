@@ -107,7 +107,8 @@ func matchAvatarZipEntry(p, targetLower string) bool {
 // 原 HasSuffix(low, "ysm.json") 会把 "notysm.json"/"myysm.json" 等误判为清单——若该文件
 // 先于真实 ysm.json 出现在文件列表，元数据解析会取到错误内容；zip 分支 matchAvatarZipEntry
 // 裸名匹配仅认 "/ysm.json" 后缀，两分支口径不一致（本次对齐）。
+// 委托 types.IsYsmEntryJSON 作为单一事实来源（ADR-038 D2）。
 func isYSMJSONPath(p string) bool {
 	low := strings.ToLower(filepath.ToSlash(p))
-	return low == "ysm.json" || strings.HasSuffix(low, "/ysm.json")
+	return types.IsYsmEntryJSON(low) || types.IsYsmEntryJSON(filepath.Base(low))
 }

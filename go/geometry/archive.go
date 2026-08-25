@@ -119,7 +119,7 @@ func classifyFileInventory(entries []container.Entry) *types.FileInventory {
 			inv.IncFiles = append(inv.IncFiles, e.Name())
 		case (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && strings.Contains(low, "avatar/"):
 			inv.Avatars = append(inv.Avatars, e.Name())
-		case strings.HasSuffix(low, ".json") && !strings.Contains(low, "ysm.json") && isLegacyGeometryName(low):
+		case strings.HasSuffix(low, ".json") && !types.IsYsmEntryJSON(filepath.Base(e.Name())) && isLegacyGeometryName(low):
 			inv.LegacyModels = append(inv.LegacyModels, e.Name())
 		}
 	}
@@ -268,7 +268,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, ".json") && !e.IsDir() {
-			if strings.Contains(low, "ysm.json") {
+			if types.IsYsmEntryJSON(filepath.Base(e.Name())) {
 				continue
 			}
 			// maid-model 命名空间过滤：只处理首个 namespace 的 entity JSON
@@ -483,7 +483,7 @@ func resolveL0(entries []container.Entry, maidNs string, manifest []maidManifest
 			}
 			rel := low[len(maidNs):]
 			if strings.HasSuffix(low, ".json") {
-				if strings.Contains(rel, "ysm.json") ||
+				if types.IsYsmEntryJSON(filepath.Base(rel)) ||
 					strings.HasSuffix(rel, "maid_model.json") ||
 					strings.HasSuffix(rel, "maid_chair.json") ||
 					strings.HasSuffix(rel, "maid_sound.json") ||
@@ -795,7 +795,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, ".json") && !e.IsDir() {
-			if strings.Contains(low, "ysm.json") {
+			if types.IsYsmEntryJSON(filepath.Base(e.Name())) {
 				continue
 			}
 			// maid-model 命名空间过滤：置于 Open 之前 + 动画分支之前（与 collectArchiveFiles

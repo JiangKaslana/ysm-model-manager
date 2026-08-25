@@ -106,10 +106,10 @@ func readTexFrom7z(path string) (int, int) {
 		return 0, 0
 	}
 	defer zr.Close()
-	// 条目遍历模式对齐 readTexFromZip：非 .json 跳过，ys m.json 自身无 geometry 也跳过
+	// 条目遍历模式对齐 readTexFromZip：非 .json 跳过，ysm.json 自身无 geometry 也跳过
 	for _, f := range zr.Entries() {
 		name := strings.ToLower(f.Name())
-		if !strings.HasSuffix(name, ".json") || strings.Contains(name, "ysm.json") {
+		if !strings.HasSuffix(name, ".json") || types.IsYsmEntryJSON(filepath.Base(name)) {
 			continue
 		}
 		rc, err := f.Open()

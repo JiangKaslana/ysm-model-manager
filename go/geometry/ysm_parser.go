@@ -23,6 +23,7 @@ import (
 
 	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/types"
 )
 
 // ysmArchiveData 从 ysm.json 解析得到的**原文**结构数据。
@@ -242,8 +243,7 @@ func parseModelOrder(raw string) []string {
 func parseYsmArchive(entries []container.Entry, logPrefix string) *ysmArchiveData {
 	result := &ysmArchiveData{}
 	for _, e := range entries {
-		low := strings.ToLower(e.Name())
-		if !strings.HasSuffix(low, "ysm.json") || e.IsDir() {
+		if !types.IsYsmEntryJSON(e.Name()) || e.IsDir() {
 			continue
 		}
 		rc, err := e.Open()

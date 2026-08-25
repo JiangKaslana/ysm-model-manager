@@ -233,7 +233,7 @@ func decodeYSMViaNodeJS(ysmData []byte) *types.BedrockModel {
 	var merged *types.BedrockModel
 	for _, f := range files {
 		low := strings.ToLower(f.Path)
-		if !strings.HasSuffix(low, ".json") || strings.HasSuffix(low, "ysm.json") {
+		if !strings.HasSuffix(low, ".json") || types.IsYsmEntryJSON(filepath.Base(low)) {
 			continue
 		}
 		data := f.Data
@@ -270,7 +270,7 @@ func decodeYSMViaNodeJS(ysmData []byte) *types.BedrockModel {
 	var ysmJSON []byte
 	for _, f := range files {
 		low := strings.ToLower(f.Path)
-		if strings.HasSuffix(low, "ysm.json") {
+		if types.IsYsmEntryJSON(filepath.Base(low)) {
 			ysmJSON = f.Data // 保留 ysm.json 用于纹理声明序对齐
 			continue
 		}
@@ -325,7 +325,7 @@ func decodeYSMComponentsViaNodeJS(ysmData []byte) ([]types.BedrockModel, []strin
 	var modelFiles []mf
 	for _, f := range files {
 		low := strings.ToLower(f.Path)
-		if !strings.HasSuffix(low, ".json") || strings.HasSuffix(low, "ysm.json") {
+		if !strings.HasSuffix(low, ".json") || types.IsYsmEntryJSON(filepath.Base(low)) {
 			continue
 		}
 		if g := geometry.ParseBedrockGeometry(f.Data); g != nil {

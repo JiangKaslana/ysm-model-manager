@@ -274,7 +274,7 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 		}
 
 		if shouldBeBanned && !isCurrentlyBanned {
-			newPath := p + ".disabled"
+			newPath := p + types.DisableSuffixes[0]
 			if _, err := os.Stat(newPath); err == nil {
 				return nil // 目标已存在，跳过
 			}

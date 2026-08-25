@@ -326,7 +326,7 @@ func matchYsmEntries(entries []container.Entry) bool {
 		segs := strings.Split(filepath.ToSlash(strings.ToLower(e.Name())), "/")
 		for i := range segs {
 			seg := strings.Join(segs[i:], "/")
-			if seg == "ysm.json" || strings.HasPrefix(seg, "models/") {
+			if types.IsYsmEntryJSON(seg) || strings.HasPrefix(seg, "models/") {
 				return true
 			}
 		}
@@ -355,7 +355,7 @@ func isYsmFile(path string) bool {
 	}
 	if ext == ".json" {
 		// 注册表声明 .json 为 YSM 扩展，但只有 ysm.json 算独立模型文件
-		return strings.EqualFold(filepath.Base(path), "ysm.json")
+		return types.IsYsmEntryJSON(filepath.Base(path))
 	}
 	if !types.IsContainerExt(ext) {
 		return false

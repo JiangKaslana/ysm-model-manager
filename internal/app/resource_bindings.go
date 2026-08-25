@@ -336,7 +336,7 @@ func (a *App) ToggleResourcePack(path string) bool {
 		dst = types.StripDisableSuffix(path)
 	} else {
 		src = path
-		dst = path + ".disabled"
+		dst = path + types.DisableSuffixes[0]
 	}
 	if _, err := os.Stat(dst); err == nil {
 		return false

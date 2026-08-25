@@ -220,7 +220,7 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 	var ysmFile container.Entry
 	for _, f := range r.Entries() {
 		name := strings.ToLower(filepath.Base(f.Name()))
-		if name == "ysm.json" || name == "model.json" {
+		if types.IsYsmEntryJSON(name) || name == "model.json" {
 			ysmFile = f
 			break
 		}

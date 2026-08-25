@@ -517,7 +517,7 @@ func (a *App) collect3DComponents(modelPath, ext string) ([]types.BedrockModel, 
 		}
 	case ".json":
 		// 解压目录的 ysm.json 路径
-		if strings.HasSuffix(strings.ToLower(modelPath), "ysm.json") {
+		if types.IsYsmEntryJSON(filepath.Base(modelPath)) {
 			return ysm.FindComponentsInExtractedYSM(modelPath)
 		}
 	}
