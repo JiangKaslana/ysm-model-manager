@@ -658,7 +658,10 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 											gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
 										}
 									}
-									log.Printf("[ysm] 加载模型组件 %q (texIdx=%d, name=%q)", candidate, 0, base)
+									// 组件专属同名纹理兜底（ADR-114 perComponent）：cube TexSlot 已在上面复位为
+									// 0（本地 0 槽）。不打虚拟全局槽位 len(texOrderNames)+undeclSeq——那会让
+									// arrow 显示成 texIdx=6 的越界幻觉。打实际绑定的纹理文件揭示来源。
+									log.Printf("[ysm] 加载模型组件 %q (组件专属 texIdx=%d, texture=%q)", candidate, 0, filepath.Base(pngPath))
 									comps = append(comps, *gj)
 									break
 								}
