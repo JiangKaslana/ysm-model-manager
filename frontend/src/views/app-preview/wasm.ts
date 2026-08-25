@@ -455,6 +455,9 @@ async function doDecodeYsmViaWasm(
       maxTexH = 0;
     for (const f of files) {
       if (!(f.path.endsWith(".png") || f.path.endsWith(".jpg"))) continue;
+      // 排除 gui/：YSM 的 gui_background/封面等非模型贴图（background.png），
+      // 与 Go 合并/归档/组件三路径口径对齐，防 plane 等共享皮肤组件错绑全局槽
+      if (f.path.toLowerCase().includes("gui/") || f.path.toLowerCase().includes("gui\\")) continue;
       if (f.path.startsWith("avatar/") || f.path.startsWith("avatar\\")) {
         const mime = f.path.toLowerCase().endsWith(".jpg") || f.path.toLowerCase().endsWith(".jpeg")
           ? "image/jpeg"

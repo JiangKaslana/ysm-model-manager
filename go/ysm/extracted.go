@@ -54,6 +54,57 @@ func isArmModelName(name string) bool {
 	return base == "arm" || base == "arm.geo"
 }
 
+// declTexInfo 载具/投射物声明的纹理（相对 ysm.json 目录路径 + 小写 basename）。
+type declTexInfo struct {
+	relPath string // 相对 ysm.json 目录的纹理路径（如 textures/skin.png）
+	texBase string // 小写 basename 去扩展名（如 skin）
+}
+
+// texPathFromRaw 从 texture 声明（{"uv":...} 或裸字符串）提取纹理路径。
+func texPathFromRaw(raw json.RawMessage) string {
+	s := strings.TrimSpace(string(raw))
+	if strings.HasPrefix(s, `{`) {
+		var obj struct {
+			Uv string `json:"uv"`
+		}
+		if json.Unmarshal(raw, &obj) == nil && obj.Uv != "" {
+			return obj.Uv
+		}
+		var str string
+		if json.Unmarshal(raw, &str) == nil {
+			return str
+		}
+		return ""
+	}
+	var sval string
+	if json.Unmarshal(raw, &sval) == nil {
+		return sval
+	}
+	return ""
+}
+
+// modelBaseNoExt 模型文件名去目录/去扩展名（小写），作为纹理声明映射键。
+func modelBaseNoExt(p string) string {
+	base := filepath.ToSlash(p)
+	if i := strings.LastIndex(base, "/"); i >= 0 {
+		base = base[i+1:]
+	}
+	base = strings.TrimSuffix(base, ".geo.json")
+	base = strings.TrimSuffix(base, ".json")
+	return strings.ToLower(base)
+}
+
+// texBaseNoExt 纹理文件名去目录/去扩展名（小写）。
+func texBaseNoExt(p string) string {
+	base := filepath.ToSlash(p)
+	if i := strings.LastIndex(base, "/"); i >= 0 {
+		base = base[i+1:]
+	}
+	base = strings.TrimSuffix(base, ".png")
+	base = strings.TrimSuffix(base, ".jpg")
+	return strings.ToLower(base)
+}
+
 // FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理
 // ysmJsonPath: ysm.json 的完整路径
 // 返回: 合并后的 BedrockModel（不含纹理 base64），纹理原始字节
@@ -322,6 +373,11 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 				return nil
 			}
 			if d.IsDir() {
+				// 排除 gui/：YSM 的 gui_background/封面等非模型贴图（background.png），
+				// 曾污染全局 texArr 导致 plane 等共享皮肤组件错绑（wine_fox 17_mini 根因）
+				if strings.EqualFold(d.Name(), "gui") {
+					return filepath.SkipDir
+				}
 				return nil
 			}
 			ext := strings.ToLower(filepath.Ext(d.Name()))
@@ -414,8 +470,10 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 	var modelNames []string
 	var modelMapOrig map[string]string
 	var texOrderNames []string // player.texture 声明序（R1 契约：组件序纹理名）
+	// filesObj 提升到函数作用域：下方载具/投射物声明纹理段（declaredTexByModel）
+	// 在 filesObj 块外也要读 projectiles/vehicles 段（plane 共享皮肤关键分支）。
+	var filesObj map[string]json.RawMessage
 	if err := json.Unmarshal(data, &ysmRoot); err == nil {
-		var filesObj map[string]json.RawMessage
 		if json.Unmarshal(ysmRoot.Files, &filesObj) == nil {
 			for key, val := range filesObj {
 				if key != "player" {
@@ -502,6 +560,47 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 						}
 					}
 				}
+			}
+		}
+	}
+
+	// files.projectiles / files.vehicles 段：载具/投射物声明纹理（含共享 player skin）。
+	// 此前目录组件版不读此段——plane 等共享皮肤载具被当未声明组件，无同名纹理时落全局
+	// texArr 越界贴错（wine_fox 17_mini plane→background 根因；与归档路径 buildComponents
+	// 的 modelTexName 口径对齐，双路径一致）。
+	declaredTexByModel := map[string]declTexInfo{}
+	for _, seg := range []string{"projectiles", "vehicles"} {
+		segRaw, ok := filesObj[seg]
+		if !ok {
+			continue
+		}
+		var segArr []json.RawMessage
+		if json.Unmarshal(segRaw, &segArr) != nil {
+			continue
+		}
+		for _, itemRaw := range segArr {
+			var item struct {
+				Model   json.RawMessage `json:"model"`
+				Texture json.RawMessage `json:"texture"`
+			}
+			if json.Unmarshal(itemRaw, &item) != nil {
+				continue
+			}
+			var modelPath string
+			if err := json.Unmarshal(item.Model, &modelPath); err != nil || modelPath == "" {
+				continue
+			}
+			texPath := texPathFromRaw(item.Texture)
+			if texPath == "" {
+				continue
+			}
+			mbase := modelBaseNoExt(modelPath)
+			if mbase == "" {
+				continue
+			}
+			declaredTexByModel[mbase] = declTexInfo{
+				relPath: filepath.ToSlash(texPath),
+				texBase: texBaseNoExt(texPath),
 			}
 		}
 	}
@@ -642,6 +741,36 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 						// arm 不走此分支（isArm 时 onDeclTex 保持 false 但 texSlot 已强制 0，
 						// 且 arm 不应填 ComponentTextures——与 main 共用全局 texArr[0]）。
 						if !onDeclTex && !isArm {
+							// 载具/投射物声明纹理（含共享 player skin，textures/skin.png 等）。
+							// 无同名纹理时也命中——plane 共享皮肤的关键分支（wine_fox 17_mini
+							// 根因：此前落全局 texArr 越界贴到 gui 背景）。
+							if di, ok := declaredTexByModel[base]; ok && di.relPath != "" {
+								var cand string
+								if filepath.IsAbs(di.relPath) {
+									cand = filepath.Clean(di.relPath)
+								} else {
+									cand = filepath.Clean(filepath.Join(dir, di.relPath))
+								}
+								if strings.HasPrefix(cand, cleanDir+string(filepath.Separator)) || cand == cleanDir {
+									if pngData := readFileLimited(cand); pngData != nil {
+										gj.ComponentTextures = map[string][]string{
+											base: {"data:image/png;base64," + base64.StdEncoding.EncodeToString(pngData)},
+										}
+										texNames = append(texNames, "")
+										gj.SourceName = base
+										for bi := range gj.Bones {
+											for ci := range gj.Bones[bi].Cubes {
+												gj.Bones[bi].Cubes[ci].TexSlot = 0
+												gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
+												gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
+											}
+										}
+										log.Printf("[ysm] 加载模型组件 %q (声明纹理 texIdx=0, texture=%q)", candidate, di.texBase)
+										comps = append(comps, *gj)
+										break
+									}
+								}
+							}
 							if pngPath, ok := pngNameMap[tn]; ok {
 								if pngData := readFileLimited(pngPath); pngData != nil {
 									gj.ComponentTextures = map[string][]string{

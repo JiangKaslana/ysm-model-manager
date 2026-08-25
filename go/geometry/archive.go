@@ -301,7 +301,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			// 注意：不排除 arm（组件版需要；合并版由调用方 filterArmModels 过滤）
 			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
 		}
-		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") {
+		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") && !strings.Contains(low, "gui/") {
 			// maid-model 命名空间过滤：只收集首个 namespace 的纹理
 			if maidNs != "" && !strings.HasPrefix(low, maidNs) {
 				continue
@@ -832,7 +832,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			}
 			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
 		}
-		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") {
+		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") && !strings.Contains(low, "gui/") {
 			// maid-model 命名空间过滤：只收集首个 namespace 的纹理
 			if maidNs != "" && !strings.HasPrefix(low, maidNs) {
 				continue
