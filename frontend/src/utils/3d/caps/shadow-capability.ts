@@ -66,6 +66,80 @@ const MAP_SIZE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "4096", label: "4096（精细）" },
 ];
 
+/* ============ getMenuControls 拆分：2 个包级函数（前缀 shc 防冲突） ============ */
+
+function shcBuildMain(cap: ShadowCapability): MenuControlDef[] {
+  return [
+    {
+      id: "shadow-enabled",
+      kind: "toggle",
+      labelKey: "preview.shadow",
+      fallback: "阴影",
+      hintKey: "preview.shadowEnabledHint",
+      getValue: () => cap.isEnabled(),
+      setValue: (v) => cap.setEnabled(v as boolean),
+    },
+    {
+      id: "shadow-soft",
+      kind: "toggle",
+      labelKey: "preview.shadowSoft",
+      fallback: "软阴影",
+      group: "preview.shadowGroupParams",
+      getValue: () => cap.isSoft(),
+      setValue: (v) => cap.setSoft(v as boolean),
+    },
+    {
+      id: "shadow-map-size",
+      kind: "select",
+      labelKey: "preview.shadowMapSize",
+      fallback: "分辨率",
+      hintKey: "preview.shadowMapSizeDesc",
+      group: "preview.shadowGroupParams",
+      select: MAP_SIZE_OPTIONS,
+      getValue: () => String(cap.getMapSize()),
+      setValue: (v) => cap.setMapSize(Number(v)),
+    },
+  ];
+}
+
+function shcBuildQuality(cap: ShadowCapability): MenuControlDef[] {
+  return [
+    {
+      id: "shadow-bias",
+      kind: "slider",
+      labelKey: "preview.shadowBias",
+      fallback: "阴影偏移",
+      hintKey: "preview.shadowBiasDesc",
+      group: "preview.shadowGroupParams",
+      slider: { min: -0.01, max: 0.001, step: 0.0001 },
+      getValue: () => cap.getBias(),
+      setValue: (v) => cap.setBias(v as number),
+    },
+    {
+      id: "shadow-normal-bias",
+      kind: "slider",
+      labelKey: "preview.shadowNormalBias",
+      fallback: "法线偏移",
+      hintKey: "preview.shadowNormalBiasDesc",
+      group: "preview.shadowGroupParams",
+      slider: { min: 0, max: 0.1, step: 0.005 },
+      getValue: () => cap.getNormalBias(),
+      setValue: (v) => cap.setNormalBias(v as number),
+    },
+    {
+      id: "shadow-camera-size",
+      kind: "slider",
+      labelKey: "preview.shadowCameraSize",
+      fallback: "视锥大小",
+      hintKey: "preview.shadowCameraSizeDesc",
+      group: "preview.shadowGroupParams",
+      slider: { min: 5, max: 80, step: 1 },
+      getValue: () => cap.getCameraSize(),
+      setValue: (v) => cap.setCameraSize(v as number),
+    },
+  ];
+}
+
 /** 预设与模型类别的映射（无则落回 default） */
 const PRESET_BY_MODEL: Record<string, keyof typeof SHADOW_PRESETS> = {
   prop: "prop",
@@ -386,6 +460,10 @@ export class ShadowCapability implements SceneCapability {
     return this.enabled;
   }
 
+  getParams(): ShadowParams {
+    return this.params;
+  }
+
   /* -------- 公共 setters（菜单调用）-------- */
 
   setMapSize(v: number): void {
@@ -450,70 +528,7 @@ export class ShadowCapability implements SceneCapability {
   /* -------- 菜单控件（声明式驱动）-------- */
 
   getMenuControls(): MenuControlDef[] {
-    return [
-      {
-        id: "shadow-enabled",
-        kind: "toggle",
-        labelKey: "preview.shadow",
-        fallback: "阴影",
-        hintKey: "preview.shadowEnabledHint",
-        getValue: () => this.isEnabled(),
-        setValue: (v) => this.setEnabled(v as boolean),
-      },
-      {
-        id: "shadow-map-size",
-        kind: "select",
-        labelKey: "preview.shadowMapSize",
-        fallback: "分辨率",
-        hintKey: "preview.shadowMapSizeDesc",
-        group: "preview.shadowGroupParams",
-        select: MAP_SIZE_OPTIONS,
-        getValue: () => String(this.getMapSize()),
-        setValue: (v) => this.setMapSize(Number(v)),
-      },
-      {
-        id: "shadow-soft",
-        kind: "toggle",
-        labelKey: "preview.shadowSoft",
-        fallback: "软阴影",
-        group: "preview.shadowGroupParams",
-        getValue: () => this.isSoft(),
-        setValue: (v) => this.setSoft(v as boolean),
-      },
-      {
-        id: "shadow-bias",
-        kind: "slider",
-        labelKey: "preview.shadowBias",
-        fallback: "阴影偏移",
-        hintKey: "preview.shadowBiasDesc",
-        group: "preview.shadowGroupParams",
-        slider: { min: -0.01, max: 0.001, step: 0.0001 },
-        getValue: () => this.getBias(),
-        setValue: (v) => this.setBias(v as number),
-      },
-      {
-        id: "shadow-normal-bias",
-        kind: "slider",
-        labelKey: "preview.shadowNormalBias",
-        fallback: "法线偏移",
-        hintKey: "preview.shadowNormalBiasDesc",
-        group: "preview.shadowGroupParams",
-        slider: { min: 0, max: 0.1, step: 0.005 },
-        getValue: () => this.getNormalBias(),
-        setValue: (v) => this.setNormalBias(v as number),
-      },
-      {
-        id: "shadow-camera-size",
-        kind: "slider",
-        labelKey: "preview.shadowCameraSize",
-        fallback: "视锥大小",
-        hintKey: "preview.shadowCameraSizeDesc",
-        group: "preview.shadowGroupParams",
-        slider: { min: 5, max: 80, step: 1 },
-        getValue: () => this.getCameraSize(),
-        setValue: (v) => this.setCameraSize(v as number),
-      },
-    ];
+    return [...shcBuildMain(this), ...shcBuildQuality(this)];
   }
 
   /* -------- 持久化 -------- */
