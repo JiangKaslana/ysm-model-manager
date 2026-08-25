@@ -127,6 +127,161 @@ export function buildTree(
 // ——— 扁平化：将嵌套树拍平为一维行数组 ———
 let _rowIdCounter = 0;
 
+// ——— flattenVisible 拆分子函数（atFv* = app-tree/flatten-visible） ———
+interface AtFvState {
+  search: string;
+  query: string;
+  hasSearch: boolean;
+  sort: string;
+  dirOpen: Record<string, boolean>;
+  mode: RenderMode;
+  depth: number;
+  indent: number;
+}
+
+function atFvNormParams(search: string): { query: string; hasSearch: boolean } {
+  const hasSearch = !!(search || "").trim();
+  const query = (search || "").trim().toLowerCase();
+  return { query, hasSearch };
+}
+
+function atFvSortKeys(node: TreeNode, sort: string): string[] {
+  return Object.keys(node).sort((a, b) => {
+    const aIsDir = !(node[a] as TreeNode)._e;
+    const bIsDir = !(node[b] as TreeNode)._e;
+    if (aIsDir && !bIsDir) return -1;
+    if (!aIsDir && bIsDir) return 1;
+    const ea = (node[a] as TreeNode)._e;
+    const eb = (node[b] as TreeNode)._e;
+    if (sort === "size") return (eb?.size || 0) - (ea?.size || 0);
+    if (sort === "date") return (eb?.modTime || 0) - (ea?.modTime || 0);
+    return a.localeCompare(b);
+  });
+}
+
+function atFvMatchSearch(full: string, state: AtFvState): boolean {
+  if (!state.hasSearch) return true;
+  return full.toLowerCase().includes(state.query);
+}
+
+function atFvMakeFileRow(
+  e: TreeEntry,
+  full: string,
+  state: AtFvState,
+): TreeRow | null {
+  if (!atFvMatchSearch(full, state)) return null;
+  const nmHtml = state.hasSearch ? hl(e.name, state.search.trim()) : renderDisplayName(e.name);
+  const dateStr = e.modTime ? fmtDate(e.modTime) : "";
+  const entryKey = e.fullPath || e.path;
+  const selCls = selectState.keys.has(entryKey) ? " selected" : "";
+  const nmCls = isYsmName(e.name) ? " ysm" : "";
+  const ariaLevel = state.depth + 1;
+  const html =
+    state.mode === "list"
+      ? listFileRowHTML(e, nmHtml, fileIcon(e.name), nmCls, state.indent, selCls, ariaLevel)
+      : fileRowHTML(
+          e,
+          nmHtml,
+          fileIcon(e.name),
+          dateStr,
+          nmCls,
+          state.indent,
+          selCls,
+          ariaLevel,
+        );
+  return {
+    id: ++_rowIdCounter,
+    type: "file",
+    key: entryKey,
+    depth: state.depth,
+    html,
+  };
+}
+
+function atFvMakeFolderRow(
+  k: string,
+  full: string,
+  sub: TreeNode,
+  state: AtFvState,
+): { row: TreeRow; shouldOpen: boolean } {
+  const isLocked = k.startsWith("_");
+  const shouldOpen = state.hasSearch || !!state.dirOpen[full];
+  const flags = dirFlags.get(sub);
+  const hasEnabled = !!flags?.hasEnabled;
+  const hasDisabled = !!flags?.hasDisabled;
+  const ariaLevel = state.depth + 1;
+  const html =
+    state.mode === "list"
+      ? listFolderRowHTML(
+          k,
+          full,
+          shouldOpen,
+          isLocked,
+          hasEnabled,
+          hasDisabled,
+          state.indent,
+          ariaLevel,
+        )
+      : folderRowHTML(
+          k,
+          full,
+          shouldOpen,
+          isLocked,
+          hasEnabled,
+          hasDisabled,
+          state.indent,
+          ariaLevel,
+        );
+  return {
+    row: {
+      id: ++_rowIdCounter,
+      type: "folder",
+      key: full,
+      depth: state.depth,
+      html,
+      isOpen: shouldOpen,
+    },
+    shouldOpen,
+  };
+}
+
+function atFvRecurseDir(
+  sub: TreeNode,
+  full: string,
+  state: AtFvState,
+): TreeRow[] {
+  const childState: AtFvState = {
+    ...state,
+    depth: state.depth + 1,
+    indent: (state.depth + 1) * 16 + 4,
+  };
+  return atFvFlattenLevel(sub, full, childState);
+}
+
+function atFvFlattenLevel(
+  node: TreeNode,
+  dirPath: string,
+  state: AtFvState,
+): TreeRow[] {
+  const rows: TreeRow[] = [];
+  const keys = atFvSortKeys(node, state.sort);
+  keys.forEach((k) => {
+    const v = node[k] as TreeNode;
+    const full = dirPath ? dirPath + "/" + k : k;
+    if (v._e) {
+      const fileRow = atFvMakeFileRow(v._e, full, state);
+      if (fileRow) rows.push(fileRow);
+    } else {
+      const { row, shouldOpen } = atFvMakeFolderRow(k, full, v, state);
+      rows.push(row);
+      if (shouldOpen) {
+        rows.push(...atFvRecurseDir(v, full, state));
+      }
+    }
+  });
+  return rows;
+}
+
 export function flattenVisible(
   node: TreeNode,
   dirPath: string,
@@ -136,119 +291,18 @@ export function flattenVisible(
   depth: number,
   mode: RenderMode,
 ): TreeRow[] {
-  const hasSearch = !!(search || "").trim();
-  // 与 buildTree 保持一致：query 必须 trim（首尾空白不破坏匹配），且按路径而非文件名过滤
-  //（搜索命中目录名时保留子文件行，避免「文件夹展开但无子行」的幽灵状态）
-  const query = (search || "").trim().toLowerCase();
-  const keys = Object.keys(node).sort((a, b) => {
-    const aIsDir = !(node[a] as TreeNode)._e,
-      bIsDir = !(node[b] as TreeNode)._e;
-    if (aIsDir && !bIsDir) return -1;
-    if (!aIsDir && bIsDir) return 1;
-    const ea = (node[a] as TreeNode)._e,
-      eb = (node[b] as TreeNode)._e;
-    if (sort === "size") return (eb?.size || 0) - (ea?.size || 0);
-    if (sort === "date") return (eb?.modTime || 0) - (ea?.modTime || 0);
-    return a.localeCompare(b);
-  });
-
-  const rows: TreeRow[] = [];
-  const indent = depth * 16 + 4;
-
-  keys.forEach((k) => {
-    const v = node[k] as TreeNode;
-    const full = dirPath ? dirPath + "/" + k : k;
-
-    if (v._e) {
-      // — 文件行 —
-      const e = v._e;
-      // 与 buildTree 一致：按完整路径匹配（含目录段），避免「搜目录名 → 文件行被丢、目录空开」
-      // 复用 full 避免重复计算（codereview P3）；hl 也须用 trimmed search，否则过滤匹配但高亮失效（codereview P2）
-      if (hasSearch && !full.toLowerCase().includes(query)) return;
-      const nmHtml = hasSearch ? hl(e.name, (search || "").trim()) : renderDisplayName(e.name);
-      const dateStr = e.modTime ? fmtDate(e.modTime) : "";
-      // selectState.keys 存的是 data-fullpath（绝对路径），必须用 e.fullPath 匹配
-      const entryKey = e.fullPath || e.path;
-      const selCls = selectState.keys.has(entryKey) ? " selected" : "";
-      const nmCls = isYsmName(e.name) ? " ysm" : "";
-      // 根据模式选择模板（aria-level 最小为 1）
-      const ariaLevel = depth + 1;
-      const html =
-        mode === "list"
-          ? listFileRowHTML(e, nmHtml, fileIcon(e.name), nmCls, indent, selCls, ariaLevel)
-          : fileRowHTML(
-              e,
-              nmHtml,
-              fileIcon(e.name),
-              dateStr,
-              nmCls,
-              indent,
-              selCls,
-              ariaLevel,
-            );
-      rows.push({
-        id: ++_rowIdCounter,
-        type: "file",
-        key: entryKey,
-        depth,
-        html,
-      });
-    } else {
-      // — 文件夹行 —
-      const isLocked = k.startsWith("_");
-      const shouldOpen = hasSearch || !!dirOpen[full];
-      const sub = node[k] as TreeNode;
-      const flags = dirFlags.get(sub);
-      const hasEnabled = !!flags?.hasEnabled;
-      const hasDisabled = !!flags?.hasDisabled;
-      // 根据模式选择模板（aria-level 最小为 1）
-      const ariaLevel = depth + 1;
-      const html =
-        mode === "list"
-          ? listFolderRowHTML(
-              k,
-              full,
-              shouldOpen,
-              isLocked,
-              hasEnabled,
-              hasDisabled,
-              indent,
-              ariaLevel,
-            )
-          : folderRowHTML(
-              k,
-              full,
-              shouldOpen,
-              isLocked,
-              hasEnabled,
-              hasDisabled,
-              indent,
-              ariaLevel,
-            );
-      rows.push({
-        id: ++_rowIdCounter,
-        type: "folder",
-        key: full,
-        depth,
-        html,
-        isOpen: shouldOpen,
-      });
-      if (shouldOpen) {
-        rows.push(
-          ...flattenVisible(
-            v,
-            full,
-            search,
-            sort,
-            dirOpen,
-            depth + 1,
-            mode,
-          ),
-        );
-      }
-    }
-  });
-  return rows;
+  const { query, hasSearch } = atFvNormParams(search);
+  const state: AtFvState = {
+    search,
+    query,
+    hasSearch,
+    sort,
+    dirOpen,
+    mode,
+    depth,
+    indent: depth * 16 + 4,
+  };
+  return atFvFlattenLevel(node, dirPath, state);
 }
 
 // ——— 仅渲染可见行的 HTML，用 padding 撑出滚动高度 ———
