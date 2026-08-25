@@ -27,6 +27,13 @@ function rgbString(c: [number, number, number]): string {
 // addColorSliderRow
 // ===================================================================
 
+interface CsrRefs {
+  val: HTMLSpanElement;
+  fill: HTMLDivElement;
+  thumb: HTMLDivElement;
+  bar: HTMLDivElement;
+}
+
 export function addColorSliderRow(
     container: HTMLElement,
     label: string,
@@ -43,11 +50,34 @@ export function addColorSliderRow(
         Number.isFinite(color[2]) ? clamp01(color[2]) : 0,
     ];
 
+    const { block, swatch } = csrBuildShell(label, safeColor, testId);
+    const channelColors = ['var(--clr-ch-r)', 'var(--clr-ch-g)', 'var(--clr-ch-b)'];
+    const current: [number, number, number] = [safeColor[0], safeColor[1], safeColor[2]];
+    const controllers: DragSliderController[] = [];
+    const refs: CsrRefs[] = [];
+
+    for (let ci = 0; ci < 3; ci++) {
+        refs[ci] = csrBuildChannelRow(
+            block, ci, safeColor[ci], channelColors[ci],
+            current, controllers, label, onChange, swatch
+        );
+    }
+    container.appendChild(block);
+
+    // === 自更新支持 ===
+    if (opts) {
+        csrBindAutoUpdate(block, opts, safeColor, current, refs, controllers, swatch);
+    }
+}
+
+function csrBuildShell(
+    label: string,
+    safeColor: [number, number, number],
+    testId?: string
+): { block: HTMLDivElement; swatch: HTMLSpanElement; title: HTMLSpanElement } {
     const block = document.createElement('div');
     block.className = 'clr-block';
-    if (testId) {
-        block.setAttribute('data-testid', testId);
-    }
+    if (testId) block.setAttribute('data-testid', testId);
     const header = document.createElement('div');
     header.className = 'clr-header';
     const title = document.createElement('span');
@@ -60,113 +90,121 @@ export function addColorSliderRow(
     swatch.style.background = rgbString(col3FromTriple(safeColor));
     header.appendChild(swatch);
     block.appendChild(header);
-    const channelColors = ['var(--clr-ch-r)', 'var(--clr-ch-g)', 'var(--clr-ch-b)'];
-    const current: [number, number, number] = [safeColor[0], safeColor[1], safeColor[2]];
-    const controllers: DragSliderController[] = [];
+    return { block, swatch, title };
+}
 
-    for (let ci = 0; ci < 3; ci++) {
-        const sub = document.createElement('div');
-        sub.className = 'clr-row';
-        const ch = document.createElement('span');
-        ch.className = 'clr-channel';
-        ch.style.color = channelColors[ci];
-        ch.textContent = ['R', 'G', 'B'][ci];
-        ch.id = `${title.id}-ch${ci}`;
-        sub.appendChild(ch);
+function csrBuildChannelRow(
+    block: HTMLDivElement,
+    ci: number,
+    initValue: number,
+    channelColor: string,
+    current: [number, number, number],
+    controllers: DragSliderController[],
+    label: string,
+    onChange: (v: [number, number, number]) => void,
+    swatch: HTMLSpanElement
+): CsrRefs {
+    const sub = document.createElement('div');
+    sub.className = 'clr-row';
+    const ch = document.createElement('span');
+    ch.className = 'clr-channel';
+    ch.style.color = channelColor;
+    ch.textContent = ['R', 'G', 'B'][ci];
+    // titleId 用 block 内随机 id 会更好，这里用 label + ci 即可（labelledby 指向 ch 自己）
+    ch.id = `clr-ch-${label}-${ci}-${Math.random().toString(36).slice(2, 7)}`;
+    sub.appendChild(ch);
 
-        const val = document.createElement('span');
-        val.className = 'clr-value';
-        val.textContent = safeColor[ci].toFixed(2);
+    const val = document.createElement('span');
+    val.className = 'clr-value';
+    val.textContent = initValue.toFixed(2);
 
-        const bar = document.createElement('div');
-        bar.className = SLIDER_BAR_CLASS;
-        bar.tabIndex = 0;
-        bar.setAttribute('role', ROLE.slider);
-        bar.setAttribute(ARIA_ATTR.label, `${label} ${['Red', 'Green', 'Blue'][ci]} channel`);
-        bar.setAttribute(ARIA_ATTR.valuemin, '0');
-        bar.setAttribute(ARIA_ATTR.valuemax, '1');
-        bar.setAttribute(ARIA_ATTR.valuenow, String(safeColor[ci]));
-        bar.setAttribute(ARIA_ATTR.labelledby, ch.id);
+    const bar = document.createElement('div');
+    bar.className = SLIDER_BAR_CLASS;
+    bar.tabIndex = 0;
+    bar.setAttribute('role', ROLE.slider);
+    bar.setAttribute(ARIA_ATTR.label, `${label} ${['Red', 'Green', 'Blue'][ci]} channel`);
+    bar.setAttribute(ARIA_ATTR.valuemin, '0');
+    bar.setAttribute(ARIA_ATTR.valuemax, '1');
+    bar.setAttribute(ARIA_ATTR.valuenow, String(initValue));
+    bar.setAttribute(ARIA_ATTR.labelledby, ch.id);
 
-        const fill = document.createElement('div');
-        fill.className = 'cs-fill';
-        fill.style.background = channelColors[ci];
-        fill.style.width = safeColor[ci] * 100 + '%';
+    const fill = document.createElement('div');
+    fill.className = 'cs-fill';
+    fill.style.background = channelColor;
+    fill.style.width = initValue * 100 + '%';
 
-        const thumb = document.createElement('div');
-        thumb.className = 'cs-thumb';
-        thumb.style.left = safeColor[ci] * 100 + '%';
+    const thumb = document.createElement('div');
+    thumb.className = 'cs-thumb';
+    thumb.style.left = initValue * 100 + '%';
 
-        bar.appendChild(fill);
-        bar.appendChild(thumb);
+    bar.appendChild(fill);
+    bar.appendChild(thumb);
 
-        function updateDisplay(v: number): void {
-            current[ci] = v;
-            val.textContent = v.toFixed(2);
-            fill.style.width = v * 100 + '%';
-            thumb.style.left = v * 100 + '%';
-            bar.setAttribute(ARIA_ATTR.valuenow, String(v));
-            swatch.style.background = rgbString(col3FromTriple(current));
-            onChange([current[0], current[1], current[2]]);
+    const updateDisplay = (v: number): void => {
+        current[ci] = v;
+        val.textContent = v.toFixed(2);
+        fill.style.width = v * 100 + '%';
+        thumb.style.left = v * 100 + '%';
+        bar.setAttribute(ARIA_ATTR.valuenow, String(v));
+        swatch.style.background = rgbString(col3FromTriple(current));
+        onChange([current[0], current[1], current[2]]);
+    };
+
+    const controller = new DragSliderController({
+        value: initValue,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        onChange: (v) => updateDisplay(v),
+    });
+    controller.bind(bar);
+    controllers[ci] = controller;
+
+    sub.appendChild(bar);
+    sub.appendChild(val);
+    block.appendChild(sub);
+    return { val, fill, thumb, bar };
+}
+
+function csrBindAutoUpdate(
+    block: HTMLDivElement,
+    opts: ControlOptions<[number, number, number]>,
+    safeColor: [number, number, number],
+    current: [number, number, number],
+    refs: CsrRefs[],
+    controllers: DragSliderController[],
+    swatch: HTMLSpanElement
+): void {
+    initControl(block, opts, [safeColor[0], safeColor[1], safeColor[2]], (v, cached) => {
+        if (!Array.isArray(v) || v.length < 3) return false;
+        let changed = false;
+        for (let i = 0; i < 3; i++) {
+            const safe = Number.isFinite(v[i]) ? clamp01(v[i]) : 0;
+            if (safe !== cached[i]) {
+                changed = true;
+                current[i] = safe;
+                refs[i].val.textContent = safe.toFixed(2);
+                refs[i].fill.style.width = safe * 100 + '%';
+                refs[i].thumb.style.left = safe * 100 + '%';
+                refs[i].bar.setAttribute(ARIA_ATTR.valuenow, String(safe));
+                controllers[i].setValue(safe);
+            }
         }
-
-        const controller = new DragSliderController({
-            value: safeColor[ci],
-            min: 0,
-            max: 1,
-            step: 0.01,
-            onChange: (v) => updateDisplay(v),
-        });
-        controller.bind(bar);
-        controllers[ci] = controller;
-
-        sub.appendChild(bar);
-        sub.appendChild(val);
-        block.appendChild(sub);
-    }
-    container.appendChild(block);
-
-    // === 自更新支持 ===
-    if (opts) {
-        const vals: HTMLElement[] = [];
-        const fills: HTMLElement[] = [];
-        const thumbs: HTMLElement[] = [];
-        const bars: HTMLElement[] = [];
-        const clrRows = block.querySelectorAll('.clr-row');
-        clrRows.forEach((row, i) => {
-            vals[i] = row.querySelector('.clr-value') as HTMLElement;
-            fills[i] = row.querySelector('.cs-fill') as HTMLElement;
-            thumbs[i] = row.querySelector('.cs-thumb') as HTMLElement;
-            bars[i] = row.querySelector('.cs-bar') as HTMLElement;
-        });
-        initControl(block, opts, [safeColor[0], safeColor[1], safeColor[2]], (v, cached) => {
-            if (!Array.isArray(v) || v.length < 3) {
-                return false;
-            }
-            let changed = false;
-            for (let i = 0; i < 3; i++) {
-                const safe = Number.isFinite(v[i]) ? clamp01(v[i]) : 0;
-                if (safe !== cached[i]) {
-                    changed = true;
-                    current[i] = safe;
-                    vals[i].textContent = safe.toFixed(2);
-                    fills[i].style.width = safe * 100 + '%';
-                    thumbs[i].style.left = safe * 100 + '%';
-                    bars[i].setAttribute(ARIA_ATTR.valuenow, String(safe));
-                    controllers[i].setValue(safe);
-                }
-            }
-            if (changed) {
-                swatch.style.background = rgbString(col3FromTriple(current));
-            }
-            return changed;
-        });
-    }
+        if (changed) swatch.style.background = rgbString(col3FromTriple(current));
+        return changed;
+    });
 }
 
 // ===================================================================
 // addVector3SliderRow — 三维向量滑块（X/Y/Z 三通道）
 // ===================================================================
+
+interface VsrRefs {
+  val: HTMLSpanElement;
+  fill: HTMLDivElement;
+  thumb: HTMLDivElement;
+  bar: HTMLDivElement;
+}
 
 export function addVector3SliderRow(
     container: HTMLElement,
@@ -193,11 +231,31 @@ export function addVector3SliderRow(
         Number.isFinite(value[2]) ? Math.min(max, Math.max(min, value[2])) : min,
     ];
 
+    const block = vsrBuildBlock(label, icon, testId);
+    const current: [number, number, number] = [safeValue[0], safeValue[1], safeValue[2]];
+    const axisColors = ['var(--accent)', 'var(--status-success)', 'var(--warning, #e6b800)'];
+    const controllers: DragSliderController[] = [];
+    const refs: VsrRefs[] = [];
+
+    for (let ai = 0; ai < 3; ai++) {
+        refs[ai] = vsrBuildAxisRow(
+            block, ai, axes, safeValue[ai], axisColors[ai], min, max, step, hasRange, range,
+            current, controllers, label, onChange, onDragEndCb
+        );
+    }
+
+    container.appendChild(block);
+
+    // === 自更新支持 ===
+    if (opts) {
+        vsrBindAutoUpdate(block, opts, safeValue, current, refs, controllers, min, max, step, hasRange, range);
+    }
+}
+
+function vsrBuildBlock(label: string, icon?: string, testId?: string): HTMLDivElement {
     const block = document.createElement('div');
     block.className = 'vec3-block';
-    if (testId) {
-        block.setAttribute('data-testid', testId);
-    }
+    if (testId) block.setAttribute('data-testid', testId);
 
     const header = document.createElement('div');
     header.className = 'vec3-header';
@@ -221,113 +279,124 @@ export function addVector3SliderRow(
     title.id = `vec3-${Math.random().toString(36).slice(2, 11)}`;
     header.appendChild(title);
     block.appendChild(header);
+    return block;
+}
 
-    const current: [number, number, number] = [safeValue[0], safeValue[1], safeValue[2]];
-    const axisColors = ['var(--accent)', 'var(--status-success)', 'var(--warning, #e6b800)'];
+function vsrBuildAxisRow(
+    block: HTMLDivElement,
+    ai: number,
+    axes: [string, string, string],
+    initValue: number,
+    axisColor: string,
+    min: number,
+    max: number,
+    step: number,
+    hasRange: boolean,
+    range: number,
+    current: [number, number, number],
+    controllers: DragSliderController[],
+    label: string,
+    onChange: (v: [number, number, number]) => void,
+    onDragEndCb?: (v: [number, number, number]) => void
+): VsrRefs {
+    const sub = document.createElement('div');
+    sub.className = 'vec3-row';
+    const ch = document.createElement('span');
+    ch.className = 'vec3-axis';
+    ch.style.color = axisColor;
+    ch.textContent = axes[ai];
+    ch.id = `vec3-${label}-ax${ai}-${Math.random().toString(36).slice(2, 7)}`;
+    sub.appendChild(ch);
 
-    const controllers: DragSliderController[] = [];
-    const valEls: HTMLElement[] = [];
-    const fillEls: HTMLElement[] = [];
-    const thumbEls: HTMLElement[] = [];
-    const barEls: HTMLElement[] = [];
+    const val = document.createElement('span');
+    val.className = 'vec3-value';
+    val.textContent = step < 1 ? initValue.toFixed(2) : String(Math.round(initValue));
 
-    for (let ai = 0; ai < 3; ai++) {
-        const sub = document.createElement('div');
-        sub.className = 'vec3-row';
-        const ch = document.createElement('span');
-        ch.className = 'vec3-axis';
-        ch.style.color = axisColors[ai];
-        ch.textContent = axes[ai];
-        ch.id = `${title.id}-ax${ai}`;
-        sub.appendChild(ch);
+    const bar = document.createElement('div');
+    bar.className = SLIDER_BAR_CLASS;
+    bar.tabIndex = 0;
+    bar.setAttribute('role', ROLE.slider);
+    bar.setAttribute(ARIA_ATTR.label, `${label} ${axes[ai]}`);
+    bar.setAttribute(ARIA_ATTR.valuemin, String(min));
+    bar.setAttribute(ARIA_ATTR.valuemax, String(max));
+    bar.setAttribute(ARIA_ATTR.valuenow, String(initValue));
+    bar.setAttribute(ARIA_ATTR.labelledby, ch.id);
 
-        const val = document.createElement('span');
-        val.className = 'vec3-value';
-        val.textContent = step < 1 ? current[ai].toFixed(2) : String(Math.round(current[ai]));
-        valEls[ai] = val;
+    const pct = hasRange ? ((initValue - min) / range) * 100 : 0;
 
-        const bar = document.createElement('div');
-        bar.className = SLIDER_BAR_CLASS;
-        bar.tabIndex = 0;
-        bar.setAttribute('role', ROLE.slider);
-        bar.setAttribute(ARIA_ATTR.label, `${label} ${axes[ai]}`);
-        bar.setAttribute(ARIA_ATTR.valuenow, String(current[ai]));
-        bar.setAttribute(ARIA_ATTR.valuemin, String(min));
-        bar.setAttribute(ARIA_ATTR.valuemax, String(max));
-        bar.setAttribute(ARIA_ATTR.valuenow, String(current[ai]));
-        bar.setAttribute(ARIA_ATTR.labelledby, ch.id);
-        barEls[ai] = bar;
+    const fill = document.createElement('div');
+    fill.className = 'cs-fill';
+    fill.style.background = axisColor;
+    fill.style.width = clampPct(pct) + '%';
 
-        const pct = hasRange ? ((current[ai] - min) / range) * 100 : 0;
+    const thumb = document.createElement('div');
+    thumb.className = 'cs-thumb';
+    thumb.style.left = clampPct(pct) + '%';
 
-        const fill = document.createElement('div');
-        fill.className = 'cs-fill';
-        fill.style.background = axisColors[ai];
-        fill.style.width = clampPct(pct) + '%';
-        fillEls[ai] = fill;
+    bar.appendChild(fill);
+    bar.appendChild(thumb);
 
-        const thumb = document.createElement('div');
-        thumb.className = 'cs-thumb';
-        thumb.style.left = clampPct(pct) + '%';
-        thumbEls[ai] = thumb;
+    const updateDisplay = (v: number): void => {
+        const safe = Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : min;
+        current[ai] = safe;
+        val.textContent = step < 1 ? safe.toFixed(2) : String(Math.round(safe));
+        const newPct = hasRange ? ((safe - min) / range) * 100 : 0;
+        const clamped = clampPct(newPct);
+        fill.style.width = clamped + '%';
+        thumb.style.left = clamped + '%';
+        bar.setAttribute(ARIA_ATTR.valuenow, String(safe));
+        onChange([current[0], current[1], current[2]]);
+    };
 
-        bar.appendChild(fill);
-        bar.appendChild(thumb);
+    const controller = new DragSliderController({
+        value: initValue,
+        min,
+        max,
+        step,
+        onChange: (v) => updateDisplay(v),
+        onDragEnd: (_v) => onDragEndCb?.([current[0], current[1], current[2]]),
+    });
+    controller.bind(bar);
+    controllers[ai] = controller;
 
-        function updateDisplay(v: number): void {
-            const safe = Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : min;
-            current[ai] = safe;
-            val.textContent = step < 1 ? safe.toFixed(2) : String(Math.round(safe));
-            const newPct = hasRange ? ((safe - min) / range) * 100 : 0;
-            const clamped = clampPct(newPct);
-            fill.style.width = clamped + '%';
-            thumb.style.left = clamped + '%';
-            bar.setAttribute(ARIA_ATTR.valuenow, String(safe));
-            onChange([current[0], current[1], current[2]]);
+    sub.appendChild(bar);
+    sub.appendChild(val);
+    block.appendChild(sub);
+    return { val, fill, thumb, bar };
+}
+
+function vsrBindAutoUpdate(
+    block: HTMLDivElement,
+    opts: ControlOptions<[number, number, number]>,
+    safeValue: [number, number, number],
+    current: [number, number, number],
+    refs: VsrRefs[],
+    controllers: DragSliderController[],
+    min: number,
+    max: number,
+    step: number,
+    hasRange: boolean,
+    range: number
+): void {
+    initControl(block, opts, [safeValue[0], safeValue[1], safeValue[2]], (v, cached) => {
+        if (!Array.isArray(v) || v.length < 3) return false;
+        let changed = false;
+        for (let i = 0; i < 3; i++) {
+            const safe = Number.isFinite(v[i]) ? Math.min(max, Math.max(min, v[i])) : min;
+            if (safe !== cached[i]) {
+                changed = true;
+                current[i] = safe;
+                refs[i].val.textContent = step < 1 ? safe.toFixed(2) : String(Math.round(safe));
+                const newPct = hasRange ? ((safe - min) / range) * 100 : 0;
+                const clamped = clampPct(newPct);
+                refs[i].fill.style.width = clamped + '%';
+                refs[i].thumb.style.left = clamped + '%';
+                refs[i].bar.setAttribute(ARIA_ATTR.valuenow, String(safe));
+                controllers[i].setValue(safe);
+            }
         }
-
-        const controller = new DragSliderController({
-            value: current[ai],
-            min,
-            max,
-            step,
-            onChange: (v) => updateDisplay(v),
-            onDragEnd: (_v) => onDragEndCb?.([current[0], current[1], current[2]]),
-        });
-        controller.bind(bar);
-        controllers[ai] = controller;
-
-        sub.appendChild(bar);
-        sub.appendChild(val);
-        block.appendChild(sub);
-    }
-
-    container.appendChild(block);
-
-    // === 自更新支持 ===
-    if (opts) {
-        initControl(block, opts, [safeValue[0], safeValue[1], safeValue[2]], (v, cached) => {
-            if (!Array.isArray(v) || v.length < 3) {
-                return false;
-            }
-            let changed = false;
-            for (let i = 0; i < 3; i++) {
-                const safe = Number.isFinite(v[i]) ? Math.min(max, Math.max(min, v[i])) : min;
-                if (safe !== cached[i]) {
-                    changed = true;
-                    current[i] = safe;
-                    valEls[i].textContent = step < 1 ? safe.toFixed(2) : String(Math.round(safe));
-                    const newPct = hasRange ? ((safe - min) / range) * 100 : 0;
-                    const clamped = clampPct(newPct);
-                    fillEls[i].style.width = clamped + '%';
-                    thumbEls[i].style.left = clamped + '%';
-                    barEls[i].setAttribute(ARIA_ATTR.valuenow, String(safe));
-                    controllers[i].setValue(safe);
-                }
-            }
-            return changed;
-        });
-    }
+        return changed;
+    });
 }
 
 // ===================================================================
