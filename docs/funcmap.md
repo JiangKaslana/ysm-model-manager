@@ -1250,22 +1250,22 @@
 | `PresetChipItem()` | `frontend/src/ui/ui-preset:16` | 单个预设芯片的描述。 |
 | `buildPresetChipGroup()` | `frontend/src/ui/ui-preset:35` | 渲染一组 preset-chip（统一 .preset-group 容器 + addPresetChip 布局）。 |
 | `addClearRow()` | `frontend/src/ui/ui-preset:73` | 渲染一行右对齐的「清除」按钮（统一 cs-btn cs-btn-sm 样式）。 |
-| `addToggleRow()` | `frontend/src/ui/ui-rows:43` | — |
-| `initControl()` | `frontend/src/ui/ui-rows:126` | 封装 registerControl + immediate update 模式。 |
-| `addSliderRow()` | `frontend/src/ui/ui-rows:165` | 数字滑块行。内部统一由 {@link DragSliderController} 驱动 （拖拽 + 键盘 + 游标点击），行为与其他滑块 builder 保持一致。 |
-| `addModeRow()` | `frontend/src/ui/ui-rows:295` | — |
-| `addEmptyRow()` | `frontend/src/ui/ui-rows:330` | 创建空状态占位行（灰色文字，不可点击），替代手动 `el.style.opacity = '0.5'` 模式 |
-| `addCardTitle()` | `frontend/src/ui/ui-rows:353` | 创建 card-title 标题行并追加到容器 |
-| `addDangerRow()` | `frontend/src/ui/ui-rows:368` | 创建危险操作行（icon + red label），替代手动拼接 `div.slide-item &gt; icon + label.danger-text` |
-| `addFieldRow()` | `frontend/src/ui/ui-rows:400` | 创建字段行（左 label + 右 value），替代手动拼接的 `div.slide-item &gt; span.slide-label.field-label + span.fie |
-| `addInfoGrid()` | `frontend/src/ui/ui-rows:433` | — |
-| `addInfoCard()` | `frontend/src/ui/ui-rows:440` | — |
-| `sliderRow()` | `frontend/src/ui/ui-rows:473` | — |
-| `toggleRow()` | `frontend/src/ui/ui-rows:490` | — |
-| `addWatchDirRow()` | `frontend/src/ui/ui-rows:515` | — |
-| `addActionRow()` | `frontend/src/ui/ui-rows:577` | 创建一个可点击的动作按钮行（替代手写 cs-row + button）。 |
-| `addDisabledRow()` | `frontend/src/ui/ui-rows:614` | 创建一个不可交互的提示行（替代手写 cs-row + opacity 0.4 + pointer-events none）。 |
-| `addInlineToggleRow()` | `frontend/src/ui/ui-rows:645` | 创建一个内联 toggle 行（替代手写 toggle-row + toggle-label + toggle-switch）。 |
+| `addToggleRow()` | `frontend/src/ui/ui-rows:147` | — |
+| `initControl()` | `frontend/src/ui/ui-rows:184` | 封装 registerControl + immediate update 模式。 |
+| `addSliderRow()` | `frontend/src/ui/ui-rows:401` | 数字滑块行。内部统一由 {@link DragSliderController} 驱动 （拖拽 + 键盘 + 游标点击），行为与其他滑块 builder 保持一致。 |
+| `addModeRow()` | `frontend/src/ui/ui-rows:445` | — |
+| `addEmptyRow()` | `frontend/src/ui/ui-rows:480` | 创建空状态占位行（灰色文字，不可点击），替代手动 `el.style.opacity = '0.5'` 模式 |
+| `addCardTitle()` | `frontend/src/ui/ui-rows:503` | 创建 card-title 标题行并追加到容器 |
+| `addDangerRow()` | `frontend/src/ui/ui-rows:518` | 创建危险操作行（icon + red label），替代手动拼接 `div.slide-item &gt; icon + label.danger-text` |
+| `addFieldRow()` | `frontend/src/ui/ui-rows:550` | 创建字段行（左 label + 右 value），替代手动拼接的 `div.slide-item &gt; span.slide-label.field-label + span.fie |
+| `addInfoGrid()` | `frontend/src/ui/ui-rows:583` | — |
+| `addInfoCard()` | `frontend/src/ui/ui-rows:590` | — |
+| `sliderRow()` | `frontend/src/ui/ui-rows:623` | — |
+| `toggleRow()` | `frontend/src/ui/ui-rows:640` | — |
+| `addWatchDirRow()` | `frontend/src/ui/ui-rows:665` | — |
+| `addActionRow()` | `frontend/src/ui/ui-rows:727` | 创建一个可点击的动作按钮行（替代手写 cs-row + button）。 |
+| `addDisabledRow()` | `frontend/src/ui/ui-rows:764` | 创建一个不可交互的提示行（替代手写 cs-row + opacity 0.4 + pointer-events none）。 |
+| `addInlineToggleRow()` | `frontend/src/ui/ui-rows:795` | 创建一个内联 toggle 行（替代手写 toggle-row + toggle-label + toggle-switch）。 |
 | `slideMenuCss()` | `frontend/src/ui/ui-slide-menu-styles:9` | — |
 | `slideMenuStyleSheet()` | `frontend/src/ui/ui-slide-menu-styles:165` | — |
 | `installSlideMenuStyles()` | `frontend/src/ui/ui-slide-menu-styles:169` | 将外壳样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |

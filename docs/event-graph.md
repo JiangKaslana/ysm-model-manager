@@ -53,7 +53,7 @@
 | `sync:download:missing` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
 | `theme:change` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
-| `toast:show` | 200 | 2 | 0 | 0 | ✅ |
+| `toast:show` | 206 | 2 | 0 | 0 | ✅ |
 | `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
 
@@ -556,6 +556,12 @@
 | `frontend/src/views/app-content/site/drag.ts` | 78 |
 | `frontend/src/views/app-content/site/drag.ts` | 101 |
 | `frontend/src/views/app-content/site/drag.ts` | 110 |
+| `frontend/src/views/app-content/site/edit.ts` | 86 |
+| `frontend/src/views/app-content/site/edit.ts` | 93 |
+| `frontend/src/views/app-content/site/edit.ts` | 108 |
+| `frontend/src/views/app-content/site/edit.ts` | 134 |
+| `frontend/src/views/app-content/site/edit.ts` | 167 |
+| `frontend/src/views/app-content/site/edit.ts` | 174 |
 | `frontend/src/views/app-content/site/events.ts` | 104 |
 | `frontend/src/views/app-content/site/events.ts` | 271 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 108 |

@@ -34,21 +34,28 @@ function createIconBox(icon: string, label: string, parent: HTMLElement): void {
 }
 
 // ===================================================================
-// addToggleRow
+// addToggleRow — 子函数类型与工具
 // ===================================================================
 
 // 自增计数器，用于生成稳定的唯一 ID
 let nextToggleId = 0;
 
-export function addToggleRow(
-    container: HTMLElement,
+/** Toggle DOM 元素包，供各子函数传递引用 */
+interface ToggleElements {
+    row: HTMLDivElement;
+    toggle: HTMLInputElement;
+}
+
+/**
+ * [子函数 1/4] 构建 Toggle 全套 DOM 元素：row / left / icon / label / toggle(input) / slider。
+ * 返回元素包供后续阶段消费。
+ */
+function buildToggleElements(
     label: string,
     value: boolean,
-    onChange: (v: boolean) => void,
-    icon?: string,
-    opts?: ControlOptions<boolean>,
-    testId?: string
-): void {
+    icon: string | undefined,
+    testId: string | undefined
+): ToggleElements {
     const row = document.createElement('div');
     row.className = 'toggle-row';
     if (testId) {
@@ -77,39 +84,90 @@ export function addToggleRow(
     toggle.setAttribute(ARIA_ATTR.label, label);
     toggle.setAttribute(ARIA_ATTR.checked, String(value));
     toggle.setAttribute(ARIA_ATTR.labelledby, lbl.id);
-    toggle.addEventListener('change', () => {
-        toggle.setAttribute(ARIA_ATTR.checked, String(toggle.checked));
-        onChange(toggle.checked);
-    });
+
     const slider = document.createElement('span');
     slider.className = 'slider';
     toggleLabel.appendChild(toggle);
     toggleLabel.appendChild(slider);
+
     row.appendChild(left);
     row.appendChild(toggleLabel);
 
-    // 整行点击（除 toggle 开关外）也可切换
-    row.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('.toggle')) {
-            return;
-        }
-        toggle.checked = !toggle.checked;
-        toggle.setAttribute(ARIA_ATTR.checked, String(toggle.checked));
-        onChange(toggle.checked);
-    });
+    return { row, toggle };
+}
 
-    container.appendChild(row);
+/**
+ * [子函数 2/4] 同步 Toggle 状态：input.checked + ARIA checked。
+ * 用于 checkbox change、整行点击、自更新三处共享逻辑，消除重复。
+ */
+function updateToggleState(toggle: HTMLInputElement, v: boolean): void {
+    toggle.checked = v;
+    toggle.setAttribute(ARIA_ATTR.checked, String(v));
+}
 
-    // === 自更新支持 ===
-    initControl(row, opts, value, (v, cached) => {
+/**
+ * [子函数 3/4] 整行点击切换（除 toggle 开关本体外的区域）。
+ * 点击开关本身时由原生 change 事件接管，避免重复触发 onChange。
+ */
+function handleToggleRowClick(
+    e: MouseEvent,
+    toggle: HTMLInputElement,
+    onChange: (v: boolean) => void
+): void {
+    if ((e.target as HTMLElement).closest('.toggle')) {
+        return;
+    }
+    const next = !toggle.checked;
+    updateToggleState(toggle, next);
+    onChange(next);
+}
+
+/**
+ * [子函数 4/4] 注册自更新支持：外部 bind/onUpdate 触发时同步更新 checked/ARIA 状态。
+ */
+function initToggleControl(
+    els: ToggleElements,
+    opts: ControlOptions<boolean> | undefined,
+    initial: boolean
+): void {
+    initControl(els.row, opts, initial, (v, cached) => {
         const b = !!v;
         if (b === cached) {
             return false;
         }
-        toggle.checked = b;
-        toggle.setAttribute(ARIA_ATTR.checked, String(b));
+        updateToggleState(els.toggle, b);
         return true;
     });
+}
+
+// ===================================================================
+// addToggleRow — 主函数
+// ===================================================================
+
+export function addToggleRow(
+    container: HTMLElement,
+    label: string,
+    value: boolean,
+    onChange: (v: boolean) => void,
+    icon?: string,
+    opts?: ControlOptions<boolean>,
+    testId?: string
+): void {
+    // 阶段1：构建 DOM 元素
+    const els = buildToggleElements(label, value, icon, testId);
+
+    // 阶段2：绑定 checkbox change 监听（复用 updateToggleState）
+    els.toggle.addEventListener('change', () => {
+        updateToggleState(els.toggle, els.toggle.checked);
+        onChange(els.toggle.checked);
+    });
+
+    // 阶段3：整行点击切换
+    els.row.addEventListener('click', (e) => handleToggleRowClick(e, els.toggle, onChange));
+
+    // 阶段4：挂载 + 自更新注册
+    container.appendChild(els.row);
+    initToggleControl(els, opts, value);
 }
 
 // ===================================================================
@@ -155,30 +213,30 @@ export function initControl<T>(
 }
 
 // ===================================================================
-// addSliderRow
+// addSliderRow — 子函数类型与工具
 // ===================================================================
 
+/** Slider DOM 元素包，供各子函数传递引用 */
+interface SliderElements {
+    row: HTMLDivElement;
+    top: HTMLDivElement;
+    bar: HTMLDivElement;
+    fill: HTMLDivElement;
+    thumb: HTMLDivElement;
+    val: HTMLSpanElement;
+}
+
 /**
- * 数字滑块行。内部统一由 {@link DragSliderController} 驱动
- * （拖拽 + 键盘 + 游标点击），行为与其他滑块 builder 保持一致。
+ * [子函数 1/5] 构建 Slider 全套 DOM 元素：row / top / label / value / bar / fill / thumb。
+ * 返回元素包供后续阶段消费。
  */
-export function addSliderRow(
-    container: HTMLElement,
+function buildSliderElements(
     label: string,
-    value: number,
     min: number,
     max: number,
-    step: number,
-    onChange: (v: number) => void,
-    icon?: string,
-    onDragEndCb?: (v: number) => void,
-    opts?: ControlOptions<number>,
-    testId?: string
-): void {
-    // 防御: 非有限数值（undefined/NaN）回落到 min ?? 0，避免 .toFixed() 崩溃导致整个面板渲染失败
-    let currentValue = typeof value === 'number' && Number.isFinite(value) ? value : (min ?? 0);
-    const range = max - min;
-
+    icon: string | undefined,
+    testId: string | undefined
+): SliderElements {
     const row = document.createElement('div');
     row.className = 'cs-row';
     if (testId) {
@@ -187,7 +245,6 @@ export function addSliderRow(
 
     const top = document.createElement('div');
     top.className = 'cs-top';
-
     if (icon) {
         createIconBox(icon, label, top);
     }
@@ -219,73 +276,166 @@ export function addSliderRow(
     bar.appendChild(fill);
     bar.appendChild(thumb);
 
-    function updateDisplay(v: number): void {
-        currentValue = v;
-        val.textContent = step < 1 ? v.toFixed(2) : String(Math.round(v));
-        const newPct = ((v - min) / range) * 100;
-        const clamped = clampPct(newPct);
-        fill.style.width = clamped + '%';
-        thumb.style.left = clamped + '%';
-        bar.setAttribute(ARIA_ATTR.valuenow, String(v));
-    }
+    return { row, top, bar, fill, thumb, val };
+}
 
-    updateDisplay(currentValue);
+/**
+ * [子函数 2/5] 更新 Slider 显示：value 文本、fill 宽度、thumb 位置、ARIA valuenow。
+ * 原闭包升格为包级函数，接收 currentValue 引用以回写值。
+ */
+function updateSliderDisplay(
+    v: number,
+    step: number,
+    min: number,
+    range: number,
+    els: SliderElements,
+    currentValueRef: { value: number }
+): void {
+    currentValueRef.value = v;
+    els.val.textContent = step < 1 ? v.toFixed(2) : String(Math.round(v));
+    const newPct = ((v - min) / range) * 100;
+    const clamped = clampPct(newPct);
+    els.fill.style.width = clamped + '%';
+    els.thumb.style.left = clamped + '%';
+    els.bar.setAttribute(ARIA_ATTR.valuenow, String(v));
+}
 
+/**
+ * [子函数 3/5] 创建并绑定 DragSliderController，返回控制器实例 + 挂载 dispose 清理钩子。
+ */
+function bindSliderController(
+    els: SliderElements,
+    min: number,
+    max: number,
+    step: number,
+    currentValueRef: { value: number },
+    onChange: (v: number) => void,
+    onDragEndCb: ((v: number) => void) | undefined
+): DragSliderController {
     const controller = new DragSliderController({
-        value: currentValue,
+        value: currentValueRef.value,
         min,
         max,
         step,
         onChange: (v) => {
-            updateDisplay(v);
+            updateSliderDisplay(v, step, min, max - min, els, currentValueRef);
             onChange(v);
         },
         onDragEnd: (v) => {
             onDragEndCb?.(v);
         },
     });
-    const disposeSlider = controller.bind(bar);
+    const disposeSlider = controller.bind(els.bar);
     // 保存 Disposable 到 row 元素，供上层清理时调用（P1-1 修复）
-    (row as unknown as Record<string, unknown>).__disposeSlider = () => disposeSlider.dispose();
+    (els.row as unknown as Record<string, unknown>).__disposeSlider = () => disposeSlider.dispose();
+    return controller;
+}
 
-    // cs-top 四分区域相对步进：左→右 = 减大步 → 减小步 → 加小步 → 加大步
-    top.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const rect = top.getBoundingClientRect();
-        const pct = clamp01((e.clientX - rect.left) / rect.width);
-        const delta =
-            pct < 0.25
-                ? -(range * SLIDER_QUARTER_LARGE_STEP)
-                : pct < 0.5
-                  ? -(range * SLIDER_QUARTER_SMALL_STEP)
-                  : pct < 0.75
-                    ? range * SLIDER_QUARTER_SMALL_STEP
-                    : range * SLIDER_QUARTER_LARGE_STEP;
-        const raw = currentValue + delta;
-        const precision = step > 0 ? 1 / step : 1;
-        const snapped = Math.round(raw * precision) / precision;
-        const clamped = Math.max(min, Math.min(max, snapped));
-        if (clamped !== currentValue) {
-            currentValue = clamped;
-            updateDisplay(clamped);
-            onChange(clamped);
-            onDragEndCb?.(clamped);
-        }
-    });
+/**
+ * [子函数 4/5] cs-top 四分区域相对步进点击：左→右 = 减大步 → 减小步 → 加小步 → 加大步。
+ */
+function handleTopSliderClick(
+    e: MouseEvent,
+    min: number,
+    max: number,
+    step: number,
+    range: number,
+    els: SliderElements,
+    currentValueRef: { value: number },
+    onChange: (v: number) => void,
+    onDragEndCb: ((v: number) => void) | undefined
+): void {
+    e.stopPropagation();
+    const rect = els.top.getBoundingClientRect();
+    const pct = clamp01((e.clientX - rect.left) / rect.width);
+    const delta =
+        pct < 0.25
+            ? -(range * SLIDER_QUARTER_LARGE_STEP)
+            : pct < 0.5
+              ? -(range * SLIDER_QUARTER_SMALL_STEP)
+              : pct < 0.75
+                ? range * SLIDER_QUARTER_SMALL_STEP
+                : range * SLIDER_QUARTER_LARGE_STEP;
+    const raw = currentValueRef.value + delta;
+    const precision = step > 0 ? 1 / step : 1;
+    const snapped = Math.round(raw * precision) / precision;
+    const clamped = Math.max(min, Math.min(max, snapped));
+    if (clamped !== currentValueRef.value) {
+        updateSliderDisplay(clamped, step, min, range, els, currentValueRef);
+        onChange(clamped);
+        onDragEndCb?.(clamped);
+    }
+}
 
-    row.appendChild(top);
-    row.appendChild(bar);
-    container.appendChild(row);
-
-    // === 自更新支持 ===
-    initControl(row, opts, value, (v, cached) => {
+/**
+ * [子函数 5/5] 注册自更新支持：外部 bind/onUpdate 触发时同步更新显示与控制器内部值。
+ */
+function initSliderControl(
+    els: SliderElements,
+    opts: ControlOptions<number> | undefined,
+    initial: number,
+    step: number,
+    min: number,
+    max: number,
+    currentValueRef: { value: number },
+    controller: DragSliderController
+): void {
+    initControl(els.row, opts, initial, (v, cached) => {
         if (!Number.isFinite(v) || v === cached) {
             return false;
         }
-        updateDisplay(v);
+        updateSliderDisplay(v, step, min, max - min, els, currentValueRef);
         controller.setValue(v);
         return true;
     });
+}
+
+// ===================================================================
+// addSliderRow — 主函数
+// ===================================================================
+
+/**
+ * 数字滑块行。内部统一由 {@link DragSliderController} 驱动
+ * （拖拽 + 键盘 + 游标点击），行为与其他滑块 builder 保持一致。
+ */
+export function addSliderRow(
+    container: HTMLElement,
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    step: number,
+    onChange: (v: number) => void,
+    icon?: string,
+    onDragEndCb?: (v: number) => void,
+    opts?: ControlOptions<number>,
+    testId?: string
+): void {
+    // 防御: 非有限数值（undefined/NaN）回落到 min ?? 0，避免 .toFixed() 崩溃导致整个面板渲染失败
+    const fallbackValue = min ?? 0;
+    const currentValueRef = { value: typeof value === 'number' && Number.isFinite(value) ? value : fallbackValue };
+    const range = max - min;
+
+    // 阶段1：构建 DOM 元素
+    const els = buildSliderElements(label, min, max, icon, testId);
+
+    // 阶段2：初始化显示
+    updateSliderDisplay(currentValueRef.value, step, min, range, els, currentValueRef);
+
+    // 阶段3：绑定拖拽控制器
+    const controller = bindSliderController(els, min, max, step, currentValueRef, onChange, onDragEndCb);
+
+    // 阶段4：四分区域点击步进
+    els.top.addEventListener('click', (e) =>
+        handleTopSliderClick(e, min, max, step, range, els, currentValueRef, onChange, onDragEndCb)
+    );
+
+    // 阶段5：挂载 + 自更新注册
+    els.row.appendChild(els.top);
+    els.row.appendChild(els.bar);
+    container.appendChild(els.row);
+
+    initSliderControl(els, opts, value, step, min, max, currentValueRef, controller);
 }
 
 // ===================================================================
