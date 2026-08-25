@@ -267,6 +267,204 @@ func collectTextureFiles(texDir string) []texFile {
 	return files
 }
 
+// ===== extracted.go 公共 helper（第 3/4 刀 FindGeometry/FindComponents 复用，2026-08-25）=====
+
+// safeJoinModelPath 按 3 种前缀（空 / models/ / models\）探测 ysm 模型文件，
+// 找到第一个存在的路径并做路径穿越防护（确保拼接结果仍在 dir 内）。
+// 返回 (探测到的完整路径, 是否合法)。两函数**共用唯一探测口径**，避免
+// FindGeometry/FindComponents 历史上各写一份造成口径漂移（如新增前缀忘同步）。
+func safeJoinModelPath(dir, mn string) (string, bool) {
+	cleanDir := filepath.Clean(dir)
+	for _, sub := range []string{"", "models/", "models\\"} {
+		candidate := filepath.Join(dir, sub, mn)
+		candidate = filepath.Clean(candidate)
+		if !strings.HasPrefix(candidate, cleanDir+string(filepath.Separator)) && candidate != cleanDir {
+			log.Printf("[ysm] 拒绝路径越界模型文件: %q (期望在 %q 内)", candidate, cleanDir)
+			continue
+		}
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, true
+		}
+	}
+	return "", false
+}
+
+// applyCubeTextures 给 BedrockModel 所有 bones 的所有 cubes 赋 TexSlot、CubeTexW、CubeTexH。
+// 历史上 extracted.go:FindGeometry（L361-367/L428-433）、FindComponents（L747-753/L771-778/L799-805）
+// 5 处完全复制 4 行循环。升格一处，全仓调用，消除 5 份 20 行复制+口径漂移风险。
+func applyCubeTextures(gj *types.BedrockModel, texSlot int) {
+	for bi := range gj.Bones {
+		for ci := range gj.Bones[bi].Cubes {
+			gj.Bones[bi].Cubes[ci].TexSlot = texSlot
+			gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
+			gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
+		}
+	}
+}
+
+// sortMapModelNames 从 player.model map 构造有序模型路径列表：
+//   - main 键强制首位；其余键按字符串稳定排序（消除 Go map 遍历随机性）
+//   - excludeArm=true 时排除 isArmModelName 命中的项（FindGeometry 全身合并版剔除手臂，
+//     避免 pivot 与 main 手臂错位；FindComponents 多组件版保留为独立组件）
+func sortMapModelNames(modelMapOrig map[string]string, excludeArm bool) []string {
+	var ordered []string
+	if mainPath, ok := modelMapOrig["main"]; ok {
+		ordered = append(ordered, mainPath)
+	}
+	var others []string
+	for k, v := range modelMapOrig {
+		if k == "main" {
+			continue
+		}
+		if excludeArm && isArmModelName(v) {
+			continue
+		}
+		others = append(others, k)
+	}
+	sort.Strings(others)
+	for _, k := range others {
+		ordered = append(ordered, modelMapOrig[k])
+	}
+	return ordered
+}
+
+// resolveBedrockGeometryFallback 封装 4 条兜底解析链（逐字节保留原行为）：
+//  1. 用 ysm.json 自身直接 Parse（可能含 format_version + minecraft:geometry 标准段）
+//  2. 用 {"minecraft":{"geometry":[...]}} 包裹段（TLM 部分简化包实际格式）
+//  3. WalkDir 递归子目录（限 10 层，排除 animations/controller/avatar）找第一个合法 geo JSON
+//  4. looksLikeGeometry 裸 geometry 元素兜底（避免把纯 {"files":{...}} 错包裹成零骨骼）
+//
+// 原 FindGeometry 内联 111 行（L382-449），升格后第 4 刀若新增兜底也共用。
+func resolveBedrockGeometryFallback(data []byte, ysmPath, dir string) *types.BedrockModel {
+	// 兜底 1：ysm.json 自身直接解析（可能是标准 geometry JSON，如极简自定义包）
+	geoJSON := geometry.ParseBedrockGeometry(data)
+	if geoJSON != nil {
+		return geoJSON
+	}
+	// 兜底 2：minecraft.geometry[] 包装段（TLM 简化自定义包常见格式）
+	var root struct {
+		Minecraft struct {
+			Geometry []json.RawMessage `json:"geometry"`
+		} `json:"minecraft"`
+	}
+	if err := json.Unmarshal(data, &root); err == nil && len(root.Minecraft.Geometry) > 0 {
+		wrapped := append([]byte(`{"format_version":"1.12.0","minecraft:geometry":[`), root.Minecraft.Geometry[0]...)
+		wrapped = append(wrapped, ']', '}')
+		if gj := geometry.ParseBedrockGeometry(wrapped); gj != nil {
+			return gj
+		}
+	}
+	// 兜底 3：WalkDir 子目录递归扫 10 层（排除 animations/controller/avatar）
+	excludeDirs := map[string]bool{"animations": true, "controller": true, "avatar": true}
+	var found *types.BedrockModel
+	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			log.Printf("[ysm] WalkDir 错误 (忽略): %v", err)
+			return nil
+		}
+		if found != nil {
+			return filepath.SkipAll
+		}
+		if d.IsDir() {
+			if excludeDirs[strings.ToLower(d.Name())] {
+				return filepath.SkipDir
+			}
+			rel, relErr := filepath.Rel(dir, path)
+			if relErr == nil && strings.Count(rel, string(filepath.Separator)) > 10 {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.EqualFold(path, ysmPath) {
+			return nil
+		}
+		if strings.HasSuffix(strings.ToLower(path), ".json") {
+			geoData := readFileLimited(path)
+			if geoData != nil {
+				if gj := geometry.ParseBedrockGeometry(geoData); gj != nil {
+					applyCubeTextures(gj, 0) // WalkDir 命中第 1 个，texSlot=0 与原 L428 同口径
+					found = gj
+				}
+			}
+		}
+		return nil
+	})
+	if found != nil {
+		return found
+	}
+	// 兜底 4：bare geometry 元素（looksLikeGeometry 特征命中）
+	if looksLikeGeometry(data) {
+		wrapped := append([]byte(`{"format_version":"1.12.0","minecraft:geometry":[`), data...)
+		wrapped = append(wrapped, ']', '}')
+		return geometry.ParseBedrockGeometry(wrapped)
+	}
+	return nil
+}
+
+// sortTexFilesByOrder 按 ysm.json texOrder 声明序重排 texFiles（声明的排前面；未声明的按原遍历序放后面）。
+// 原 FindGeometry L469-482 内联 14 行。升格后若第 4 刀要按声明序排序组件纹理也可复用。
+func sortTexFilesByOrder(texFiles []texFile, texOrderNames []string) {
+	if len(texOrderNames) == 0 {
+		return
+	}
+	orderMap := make(map[string]int, len(texOrderNames))
+	for i, n := range texOrderNames {
+		orderMap[n] = i
+	}
+	sort.SliceStable(texFiles, func(i, j int) bool {
+		oi, hasI := orderMap[texFiles[i].name]
+		oj, hasJ := orderMap[texFiles[j].name]
+		if hasI && hasJ {
+			return oi < oj
+		}
+		return hasI
+	})
+}
+
+// readTexFilesWithNames 读取 texFiles 对应的原始字节，同时产出纹理名（小写去扩展名）。
+// 原 FindGeometry L484-496 内联 13 行：逐文件 readFileLimited、长度为 0 跳、3 种扩展名依次剥。
+// 第 4 刀若直接消费字节数组或前端纹理名数组可直接复用。
+func readTexFilesWithNames(texFiles []texFile) ([][]byte, []string) {
+	var texData [][]byte
+	var texNames []string
+	for _, tf := range texFiles {
+		b := readFileLimited(tf.path)
+		if len(b) > 0 {
+			bn := tf.name
+			bn = strings.TrimSuffix(bn, ".png")
+			bn = strings.TrimSuffix(bn, ".jpg")
+			bn = strings.TrimSuffix(bn, ".tga")
+			texData = append(texData, b)
+			texNames = append(texNames, bn)
+		}
+	}
+	return texData, texNames
+}
+
+// collectAllTexFiles 合并「collectTextureFiles 递归 textures/ + textures/ 为空时 ysm 同级目录兜底
+// （只读一层）」两阶段。原 FindGeometry L452-467 内联 16 行；统一口径避免两路径漂移。
+func collectAllTexFiles(dir string) []texFile {
+	texDir := filepath.Join(dir, "textures")
+	files := collectTextureFiles(texDir)
+	if len(files) > 0 {
+		return files
+	}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(e.Name()))
+		if ext == ".png" || ext == ".jpg" {
+			files = append(files, texFile{
+				path: filepath.Join(dir, e.Name()),
+				name: strings.ToLower(e.Name()),
+			})
+		}
+	}
+	return files
+}
+
 // FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理
 // ysmJsonPath: ysm.json 的完整路径
 // 返回: 合并后的 BedrockModel（不含纹理 base64），纹理原始字节
@@ -275,27 +473,22 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 	if data == nil {
 		return nil, nil
 	}
+	dir := filepath.Dir(ysmJsonPath)
 
-	// 解析 ysm.json 找 model 文件名 + 纹理顺序（parsePlayerModel 统一解析；
-	// 纹理裁剪规范化复刻现状口径：obj 切 '/\\'、裸字符串仅切 '/'——两消费方口径
-	// 不同，规范化留消费方，勿强改归一）
+	// 阶段 ①：parsePlayerModel 统一解析 ysm.json；消费方各自切纹理路径（复刻现状口径：
+	// obj 切 '/\\'、裸字符串仅切 '/'）——两消费方口径不同，规范化留消费方
 	var modelNames []string
 	var modelMapOrig map[string]string
-	var texOrderNames []string // ysm.json 规定的纹理顺序（文件名）
+	var texOrderNames []string
 	if pm := parsePlayerModel(data); pm != nil {
 		modelNames = pm.names
 		modelMapOrig = pm.mapOrig
 		for _, d := range pm.texDecl {
 			tn := d.value
-			if d.isStr {
-				// 裸字符串分支（现状仅切 '/'）
-				if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-					tn = tn[idx+1:]
-				}
-			} else {
-				if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-					tn = tn[idx+1:]
-				}
+			if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+				tn = tn[idx+1:]
+			}
+			if !d.isStr { // obj 风格再额外切反斜杠；裸字符串仅斜杠
 				if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
 					tn = tn[idx+1:]
 				}
@@ -304,29 +497,11 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 		}
 	}
 
-	var geoJSON *types.BedrockModel
-	dir := filepath.Dir(ysmJsonPath)
-
-	// 加载全部模型文件（main 排首位 texIdx=0），但排除第一人称手臂模型 arm.json：
-	// arm 是第一人称手持视角的独立手臂几何（pivot 与 main 的手臂不同），
-	// 合并版在全身第三人称预览中不需要此几何，剔除避免错位。
-	// 详见 isArmModelName 注释的权威来源。
+	// 阶段 ②：构造 orderedNames。map 分支 → sortMapModelNames(排除 arm)；
+	// array 分支 → 按 modelNames 声明序逐个排除 arm（保持顺序，array 分支未排序）。
 	var orderedNames []string
 	if modelMapOrig != nil {
-		if mainPath, ok := modelMapOrig["main"]; ok {
-			orderedNames = append(orderedNames, mainPath)
-		}
-		// 排序非 main 键，确保遍历顺序确定性（ADR-039 P3：map 遍历随机 → texSlot 漂移）
-		var otherKeys []string
-		for k := range modelMapOrig {
-			if k != "main" && !isArmModelName(modelMapOrig[k]) {
-				otherKeys = append(otherKeys, k)
-			}
-		}
-		sort.Strings(otherKeys)
-		for _, k := range otherKeys {
-			orderedNames = append(orderedNames, modelMapOrig[k])
-		}
+		orderedNames = sortMapModelNames(modelMapOrig, true) // excludeArm: 全身合并版去手臂
 	} else {
 		for _, n := range modelNames {
 			if !isArmModelName(n) {
@@ -334,167 +509,46 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 			}
 		}
 	}
+
+	// 阶段 ③：按有序名加载模型文件 → 合并骨骼；TexSlot = 序 i，钳到 len(texOrder)-1
+	var geoJSON *types.BedrockModel
 	maxTexIdx := len(texOrderNames) - 1
 	if maxTexIdx < 0 {
 		maxTexIdx = 0
 	}
 	for i, mn := range orderedNames {
-		for _, sub := range []string{"", "models/", "models\\"} {
-			candidate := filepath.Join(dir, sub, mn)
-			// 路径穿越防护——确保拼接后的 candidate 仍在 ysm.json 所在目录内
-			candidate = filepath.Clean(candidate)
-			cleanDir := filepath.Clean(dir)
-			if !strings.HasPrefix(candidate, cleanDir+string(filepath.Separator)) && candidate != cleanDir {
-				log.Printf("[ysm] 拒绝路径越界模型文件: %q (期望在 %q 内)", candidate, cleanDir)
-				continue
-			}
-			if _, err := os.Stat(candidate); err == nil {
-				ti := i
-				if ti > maxTexIdx {
-					ti = maxTexIdx
+		candidate, ok := safeJoinModelPath(dir, mn)
+		if !ok {
+			continue
+		}
+		ti := i
+		if ti > maxTexIdx {
+			ti = maxTexIdx
+		}
+		log.Printf("[ysm] 加载模型文件 %q (texIdx=%d)", candidate, ti)
+		if geoData := readFileLimited(candidate); geoData != nil {
+			if gj := geometry.ParseBedrockGeometry(geoData); gj != nil {
+				applyCubeTextures(gj, ti)
+				if geoJSON == nil {
+					geoJSON = gj
+				} else {
+					geoJSON.Bones = append(geoJSON.Bones, gj.Bones...)
+					geoJSON.BoneCount += gj.BoneCount
+					geoJSON.CubeCount += gj.CubeCount
 				}
-				log.Printf("[ysm] 加载模型文件 %q (texIdx=%d)", candidate, ti)
-				geoData := readFileLimited(candidate)
-				if geoData != nil {
-					gj := geometry.ParseBedrockGeometry(geoData)
-					if gj != nil {
-						for bi := range gj.Bones {
-							for ci := range gj.Bones[bi].Cubes {
-								gj.Bones[bi].Cubes[ci].TexSlot = ti
-								gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
-								gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
-							}
-						}
-						if geoJSON == nil {
-							geoJSON = gj
-						} else {
-							geoJSON.Bones = append(geoJSON.Bones, gj.Bones...)
-							geoJSON.BoneCount += gj.BoneCount
-							geoJSON.CubeCount += gj.CubeCount
-						}
-					}
-				}
-				break
 			}
 		}
 	}
 
-	// 兜底：尝试解析 ysm.json 自身（可能包含 minecraft.geometry）
+	// 阶段 ④：4 层兜底链（ysm 自身解析 / minecraft:geometry 包装 / WalkDir / bare fallback）
 	if geoJSON == nil {
-		geoJSON = geometry.ParseBedrockGeometry(data)
-	}
-	if geoJSON == nil {
-		var root struct {
-			Minecraft struct {
-				Geometry []json.RawMessage `json:"geometry"`
-			} `json:"minecraft"`
-		}
-		if err := json.Unmarshal(data, &root); err == nil && len(root.Minecraft.Geometry) > 0 {
-			wrapped := append([]byte(`{"format_version":"1.12.0","minecraft:geometry":[`), root.Minecraft.Geometry[0]...)
-			wrapped = append(wrapped, ']', '}')
-			geoJSON = geometry.ParseBedrockGeometry(wrapped)
-		}
+		geoJSON = resolveBedrockGeometryFallback(data, ysmJsonPath, dir)
 	}
 
-	// 递归搜索子目录（排除 animations/controller/avatar），限制深度 10 层
-	if geoJSON == nil {
-		excludeDirs := map[string]bool{"animations": true, "controller": true, "avatar": true}
-		filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				log.Printf("[ysm] WalkDir 错误 (忽略): %v", err)
-				return nil
-			}
-			if geoJSON != nil {
-				return filepath.SkipAll
-			}
-			if d.IsDir() {
-				if excludeDirs[strings.ToLower(d.Name())] {
-					return filepath.SkipDir
-				}
-				// 用 filepath.Rel 计算深度，避免闭包变量递减问题
-				rel, relErr := filepath.Rel(dir, path)
-				if relErr == nil && strings.Count(rel, string(filepath.Separator)) > 10 {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if strings.EqualFold(path, ysmJsonPath) {
-				return nil
-			}
-			if strings.HasSuffix(strings.ToLower(path), ".json") {
-				geoData := readFileLimited(path)
-				if geoData != nil {
-					if gj := geometry.ParseBedrockGeometry(geoData); gj != nil {
-						for bi := range gj.Bones {
-							for ci := range gj.Bones[bi].Cubes {
-								gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
-								gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
-							}
-						}
-						geoJSON = gj
-					}
-				}
-			}
-			return nil
-		})
-	}
-
-	// 裸 geometry 元素兜底：仅当 ysm.json 本身疑似几何 JSON（含 geometry 元素特征键）
-	// 才包裹解析——任意合法 JSON（如 {"files":{...}}）包裹后会被解析为
-	// 非 nil 的零骨骼模型，与「未找到几何」无法区分（子代理审计 P 级发现）
-	if geoJSON == nil && looksLikeGeometry(data) {
-		wrapped := append([]byte(`{"format_version":"1.12.0","minecraft:geometry":[`), data...)
-		wrapped = append(wrapped, ']', '}')
-		geoJSON = geometry.ParseBedrockGeometry(wrapped)
-	}
-
-	// 搜索纹理（collectTextureFiles 递归遍历 textures/ 下所有子目录，排除 gui/）
-	var texData [][]byte
-	texDir := filepath.Join(dir, "textures")
-	texFiles := collectTextureFiles(texDir)
-	// 也搜索同目录纹理（保持现状兜底：只扫 ysm.json 所在目录一层，收 .png/.jpg）
-	if len(texFiles) == 0 {
-		entries, _ := os.ReadDir(dir)
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
-			}
-			ext := strings.ToLower(filepath.Ext(e.Name()))
-			if ext == ".png" || ext == ".jpg" {
-				texFiles = append(texFiles, texFile{path: filepath.Join(dir, e.Name()), name: strings.ToLower(e.Name())})
-			}
-		}
-	}
-	// 按 ysm.json 纹理顺序排序
-	if len(texOrderNames) > 0 {
-		orderMap := make(map[string]int, len(texOrderNames))
-		for i, n := range texOrderNames {
-			orderMap[n] = i
-		}
-		sort.SliceStable(texFiles, func(i, j int) bool {
-			oi, hasI := orderMap[texFiles[i].name]
-			oj, hasJ := orderMap[texFiles[j].name]
-			if hasI && hasJ {
-				return oi < oj
-			}
-			return hasI
-		})
-	}
-	// 读取纹理数据
-	var texNames []string
-	for _, tf := range texFiles {
-		texBytes := readFileLimited(tf.path)
-		if len(texBytes) > 0 {
-			texData = append(texData, texBytes)
-			// 去扩展名后作为纹理名（与 texData 同序）
-			bn := tf.name
-			bn = strings.TrimSuffix(bn, ".png")
-			bn = strings.TrimSuffix(bn, ".jpg")
-			bn = strings.TrimSuffix(bn, ".tga")
-			texNames = append(texNames, bn)
-		}
-	}
-	// 纹理名与 texData 同序，供前端纹理列表显示
+	// 阶段 ⑤：纹理收集 → 声明序重排 → 读数据 → 附 TextureNames（前端列表消费）
+	texFiles := collectAllTexFiles(dir)
+	sortTexFilesByOrder(texFiles, texOrderNames)
+	texData, texNames := readTexFilesWithNames(texFiles)
 	if geoJSON != nil {
 		geoJSON.TextureNames = texNames
 	}
