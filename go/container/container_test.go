@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -265,5 +266,58 @@ func TestOpenDir_NestedDirAndRead(t *testing.T) {
 	// UncompressedSize64 = FileInfo.Size 绝对值（目录型返回 0 或负值不应出现）
 	if got := byName["root.txt"].UncompressedSize64(); got != 4 {
 		t.Errorf("root.txt UncompressedSize64 = %d, 期望 4", got)
+	}
+}
+
+func TestOpenDir_NotExist(t *testing.T) {
+	// openDir 根目录预检：不存在的路径应报错而非静默返回空容器
+	if _, err := OpenDir(t.TempDir() + "/nope"); err == nil {
+		t.Error("不存在的目录应报错")
+	}
+}
+
+// ===== ZipMatchesEntries 表驱动直测（此前仅被 types.ZipEntry 检测器间接覆盖）=====
+
+func TestZipMatchesEntries(t *testing.T) {
+	dir := t.TempDir()
+	zipData := makeTestZip(t, map[string]string{
+		"Models/A.JSON": "{}", // 大小写混合条目；match 接收小写名（与 MatchZipEntry 口径一致）
+	})
+	pZip := dir + "/pkg.zip"
+	if err := os.WriteFile(pZip, zipData, 0644); err != nil {
+		t.Fatal(err)
+	}
+	pDisabled := dir + "/pkg.zip.disabled"
+	if err := os.WriteFile(pDisabled, zipData, 0644); err != nil {
+		t.Fatal(err)
+	}
+	pBad := dir + "/bad.zip"
+	if err := writeFile(pBad, "not a zip"); err != nil {
+		t.Fatal(err)
+	}
+	pFake7z := dir + "/fake.7z"
+	if err := os.WriteFile(pFake7z, zipData, 0644); err != nil {
+		t.Fatal(err)
+	}
+	matchA := func(string) bool { return true }
+
+	cases := []struct {
+		name  string
+		path  string
+		match func(string) bool
+		want  bool
+	}{
+		{"命中条目（小写匹配）", pZip, func(n string) bool { return n == "models/a.json" }, true},
+		{"未命中", pZip, func(n string) bool { return n == "ysm.json" }, false},
+		{"条目名小写化后前缀匹配", pZip, func(n string) bool { return strings.HasPrefix(n, "models/") }, true},
+		{"禁用后缀仍按 zip 枚举", pDisabled, matchA, true},
+		{"非 zip 扩展直接拒绝", pFake7z, matchA, false},
+		{"损坏 zip 安全排除", pBad, matchA, false},
+		{"路径不存在安全排除", dir + "/ghost.zip", matchA, false},
+	}
+	for _, tc := range cases {
+		if got := ZipMatchesEntries(tc.path, tc.match); got != tc.want {
+			t.Errorf("%s: ZipMatchesEntries(%s) = %v, 期望 %v", tc.name, tc.path, got, tc.want)
+		}
 	}
 }

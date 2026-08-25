@@ -34,6 +34,9 @@ type Entry interface {
 type Reader interface {
 	Entries() []Entry
 	Close() error
+	// Incomplete 枚举是否不完整：目录容器遍历遇错（子树权限不足等）时 true，
+	// zip/7z 打开即全量恒 false。打开成功不代表条目全量，调用方可选查询提示。
+	Incomplete() bool
 }
 
 // ---------------------------------------------------------------------------
@@ -72,6 +75,8 @@ func (c *zipContainer) Close() error {
 	return nil
 }
 
+func (c *zipContainer) Incomplete() bool { return false }
+
 // ---------------------------------------------------------------------------
 // 7z 容器
 
@@ -104,6 +109,8 @@ func (c *sevenzipContainer) Close() error {
 	return nil
 }
 
+func (c *sevenzipContainer) Incomplete() bool { return false }
+
 // ---------------------------------------------------------------------------
 // 目录容器（已解压格式：ReadPackMeta/ReadShaderpackLang 的 dir 分支可迁移）
 
@@ -119,8 +126,12 @@ func (e dirEntry) UncompressedSize64() uint64 {
 	if e.info == nil {
 		return 0
 	}
-	s := uint64(e.info.Size())
-	return s
+	// 负 Size（异常文件系统/符号链接循环等）取绝对值，避免 uint64 直转变天文数字
+	s := e.info.Size()
+	if s < 0 {
+		s = -s
+	}
+	return uint64(s)
 }
 func (e dirEntry) Open() (io.ReadCloser, error) {
 	return os.Open(e.path)
@@ -166,7 +177,7 @@ func Open(path string) (Reader, error) {
 func OpenZipPath(path string) (Reader, error) {
 	rc, err := zip.OpenReader(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("container: 打开 zip %s: %w", path, err)
 	}
 	return &zipContainer{rc: rc}, nil
 }
@@ -175,7 +186,7 @@ func OpenZipPath(path string) (Reader, error) {
 func OpenZipBytes(data []byte, size int64) (Reader, error) {
 	r, err := zip.NewReader(bytes.NewReader(data), size)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("container: 解析 zip 字节流: %w", err)
 	}
 	return &zipContainer{r: r}, nil
 }
@@ -184,7 +195,7 @@ func OpenZipBytes(data []byte, size int64) (Reader, error) {
 func Open7zPath(path string) (Reader, error) {
 	rc, err := sevenzip.OpenReader(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("container: 打开 7z %s: %w", path, err)
 	}
 	return &sevenzipContainer{r: &rc.Reader, rc: rc}, nil
 }
@@ -193,17 +204,29 @@ func Open7zPath(path string) (Reader, error) {
 func Open7zBytes(data []byte, size int64) (Reader, error) {
 	r, err := sevenzip.NewReader(bytes.NewReader(data), size)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("container: 解析 7z 字节流: %w", err)
 	}
 	return &sevenzipContainer{r: r}, nil
 }
 
 // openDir 目录容器：WalkDir 收集相对路径条目（正斜杠）。
+// 遍历中途的错误（子树权限不足等）不中断枚举，但记入 walkErr——
+// 打开成功 ≠ 条目全量，调用方可经 Reader.Incomplete() 感知缺席。
 func openDir(root string) (Reader, error) {
 	rootAbs := filepath.Clean(root)
+	if _, serr := os.Stat(rootAbs); serr != nil {
+		return nil, fmt.Errorf("container: 打开目录 %s: %w", rootAbs, serr)
+	}
 	var entries []Entry
+	var walkErr error // 首个遍历错误；非 nil 即枚举不完整
+	record := func(err error) {
+		if walkErr == nil {
+			walkErr = err
+		}
+	}
 	err := filepath.WalkDir(rootAbs, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
+			record(fmt.Errorf("walk %s: %w", p, err))
 			return nil
 		}
 		if p == rootAbs {
@@ -211,10 +234,12 @@ func openDir(root string) (Reader, error) {
 		}
 		rel, rerr := filepath.Rel(rootAbs, p)
 		if rerr != nil {
+			record(fmt.Errorf("rel %s: %w", p, rerr))
 			return nil
 		}
 		info, ierr := d.Info()
 		if ierr != nil {
+			record(fmt.Errorf("info %s: %w", p, ierr))
 			return nil
 		}
 		entries = append(entries, dirEntry{
@@ -227,16 +252,18 @@ func openDir(root string) (Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &dirContainer{root: rootAbs, entries: entries}, nil
+	return &dirContainer{root: rootAbs, entries: entries, walkErr: walkErr}, nil
 }
 
 type dirContainer struct {
 	root    string
 	entries []Entry
+	walkErr error
 }
 
 func (c *dirContainer) Entries() []Entry { return c.entries }
 func (c *dirContainer) Close() error     { return nil }
+func (c *dirContainer) Incomplete() bool { return c.walkErr != nil }
 
 // OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。
 func OpenDir(root string) (Reader, error) {
