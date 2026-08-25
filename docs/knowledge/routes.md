@@ -13,7 +13,7 @@
 |---|---|---|
 | Android、存储授权、目录选择、MANAGE_EXTERNAL_STORAGE、权限、选择目录、SAF、android-bridge、pickDirectory | [Android 桥接层：存储授权 + 目录选择器](./android-bridge.md) | Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 WebView，桌面端无此桥返回 `null`）与跨平台目录选择器。解决 Android 上 Wails 官方**拒绝目录选择**（… |
 | android:back、返回键、弹窗、退出、系统事件、ScreenLocked、NetworkChanged、permissionGranted、closeActiveDialog、registerAndroidEvents | [Android 系统事件消费（back/网络/存储授权）](./android-events.md) | 前端消费 Java 层经 Wails 事件总线转发的 `android:*` 系统事件（ADR-046 P2，参照 MikuMikuAR ADR-017 A3-04）。桌面端无 Java 层，这些事件永不触发，注册无害。生命周期由 `reg… |
-| 动画、骨骼动画、关键帧、动画播放、Molang、数字滚动、stagger 入场、关闭动画 | [动画系统 animation](./animation-system.md) | 前端动画体系分两层：**模型骨骼动画**（基岩版 animation.json 解析 + 关键帧插值求值）与 **UI 动效**（数字里程表滚动、stagger 入场延迟）。UI 层的 CSS 动画可被全局 `no-animations` … |
+| 动画、骨骼动画、关键帧、动画播放、Molang、数字滚动、stagger 入场、关闭动画、状态机、动画控制器、AnimationController | [动画系统 animation](./animation-system.md) | 前端动画体系分两层：**模型骨骼动画**（基岩版 animation.json 解析 + 关键帧插值求值）与 **UI 动效**（数字里程表滚动、stagger 入场延迟）。UI 层的 CSS 动画可被全局 `no-animations` … |
 | 主内容区、页面切换、nav:change、仓库页、诊断页、设置页、创作者频道、创意工坊、全局 handler | [主内容页 app-content](./app-content.md) | `app-content` 是应用的主内容区组件（Shadow DOM + adoptedStyleSheets），承载 6 个页面：模型仓库（repository）、整合包管理（instances）、创作者频道（workshop）、创意工… |
 | 组件入口、模块装配、启动流程、主题初始化、服务注册、检查更新、import 组件、新组件注册、窗口显示、startup reveal | [组件入口 app-modules](./app-modules.md) | `app-modules.ts` 是前端所有 ES module 组件的统一装配入口：注册可替换服务、按「轻量静态 + 重量级动态」策略导入全部 Web Components、注册右键菜单映射、初始化主题与 UI 偏好、静默检查更新。新增组… |
 | 预览、模型预览、2D 骨骼、3D 预览、Litematic、蓝图、缩略图、WASM 解码、放大预览 | [预览面板 app-preview](./app-preview.md) | `app-preview` 是仓库页右侧的预览面板组件（Shadow DOM），负责 YSM 模型的详情/2D 骨骼/3D 预览、Litematic 蓝图 3D 预览、资源包与光影包信息展示。它按 `model:select` 事件驱动，解… |
@@ -71,6 +71,7 @@
 | 回收站、恢复文件、清空回收站、软删除、recycle、还原 | [回收站界面 recycle-bin](./recycle-bin.md) | `recycle-bin.ts` 实现仓库页「回收站」tab 的界面逻辑：列出 `.recycle` 中属于当前资源类型的已删除条目，提供单条恢复/永久删除、一键清空。由 app-content 首次切到 recycle tab 时懒加载调… |
 | 资源包、光影包、蓝图、投影、resourcepack、shaderpack、资源管理 | [资源包功能 resource-packs](./resource-packs.md) | **已删除（2026-08-18）**。原 `frontend/src/features/resource-packs.ts` 是一个薄 wrapper，把仓库页的各类资源包 tab 统一委托给 `<app-resource-manager… |
 | 资源类型、注册表、resource_types、registry、文件类型 | [资源注册表 registry](./resource-registry.md) | `resource_types.json` 是 YSM 资源类型定义的单一事实来源（Single Source of Truth）。所有资源类型、子目录、扩展名的定义均以此处为准。 |
+| Android、Linux、macOS、rust_backend、CGO | [Rust Scanner Bridge 全平台支持](./rust-android-bridge.md) | — |
 | Rust 扫描器、rust_backend、桥 DLL、Wails 后端迁移 Rust | [Rust 桥 rustbridge](./rustbridge.md) | — |
 | 场景能力 / cap / registry / SceneCapability、3D 菜单控件声明式渲染（getMenuControls）、新增 3D 能力（雾/阴影/反射/环境/灯光/后处理）、3D 会话生命周期（createAll / loadAll / setPreset / saveAll / dispose）、「光」指代消歧（light 是光源，fog/shadow/reflector 不是） | [场景能力注册表 scene-capability-registry](./scene_capability_registry.md) | ADR-073 扩展落地的**场景能力注册表**：所有场景能力（Sky / Ground / Environment / Fog / Shadow / Reflector / Light / Postprocessing）由统一注册表**创… |
 | 测试工具、testid、getByTestId、waitFor、组件测试、mock、G-1 | [测试工具 test-utils（G-1 抗脆弱测试基础设施）](./test-utils.md) | `frontend/src/test-utils/` 是组件测试统一工具层（ADR-035 G-1 / Design.md §19.1）。查询走 `data-testid` 稳定钩子（不绑定 CSS 类/文案），等待走轮询（替代固定 sle… |

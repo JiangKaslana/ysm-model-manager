@@ -212,7 +212,7 @@
 
 | 标识 | 名称 | tier | 性能 | 关键词 |
 |------|------|------|------|--------|
-| 🏗 animation-system | 动画系统 animation | architecture | cpu-bound | 动画, 骨骼动画, 关键帧, 动画播放, Molang, 数字滚动, stagger 入场, 关闭动画 |
+| 🏗 animation-system | 动画系统 animation | architecture | cpu-bound | 动画, 骨骼动画, 关键帧, 动画播放, Molang, 数字滚动, stagger 入场, 关闭动画, 状态机, 动画控制器, AnimationController |
 | 🍃 bone-tools | 跨格式骨骼工具层 bone-tools | leaf | — | 骨骼工具, 骨骼树, 骨骼列表, 骨骼拾取, 骨骼显隐, BoneNode, BoneTree, buildBoneTree, makeBonePanelRenderer |
 | 🏗 core_utils | 核心工具函数 core-utils | architecture | — | 工具函数, 工具方法, 纯函数, 防抖, 深拷贝, 类型守卫, 格式化, UUID, 响应式, 键盘导航, 虚拟网格, 数学计算, 路径工具 |
 | 🍃 dom-storage | localStorage 安全读写 safeGet/safeSet | leaf | — | localStorage, 隐私模式, safeGet, safeSet, storage |

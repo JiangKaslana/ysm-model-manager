@@ -57,11 +57,24 @@ if (typeof window !== "undefined") {
 // 启动初始化
 (async () => {
  try {
-  registerErrorDiary();
+  try {
+    registerErrorDiary();
+  } catch (e) {
+    console.warn("[error-diary] 错误日志注册失败:", e);
+  }
   // ADR-079 M1：网页版注册 COI Service Worker（补 COOP/COEP → crossOriginIsolated，
   // 为 pthread WASM 铺路；渐进增强，失败静默降级单线程）
   registerCoiServiceWorker();
-  await initI18n();
+  try {
+    await initI18n();
+  } catch (e) {
+    console.warn("[i18n] 初始化失败，界面将缺翻译:", e);
+    bus.emit("toast:show", {
+      msg: "⚠️ " + friendlyError(e, "语言资源加载失败"),
+      duration: 5000,
+      type: "error",
+    });
+  }
   try {
     await import("./views/app-nav/index.ts");
   } catch (e) {
@@ -82,7 +95,11 @@ if (typeof window !== "undefined") {
       type: "error",
     });
   }
-  applyUIPrefs();
+  try {
+    applyUIPrefs();
+  } catch (e) {
+    console.warn("[ui-prefs] 界面偏好应用失败:", e);
+  }
   checkUpdateSilent().catch((e) => console.warn("[updater] 静默检查失败:", e));
   // ADR-101 方向 A：Three.js 模块预加载（非阻塞，省掉首次 3D 预览 ~105ms 脚本编译）
   import("three").catch((e) => console.warn("[preload] three 预加载失败:", e));

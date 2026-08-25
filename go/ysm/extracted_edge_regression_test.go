@@ -1,10 +1,11 @@
-// 边角回归：texture 声明规范化口径的黑盒守护。
+// 边角回归：texture 声明规范化口径 + pngNameMap 收集范围的黑盒守护。
 // 现状两个消费方对 player.texture 的规范化各有一套（extracted.go 重复解析）：
 //   - Geometry 版带扩展名（orderMap 键）、Components 版去扩展名（前端 R1 校验）——
 //     两者自洽，抽公共函数时不得强改任一。
 //
-// 本文件先锁「Components 正确处理反斜杠路径」为现状绿守卫（防未来消费者侧退化成只切 '/'）；
-// \\ 裸路径 / .tga / 子目录同名纹理这三个现状红 case 随 commit B 行为修正一起落地。
+// commit A：抽 parsePlayerModel 后照样各留规范化（反斜杠裸路径守卫在本文件）。
+// commit B：pngNameMap 由单层只认 .png 扩为公共递归 collectTextureFiles（含 gui 排除、
+// .png/.jpg/.tga），子目录同名纹理 / .tga 同名纹理两红 case 在下方锁定后修复。
 package ysm
 
 import (
