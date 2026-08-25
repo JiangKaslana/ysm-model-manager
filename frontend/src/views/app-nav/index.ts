@@ -11,6 +11,105 @@ import { RESOURCE_TYPES, GROUP_META, GROUP_OF, GROUP_TYPE_OPTIONS, type GroupTyp
 import { shortLabelOf } from "../../utils/resource/short-label.ts";
 import { navCSS } from "./tpl.ts";
 
+function anBindNavItems(shadowRoot: ShadowRoot, focusRepoSearch: () => void): void {
+  const navItems = Array.from(shadowRoot.querySelectorAll<HTMLElement>(".nav-item"));
+  navItems.forEach((el) => {
+    const activate = (): void => {
+      const page = el.dataset.page as PageName;
+      safeSet("nav_page", page);
+      bus.emit("nav:changed", { page });
+      if (page === "repository") {
+        queueMicrotask(() => focusRepoSearch());
+      }
+    };
+    el.onclick = activate;
+    el.addEventListener("keydown", (e) => {
+      const idx = navItems.indexOf(el);
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const next = e.key === "ArrowDown"
+          ? (idx + 1) % navItems.length
+          : (idx - 1 + navItems.length) % navItems.length;
+        navItems[next].focus();
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        activate();
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        navItems[0].focus();
+      } else if (e.key === "End") {
+        e.preventDefault();
+        navItems[navItems.length - 1].focus();
+      }
+    });
+  });
+}
+
+function anBindDualSelects(shadowRoot: ShadowRoot): void {
+  const groupSel = shadowRoot.querySelector<HTMLSelectElement>("#nav-group-select");
+  const subtypeSel = shadowRoot.querySelector<HTMLSelectElement>("#nav-subtype-select");
+  if (groupSel && subtypeSel) {
+    const groups = Object.entries(GROUP_META)
+      .sort((a, b) => a[1].order - b[1].order)
+      .map(([gid, meta]) => ({ gid, label: meta.icon + " " + meta.name }));
+    groupSel.innerHTML = groups
+      .map((g) => `<option value="${g.gid}">${g.label}</option>`)
+      .join("");
+
+    const buildSubtypeOptions = (group: string): GroupTypeOption[] =>
+      (GROUP_TYPE_OPTIONS[group] || []).map((o) => ({
+        label: o.label,
+        rtype: o.rtype,
+        subdir: o.subdir,
+      }));
+    const fillSubtypes = (group: string): void => {
+      const opts = buildSubtypeOptions(group);
+      subtypeSel.innerHTML = opts
+        .map((o, i) => `<option value="${i}" data-rtype="${o.rtype}" data-subdir="${o.subdir}">${o.label}</option>`)
+        .join("");
+      const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+      const savedSubdir = safeGet("repo_subdir") || "";
+      let idx = opts.findIndex((o) => o.rtype === savedRtype && o.subdir === savedSubdir);
+      if (idx < 0) idx = 0;
+      subtypeSel.selectedIndex = idx;
+    };
+    const apply = (): void => {
+      const opts = buildSubtypeOptions(groupSel.value);
+      const sel = opts[Number(subtypeSel.value)] || opts[0];
+      if (!sel) return;
+      try { safeSet("repo_rtype", sel.rtype); safeSet("repo_subdir", sel.subdir); } catch { /* 非关键路径 */ }
+      bus.emit("repo:rtype-changed", sel.rtype);
+      bus.emit("repo:subdir-changed", sel.subdir);
+    };
+    groupSel.addEventListener("change", () => { fillSubtypes(groupSel.value); apply(); });
+    subtypeSel.addEventListener("change", apply);
+
+    const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+    const savedGroup = GROUP_OF[savedRtype] || groups[0]?.gid || "";
+    groupSel.value = groups.some((g) => g.gid === savedGroup) ? savedGroup : (groups[0]?.gid || "");
+    fillSubtypes(groupSel.value);
+  }
+}
+
+function anBindViewerFab(shadowRoot: ShadowRoot, viewerFabClick: () => Promise<void>): void {
+  const fab = shadowRoot.querySelector<HTMLElement>(".nav-viewer-fab");
+  if (fab) {
+    const handler = (): void => {
+      void viewerFabClick().catch((e) => {
+        console.error("[app-nav] 打开 3D 失败:", e);
+        bus.emit("toast:show", { msg: "❌ 打开 3D 失败", duration: 3000, type: "error" });
+      });
+    };
+    fab.addEventListener("click", handler);
+    fab.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handler();
+      }
+    });
+  }
+}
+
 class AppNav extends WebComponentBase {
   _current: string;
   /** 导航折叠态：折叠后收成常驻窄条（仅图标），展开按钮/页面小图标始终可见 */
@@ -131,112 +230,14 @@ class AppNav extends WebComponentBase {
       <div class="version" id="nav-version">${t("common.loading")}</div>
     `;
 
-    const navItems = Array.from(this.shadowRoot!.querySelectorAll<HTMLElement>(".nav-item"));
-    navItems.forEach((el) => {
-      const activate = (): void => {
-        const page = el.dataset.page as PageName;
-        safeSet("nav_page", page);
-        bus.emit("nav:changed", { page });
-        // 切到仓库页时，将焦点传递到内容区搜索框（app-content 渲染完成后）
-        if (page === "repository") {
-          queueMicrotask(() => this._focusRepoSearch());
-        }
-      };
-      el.onclick = activate;
-      el.addEventListener("keydown", (e) => {
-        const idx = navItems.indexOf(el);
-        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-          e.preventDefault();
-          const next = e.key === "ArrowDown"
-            ? (idx + 1) % navItems.length
-            : (idx - 1 + navItems.length) % navItems.length;
-          navItems[next].focus();
-        } else if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          activate();
-        } else if (e.key === "Home") {
-          e.preventDefault();
-          navItems[0].focus();
-        } else if (e.key === "End") {
-          e.preventDefault();
-          navItems[navItems.length - 1].focus();
-        }
-      });
-    });
-
-    // —— 资源切换器：大类 + 子类型双下拉（ADR-092 派生，对齐仓库页旧 subtabs 逻辑）——
-    const groupSel = this.shadowRoot!.querySelector<HTMLSelectElement>("#nav-group-select");
-    const subtypeSel = this.shadowRoot!.querySelector<HTMLSelectElement>("#nav-subtype-select");
-    if (groupSel && subtypeSel) {
-      const groups = Object.entries(GROUP_META)
-        .sort((a, b) => a[1].order - b[1].order)
-        .map(([gid, meta]) => ({ gid, label: meta.icon + " " + meta.name }));
-      groupSel.innerHTML = groups
-        .map((g) => `<option value="${g.gid}">${g.label}</option>`)
-        .join("");
-
-      // 子类型选项：统一走 GROUP_TYPE_OPTIONS（从 resource_types.json 派生）——
-      // 各 MMD 类型（EntityPlayer/SceneModel/CustomAnim 等）现为独立顶级类型，
-      // 直接在所属 group 下平铺，不再通过 subtype 展开。
-      const buildSubtypeOptions = (group: string): GroupTypeOption[] =>
-        (GROUP_TYPE_OPTIONS[group] || []).map((o) => ({
-          label: o.label,
-          rtype: o.rtype,
-          subdir: o.subdir,
-        }));
-      const fillSubtypes = (group: string): void => {
-        const opts = buildSubtypeOptions(group);
-        subtypeSel.innerHTML = opts
-          .map((o, i) => `<option value="${i}" data-rtype="${o.rtype}" data-subdir="${o.subdir}">${o.label}</option>`)
-          .join("");
-        const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
-        const savedSubdir = safeGet("repo_subdir") || "";
-        let idx = opts.findIndex((o) => o.rtype === savedRtype && o.subdir === savedSubdir);
-        if (idx < 0) idx = 0;
-        subtypeSel.selectedIndex = idx;
-      };
-      const apply = (): void => {
-        const opts = buildSubtypeOptions(groupSel.value);
-        const sel = opts[Number(subtypeSel.value)] || opts[0];
-        if (!sel) return;
-        // localStorage 写入失败静默忽略（配额/隐私模式下的可接受降级，不阻断切换）
-        try { safeSet("repo_rtype", sel.rtype); safeSet("repo_subdir", sel.subdir); } catch { /* 非关键路径 */ }
-        bus.emit("repo:rtype-changed", sel.rtype);
-        // ADR-095 后续：子目录选择单独广播（sync 页按 subdir 过滤列表）；
-        // 平铺模式下 subdir 恒 ""（apply 时自然重置订阅方过滤）
-        bus.emit("repo:subdir-changed", sel.subdir);
-      };
-      groupSel.addEventListener("change", () => { fillSubtypes(groupSel.value); apply(); });
-      subtypeSel.addEventListener("change", apply);
-
-      // 初始化：按 localStorage 恢复大类（无匹配回退首个），再填充子类型
-      const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
-      const savedGroup = GROUP_OF[savedRtype] || groups[0]?.gid || "";
-      groupSel.value = groups.some((g) => g.gid === savedGroup) ? savedGroup : (groups[0]?.gid || "");
-      fillSubtypes(groupSel.value);
-    }
+    anBindNavItems(this.shadowRoot!, () => this._focusRepoSearch());
+    anBindDualSelects(this.shadowRoot!);
 
     // 折叠/展开：整个「🧭 导航栏」行可点击（label + 箭头统一触发，扩大点击范围）
     const head = this.shadowRoot!.querySelector(".menu-head");
     head?.addEventListener("click", () => this.setCollapsed(!this._collapsed));
 
-    // 左下角 3D 一键跳转：取上次选中模型直开全屏 3D 预览器（复用文件树记住的 path，不内嵌第二套树）
-    const fab = this.shadowRoot!.querySelector<HTMLElement>(".nav-viewer-fab");
-    if (fab) {
-      const handler = (): void => {
-        void this._viewerFabClick().catch((e) => {
-          console.error("[app-nav] 打开 3D 失败:", e);
-          bus.emit("toast:show", { msg: "❌ 打开 3D 失败", duration: 3000, type: "error" });
-        });
-      };
-      fab.addEventListener("click", handler);
-      fab.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handler();
-        }
-      });
-    }
+    anBindViewerFab(this.shadowRoot!, () => this._viewerFabClick());
 
     // 异步加载版本号
     getApp()
