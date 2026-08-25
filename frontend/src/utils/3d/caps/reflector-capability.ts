@@ -74,6 +74,54 @@ type ReflectorShaderDef = {
 };
 const REFLECTOR_SHADER = (Reflector as typeof Reflector & { ReflectorShader: ReflectorShaderDef }).ReflectorShader;
 
+function rcBuildMain(cap: ReflectorCapability): MenuControlDef[] {
+  return [
+    {
+      id: "reflector-enabled",
+      kind: "toggle",
+      labelKey: "preview.reflector",
+      fallback: "反光地面",
+      getValue: () => cap.isEnabled(),
+      setValue: (v) => cap.setEnabled(v as boolean),
+    },
+  ];
+}
+
+function rcBuildAppearance(cap: ReflectorCapability): MenuControlDef[] {
+  return [
+    {
+      id: "reflector-opacity",
+      kind: "slider",
+      labelKey: "preview.reflectorOpacity",
+      fallback: "反射强度",
+      group: "preview.reflectorGroupParams",
+      slider: { min: 0, max: 1, step: 0.01 },
+      getValue: () => cap.getParams().opacity,
+      setValue: (v) => cap.setOpacity(v as number),
+    },
+    {
+      id: "reflector-resolution",
+      kind: "slider",
+      labelKey: "preview.reflectorResolution",
+      fallback: "反射精度",
+      group: "preview.reflectorGroupParams",
+      slider: { min: 256, max: 2048, step: 256 },
+      getValue: () => cap.getParams().resolution,
+      setValue: (v) => cap.setResolution(v as number),
+    },
+    {
+      id: "reflector-size",
+      kind: "slider",
+      labelKey: "preview.reflectorSize",
+      fallback: "地面大小",
+      group: "preview.reflectorGroupParams",
+      slider: { min: 20, max: 500, step: 10 },
+      getValue: () => cap.getParams().size,
+      setValue: (v) => cap.setSize(v as number),
+    },
+  ];
+}
+
 export class ReflectorCapability implements SceneCapability {
   readonly id = "reflector";
   readonly labelKey = "preview.reflector";
@@ -101,24 +149,8 @@ export class ReflectorCapability implements SceneCapability {
 
   /* -------- 内部：构造/销毁 Reflector -------- */
 
-  private buildReflector(): void {
-    this.disposeReflector();
-    if (!this.enabled) return;
-
-    const geometry = new THREE.PlaneGeometry(this.params.size, this.params.size);
-
-    // Reflector 需要渲染目标尺寸与 clipBias；
-    // opacity/tint：tint 用官方 color 参数（ReflectorShader 内 blendOverlay 原生混合），
-    // opacity 经官方 options.shader 扩展点注入 uOpacity（见下），避免 monkeypatch 材质后改 fragmentShader。
-
-    // ========== opacity 注入（官方 shader 扩展点，锚点精确 + 失败警告，不静默）==========
-    // r185 ReflectorShader 输出 alpha 恒 1.0（官方不支持透明度）；tint 由官方 color 参数
-    // 原生支持（blendOverlay 混合），无需注入。这里仅经 options.shader 注入 uOpacity 乘 alpha：
-    //   1. uniform 声明行后追加 uOpacity
-    //   2. gl_FragColor 的 alpha 1.0 → uOpacity
-    // 锚点取官方模板固定文本；three 升级若 shader 变更致不匹配，console.warn 显式暴露
-    // （不再静默失效），并回退官方 shader（反射仍工作，仅 opacity 无效）。
-    const officialFrag = REFLECTOR_SHADER.fragmentShader;
+  private injectOpacityIntoShader(options: { shader: ReflectorShaderDef }): boolean {
+    const officialFrag = options.shader.fragmentShader;
     const declAnchor = "uniform vec3 color;";
     const alphaAnchor = "gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );";
     const injectedFrag = officialFrag
@@ -127,33 +159,40 @@ export class ReflectorCapability implements SceneCapability {
     const injectedOk = injectedFrag !== officialFrag && injectedFrag.includes("uOpacity");
     if (!injectedOk) {
       console.warn("[reflector-cap] three ReflectorShader 锚点未匹配（three 升级？），opacity 注入失败，回退官方 shader");
+      return false;
     }
+    options.shader.fragmentShader = injectedFrag;
+    return true;
+  }
+
+  private createReflectorMesh(): Reflector | null {
+    const geometry = new THREE.PlaneGeometry(this.params.size, this.params.size);
+    const shader = { ...REFLECTOR_SHADER };
+    this.injectOpacityIntoShader({ shader });
 
     const reflector = new Reflector(geometry, {
       clipBias: this.params.clipBias,
       textureWidth: this.params.resolution,
       textureHeight: this.params.resolution,
       color: this.params.color,
-      shader: {
-        ...REFLECTOR_SHADER,
-        fragmentShader: injectedOk ? injectedFrag : officialFrag,
-      },
+      shader,
     });
-    reflector.position.y = this.params.groundY - 0.01; // 毫米级后移避开 shadow 地面
-    reflector.rotation.x = -Math.PI / 2; // PlaneGeometry 默认 xy 面，Reflector 构造时用 rotateX 也可，但 Reflector 期望 xy 面自己旋转
-    // Reflector 内部用 XY 平面（法线 +Z）做背面镜像投影；我们希望地面法线 +Y，所以必须对 Reflector group rotateX(-PI/2)
-    // 检查：THREE Reflector 在 onBeforeRender 中使用 mesh.matrixWorld 的三个列构建相机朝向，无论怎么旋转，mesh 的法线方向会被正确变换，
-    // 所以直接给 Reflector 设置 rotateX(-PI/2) 会正确把反射平面变到地面方向。
-
+    reflector.position.y = this.params.groundY - 0.01;
+    reflector.rotation.x = -Math.PI / 2;
     reflector.name = "ysm-reflector";
 
-    // opacity uniform（fragmentShader 已声明 uOpacity；tint 走官方 color uniform，无独立注入）
     const mat = reflector.material as THREE.ShaderMaterial;
     mat.transparent = true;
     mat.uniforms.uOpacity = { value: this.params.opacity };
 
-    this.reflector = reflector;
-    this.scene.add(reflector);
+    return reflector;
+  }
+
+  private buildReflector(): void {
+    this.disposeReflector();
+    if (!this.enabled) return;
+    this.reflector = this.createReflectorMesh();
+    if (this.reflector) this.scene.add(this.reflector);
   }
 
   private disposeReflector(): void {
@@ -223,48 +262,7 @@ export class ReflectorCapability implements SceneCapability {
   /* -------- 菜单控件（声明式驱动）-------- */
 
   getMenuControls(): MenuControlDef[] {
-    return [
-      // 总开关：无 group，直接挂面板顶部
-      {
-        id: "reflector-enabled",
-        kind: "toggle",
-        labelKey: "preview.reflector",
-        fallback: "反光地面",
-        getValue: () => this.isEnabled(),
-        setValue: (v) => this.setEnabled(v as boolean),
-      },
-      // 反射参数组
-      {
-        id: "reflector-opacity",
-        kind: "slider",
-        labelKey: "preview.reflectorOpacity",
-        fallback: "反射强度",
-        group: "preview.reflectorGroupParams",
-        slider: { min: 0, max: 1, step: 0.01 },
-        getValue: () => this.params.opacity,
-        setValue: (v) => this.setOpacity(v as number),
-      },
-      {
-        id: "reflector-resolution",
-        kind: "slider",
-        labelKey: "preview.reflectorResolution",
-        fallback: "反射精度",
-        group: "preview.reflectorGroupParams",
-        slider: { min: 256, max: 2048, step: 256 },
-        getValue: () => this.params.resolution,
-        setValue: (v) => this.setResolution(v as number),
-      },
-      {
-        id: "reflector-size",
-        kind: "slider",
-        labelKey: "preview.reflectorSize",
-        fallback: "地面大小",
-        group: "preview.reflectorGroupParams",
-        slider: { min: 20, max: 500, step: 10 },
-        getValue: () => this.params.size,
-        setValue: (v) => this.setSize(v as number),
-      },
-    ];
+    return [...rcBuildMain(this), ...rcBuildAppearance(this)];
   }
 
   /* -------- 持久化 -------- */
