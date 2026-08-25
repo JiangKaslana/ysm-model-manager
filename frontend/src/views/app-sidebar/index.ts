@@ -78,7 +78,7 @@ function asbBindSelectAll(ctx: AsbSidebarContext): void {
   });
 }
 
-// ---------- asb* 包级函数：_restoreCheckboxes ----------
+// ---------- asb* 包级函数：asbRestoreCheckboxes ----------
 function asbRestoreCheckboxes(ctx: AsbSidebarContext): void {
   const set = checkedSetFor(ctx.getRtype());
   const instances = ctx.getInstances();
@@ -412,11 +412,6 @@ class AppSidebar extends WebComponentBase {
 
   private _bindSelectAll(): void {
     asbBindSelectAll(this._asbCtx);
-  }
-
-  // 渲染后恢复勾选 + 监听新 checkbox
-  private _restoreCheckboxes(): void {
-    asbRestoreCheckboxes(this._asbCtx);
   }
 
   private _bindSyncSelected(): void {

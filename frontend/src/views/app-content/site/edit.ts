@@ -91,7 +91,7 @@ function eeBindToolbarBtns(
   state: SiteViewState,
   refreshView: () => void,
 ): void {
-  const { searchResults, wsEditModeRef, site, creators, allCreators, allSites, bus: busRef } = state;
+  const { searchResults, wsEditModeRef, site, creators, allSites, bus: busRef } = state;
 
   searchResults.querySelector(".cr-edit-btn")?.addEventListener("click", () => {
     wsEditModeRef.v = true;
