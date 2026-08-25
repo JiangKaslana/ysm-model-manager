@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-24T18:10:56.525Z",
+  "generated": "2026-08-25T00:55:07.463Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|esbuild",
@@ -146,6 +146,7 @@
     "src/utils/3d/adapters/preview-menu-items.test.ts#src/utils/3d/adapters/preview-menu.roles.test.ts",
     "src/utils/3d/adapters/preview-menu-items.test.ts#src/utils/3d/adapters/preview-menu.test.ts",
     "src/utils/3d/adapters/preview-menu.test.ts#src/utils/3d/adapters/preview-menu.test.ts",
+    "src/utils/3d/adapters/preview-menu.ts#src/utils/3d/adapters/preview-menu.ts",
     "src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.js#src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.js",
     "src/utils/3d/adapters/vendor/fbx/FBXLoader.ts#src/utils/3d/adapters/vendor/fbx/FBXLoader.ts",
     "src/utils/3d/adapters/vrm-adapter.test.ts#src/utils/3d/adapters/vrm-adapter.test.ts",

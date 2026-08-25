@@ -105,12 +105,12 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
   - **替换/追加不关菜单 + 局部刷新（commit d6a390ce）**：fillSwitch 行本体（替换）与 ➕（追加）去掉 `closePopup`——替换不清场景、不关菜单，完成后经 `menu.refresh()` 局部重渲染（renderRows 重读新当前路径，✓ 高亮归位）。`ctx.switchTo` 类型改为 `Promise<void> | void`，mount 层透传 handle.switchTo 的 Promise（原 `void r.catch` 吞掉无法 await）；fillSwitch 增 menu 参数。跨类型 switchExternal 整段重建 overlay 时 refresh 为 no-op（新会话新菜单），无害。
   - **替换误判跨源 cleanupPreview 根因（commit 32b628ff，诊断日志实锤）**：fillSwitch 路由判定 `sameType=false` 因 `curType=empty`——`mount getCurrentRtype` 用 `??` 回退，但 `opts.rtype` 空串时 `"" ?? adapter.id` 返回空串 → 所有 `.ysm` 候选 `"ysm"===""` 判 false → 走 `switchExternal` → `cleanupPreview` 整段销毁（「替换角色后界面被关」「空白页加载也关」「连续查看模型被打断」的根源）。修复双处兜底：① `getCurrentRtype`（mount 两处）空串/空白也回退 adapter.id；② `sameType` 判定 curType 空但 candType 可识别 → 视为同源走 switchTo（歧义候选 candType=null 仍保守跨源）。roles.test 替换测试加 switchExternal spy 回归防护（模拟空 rtype，断言不触发跨源）。
 
-- **方案 A 改造预期（2026-08-25 复核）**：当前「壳声明式 + 肉命令式」双轨并存，估算迁移约 **30%**——角色详情树已迁，其余面板仍走 flat array + 逃生舱。下一步收尾顺序：
-  1. **新菜单项硬截止**：新增 env/scene/settings 等面板一律直接写 `PreviewMenuNode`，不再新增 flat `render` 闭包；存量 flat 项经 `previewItemToNode` / `renderCustom` 过渡。
-  2. **全量迁面板**：环境/场景/设置组的 panel render 闭包逐步迁成 `PreviewMenuNode`（相机/灯光/阴影/后处理/天空/地面等），`CORE_MENU_ITEMS` 生产路径改直接输出节点树。
-  3. **删逃生舱**：所有面板迁完后删除 `PreviewMenuItemDef.render` 字段与 `previewItemToNode`，flat 数组彻底退役，落地「全声明式」。
-  4. **补 renderMenu 单测**：目前仅契约测试，需补递归渲染器边界（folder 折叠 / visibleWhen 假值 / 空 children / 深嵌套 / escapeHatch 调用路径）。
-  5. **稳定双轨交互**：迁移期间 switch/替换/追加链路的运行时问题（未处理 rejection、跨源误判 cleanupPreview）先归位，避免新架构背历史包袱。
+- **方案 A 改造预期（2026-08-25 复核）**：当前「壳声明式 + 肉命令式」双轨并存，估算迁移约 **60%**——角色详情树已迁，环境/相机/灯光/阴影/后处理/设置面板已迁为声明式 schema（`buildXxxSchema` → `PreviewMenuNode[]`，`renderSchemaContent` 直接渲染内容），`CORE_MENU_ITEMS` 中所有 panel 已无 `render`/`run` 闭包（纯声明式元数据）。`renderPanel` 优先走 `schemaBuilders` 映射，衰退到 `fillers` 或 `def.render`。下一步收尾顺序：
+  1. ✅ **新菜单项硬截止**：新增面板一律写 `PreviewMenuNode`。
+  2. 🔄 **全量迁面板**：环境/相机/灯光/阴影/后处理/设置 6 面板已迁，适配器注入项（model/shot/bones/material/perception/play 等）仍经 `renderCustom` 逃生舱。
+  3. ❌ **删逃生舱**：待适配器注入项全部迁为 `PreviewMenuNode` 后删除 `PreviewMenuItemDef.render` 字段与 `previewItemToNode`，`fillers` 映射同步退役。
+  4. 🔄 **补 renderMenu 单测**：4 例（field/button/row/sectionTitle）+ 契约测试，仍缺 folder 折叠/visibleWhen 假值边界。
+  5. ✅ **稳定双轨交互**：已修（替换误判跨源、替换不关菜单、局部刷新、unhandled rejection）。
 
 - **L1 程序化天空已落地并目视验证**：`task dev` / `npm run dev:web` 跑通，天空渲染正常、四种模型（YSM/VRM/MMD/Litematic）零改动继承。用户评定「效果一般但能跑，作为基线收口，后续迭代」。
 - **基线参数**（`sky-capability.ts` 默认值）：`scale 12000`（相机 maxDistance 5000 留余量）、`turbidity 8 / rayleigh 2 / mieCoefficient 0.005 / mieDirectionalG 0.8`、`cloudCoverage 0`、默认太阳方位、`ACESFilmicToneMapping` + 曝光 0.5（会话级，dispose 还原）、IBL `scene.environment` 默认关。

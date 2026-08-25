@@ -150,6 +150,17 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   // menuHandleOut：roles 面板 radio 切换焦点后需清空 dock 适配器项，但 handle
   // 在函数末尾才构造——先声明占位，fillRoles 点击回调经闭包取用（调用时已赋值）。
   let menuHandleOut: PreviewMenuHandle | null = null;
+  // ---- 声明式 Schema 构建器（方案 A 迁移：面板 → PreviewMenuNode[]）----
+  // 优先用 schema 渲染，衰退到 fillers / def.render。
+  type SchemaBuilder = (menu?: SlideMenuHandle) => PreviewMenuNode[];
+  const schemaBuilders: Record<string, SchemaBuilder> = {
+    lighting: (_menu) => buildLightingSchema(ctx),
+    shadow: () => buildShadowSchema(ctx),
+    postproc: () => buildPostprocessingSchema(ctx),
+    settings: () => buildSettingsSchema(ctx),
+    camera: () => buildCameraSchema(ctx),
+  };
+
   const fillers: Record<string, (list: HTMLElement, menu?: SlideMenuHandle) => void> = {
     environment: (list, menu) => renderEnvLevel(list, ctx, menu),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
@@ -166,9 +177,54 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   // ---- 适配器注入项 ----
   let adapterItems: PreviewMenuItemDef[] = [];
 
+  /** 渲染声明式节点数组为面板内容（不同于 renderMenu 的菜单行，这里是直接渲染内容） */
+  const renderSchemaContent = (list: HTMLElement, nodes: PreviewMenuNode[]): void => {
+    for (const node of nodes) {
+      if (node.visibleWhen && !node.visibleWhen()) continue;
+      if (node.kind === "sectionTitle") {
+        const st = document.createElement("div");
+        st.dataset.testid = node.id;
+        st.textContent = node.labelKey ? tr(node.labelKey, node.fallback ?? node.id) : node.id;
+        st.style.cssText = "padding:12px 10px 4px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+        list.appendChild(st);
+        continue;
+      }
+      if (node.kind === "divider") {
+        const hr = document.createElement("div");
+        hr.dataset.testid = node.id;
+        hr.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
+        list.appendChild(hr);
+        continue;
+      }
+      if (node.kind === "field") {
+        const row = document.createElement("div");
+        row.className = "stat-row";
+        row.dataset.testid = "preview-" + node.id;
+        row.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0";
+        const k = document.createElement("span"); k.textContent = node.labelKey ? tr(node.labelKey, node.id) : node.id;
+        const v = document.createElement("span"); v.style.cssText = "color:rgba(255,255,255,0.9)"; v.textContent = String(node.value ?? (node.labelKey ? tr(node.labelKey, node.id) : node.id));
+        row.append(k, v);
+        list.appendChild(row);
+        continue;
+      }
+      // custom / 默认：renderCustom 逃生舱
+      const fn = node.renderCustom;
+      if (fn) {
+        fn(list, hideMenu);
+        continue;
+      }
+    }
+  };
+
   const renderPanel = (list: HTMLElement, def: PreviewMenuItemDef): void => {
     list.innerHTML = "";
     try {
+      // 优先用声明式 Schema 渲染
+      if (schemaBuilders[def.id]) {
+        const nodes = schemaBuilders[def.id]!(menu);
+        renderSchemaContent(list, nodes);
+        return;
+      }
       if (def.render) def.render(list, hideMenu);
       else fillers[def.id]?.(list, menu);
     } catch (err) {
@@ -1114,4 +1170,254 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   note.style.cssText = "padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5";
   note.textContent = tr("preview.settingsNote", "分辨率上限需重新进入 3D 预览生效；其余开关即时生效。");
   list.appendChild(note);
+}
+
+// ── 声明式 Schema 构建器（供 schemaBuilders 映射调用）──
+
+/** 相机面板 schema：wrap buildCameraControls 为声明式节点 */
+function buildCameraSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
+  return [{
+    id: "camera",
+    kind: "custom",
+    labelKey: "preview.cameraView",
+    fallback: "视图",
+    icon: "🎥",
+    renderCustom: (list: HTMLElement): void => {
+      buildCameraControls(list, ctx.getCamBridge());
+    },
+  }];
+}
+
+/** 灯光面板 schema：从 light cap 自报控件渲染 */
+function buildLightingSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
+  const lightFromReg = sceneCapabilityRegistry.getById("light") as import("../caps/light-capability.ts").LightCapability | null;
+  const lightCap = lightFromReg ?? (() => {
+    const fromCtx = ctx.getLightCap();
+    if (fromCtx && "getMenuControls" in fromCtx) return fromCtx as unknown as import("../caps/light-capability.ts").LightCapability;
+    return null;
+  })();
+  if (!lightCap) {
+    return [{ id: "lighting-empty", kind: "custom", renderCustom: (list) => {
+      const row = document.createElement("div");
+      row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+      row.textContent = tr("preview.noLightCap", "进入 3D 后再打开灯光面板");
+      list.appendChild(row);
+    }}];
+  }
+  return [{ id: "lighting", kind: "custom", renderCustom: (list) => {
+    renderCapControls(list, lightCap.getMenuControls());
+  }}];
+}
+
+/** 阴影面板 schema：从 shadow cap 自报控件渲染 */
+function buildShadowSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
+  const fromReg = sceneCapabilityRegistry.getById("shadow") as import("../caps/shadow-capability.ts").ShadowCapability | null;
+  if (!fromReg) {
+    return [{ id: "shadow-empty", kind: "custom", renderCustom: (list) => {
+      const row = document.createElement("div");
+      row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+      row.textContent = tr("preview.noShadowCap", "进入 3D 后再打开阴影面板");
+      list.appendChild(row);
+    }}];
+  }
+  return [{ id: "shadow", kind: "custom", renderCustom: (list) => {
+    renderCapControls(list, fromReg.getMenuControls());
+  }}];
+}
+
+/** 后处理面板 schema：从 postprocessing cap 自报控件渲染 */
+function buildPostprocessingSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
+  const fromReg = sceneCapabilityRegistry.getById("postprocessing") as import("../caps/postprocessing-capability.ts").PostprocessingCapability | null;
+  if (!fromReg) {
+    return [{ id: "postproc-empty", kind: "custom", renderCustom: (list) => {
+      const row = document.createElement("div");
+      row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+      row.textContent = tr("preview.noPostprocCap", "进入 3D 后再打开后处理面板");
+      list.appendChild(row);
+    }}];
+  }
+  return [{ id: "postproc", kind: "custom", renderCustom: (list) => {
+    renderCapControls(list, fromReg.getMenuControls());
+  }}];
+}
+
+/** 设置面板 schema：性能/画质开关声明式节点 */
+function buildSettingsSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
+  const nodes: PreviewMenuNode[] = [];
+  // ⚡ 性能分组标题
+  nodes.push({ id: "settings-perf-header", kind: "sectionTitle", labelKey: "preview.settingsPerf", fallback: "性能" });
+  // 视锥裁剪 toggle
+  nodes.push({
+    id: "settings-frustum-cull",
+    kind: "custom",
+    labelKey: "preview.settingsFrustumCull",
+    fallback: "视锥裁剪",
+    renderCustom: (list: HTMLElement): void => {
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+      const labelBox = document.createElement("div");
+      labelBox.style.cssText = "flex:1;display:flex;align-items:center;gap:8px;min-width:0";
+      const label = document.createElement("span");
+      label.className = "slide-label";
+      label.textContent = tr("preview.settingsFrustumCull", "视锥裁剪");
+      label.style.fontSize = "12px";
+      const hint = document.createElement("span");
+      hint.style.cssText = "font-size:11px;color:rgba(255,255,255,0.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+      hint.textContent = tr("preview.settingsFrustumCullHint", "镜头外模型跳过渲染，省 GPU");
+      labelBox.append(label, hint);
+      const toggle = createHeaderToggle({
+        value: isFrustumCullEnabled(),
+        onChange: (v: boolean): void => setFrustumCullEnabled(v),
+        bind: (): boolean => isFrustumCullEnabled(),
+      });
+      row.append(labelBox, toggle);
+      list.appendChild(row);
+    },
+  });
+  // 帧率上限 select
+  nodes.push({
+    id: "settings-fps",
+    kind: "custom",
+    labelKey: "preview.settingsMaxFps",
+    fallback: "帧率上限",
+    renderCustom: (list: HTMLElement): void => {
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+      const label = document.createElement("span");
+      label.className = "slide-label";
+      label.textContent = tr("preview.settingsMaxFps", "帧率上限");
+      label.style.cssText = "flex:1;font-size:12px";
+      const sel = document.createElement("select");
+      sel.className = "setting-select";
+      sel.style.cssText = "font-size:11px;padding:2px 4px";
+      const FPS_OPTIONS: Array<{ value: string; labelKey: string; fallback: string }> = [
+        { value: "30", labelKey: "preview.settingsFps30", fallback: "30 fps" },
+        { value: "60", labelKey: "preview.settingsFps60", fallback: "60 fps" },
+        { value: "120", labelKey: "preview.settingsFps120", fallback: "120 fps" },
+        { value: "0", labelKey: "preview.settingsFpsUncapped", fallback: "不限" },
+      ];
+      for (const opt of FPS_OPTIONS) {
+        const o = document.createElement("option");
+        o.value = opt.value;
+        o.textContent = tr(opt.labelKey, opt.fallback);
+        sel.appendChild(o);
+      }
+      sel.value = String(getMaxFps());
+      sel.onchange = (): void => {
+        safeSet(MAX_FPS_KEY, sel.value);
+        invalidateMaxFpsCache();
+      };
+      row.append(label, sel);
+      list.appendChild(row);
+    },
+  });
+  // 🎨 画质分组标题
+  nodes.push({ id: "settings-quality-header", kind: "sectionTitle", labelKey: "preview.settingsQuality", fallback: "画质" });
+  // 渲染分辨率上限 slider
+  nodes.push({
+    id: "settings-pixel-ratio",
+    kind: "custom",
+    labelKey: "preview.settingsMaxPixelRatio",
+    fallback: "渲染分辨率上限",
+    renderCustom: (list: HTMLElement): void => {
+      const resCap = getMaxPixelRatio();
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+      const head = document.createElement("div");
+      head.style.cssText = "display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.7)";
+      const name = document.createElement("span");
+      name.className = "slide-label";
+      name.textContent = tr("preview.settingsMaxPixelRatio", "渲染分辨率上限");
+      const val = document.createElement("span");
+      val.textContent = `${resCap.toFixed(2)}x`;
+      head.append(name, val);
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "0.5";
+      slider.max = "2";
+      slider.step = "0.25";
+      slider.value = String(resCap);
+      slider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+      slider.oninput = (): void => {
+        const v = Number(slider.value);
+        safeSet(MAX_PIXEL_RATIO_KEY, String(v));
+        val.textContent = `${v.toFixed(2)}x`;
+      };
+      row.append(head, slider);
+      list.appendChild(row);
+    },
+  });
+  // Bloom 开关（cap 存在时）
+  const ppCap = sceneCapabilityRegistry.getById("postprocessing") as
+    | (import("../caps/postprocessing-capability.ts").PostprocessingCapability & {
+        setEnabled(v: boolean): void;
+        isEnabled(): boolean;
+      })
+    | undefined;
+  if (ppCap) {
+    nodes.push({
+      id: "settings-bloom",
+      kind: "custom",
+      labelKey: "preview.settingsBloom",
+      fallback: "Bloom 辉光",
+      renderCustom: (list: HTMLElement): void => {
+        const row = document.createElement("div");
+        row.className = "slide-item";
+        row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+        const label = document.createElement("span");
+        label.className = "slide-label";
+        label.textContent = tr("preview.settingsBloom", "Bloom 辉光");
+        label.style.cssText = "flex:1;font-size:12px";
+        const toggle = createHeaderToggle({
+          value: ppCap.isEnabled(),
+          onChange: (v: boolean): void => ppCap.setEnabled(v),
+          bind: (): boolean => ppCap.isEnabled(),
+        });
+        row.append(label, toggle);
+        list.appendChild(row);
+      },
+    });
+  }
+  // PMREM 开关（cap 存在时）
+  const skyCap = sceneCapabilityRegistry.getById("sky") as
+    | (import("../caps/sky-capability.ts").SkyCapability & {
+        setEnvironmentEnabled(v: boolean): void;
+        isEnvironmentEnabled(): boolean;
+      })
+    | undefined;
+  if (skyCap) {
+    nodes.push({
+      id: "settings-pmrem",
+      kind: "custom",
+      labelKey: "preview.settingsPmrem",
+      fallback: "PMREM 环境光",
+      renderCustom: (list: HTMLElement): void => {
+        const row = document.createElement("div");
+        row.className = "slide-item";
+        row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+        const label = document.createElement("span");
+        label.className = "slide-label";
+        label.textContent = tr("preview.settingsPmrem", "PMREM 环境光");
+        label.style.cssText = "flex:1;font-size:12px";
+        const toggle = createHeaderToggle({
+          value: skyCap.isEnvironmentEnabled(),
+          onChange: (v: boolean): void => skyCap.setEnvironmentEnabled(v),
+          bind: (): boolean => skyCap.isEnvironmentEnabled(),
+        });
+        row.append(label, toggle);
+        list.appendChild(row);
+      },
+    });
+  }
+  // 说明文字
+  nodes.push({ id: "settings-note", kind: "custom", renderCustom: (list) => {
+    const note = document.createElement("div");
+    note.style.cssText = "padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5";
+    note.textContent = tr("preview.settingsNote", "分辨率上限需重新进入 3D 预览生效；其余开关即时生效。");
+    list.appendChild(note);
+  }});
+  return nodes;
 }
