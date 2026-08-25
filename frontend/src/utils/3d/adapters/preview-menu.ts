@@ -6,7 +6,7 @@
 //   - 组内多个项 → home 到组根视图（项列表），点击项 navigate 下钻面板
 // 关闭统一走 SlideMenu header ✕（根级）/ ←（子级），外部点击关闭。
 
-import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuItemDef, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
+import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
 import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
 import { renderEnvLevel } from "./preview-menu-env.ts";
 import { renderCapControls } from "./preview-menu-cap-controls.ts";
@@ -115,19 +115,19 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   });
 
   // ---- 行/分隔线工厂 ----
-  const makeRow = (def: PreviewMenuItemDef, opts?: { chevron?: boolean }): HTMLElement => {
+  const makeRow = (node: PreviewMenuNode, opts?: { chevron?: boolean }): HTMLElement => {
     const row = document.createElement("div");
     row.className = "ysm-preview-menu-row";
-    row.dataset.testid = "preview-" + def.id;
-    if (def.legacyTestId) row.id = def.legacyTestId;
+    row.dataset.testid = "preview-" + node.id;
+    if (node.legacyTestId) row.id = node.legacyTestId;
     row.style.cssText =
       "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px";
-    if (def.danger) row.style.color = "#ff7b7b";
+    if (node.danger) row.style.color = "#ff7b7b";
     const ic = document.createElement("span");
-    ic.textContent = def.icon;
+    ic.textContent = node.icon ?? "";
     ic.style.cssText = "font-size:15px;width:18px;text-align:center";
     const lb = document.createElement("span");
-    lb.textContent = tr(def.labelKey, def.fallback);
+    lb.textContent = tr(node.labelKey ?? node.id, node.fallback ?? node.id);
     row.append(ic, lb);
     // 可下钻面板 → 右侧装饰箭头（导航提示：点击进入下级菜单）
     if (opts?.chevron) {
@@ -171,7 +171,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   };
 
   // ---- 适配器注入项 ----
-  let adapterItems: PreviewMenuItemDef[] = [];
+  let adapterItems: PreviewMenuNode[] = [];
 
   /** 渲染声明式节点数组为面板内容（不同于 renderMenu 的菜单行，这里是直接渲染内容） */
   const renderSchemaContent = (list: HTMLElement, nodes: PreviewMenuNode[]): void => {
@@ -211,21 +211,21 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     }
   };
 
-  const renderPanel = (list: HTMLElement, def: PreviewMenuItemDef): void => {
+  const renderPanel = (list: HTMLElement, node: PreviewMenuNode): void => {
     list.innerHTML = "";
     try {
-      // 统一路径：优先声明式 Schema，其次通过 previewItemToNode 转换 def 为节点
-      if (schemaBuilders[def.id]) {
-        renderSchemaContent(list, schemaBuilders[def.id]!(menu));
-      } else if (def.render || def.run) {
-        // 适配器注入项等：转成节点后用 renderSchemaContent 渲染
-        const node = previewItemToNode(def);
-        renderSchemaContent(list, [node]);
+      // 优先声明式 Schema；其次 renderCustom 逃生舱；最后 fillers 映射
+      if (schemaBuilders[node.id]) {
+        renderSchemaContent(list, schemaBuilders[node.id]!(menu));
+      } else if (node.renderCustom) {
+        node.renderCustom(list, () => hideMenu());
+      } else if (node.action) {
+        node.action({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
       } else {
-        fillers[def.id]?.(list, menu);
+        fillers[node.id]?.(list, menu);
       }
     } catch (err) {
-      console.error("[preview-menu] renderPanel FAILED", def.id, err);
+      console.error("[preview-menu] renderPanel FAILED", node.id, err);
       const errRow = document.createElement("div");
       errRow.style.cssText = "padding:8px 10px;color:#ff7b7b;font-size:12px";
       errRow.textContent = "面板渲染失败: " + safeErrorMessage(err);
@@ -233,27 +233,26 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     }
   };
 
-  const makePanelView = (def: PreviewMenuItemDef): SlideMenuView => ({
-    title: tr(def.labelKey, def.fallback),
-    render: (list) => renderPanel(list, def),
+  const makePanelView = (node: PreviewMenuNode): SlideMenuView => ({
+    title: tr(node.labelKey ?? node.id, node.fallback ?? node.id),
+    render: (list) => renderPanel(list, node),
   });
 
   /** 组根视图：列出组内项，点击 navigate 下钻面板 / action 直接执行 */
-  const makeGroupView = (g: PreviewMenuGroupDef, groupItems: PreviewMenuItemDef[]): SlideMenuView => ({
+  const makeGroupView = (g: PreviewMenuGroupDef, groupItems: PreviewMenuNode[]): SlideMenuView => ({
     title: g.fallback,
     render: (list) => {
       list.innerHTML = "";
-      groupItems.forEach((def) => {
+      groupItems.forEach((node) => {
         // panel 型 → 下钻导航，带 ">" 装饰箭头提示可进入
-        const row = makeRow(def, { chevron: def.kind === "panel" });
+        const row = makeRow(node, { chevron: node.kind === "panel" });
         row.onclick = (e: MouseEvent): void => {
           e.stopPropagation();
-          if (def.kind === "panel") {
-            menu.navigate(makePanelView(def));
-          } else {
+          if (node.kind === "panel") {
+            menu.navigate(makePanelView(node));
+          } else if (node.action) {
             hideMenu();
-            if (def.run) def.run();
-            else runners[def.id]?.();
+            node.action({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
           }
         };
         list.appendChild(row);
@@ -266,7 +265,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     dock.innerHTML = "";
     const allItems = [...CORE_MENU_ITEMS, ...adapterItems];
     // 组内工具过滤链（model 特殊分支与通用分支共用，防两处漂移——审核 P3）
-    const groupItemsFor = (g: PreviewMenuGroupDef, allItems: PreviewMenuItemDef[]): PreviewMenuItemDef[] =>
+    const groupItemsFor = (g: PreviewMenuGroupDef, allItems: PreviewMenuNode[]): PreviewMenuNode[] =>
       allItems
         .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
         .filter((d) => !(d.sharedOnly && ctx.selfMode))
@@ -347,11 +346,9 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   // ---- 句柄 ----
   const setAdapterItems = (items: PreviewMenuNode[]): void => {
-    // 转换为内部 def 兼容渲染链（dock / makeRow / makeGroupView / makePanelView 均需 PreviewMenuItemDef）
-    const defs = items.map(nodeToDef);
     // ADR-085 S1：运行期 id 冲突守卫（抛错阻断，避免重复行静默渲染）
     const seen = new Set<string>();
-    for (const it of defs) {
+    for (const it of items) {
       if (seen.has(it.id)) {
         throw new Error(`[preview-menu] setAdapterItems 重复 id: "${it.id}"（适配器项之间冲突）`);
       }
@@ -360,14 +357,14 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       }
       seen.add(it.id);
     }
-    adapterItems = defs;
+    adapterItems = items;
     renderDock();
   };
 
   const openPanel = (id: string): void => {
-    const def = [...CORE_MENU_ITEMS, ...adapterItems].find((d) => d.id === id);
-    if (!def || def.kind !== "panel") return;
-    showMenu(makePanelView(def));
+    const node = [...CORE_MENU_ITEMS, ...adapterItems].find((d) => d.id === id);
+    if (!node || node.kind !== "panel") return;
+    showMenu(makePanelView(node));
   };
 
   renderDock();
@@ -588,64 +585,6 @@ export function roleBaseName(e: ModelEntry): string {
 }
 
 /**
- * 公共映射：PreviewMenuItemDef（flat 面板项）→ PreviewMenuNode（声明式节点）。
- * 方案 A 第 3 步：收敛 roleDetailView 内两处重复样板为单一映射点——
- * 结构字段（id/kind/labelKey/icon/dockGroup/守卫）数据化；内容仍走 renderCustom 逃生舱
- * （动态数据面板，如模型统计/纹理列表/骨骼树，按 MikuMikuAR renderCustom 官方定位保留）。
- * 未来把具体面板从逃生舱迁成静态数据节点时，只改本函数一处。
- */
-/** 逆向映射：PreviewMenuNode → PreviewMenuItemDef（供 setAdapterItems 转换适配器节点为内部 def） */
-export function nodeToDef(n: PreviewMenuNode): PreviewMenuItemDef {
-  return {
-    id: n.id,
-    icon: n.icon ?? "",
-    labelKey: n.labelKey ?? "",
-    fallback: n.fallback ?? n.id,
-    kind: n.kind === "action" ? "action" : "panel",
-    dockGroup: n.dockGroup,
-    sharedOnly: n.sharedOnly,
-    hideInSelfMode: n.hideInSelfMode,
-    requiresEnvironment: n.requiresEnvironment,
-    danger: n.danger,
-    legacyTestId: n.legacyTestId,
-    render: n.renderCustom
-      ? (list, closePopup): void => {
-          n.renderCustom?.(list, closePopup ?? (() => {}));
-        }
-      : undefined,
-    run: n.action
-      ? (): void => {
-          void n.action?.({
-            toast: () => {},
-            setStatus: () => {},
-            closeAllOverlays: () => {},
-          });
-        }
-      : undefined,
-  };
-}
-
-export function previewItemToNode(d: PreviewMenuItemDef): PreviewMenuNode {
-  return {
-    id: d.id,
-    kind: d.kind === "action" ? "action" : "panel",
-    labelKey: d.labelKey,
-    fallback: d.fallback,
-    icon: d.icon,
-    dockGroup: d.dockGroup,
-    sharedOnly: d.sharedOnly,
-    hideInSelfMode: d.hideInSelfMode,
-    requiresEnvironment: d.requiresEnvironment,
-    renderCustom: d.render
-      ? (list, closePopup): void => {
-          d.render?.(list, closePopup ?? (() => {}));
-        }
-      : undefined,
-    action: d.run,
-  };
-}
-
-/**
  * 幂等注入 renderMenu 用的 CSS 类规则（仅注入一次，重复调用 no-op）。
  * 把内联 style.cssText 抽成类，避免 renderMenu 分支里重复硬编码样式串。
  */
@@ -694,8 +633,8 @@ export function renderMenu(
   container: HTMLElement,
   nodes: PreviewMenuNode[],
   deps: {
-    makeRow: (def: PreviewMenuItemDef, opts?: { chevron?: boolean }) => HTMLElement;
-    makePanelView: (def: PreviewMenuItemDef) => SlideMenuView;
+    makeRow: (node: PreviewMenuNode, opts?: { chevron?: boolean }) => HTMLElement;
+    makePanelView: (node: PreviewMenuNode) => SlideMenuView;
     menu: SlideMenuHandle;
   },
 ): void {
@@ -788,38 +727,14 @@ export function renderMenu(
       container.appendChild(st);
       continue;
     }
-    // 叶节点：panel / action / custom —— 转成 PreviewMenuItemDef 走既有 makeRow/navigate/run 机制
-    const def: PreviewMenuItemDef = {
-      id: node.id,
-      icon: node.icon ?? "",
-      labelKey: node.labelKey ?? "",
-      fallback: node.fallback ?? node.id,
-      kind: node.kind === "action" ? "action" : "panel",
-      dockGroup: node.dockGroup,
-      sharedOnly: node.sharedOnly,
-      requiresEnvironment: node.requiresEnvironment,
-      render: node.renderCustom
-        ? (list, closePopup): void => {
-            node.renderCustom?.(list, closePopup);
-          }
-        : undefined,
-      run: node.action
-        ? (): void => {
-            void node.action?.({
-              toast: () => {},
-              setStatus: () => {},
-              closeAllOverlays: () => {},
-            });
-          }
-        : undefined,
-    };
-    const row = deps.makeRow(def, { chevron: def.kind === "panel" });
+    // 叶节点：panel / action / custom —— 直接走 makeRow/navigate/action
+    const row = deps.makeRow(node, { chevron: node.kind === "panel" });
     row.onclick = (ev: MouseEvent): void => {
       ev.stopPropagation();
-      if (def.kind === "panel") {
-        deps.menu.navigate(deps.makePanelView(def));
-      } else if (def.run) {
-        def.run();
+      if (node.kind === "panel") {
+        deps.menu.navigate(deps.makePanelView(node));
+      } else if (node.action) {
+        node.action({ toast: () => {}, setStatus: () => {}, closeAllOverlays: () => {} });
       }
     };
     container.appendChild(row);
@@ -837,8 +752,8 @@ export function renderMenu(
 function roleDetailView(
   e: ModelEntry,
   deps: {
-    makeRow: (def: PreviewMenuItemDef, opts?: { chevron?: boolean }) => HTMLElement;
-    makePanelView: (def: PreviewMenuItemDef) => SlideMenuView;
+    makeRow: (node: PreviewMenuNode, opts?: { chevron?: boolean }) => HTMLElement;
+    makePanelView: (node: PreviewMenuNode) => SlideMenuView;
     menu: SlideMenuHandle;
     onSwitchRole?: () => void;
     initialSection?: "model" | "motion";
@@ -920,10 +835,10 @@ function fillRoles(
   list: HTMLElement,
   ctx: PreviewMenuCtx,
   closePopup: () => void,
-  makeRow: (def: PreviewMenuItemDef, opts?: { chevron?: boolean }) => HTMLElement,
-  makePanelView: (def: PreviewMenuItemDef) => SlideMenuView,
+  makeRow: (node: PreviewMenuNode, opts?: { chevron?: boolean }) => HTMLElement,
+  makePanelView: (node: PreviewMenuNode) => SlideMenuView,
   menu: SlideMenuHandle,
-  setAdapterItems: (items: PreviewMenuItemDef[]) => void,
+  setAdapterItems: (items: PreviewMenuNode[]) => void,
 ): void {
   list.innerHTML = "";
 

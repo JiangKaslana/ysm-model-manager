@@ -4,6 +4,11 @@
 // 渲染与 handler 见 preview-menu.ts；测试遍历本表 + 适配器真实注入项断言结构与
 // dock 渲染（preview-menu-items.test.ts，对齐 MikuMikuAR 声明式菜单测试范式）。
 //
+// 方案 A 收尾：CORE_MENU_ITEMS 已统一为 PreviewMenuNode[]，
+// 适配器注入也是 PreviewMenuNode[]——整条链路统一 Node，不再有 PreviewMenuItemDef 往返转换。
+
+import type { PreviewMenuNode } from "./preview-menu-node-types.ts";
+//
 // ⚠️ 与声明式节点类型的映射（方案 A 第 1 步，见 preview-menu-node-types.ts）：
 // 本文件 PreviewMenuItemDef 是 flat 面板项（dock 壳用）；未来声明式渲染器按
 // preview-menu-node-types.ts 的 PreviewMenuNode（含 children / visibleWhen / control）
@@ -78,7 +83,7 @@ export const PREVIEW_MENU_GROUPS: PreviewMenuGroupDef[] = [
  * - environment / camera：场景组（shared 模式才显示）
  * close 不在此表——关闭由 SlideMenu header 的 ✕ 承担（legacy preview-close-3d 挂在关闭按钮）。
  */
-export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
+export const CORE_MENU_ITEMS: PreviewMenuNode[] = [
   {
     id: "roles",
     icon: "🎭",

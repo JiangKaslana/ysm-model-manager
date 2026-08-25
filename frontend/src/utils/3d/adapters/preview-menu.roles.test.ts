@@ -51,8 +51,8 @@ describe("CORE_MENU_ITEMS roles 项", () => {
     expect(def).toBeDefined();
     expect(def!.kind).toBe("panel");
     expect(def!.dockGroup).toBe("model");
-    expect(def!.icon.length).toBeGreaterThan(0);
-    expect(def!.fallback.length).toBeGreaterThan(0);
+    expect(def!.icon?.length).toBeGreaterThan(0);
+    expect(def!.fallback?.length).toBeGreaterThan(0);
   });
 });
 

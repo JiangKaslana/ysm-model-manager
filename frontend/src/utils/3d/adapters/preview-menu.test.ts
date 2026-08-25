@@ -41,9 +41,9 @@ describe("CORE_MENU_ITEMS 表结构", () => {
   it("非 divider 项必有 icon/fallback/labelKey", () => {
     CORE_MENU_ITEMS.forEach((d) => {
       if (d.kind === "divider") return;
-      expect(d.icon.length).toBeGreaterThan(0);
-      expect(d.fallback.length).toBeGreaterThan(0);
-      expect(d.labelKey.length).toBeGreaterThan(0);
+      expect(d.icon?.length).toBeGreaterThan(0);
+      expect(d.fallback?.length).toBeGreaterThan(0);
+      expect(d.labelKey?.length).toBeGreaterThan(0);
     });
   });
 
