@@ -3,15 +3,12 @@
 package rustbridge
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime"
 	"sync"
 	"syscall"
 	"unsafe"
-
-	"ysm-model-manager/go/types"
 )
 
 var (
@@ -54,17 +51,7 @@ func Scan(root string, registryJSON []byte) (ScanResponse, error) {
 	defer freeProc.Call(uintptr(unsafe.Pointer(output.ptr)), output.len, output.cap) //nolint:errcheck
 
 	data := append([]byte(nil), unsafe.Slice(output.ptr, int(output.len))...)
-	var response ScanResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return ScanResponse{}, fmt.Errorf("decode Rust scanner response: %w", err)
-	}
-	if response.Error != "" {
-		return ScanResponse{}, errors.New(response.Error)
-	}
-	if response.Entries == nil {
-		response.Entries = []types.ModelEntry{}
-	}
-	return response, nil
+	return parseResponse(data, false)
 }
 
 // ScanManifest 使用 Go 预枚举的文件清单调用 Rust，跳过 Rust 侧的文件系统发现（jwalk）。
@@ -109,17 +96,7 @@ func ScanManifest(root string, registryJSON, manifestJSON []byte) (ScanResponse,
 	defer freeProc.Call(uintptr(unsafe.Pointer(output.ptr)), output.len, output.cap) //nolint:errcheck
 
 	data := append([]byte(nil), unsafe.Slice(output.ptr, int(output.len))...)
-	var response ScanResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return ScanResponse{}, fmt.Errorf("decode Rust scanner manifest response: %w", err)
-	}
-	if response.Error != "" {
-		return ScanResponse{}, errors.New(response.Error)
-	}
-	if response.Entries == nil {
-		response.Entries = []types.ModelEntry{}
-	}
-	return response, nil
+	return parseResponse(data, true)
 }
 
 func load() error {

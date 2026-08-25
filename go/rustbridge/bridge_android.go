@@ -3,7 +3,6 @@
 package rustbridge
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime"
@@ -68,17 +67,7 @@ func Scan(root string, registryJSON []byte) (ScanResponse, error) {
 	defer C.ysm_buffer_free((*C.uchar)(output.ptr), C.size_t(output.len), C.size_t(output.cap))
 
 	data := append([]byte(nil), unsafe.Slice((*byte)(unsafe.Pointer(output.ptr)), int(output.len))...)
-	var response ScanResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return ScanResponse{}, fmt.Errorf("decode Rust scanner response: %w", err)
-	}
-	if response.Error != "" {
-		return ScanResponse{}, errors.New(response.Error)
-	}
-	if response.Entries == nil {
-		response.Entries = []types.ModelEntry{}
-	}
-	return response, nil
+	return parseResponse(data, false)
 }
 
 func ScanManifest(root string, registryJSON, manifestJSON []byte) (ScanResponse, error) {
@@ -114,15 +103,5 @@ func ScanManifest(root string, registryJSON, manifestJSON []byte) (ScanResponse,
 	defer C.ysm_buffer_free((*C.uchar)(output.ptr), C.size_t(output.len), C.size_t(output.cap))
 
 	data := append([]byte(nil), unsafe.Slice((*byte)(unsafe.Pointer(output.ptr)), int(output.len))...)
-	var response ScanResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return ScanResponse{}, fmt.Errorf("decode Rust scanner manifest response: %w", err)
-	}
-	if response.Error != "" {
-		return ScanResponse{}, errors.New(response.Error)
-	}
-	if response.Entries == nil {
-		response.Entries = []types.ModelEntry{}
-	}
-	return response, nil
+	return parseResponse(data, true)
 }
