@@ -3,7 +3,6 @@ package installer
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -455,9 +454,10 @@ func InstallWithOverlay(src, customDir string) (string, error) {
 	return copyFileLocked(src, customDir)
 }
 
-// copyFileLocked 复制文件到目标目录（调用方须持有 InstallLock，禁止直接调用）
-// 原子写入模式：先写入 .copy-tmp 临时文件，再 os.Rename 原子替换目标文件，
-// 确保中途崩溃/失败时不留下半截目标文件（进程 kill 后 defer 不执行时仍安全）
+// copyFileLocked 复制文件到目标目录（调用方须持有 InstallLock，禁止直接调用）。
+// 委托 fsutil.CopyFile（ADR-044 收敛：原子 tmp+rename + Sync + Chmod 0644 +
+// 目录源前置拒绝 + 读毕早关 src），复用其步骤类型化错误 StepError，把差异化
+// UI 文案留在本层 mapStepToAppError——机制归 fsutil、文案归 installer，职责分层不破。
 func copyFileLocked(src, dstDir string) (string, error) {
 	src = cleanAbs(src)
 	dstDir = cleanAbs(dstDir)
@@ -468,44 +468,46 @@ func copyFileLocked(src, dstDir string) (string, error) {
 	if src == dst {
 		return dst, nil
 	}
-	// 原子写入——写 .copy-tmp 再 Rename，进程崩溃无半截目标残留
-	tmp := dst + ".copy-tmp"
-	_ = os.Remove(tmp)
-	ok := false
-	defer func() {
-		if !ok {
-			os.Remove(tmp)
+	if err := fsutil.CopyFile(src, dst); err != nil {
+		var se *fsutil.StepError
+		if errors.As(err, &se) {
+			return "", mapStepToAppError(se.Step, src, dst, se.Err)
 		}
-	}()
-	in, err := os.Open(src)
-	if err != nil {
-		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", SourcePath: src, Reason: "无法读取源文件", Suggestion: "请检查文件是否被占用或已删除"}
+		// 非 StepError（正常不会发生，防御兜底）
+		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", SourcePath: src, TargetPath: dst, Reason: "复制文件失败", Suggestion: "请重试或检查磁盘状态"}
 	}
-	defer in.Close()
-	out, err := os.Create(tmp)
-	if err != nil {
-		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", TargetPath: dst, Reason: "无法创建临时文件", Suggestion: "请检查磁盘空间或权限"}
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close() // 错误路径显式关闭（成功路径在下方 Sync+Close，避免双重关闭）
-		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", TargetPath: dst, Reason: "写入临时文件失败", Suggestion: "请检查磁盘空间或权限"}
-	}
-	// Sync 确保数据落盘后再 Close+Rename（注释原承诺 Sync 但未调用，崩溃时可能零长度文件装盘）
-	if err := out.Sync(); err != nil {
-		out.Close()
-		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", TargetPath: dst, Reason: "临时文件落盘失败", Suggestion: "请检查磁盘空间或权限"}
-	}
-	if err := out.Close(); err != nil {
-		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", TargetPath: dst, Reason: "临时文件写入未完成", Suggestion: "请检查磁盘空间或权限"}
-	}
-	if err := os.Chmod(tmp, fsutil.FilePerms); err != nil {
-		log.Printf("[installer] 设置临时文件权限失败 %s: %v", tmp, err)
-	}
-	if err := os.Rename(tmp, dst); err != nil {
-		return "", types.AppError{Code: types.ErrIO, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "替换目标文件失败", Suggestion: "请检查目标文件是否被占用或为只读"}
-	}
-	ok = true
 	return dst, nil
+}
+
+// mapStepToAppError 将 fsutil.StepError 的中性步骤名映射为 installer 的差异化
+// AppError 文案（与收敛前 copyFileLocked 六档逐字一致，回归护栏见 TestMapStepToAppError）。
+// 纯函数表：只读输入 → 只出输出，不含任何 IO。
+func mapStepToAppError(step, src, dst string, err error) types.AppError {
+	base := types.AppError{Code: types.ErrIO, Operation: "复制文件", SourcePath: src, TargetPath: dst}
+	switch step {
+	case fsutil.StepStat, fsutil.StepOpen:
+		base.Reason, base.Suggestion = "无法读取源文件", "请检查文件是否被占用或已删除"
+	case fsutil.StepCloseSrc:
+		base.Reason, base.Suggestion = "源文件读取未正常完成", "请检查文件访问权限"
+	case fsutil.StepMkdir:
+		base.Reason, base.Suggestion = "无法创建目录", "请检查磁盘权限或空间"
+	case fsutil.StepCreateTmp:
+		base.Reason, base.Suggestion = "无法创建临时文件", "请检查磁盘空间或权限"
+	case fsutil.StepCopy:
+		base.Reason, base.Suggestion = "写入临时文件失败", "请检查磁盘空间或权限"
+	case fsutil.StepSync:
+		base.Reason, base.Suggestion = "临时文件落盘失败", "请检查磁盘空间或权限"
+	case fsutil.StepClose:
+		base.Reason, base.Suggestion = "临时文件写入未完成", "请检查磁盘空间或权限"
+	case fsutil.StepChmod:
+		base.Reason, base.Suggestion = "设置文件权限失败", "请检查目标位置权限"
+	case fsutil.StepRename:
+		base.Operation = "安装模型"
+		base.Reason, base.Suggestion = "替换目标文件失败", "请检查目标文件是否被占用或为只读"
+	default:
+		base.Reason, base.Suggestion = "复制文件失败", "请重试或检查磁盘状态"
+	}
+	return base
 }
 
 // CopyFile 复制文件到目标目录（带互斥锁）

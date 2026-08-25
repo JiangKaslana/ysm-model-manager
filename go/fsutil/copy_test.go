@@ -3,12 +3,70 @@
 package fsutil
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 )
+
+// ===== StepError：步骤标注不破坏既有错误断言（ADR-044 机制归 fsutil）=====
+
+func TestStepError_WrapAndUnwrap(t *testing.T) {
+	inner := errors.New("读取失败")
+	err := stepErr(StepStat, inner)
+	// Error() 透传内层文本，既有 caller 的 err.Error() 断言零影响
+	if err.Error() != "读取失败" {
+		t.Fatalf("Error() 应透传内层，got %q", err.Error())
+	}
+	if !errors.Is(err, inner) {
+		t.Fatal("errors.Is 应穿透 StepError 命中内层")
+	}
+	// Unwrap 返回内层
+	if w := err.(*StepError).Unwrap(); w != inner {
+		t.Fatalf("Unwrap 应返回内层")
+	}
+}
+
+func TestStepError_StepVisibleViaAs(t *testing.T) {
+	err := stepErr(StepRename, os.ErrPermission)
+	var se *StepError
+	if !errors.As(err, &se) {
+		t.Fatal("errors.As 应取到 StepError")
+	}
+	if se.Step != StepRename {
+		t.Fatalf("Step 应为 %q，got %q", StepRename, se.Step)
+	}
+	if se.Err != os.ErrPermission {
+		t.Fatalf("Err 应为 os.ErrPermission")
+	}
+	// 内层 fs.ErrNotExist 语义经链条保留（WINDOWS/各平台通用）
+	if !errors.Is(err, os.ErrPermission) {
+		t.Fatal("errors.Is(os.ErrPermission) 应命中")
+	}
+}
+
+func TestCopyFile_AllStepsWrapStepError(t *testing.T) {
+	// 目录源 → StepStat（既有 TestCopyFile_SrcIsDir 行为保留，且带 Step 标注）
+	dir := t.TempDir()
+	err := CopyFile(dir, filepath.Join(t.TempDir(), "x"))
+	var se *StepError
+	if !errors.As(err, &se) || se.Step != StepStat {
+		t.Fatalf("目录源应映射 StepStat, got %v", err)
+	}
+	// 源不存在 → StepStat（stat 失败）且透传 fs.ErrNotExist
+	err = CopyFile(filepath.Join(t.TempDir(), "nope.ysm"), filepath.Join(t.TempDir(), "x"))
+	if !errors.As(err, &se) || se.Step != StepStat {
+		t.Fatalf("源缺失应映射 StepStat, got %v", err)
+	}
+	_ = fmt.Sprint(err) // 确保步进打印不 panic
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("源缺失应可 errors.Is(fs.ErrNotExist)")
+	}
+}
 
 func TestCopyFile_Success(t *testing.T) {
 	dir := t.TempDir()

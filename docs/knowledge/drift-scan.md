@@ -54,7 +54,7 @@ node scripts/drift-scan.mjs --json
 | 文件权限 | `fsutil.FilePerms` | 全项目 |
 | 读取上限 | `types.MaxReadLimit` | geometry、ysm、fileops、avatar |
 | 资源名归一化 | `types.NormalizeResourceName` | sync、instance |
-| 原子复制 | `fsutil.CopyFile` / `fsutil.CopyDirRecursive` | fileops、sync、recycle、importer |
+| 原子复制 | `fsutil.CopyFile` / `fsutil.CopyDirRecursive` | fileops、sync、recycle、importer、installer.CopyFile |
 | 仓库审计 | `repoaudit.Audit` / `repoaudit.HealthReportFor` | cli、internal/app |
 | 资源分类 | `repoaudit.Classify` | cli/resource.go |
 

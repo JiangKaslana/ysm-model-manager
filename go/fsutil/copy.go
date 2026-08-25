@@ -19,6 +19,40 @@ import (
 	"time"
 )
 
+// ===== 步骤类型化错误（ADR-044 策略 A：机制归 fsutil、文案归调用方）=====
+// StepError 复制过程单步失败的标注错误：只指明「哪一步」失败（中性步骤名，不含 UI 文案），
+// 具体 Operation/Reason/Suggestion 由调用方（如 installer 的 mapStepToAppError）按 own 语义映射。
+// Error() 透传内层错误、Unwrap 透传内层——既有调用方对 err.Error() 文本 / errors.Is 的断言零影响；
+// 需要区分步骤的调用方经 errors.As 取 Step。
+
+// 复制各失败点的中性步骤名（无 UI 文案，供调用方 switch 后自定文案）
+const (
+	StepStat      = "stat"       // 源 Stat / 目录源前置拒绝
+	StepOpen      = "open"       // 打开源
+	StepCloseSrc  = "close_src"  // 读毕关闭源
+	StepMkdir     = "mkdir"      // 创建目标父目录
+	StepCreateTmp = "create_tmp" // 创建临时文件
+	StepCopy      = "copy"       // io.Copy 写入
+	StepSync      = "sync"       // 数据落盘
+	StepClose     = "close"      // 关闭临时文件
+	StepChmod     = "chmod"      // 权限 0644
+	StepRename    = "rename"     // 原子替换到目标
+)
+
+// StepError 带步骤标注的复制错误。
+type StepError struct {
+	Step string
+	Err  error
+}
+
+func (e *StepError) Error() string { return e.Err.Error() }
+func (e *StepError) Unwrap() error { return e.Err }
+
+// stepErr 用 StepError 包装一个失败点（仅包内 CopyFile/CopyDir 使用）。
+func stepErr(step string, err error) error {
+	return &StepError{Step: step, Err: err}
+}
+
 // CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。
 //   - MkdirAll 目标父目录（与 recycle/importer 的 copyFile 行为对齐）；
 //   - Sync 落盘后再 Close+Rename（与 installer.copyFileLocked 对齐，防零长度文件装盘）；
@@ -31,22 +65,22 @@ func CopyFile(src, dst string) error {
 	// 前置检查：拒绝目录源——Windows 上 os.Open 目录后即使 Close，句柄释放有延迟，
 	// 会阻塞 TempDir 清理（TestCopyFile_SrcIsDir）。提前 Stat 拒绝，避免打开目录句柄。
 	if fi, err := os.Stat(src); err != nil {
-		return err
+		return stepErr(StepStat, err)
 	} else if fi.IsDir() {
-		return fmt.Errorf("源为目录: %s", src)
+		return stepErr(StepStat, fmt.Errorf("源为目录: %s", src))
 	}
 	in, err := os.Open(src)
 	if err != nil {
-		return err
+		return stepErr(StepOpen, err)
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), DirPerms); err != nil {
 		in.Close()
-		return err
+		return stepErr(StepMkdir, err)
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(dst), ".copy-*.tmp")
 	if err != nil {
 		in.Close()
-		return err
+		return stepErr(StepCreateTmp, err)
 	}
 	tmpName := tmp.Name()
 	ok := false
@@ -58,29 +92,29 @@ func CopyFile(src, dst string) error {
 	}()
 	if _, err := io.Copy(tmp, in); err != nil {
 		in.Close()
-		return err
+		return stepErr(StepCopy, err)
 	}
 	// 读取完成后立即关闭源文件——Windows 上文件被进程持有句柄时
 	// os.Rename 无法覆盖（Access is denied），src/dst 同目录场景尤其会触发。
 	// defer Close 在函数退出时才执行，太晚了。
 	if err := in.Close(); err != nil {
-		return err
+		return stepErr(StepCloseSrc, err)
 	}
 	// Sync 确保数据落盘后再 Close+Rename（与 installer/recycle/importer 的
 	// copyFile 落盘检查对齐：不 Sync 时崩溃可能零长度文件装盘）
 	if err := tmp.Sync(); err != nil {
-		return err
+		return stepErr(StepSync, err)
 	}
 	if err := tmp.Close(); err != nil {
-		return err
+		return stepErr(StepClose, err)
 	}
-	if err := os.Chmod(tmpName, 0644); err != nil {
+	if err := os.Chmod(tmpName, FilePerms); err != nil {
 		os.Remove(tmpName)
-		return err
+		return stepErr(StepChmod, err)
 	}
 	if err := os.Rename(tmpName, dst); err != nil {
 		os.Remove(tmpName)
-		return err
+		return stepErr(StepRename, err)
 	}
 	ok = true
 	return nil

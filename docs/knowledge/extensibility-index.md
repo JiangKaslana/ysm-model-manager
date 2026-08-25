@@ -15,7 +15,7 @@
 > 对账详情（逐条已闭环/存活/部分，grep 实测当前 HEAD 行号）：`extensibility-index-reconciliation.md`
 > 新拓展点探索（4 维度扩展入口 + Top 10 新建议 + 残留清单）：`extensibility-round2.md`
 
-**批次 1 Top 10 状态**：✅ 闭环 #3（文件夹级判定）/ #5（ShouldHashExt）/ #6（browser-adapter 装配）/ #7（import-dnd）/ #8（app-modules loadView）/ #10（/web 正则）；🔄 部分 #2（双检测器并存）/ #4（copyFile 7 处 wrapper 未收尽）/ #9（无显式 hook 指针）；⏸ N/A #1（RenderSession 独立立项）。
+**批次 1 Top 10 状态**：✅ 闭环 #3（文件夹级判定）/ #5（ShouldHashExt）/ #6（browser-adapter 装配）/ #7（import-dnd）/ #8（app-modules loadView）/ #10（/web 正则）；🔄 部分 #2（双检测器并存）/ #4（copyFile 6 处 wrapper 未收尽，installer 已收敛）/ #9（无显式 hook 指针）；⏸ N/A #1（RenderSession 独立立项）。
 
 **未触达（下一批候选）**：3D 渲染管线（utils/3d 全部硬编码）、test-utils 重复模式、wasm 胶水层、Go 低价值阈值常量（MaxImportSize/CHECK_INTERVAL/logs 阈值未入 AppConfig）。
 

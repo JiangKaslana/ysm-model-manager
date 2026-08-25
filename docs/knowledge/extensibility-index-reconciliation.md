@@ -13,7 +13,7 @@
 | 1 | `model3d.ts` RenderSession 完整对象化（陷阱 #11 已独立立项） | **N/A** | `frontend/src/utils/3d/model3d.ts` 仍存在；按索引原文「已裁决独立立项待启动」处理，不计入 Top 10 对账 |
 | 2 | 两套检测器 `importer_file.go` + `mcmeta.go` 均应注册表驱动 | **部分** | 现状：`go/importer/importer_file.go` `DetectZipType` 走 `types.MatchZipEntry(name)` 注册表；`go/packs/mcmeta.go` `DetectResourceType` 走 `registry.ResourceTypes` 并按 `Detector` 字段分发 `mcmeta/shader/zipentry/ysm/extension`。**新增类型已只需改 `resource_types.json`**（`ZipEntries`/`Detector` 字段驱动），ADR-067 闭环。但**两个入口函数仍并存**（ZIP 数据 bytes 用 `DetectZipType`，路径用 `DetectResourceType`），未合并为单一入口。|
 | 3 | 文件夹级判定 6+ 处硬编码 | **已闭环 ADR-064/065** | `go/sync/sync_push.go` 均改调 `types.IsDirLevelSync(rtype)`；`go/sync/sync_relink.go` 用 `types.IsDirLevelSync(rtype) && types.IsTypeModelFile(base, rtype)`；`go/sync/sync_dirlevel.go` 用 `types.IsTypeModelFile`；`go/instance/instance.go` 用 `types.FindInstDir`（注册表驱动）。`isSyncAllowed/isModelFile/extMatch/syncNameKey` 全部收敛进 `types/`（`NormalizeResourceName`/`IsResourceAllowed`/`IsTypeModelFile`/`IsDirLevelSync`）。 |
-| 4 | `fsutil/` `copyFile×6` / `copyDirRecursive×4` 重复 | **部分** | `go/fsutil/copy.go` 已定义统一 `CopyFile` + `CopyDirRecursive`（注释明确「收敛自 fileops/recycle/importer/sync 四份」）。但**多包内仍保留本地 wrapper**：`installer.copyFileLocked`、`sync.copyFile`、`recycle.copyFile`、`importer.copyFile`、`fileops.copyFile`、`updater.copyFile`、`cmd/updater.copyFile`——7 处本地副本，其中 `fsutil.CopyFile` 是规范实现，其余多数为薄包装/不同语义。原始 6+4 重复未完全消除。 |
+| 4 | `fsutil/` `copyFile×6` / `copyDirRecursive×4` 重复 | **部分** | `go/fsutil/copy.go` 已定义统一 `CopyFile` + `CopyDirRecursive`（注释明确「收敛自 fileops/recycle/importer/sync 四份」）。`installer.copyFileLocked` 已收敛为 `fsutil.CopyFile` 委托 + `StepError` 步骤类型化错误（ADR-044 策略 A：机制归 fsutil、文案归 installer）。仍保留 6 处本地 wrapper：`sync.copyFile`、`recycle.copyFile`、`importer.copyFile`、`fileops.copyFile`、`updater.copyFile`、`cmd/updater.copyFile`——多数为薄包装/不同语义，未完全消除。 |
 | 5 | `ShouldHashExt` + scanner CI 清单硬编码 | **已闭环** | `go/types/extensions.go` `ShouldHashExt` 现按 `ResourceType.Hashable` 字段判定（注释：「注册表驱动：任何声明 hashable 的资源类型扩展名均计入哈希」）。`Hashable` 字段在 `go/types/resource.go` 已定义。`go/types/types_extra_test.go` `TestShouldHashExt_PinnedList` 钉住 `.ysm/.zip/.7z/.json/.nbt/.schematic/.litematic`，并测大小写不敏感。scanner 不再维护独立清单。 |
 | 6 | `browser-adapter.ts` 40+ binding 手写大对象字面量 | **已闭环 ADR-049/web M2 (93cb0e8b)** | `frontend/src/backend/browser-adapter.ts` 现 `webImpls = { ...webCommonBindings, ...webFsBindings, ...webStoreBindings, ...webCommunityBindings }`；各职责模块自注册片段（`web-common.ts`、`web-fs.ts`、`web-store.ts`、`web-community.ts`）。`browser-adapter.ts` 95 行，退化为「编排/入口」薄壳。 |
 | 7 | `import-dnd.ts` 4 处重复 | **已闭环 web M1 (93cb0e8b)** | `frontend/src/features/import-executor.ts` 定义 `importWebFilesWithToast` 单点；`import-dnd.ts` 与 `import-queue-events.ts` 全部改为调用 `importWebFilesWithToast`。`stats:refresh` 已统一在 `import-executor.ts` 发出（原 folderInput 分支缺失已修复）。 |
@@ -134,7 +134,7 @@
 
 ## 对账摘要（≤15 行）
 
-- **Top 10**：6 条已闭环（#3 文件夹级判定/ #5 ShouldHashExt / #6 browser-adapter 字面量 / #7 import-dnd 重复 / #8 app-modules catch / #10 /web 正则）；3 条部分（#2 双入口检测器 / #4 copyFile 7 副本 / #9 ResourceType hook 字段）；1 条 N/A（#1 RenderSession）。
+- **Top 10**：6 条已闭环（#3 文件夹级判定/ #5 ShouldHashExt / #6 browser-adapter 字面量 / #7 import-dnd 重复 / #8 app-modules catch / #10 /web 正则）；3 条部分（#2 双入口检测器 / #4 copyFile 6 副本 / #9 ResourceType hook 字段）；1 条 N/A（#1 RenderSession）。
 - **一、backend**：10 条中 3 已闭环（1.4/1.5/1.6 半）、3 部分、4 存活。
 - **二、utils/3d**：20+ 条基本全部存活（本轮 ADR 未触及 3D 管线）；Top 1 独立立项未启动。
 - **三、views**：3 条全部存活。

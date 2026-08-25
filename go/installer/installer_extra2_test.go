@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"testing"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
 
@@ -824,28 +825,19 @@ func TestSymlinkOrCopyLocked_SymlinkErr(t *testing.T) {
 
 // ====== copyFileLocked 剩余分支 ======
 
-// TestCopyFileLocked_CreateFail tmp 路径被非空目录占位 → os.Create 失败
-func TestCopyFileLocked_CreateFail(t *testing.T) {
-	dir := t.TempDir()
-	src := filepath.Join(dir, "model.ysm")
-	if err := os.WriteFile(src, []byte("x"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	dstDir := filepath.Join(dir, "dst")
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	block := filepath.Join(dstDir, "model.ysm.copy-tmp")
-	if err := os.MkdirAll(block, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(block, "x"), []byte("x"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	_, err := copyFileLocked(src, dstDir) // os.Remove 忽略失败 → os.Create 撞上目录必败
+// TestCopyFileLocked_Success 已覆盖主路径；固定名占位用例（.copy-tmp 被占目录）
+// 随收敛到 fsutil.CopyFile 的 CreateTemp 随机名而天然规避，不再有该失败路径，
+// 故删除旧 TestCopyFileLocked_CreateFail（孤儿副本漂移证据，见 sync_push_extra 记载）。
+
+// TestCopyFileLocked_SrcMissing 源缺失经 fsutil StepStat 前置拒绝 → IO_ERROR
+func TestCopyFileLocked_SrcMissingStepErr(t *testing.T) {
+	_, err := copyFileLocked(filepath.Join(t.TempDir(), "nope.ysm"), t.TempDir())
 	var ae types.AppError
 	if !errors.As(err, &ae) || ae.Code != "IO_ERROR" {
-		t.Fatalf("创建临时文件失败应返回 IO_ERROR, got %v", err)
+		t.Fatalf("源缺失应返回 IO_ERROR, got %v", err)
+	}
+	if ae.Reason != "无法读取源文件" {
+		t.Fatalf("源缺失 Reason 应为「无法读取源文件」, got %q", ae.Reason)
 	}
 }
 
@@ -932,6 +924,60 @@ func TestCopyFileLocked_ReadDirAsSourceFails(t *testing.T) {
 	}
 	if _, statErr := os.Stat(filepath.Join(dstDir, base+".copy-tmp")); !os.IsNotExist(statErr) {
 		t.Fatalf("失败后临时文件不应残留: %v", statErr)
+	}
+}
+
+// ====== mapStepToAppError 差异化文案映射表（ADR-044 策略 A：机制归 fsutil、文案归 installer）======
+
+// TestMapStepToAppError 断言每个中性步骤名映射回六档既有差异化文案，
+// 保证收敛 fsutil.CopyFile 后 UI 提示与旧 copyFileLocked 逐字一致（回归护栏）。
+func TestMapStepToAppError(t *testing.T) {
+	src := "/repo/a.ysm"
+	dst := "/mc/custom/a.ysm"
+	inner := errors.New("root cause")
+	cases := []struct {
+		step                          string
+		operation, reason, suggestion string
+	}{
+		{fsutil.StepStat, "复制文件", "无法读取源文件", "请检查文件是否被占用或已删除"},
+		{fsutil.StepOpen, "复制文件", "无法读取源文件", "请检查文件是否被占用或已删除"},
+		{fsutil.StepCloseSrc, "复制文件", "源文件读取未正常完成", "请检查文件访问权限"},
+		{fsutil.StepMkdir, "复制文件", "无法创建目录", "请检查磁盘权限或空间"},
+		{fsutil.StepCreateTmp, "复制文件", "无法创建临时文件", "请检查磁盘空间或权限"},
+		{fsutil.StepCopy, "复制文件", "写入临时文件失败", "请检查磁盘空间或权限"},
+		{fsutil.StepSync, "复制文件", "临时文件落盘失败", "请检查磁盘空间或权限"},
+		{fsutil.StepClose, "复制文件", "临时文件写入未完成", "请检查磁盘空间或权限"},
+		{fsutil.StepChmod, "复制文件", "设置文件权限失败", "请检查目标位置权限"},
+		{fsutil.StepRename, "安装模型", "替换目标文件失败", "请检查目标文件是否被占用或为只读"},
+	}
+	for _, c := range cases {
+		ae := mapStepToAppError(c.step, src, dst, inner)
+		if ae.Code != "IO_ERROR" {
+			t.Errorf("%s: Code=%q want IO_ERROR", c.step, ae.Code)
+		}
+		if ae.Operation != c.operation {
+			t.Errorf("%s: Operation=%q want %q", c.step, ae.Operation, c.operation)
+		}
+		if ae.Reason != c.reason {
+			t.Errorf("%s: Reason=%q want %q", c.step, ae.Reason, c.reason)
+		}
+		if ae.Suggestion != c.suggestion {
+			t.Errorf("%s: Suggestion=%q want %q", c.step, ae.Suggestion, c.suggestion)
+		}
+		if ae.SourcePath != src {
+			t.Errorf("%s: SourcePath=%q want %q", c.step, ae.SourcePath, src)
+		}
+		if ae.TargetPath != dst {
+			t.Errorf("%s: TargetPath=%q want %q", c.step, ae.TargetPath, dst)
+		}
+	}
+}
+
+// TestMapStepToAppError_Unknown 未知步骤兜底为 IO_ERROR + 非空默认文案（防遗漏后静默空 Reason）
+func TestMapStepToAppError_Unknown(t *testing.T) {
+	ae := mapStepToAppError("unknown_step", "/s", "/d", errors.New("x"))
+	if ae.Code != "IO_ERROR" || ae.Reason == "" || ae.Suggestion == "" {
+		t.Fatalf("未知步骤应兜底为 IO_ERROR+默认文案, got %+v", ae)
 	}
 }
 

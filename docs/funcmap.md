@@ -14,7 +14,7 @@
 | Go·下载 | 1 | 17 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 14 |
-| Go·文件系统 | 10 | 19 |
+| Go·文件系统 | 10 | 22 |
 | Go·几何 | 2 | 10 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 10 |
@@ -48,7 +48,7 @@
 | frontend/views | 116 | 335 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **471** | **2029** |
+| **合计** | **471** | **2032** |
 
 ## Go·头像
 
@@ -206,9 +206,12 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `StripBOM()` | `go/fsutil/bom:12` | StripBOM 移除 data 前缀的 UTF-8 BOM；无 BOM 时原样返回（bytes.TrimPrefix 语义）。 |
-| `CopyFile()` | `go/fsutil/copy:30` | CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。 |
-| `CopyDirRecursive()` | `go/fsutil/copy:115` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
-| `CopyDirOptions()` | `go/fsutil/copy:90` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
+| `StepError.Error()` | `go/fsutil/copy:48` | — |
+| `StepError.Unwrap()` | `go/fsutil/copy:49` | — |
+| `CopyFile()` | `go/fsutil/copy:64` | CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。 |
+| `CopyDirRecursive()` | `go/fsutil/copy:149` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
+| `StepError()` | `go/fsutil/copy:43` | StepError 带步骤标注的复制错误。 |
+| `CopyDirOptions()` | `go/fsutil/copy:124` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_other:14` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_windows:18` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `FormatSize()` | `go/fsutil/format:7` | FormatSize 人性化字节大小（B/KB/MB/GB 分级）。 |
@@ -265,16 +268,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Install()` | `go/installer/installer:45` | Install 安装模型到目标目录（支持链接模式） |
-| `InstallLocked()` | `go/installer/installer:53` | InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `InstallDir()` | `go/installer/installer:148` | InstallDir 安装整个目录下的所有文件到目标目录。 |
-| `InstallDirRel()` | `go/installer/installer:158` | InstallDirRel 安装目录到 dstRoot/&lt;relSlash&gt;（保留仓库多层物理路径）。 |
-| `InstallDirLocked()` | `go/installer/installer:165` | InstallDirLocked 与 InstallDir 语义相同，但不重复加锁——供已持锁调用方使用。 |
-| `InstallToGlobal()` | `go/installer/installer:405` | InstallToGlobal 安装到全局 custom 目录 |
-| `InstallWithOverlay()` | `go/installer/installer:431` | InstallWithOverlay 带冲突检查的安装 |
-| `CopyFile()` | `go/installer/installer:512` | CopyFile 复制文件到目标目录（带互斥锁） |
-| `CopyFileLocked()` | `go/installer/installer:520` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `IsValidRepoRoot()` | `go/installer/installer:670` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
+| `Install()` | `go/installer/installer:44` | Install 安装模型到目标目录（支持链接模式） |
+| `InstallLocked()` | `go/installer/installer:52` | InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
+| `InstallDir()` | `go/installer/installer:147` | InstallDir 安装整个目录下的所有文件到目标目录。 |
+| `InstallDirRel()` | `go/installer/installer:157` | InstallDirRel 安装目录到 dstRoot/&lt;relSlash&gt;（保留仓库多层物理路径）。 |
+| `InstallDirLocked()` | `go/installer/installer:164` | InstallDirLocked 与 InstallDir 语义相同，但不重复加锁——供已持锁调用方使用。 |
+| `InstallToGlobal()` | `go/installer/installer:404` | InstallToGlobal 安装到全局 custom 目录 |
+| `InstallWithOverlay()` | `go/installer/installer:430` | InstallWithOverlay 带冲突检查的安装 |
+| `CopyFile()` | `go/installer/installer:514` | CopyFile 复制文件到目标目录（带互斥锁） |
+| `CopyFileLocked()` | `go/installer/installer:522` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
+| `IsValidRepoRoot()` | `go/installer/installer:672` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
 
 ## go/instance
 
