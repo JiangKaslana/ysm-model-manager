@@ -567,12 +567,6 @@ func ResolveSavePath(rawURL, saveDir string) (savePath string, jsdURL, apiURL st
 			relPath = parts[3]
 		}
 	}
-	if repoPath == "" && relPath != "" && strings.HasPrefix(rawURL, "https://raw.githubusercontent.com/") {
-		parts := strings.SplitN(rawURL[len("https://raw.githubusercontent.com/"):], "/", 3)
-		if len(parts) >= 2 {
-			repoPath = parts[0] + "/" + parts[1]
-		}
-	}
 	if relPath == "" {
 		// 支持 main 与 master 默认分支（默认分支非 main 的仓库不再解析失败）；
 		// 非 raw 前缀来源（jsdelivr 直链等）走此回退。

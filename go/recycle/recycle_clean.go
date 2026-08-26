@@ -34,6 +34,18 @@ func RemoveRepoDuplicates(dir, filesRoot, recycleRoot string) int {
 	}
 	// 候选仓库文件哈希缓存：同一候选被多个实例文件比对时不重复读盘
 	candidateHashes := make(map[string]string)
+	candidateSizes := make(map[string]int64)
+	sizeOf := func(path string) (int64, bool) {
+		if s, ok := candidateSizes[path]; ok {
+			return s, true
+		}
+		fi, err := os.Stat(path)
+		if err != nil {
+			return 0, false
+		}
+		candidateSizes[path] = fi.Size()
+		return fi.Size(), true
+	}
 	hashOf := func(path string) string {
 		if h, ok := candidateHashes[path]; ok {
 			return h
@@ -52,12 +64,21 @@ func RemoveRepoDuplicates(dir, filesRoot, recycleRoot string) int {
 		// 内容必须与某仓库副本一致才清理——go-installer 卡语义「只删仓库同名副本、
 		// 保留整合包用户自装资源」：同名不同内容是自装改版，仅按名匹配会误删。
 		// 哈希失败/超限返回空 → 一律保守保留。
+		targetSize, ok := sizeOf(p)
+		if !ok {
+			continue
+		}
 		targetHash := hashOf(p)
 		if targetHash == "" {
 			continue
 		}
 		matched := false
 		for _, c := range candidates {
+			// 大小预筛：SHA256 相等必同大小，先比大小跳过绝大多数不同候选，免读盘哈希
+			cs, ok := sizeOf(c)
+			if !ok || cs != targetSize {
+				continue
+			}
 			if h := hashOf(c); h == targetHash {
 				matched = true
 				break
