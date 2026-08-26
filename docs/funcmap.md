@@ -46,10 +46,10 @@
 | frontend/test-utils | 5 | 34 |
 | frontend/ui | 18 | 64 |
 | 前端·工具 | 159 | 632 |
-| frontend/views | 114 | 331 |
+| frontend/views | 114 | 332 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **480** | **2039** |
+| **合计** | **480** | **2040** |
 
 ## Go·头像
 
@@ -1967,7 +1967,8 @@
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf` | — |
 | `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:14` | 初始化性能面板（single-bench / gui-flow / perf-log / 加载剖析） |
 | `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
-| `initGithubPage()` | `frontend/src/views/app-content/init-github:20` | 初始化 GitHub 页 |
+| `GithubPageCtx()` | `frontend/src/views/app-content/init-github:23` | GitHub 社群页编排上下文——把 initGithubPage 各闭包捕获的共享状态显式注入， 供 githubLoadRepos / githubShowRepo / git |
+| `initGithubPage()` | `frontend/src/views/app-content/init-github:281` | 初始化 GitHub 页（纯分派：创建 ctx + 初始化缓存 + 触发 loadRepos） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:20` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:27` | 初始化实例页 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:270` | 初始化创意工坊页（委托到 init-workshop.ts） |
