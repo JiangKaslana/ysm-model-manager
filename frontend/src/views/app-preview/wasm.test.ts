@@ -157,6 +157,20 @@ describe("decodeYsmViaWasm 并发去重", () => {
     expect(decodeMemoryMock).toHaveBeenCalledTimes(1);
   });
 
+  it("读文件瞬时失败不缓存 _wasmFailed：后端恢复后重试成功（P3 修复契约）", async () => {
+    // 场景：ReadFileBytes 瞬时失败（后端短暂不可用/桥错误），随后恢复可用。
+    // 契约：读失败与解码失败不同——不缓存 _wasmFailed，下次调用重试读文件。
+    readFileBytesMock.mockRejectedValueOnce(new Error("backend transient"));
+    const first = await decodeYsmViaWasm("/repo/transient.ysm");
+    expect(first).toBeNull();
+
+    // 后端已恢复：第二次应重试读文件并成功解码
+    readFileBytesMock.mockResolvedValue(FAKE_B64);
+    const second = await decodeYsmViaWasm("/repo/transient.ysm");
+    expect(second).not.toBeNull(); // 重试成功，非 null
+    expect(readFileBytesMock).toHaveBeenCalledTimes(2); // 重试：读了两次
+  });
+
   it("3 次同路径并发合并：只解码一次，三者引用相等", async () => {
     // 3+ 次并发是 preloadModel + 纹理 + Android spec 兜底的真实并发强度，
     // 去重 Map 必须合并所有在途调用（而非仅首个），否则第 3 次会重复解码

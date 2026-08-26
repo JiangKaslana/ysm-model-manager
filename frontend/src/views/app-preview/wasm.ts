@@ -844,8 +844,9 @@ async function doDecodeYsmViaWasm(
     ({ ReadFileBytes } = await getApp());
     raw = await ReadFileBytes(modelPath);
   } catch (e) {
+    // 读文件/后端瞬时失败：不缓存 _wasmFailed（那是解码失败标记），仅记日志返回 null，
+    // 下次调用可重试读文件——避免后端短暂不可用导致本会话永久跳过该模型。
     devLog(`[YSM] ❌ ${safeErrorMessage(e)}`);
-    cacheSet(modelPath, { _wasmFailed: true });
     return null;
   }
   const bytes = raw ? mdWsBase64ToBytes(raw) : new Uint8Array(0);
