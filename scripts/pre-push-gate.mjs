@@ -515,7 +515,14 @@ async function main() {
   }
   if (plan.redlines) {
     const t0 = Date.now();
-    const rl = sh('node scripts/check-redlines.mjs --json --baseline');
+    // 变更域过滤（--files，2026-08-26）：文件驱动/push 模式把本次变更文件传给
+    // check-redlines——仅「变更文件内」的违规计入新增阻断，仓库内其他文件既有债务
+    // 不干扰当前提交（否则只改 Go/文档会被未提交 frontend 存量新增红线卡住）。
+    // --all / --docs 模式 files 为空、不传 --files → 全库基线比对，向后兼容。
+    const filesArg = filesMode || (!allMode && !docsMode && files?.length)
+      ? ` --files ${shq(files.join('\n'))}`
+      : '';
+    const rl = sh(`node scripts/check-redlines.mjs --json --baseline${filesArg}`);
     let newV = null, ok = false, scanHealthy = false, baseCount = 0, rlTail = '';
     try {
       const parsed = JSON.parse(rl.out);

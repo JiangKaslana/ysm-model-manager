@@ -14,6 +14,7 @@ import { rg as rgStrict } from './_lib/ripgrep.mjs';
 import { parseRgLine } from './_lib/rg-line.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { ROOT } from './_lib/scan-files.mjs';
 
 /**
@@ -395,6 +396,29 @@ function outputJson(results, summary = null) {
   }, null, 2) + '\n');
 }
 
+/**
+ * 变更域过滤：把违规键收敛到「本次变更文件」内（--files）。纯函数，供契约测试锁定。
+ * 键格式（collectViolationKeys）：`<file>:<rule>[:<content>:<line>]`，首段即文件路径
+ * （toPosix 归一化，无 Windows 盘符冒号）。changedSet 为 null/undefined 时原样返回
+ * （向后兼容全库基线比对）。
+ * @param {string[]} keys 违规键数组
+ * @param {Set<string>|null} changedSet 本次变更的相对文件路径集合
+ * @returns {string[]} 仅含变更文件内违规的键
+ */
+export function redlineFilterKeysByChangedFiles(keys, changedSet) {
+  if (!changedSet) return keys;
+  return keys.filter((k) => changedSet.has(k.split(':')[0]));
+}
+
+/** 解析 --files <换行分隔文件列表>（与 pre-push-gate --files 同约定）；缺省返回 null。 */
+function resolveChangedSet() {
+  const idx = process.argv.indexOf('--files');
+  if (idx === -1) return null;
+  const raw = process.argv[idx + 1] || '';
+  const files = raw.split('\n').map((f) => f.replace(/\\/g, '/')).filter(Boolean);
+  return files.length ? new Set(files) : null;
+}
+
 function collectViolationKeys(results) {
   const blocking = [];
   const advisory = [];
@@ -453,8 +477,14 @@ function runBaseline(results) {
       current: allKeys };
   }
   const baseSet = new Set(base.violations || []);
-  const newBlocking = current.blocking.filter((k) => !baseSet.has(k));
-  const newAdvisory = current.advisory.filter((k) => !baseSet.has(k));
+  // 变更域过滤（--files，2026-08-26）：仅把「本次变更文件内」的违规计入新增阻断/告警，
+  // 其他文件的既有债务不干扰当前提交——避免 commit-with-check 只改 Go/文档时被
+  // 仓库内其他文件的存量新增红线卡住。基线安全语义不变：真改动文件引入的违规仍阻断。
+  const changedSet = resolveChangedSet();
+  const inChanged = (k) => !changedSet || changedSet.has(k.split(':')[0]);
+  const baseSeen = baseSet.has.bind(baseSet);
+  const newBlocking = current.blocking.filter((k) => inChanged(k) && !baseSeen(k));
+  const newAdvisory = current.advisory.filter((k) => inChanged(k) && !baseSeen(k));
   const gone = [...baseSet].filter((k) => !allKeys.includes(k));
   const errors = newBlocking.map((k) => `[新增红线违规] ${k}`);
   const warns = newAdvisory.slice(0, 10).map((k) => `[债务规则 WARN] ${k}`);
@@ -531,6 +561,11 @@ function outputAudit() {
   ];
   process.stdout.write(out.join('\n') + '\n');
 }
+
+// ---- CLI 入口。main 守卫：import 供契约测试（test_redlines_changed_files.mjs）时
+// 不执行脚本主逻辑；直接 node 运行本文件时 process.argv[1] === 本文件。 ----
+const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
+if (!isMain) process.exit(0);
 
 const args = process.argv.slice(2);
 const jsonMode = args.includes('--json');
