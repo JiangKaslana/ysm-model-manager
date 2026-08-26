@@ -199,9 +199,9 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/features/import-executor.ts` | 46 |
-| `frontend/src/features/import-executor.ts` | 54 |
-| `frontend/src/features/import-executor.ts` | 60 |
+| `frontend/src/features/import-executor.ts` | 44 |
+| `frontend/src/features/import-executor.ts` | 52 |
+| `frontend/src/features/import-executor.ts` | 58 |
 
 ### `instance:clear`
 
@@ -259,8 +259,8 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/features/oldest-models.ts` | 50 |
-| `frontend/src/features/recycle-bin.ts` | 108 |
+| `frontend/src/features/oldest-models.ts` | 51 |
+| `frontend/src/features/recycle-bin.ts` | 109 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 346 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 227 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 295 |
@@ -375,10 +375,10 @@
 | `frontend/src/core/handlers/sync.ts` | 102 |
 | `frontend/src/core/handlers/sync.ts` | 211 |
 | `frontend/src/features/community/download-queue.ts` | 110 |
-| `frontend/src/features/import-executor.ts` | 70 |
-| `frontend/src/features/import-executor.ts` | 258 |
-| `frontend/src/features/recycle-bin.ts` | 78 |
-| `frontend/src/features/recycle-bin.ts` | 191 |
+| `frontend/src/features/import-executor.ts` | 68 |
+| `frontend/src/features/import-executor.ts` | 256 |
+| `frontend/src/features/recycle-bin.ts` | 79 |
+| `frontend/src/features/recycle-bin.ts` | 192 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 391 |
 | `frontend/src/views/app-content/settings/init.ts` | 198 |
 | `frontend/src/views/app-content/settings/path-cards.ts` | 78 |
@@ -487,13 +487,13 @@
 | `frontend/src/features/import-dnd.ts` | 111 |
 | `frontend/src/features/import-dnd.ts` | 125 |
 | `frontend/src/features/import-dnd.ts` | 204 |
-| `frontend/src/features/import-executor.ts` | 65 |
-| `frontend/src/features/import-executor.ts` | 249 |
-| `frontend/src/features/import-executor.ts` | 262 |
-| `frontend/src/features/recycle-bin.ts` | 72 |
-| `frontend/src/features/recycle-bin.ts` | 81 |
-| `frontend/src/features/recycle-bin.ts` | 193 |
-| `frontend/src/features/recycle-bin.ts` | 201 |
+| `frontend/src/features/import-executor.ts` | 63 |
+| `frontend/src/features/import-executor.ts` | 247 |
+| `frontend/src/features/import-executor.ts` | 260 |
+| `frontend/src/features/recycle-bin.ts` | 73 |
+| `frontend/src/features/recycle-bin.ts` | 82 |
+| `frontend/src/features/recycle-bin.ts` | 194 |
+| `frontend/src/features/recycle-bin.ts` | 202 |
 | `frontend/src/features/version-updater.ts` | 147 |
 | `frontend/src/features/version-updater.ts` | 156 |
 | `frontend/src/features/version-updater.ts` | 179 |
@@ -664,10 +664,10 @@
 | `frontend/src/core/handlers/sync.ts` | 120 |
 | `frontend/src/core/handlers/sync.ts` | 234 |
 | `frontend/src/features/community/download-queue.ts` | 109 |
-| `frontend/src/features/import-executor.ts` | 71 |
-| `frontend/src/features/import-executor.ts` | 257 |
-| `frontend/src/features/recycle-bin.ts` | 79 |
-| `frontend/src/features/recycle-bin.ts` | 192 |
+| `frontend/src/features/import-executor.ts` | 69 |
+| `frontend/src/features/import-executor.ts` | 255 |
+| `frontend/src/features/recycle-bin.ts` | 80 |
+| `frontend/src/features/recycle-bin.ts` | 193 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 392 |
 | `frontend/src/views/app-sidebar/index.ts` | 289 |
 

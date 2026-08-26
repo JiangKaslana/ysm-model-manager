@@ -1,0 +1,120 @@
+// ===== YSMParser 共享核心（主线程 ysm-parser.ts 与 Worker ysm-worker-loader.ts 的无状态公共部分）=====
+// 原两处逐字同构副本收敛于此，消除「需同步避免口径漂移」的人肉同步负担。
+// 边界：仅共享无状态纯函数与类型；单例状态（wasmModule/loading/waiters）与全局
+// 注入点差异（主线程 window.Module vs Worker globalThis.Module）不在此共享——
+// Worker 内 WASM 加载必须独立于主线程单例（stats.worker.ts 约束）。
+
+/** 解码输出文件 */
+export interface YsmDecodedFile {
+  path: string;
+  data: Uint8Array;
+}
+
+/** Emscripten FS 最小接口（WASM 导出） */
+export interface FSLike {
+  readdir(path: string): string[];
+  stat(path: string): { mode: number };
+  isDir(mode: number): boolean;
+  readFile(path: string): Uint8Array;
+  writeFile(path: string, data: Uint8Array): void;
+  mkdir(path: string): void;
+  rmdir(path: string): void;
+  unlink(path: string): void;
+}
+
+/** Emscripten Module 最小接口（WASM 实例） */
+export interface WasmModuleLike {
+  _malloc(len: number): number;
+  _free(ptr: number): void;
+  ccall(
+    fn: string,
+    ret: string | null,
+    args: string[],
+    params: Array<number | string>,
+  ): number | null;
+  FS: FSLike;
+  HEAPU8?: Uint8Array;
+  callMain?: (args: string[]) => void;
+}
+
+/**
+ * WASM 错误分类：收敛 decodeYsmFileFromMemory / decodeYsmFile / decodeYsmInWorker /
+ * decodeYsmInWorkerMemfs 四个 catch 块的重复判定。
+ * 口径差异保留在调用方：内存路径 ExitStatus 一并重置；callMain 路径按 exit code 细分。
+ * @returns fatal=abort/trap/oOM 硬崩溃；exit=ExitStatus（调用方查 exitCode）；unknown=其他
+ */
+export function classifyWasmError(err: unknown): {
+  kind: "fatal" | "exit" | "unknown";
+  exitCode?: number;
+} {
+  const errObj = err as { name?: string; status?: unknown };
+  const errStr = String(errObj?.name || err);
+  if (errStr.includes("ExitStatus")) {
+    return {
+      kind: "exit",
+      exitCode: typeof errObj?.status === "number" ? errObj.status : undefined,
+    };
+  }
+  if (/abort|trap|out of memory/i.test(errStr)) {
+    return { kind: "fatal" };
+  }
+  return { kind: "unknown" };
+}
+
+export function wipeDir(FS: FSLike, dir: string): void {
+  try {
+    for (const e of FS.readdir(dir).filter((n) => n !== "." && n !== "..")) {
+      const f = dir + "/" + e;
+      if (FS.isDir(FS.stat(f).mode)) {
+        wipeDir(FS, f);
+        FS.rmdir(f);
+      } else {
+        FS.unlink(f);
+      }
+    }
+  } catch (_) {}
+}
+
+export function ensureDir(FS: FSLike, dir: string): void {
+  let cur = "";
+  for (const p of dir.split("/").filter(Boolean)) {
+    cur += "/" + p;
+    try {
+      FS.mkdir(cur);
+    } catch (_) {}
+  }
+}
+
+export function collectOutputFiles(FS: FSLike, root: string): YsmDecodedFile[] {
+  const r: YsmDecodedFile[] = [];
+  (function w(d: string, rel: string): void {
+    for (const e of FS.readdir(d).filter((n) => n !== "." && n !== "..")) {
+      const f = d + "/" + e;
+      const rp = rel ? rel + "/" + e : e;
+      if (FS.isDir(FS.stat(f).mode)) w(f, rp);
+      else r.push({ path: rp, data: FS.readFile(f) });
+    }
+  })(root, "");
+  return r;
+}
+
+/**
+ * 将 JS 数据写入 WASM 内存，返回指针。
+ * @param malloc 模块 _malloc（可能触发 WASM 内存增长）
+ * @param getHeap 取最新 HEAPU8 的闭包——⚠️ _malloc 可能触发 growMemory，此时 HEAPU8 被
+ *   新的 ArrayBuffer 替换（旧 buffer 被分离/detached）。必须在写入前重新获取最新 HEAPU8，
+ *   而非在 malloc 之前缓存——否则 heap.set() 写入已分离的 buffer，数据丢失且不报错
+ *   （静默损坏：WASM 解码输出全乱，前端渲染花屏/白屏，难以定位）。
+ */
+export function writeHeapBytes(
+  data: Uint8Array,
+  malloc: (len: number) => number,
+  getHeap: () => Uint8Array,
+): number {
+  const src = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const len = src.length;
+  const ptr = malloc(len);
+  if (!ptr) throw new Error("malloc 失败 (" + len + " bytes)");
+  getHeap().set(src, ptr);
+  return ptr;
+}

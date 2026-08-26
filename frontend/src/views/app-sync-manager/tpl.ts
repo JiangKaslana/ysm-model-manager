@@ -28,6 +28,42 @@ export interface SyncFile {
   size: number;
 }
 
+// ===== 状态元数据表（单一事实源：syncDirRowHTML / itemHTML 共用，消除 ×2 三元链）=====
+export const STATUS_ICON: Record<string, string> = {
+  synced: "✅",
+  legacy: "🔗",
+  missing: "⬇️",
+  diverged: "🗂️",
+  disabled: "⛔",
+  optional: "📤",
+};
+
+export const STATUS_COLOR: Record<string, string> = {
+  synced: "var(--sz-green)",
+  missing: "var(--accent)",
+  diverged: "var(--accent)",
+  disabled: "var(--muted)",
+  optional: "var(--sm-optional)",
+  legacy: "var(--muted)",
+};
+
+export const statusIconOf = (status: string): string => STATUS_ICON[status] ?? "·";
+export const statusColorOf = (status: string): string => STATUS_COLOR[status] ?? "var(--muted)";
+
+/** 状态操作按钮（missing/diverged→push；optional→pull；legacy→pullHere；其余无） */
+export function actionBtnHTML(status: string): string {
+  if (status === "missing" || status === "diverged") {
+    return '<button class="sm-item-btn" data-testid="sm-push" data-action="push" style="border:1px solid var(--accent);color:var(--accent)">' + t("syncManager.push") + '</button>';
+  }
+  if (status === "optional") {
+    return '<button class="sm-item-btn" data-testid="sm-pull" data-action="pull" style="border:1px solid var(--sm-optional);color:var(--sm-optional)">' + t("syncManager.pull") + '</button>';
+  }
+  if (status === "legacy") {
+    return '<button class="sm-item-btn" data-action="pull" style="border:1px solid var(--muted);color:var(--muted);font-size:var(--fs-tiny)">' + t("syncManager.pullHere") + '</button>';
+  }
+  return "";
+}
+
 /** 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮）
  * 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 events 处理。
  * @param path 展示路径 key（用于展开状态与树形展示）
@@ -39,31 +75,10 @@ export function syncDirRowHTML(
   index: number,
   opPath?: string,
 ): string {
-  const statusIcon =
-    syncItem.status === "synced" ? "✅" :
-    syncItem.status === "legacy" ? "🔗" :
-    syncItem.status === "missing" ? "⬇️" :
-    syncItem.status === "diverged" ? "🗂️" :
-    syncItem.status === "disabled" ? "⛔" :
-    syncItem.status === "optional" ? "📤" : "·";
-  const statusColor =
-    syncItem.status === "synced" ? "var(--sz-green)" :
-    syncItem.status === "missing" ? "var(--accent)" :
-    syncItem.status === "diverged" ? "var(--accent)" :
-    syncItem.status === "legacy" ? "var(--muted)" :
-    syncItem.status === "optional" ? "var(--sm-optional)" : "var(--muted)";
+  const statusIcon = statusIconOf(syncItem.status);
+  const statusColor = statusColorOf(syncItem.status);
   const sizeStr = syncItem.size > 0 ? formatBytes(syncItem.size) : "";
-  let actionBtn = "";
-  if (syncItem.status === "missing" || syncItem.status === "diverged") {
-    actionBtn =
-      '<button class="sm-item-btn" data-testid="sm-push" data-action="push" style="border:1px solid var(--accent);color:var(--accent)">' + t("syncManager.push") + '</button>';
-  } else if (syncItem.status === "optional") {
-    actionBtn =
-      '<button class="sm-item-btn" data-testid="sm-pull" data-action="pull" style="border:1px solid var(--sm-optional);color:var(--sm-optional)">' + t("syncManager.pull") + '</button>';
-  } else if (syncItem.status === "legacy") {
-    actionBtn =
-      '<button class="sm-item-btn" data-action="pull" style="border:1px solid var(--muted);color:var(--muted);font-size:var(--fs-tiny)">' + t("syncManager.pullHere") + '</button>';
-  }
+  const actionBtn = actionBtnHTML(syncItem.status);
   const arrow = shouldOpen ? "▾" : "▸";
   return (
     '<div class="sm-item sm-dir" data-path="' +
@@ -193,32 +208,10 @@ export function statusTabHTML(
  * 列表项 HTML（扁平文件行，按 isDir 为 false 渲染）
  */
 export function itemHTML(item: SyncItem, index: number): string {
-  const statusIcon =
-    item.status === "synced" ? "✅" :
-    item.status === "missing" ? "⬇️" :
-    item.status === "diverged" ? "🗂️" :
-    item.status === "disabled" ? "⛔" :
-    item.status === "optional" ? "📤" :
-    item.status === "legacy" ? "🔗" : "·";
-  const statusColor =
-    item.status === "synced" ? "var(--sz-green)" :
-    item.status === "missing" ? "var(--accent)" :
-    item.status === "diverged" ? "var(--accent)" :
-    item.status === "disabled" ? "var(--muted)" :
-    item.status === "optional" ? "var(--sm-optional)" :
-    item.status === "legacy" ? "var(--muted)" : "var(--muted)";
+  const statusIcon = statusIconOf(item.status);
+  const statusColor = statusColorOf(item.status);
   const sizeStr = item.size > 0 ? formatBytes(item.size) : "";
-  let actionBtn = "";
-  if (item.status === "missing" || item.status === "diverged") {
-    actionBtn =
-      '<button class="sm-item-btn" data-testid="sm-push" data-action="push" style="border:1px solid var(--accent);color:var(--accent)">' + t("syncManager.push") + '</button>';
-  } else if (item.status === "optional") {
-    actionBtn =
-      '<button class="sm-item-btn" data-testid="sm-pull" data-action="pull" style="border:1px solid var(--sm-optional);color:var(--sm-optional)">' + t("syncManager.pull") + '</button>';
-  } else if (item.status === "legacy") {
-    actionBtn =
-      '<button class="sm-item-btn" data-action="pull" style="border:1px solid var(--muted);color:var(--muted);font-size:var(--fs-tiny)">' + t("syncManager.pullHere") + '</button>';
-  }
+  const actionBtn = actionBtnHTML(item.status);
   return (
     // code review P1：class 补 sm-file——children/扁平文件行统一 .sm-item sm-file
     //（旧 syncFileRowHTML 语义；渲染层 children 走 itemHTML，无 sm-file 会让

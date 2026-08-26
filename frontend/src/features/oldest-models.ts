@@ -8,6 +8,7 @@ import { loadResourceRegistry } from "../utils/resource/registry.ts";
 import { getApp } from "../backend/app.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../utils/resource/types.ts";
 import { useCurrentResourceType } from "./repo-rtype.ts";
+import { createLoadGuard } from "../utils/async/load-guard.ts";
 
 // ===== 业务常量（审核：魔法数值集中化，数值与既有行为完全一致）=====
 const MS_PER_DAY = 86400000;
@@ -44,8 +45,8 @@ export async function loadOldestModel(
   esc: (s: string) => string,
 ): Promise<() => void> {
   if (!container) return () => {};
-  // 渲染代数：rtype 快速切换时丢弃过期结果（与 recycle-bin 的 _loadGen 同模式）
-  let _loadGen = 0;
+  // 渲染代数守卫：rtype 快速切换时丢弃过期结果（与 recycle-bin 共用 createLoadGuard）
+  const guard = createLoadGuard();
 
   // 命名函数，用于安全地移除/添加 click 监听，避免重复绑定
   function handleContainerClick(e: MouseEvent): void {
@@ -57,13 +58,13 @@ export async function loadOldestModel(
   }
 
   async function render(): Promise<void> {
-    const gen = ++_loadGen; // 每次渲染自增：慢响应返回后若已过期则丢弃
+    const gen = guard.next(); // 每次渲染自增：慢响应返回后若已过期则丢弃
     container.innerHTML =
       '<div style="padding:12px;color:var(--muted);font-size:var(--fs-base)">⏳ ' + t("oldest.scanning") + '</div>';
     try {
       const { ScanModelEntriesWithLabel, GetRepoRoot } = await getApp();
       const filesRoot = await GetRepoRoot(getCurrentType());
-      if (gen !== _loadGen) return;
+      if (guard.stale(gen)) return;
       if (!filesRoot) {
         container.innerHTML =
           '<div style="padding:12px;color:var(--status-error);font-size:var(--fs-base)">' + t("oldest.configTypeDir") + '</div>';
@@ -71,7 +72,7 @@ export async function loadOldestModel(
       }
 
       const entries: ModelEntry[] = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[getCurrentType()] ?? RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
-      if (gen !== _loadGen) return; // 已切换类型，丢弃过期结果
+      if (guard.stale(gen)) return; // 已切换类型，丢弃过期结果
       if (!entries || !entries.length) {
         container.innerHTML =
           '<div style="padding:12px;color:var(--muted);font-size:var(--fs-base)">' + t("oldest.repoEmpty") + '</div>';
@@ -243,7 +244,7 @@ export async function loadOldestModel(
       };
 
       const reg = await loadResourceRegistry();
-      if (gen !== _loadGen) return; // 已切换类型，丢弃过期结果
+      if (guard.stale(gen)) return; // 已切换类型，丢弃过期结果
       const curIcon = (reg[getCurrentType()] && reg[getCurrentType()].icon) || "📦";
       container.innerHTML =
         '<div class="oldest-page">' +
@@ -301,7 +302,7 @@ export async function loadOldestModel(
       container.removeEventListener("click", handleContainerClick);
       container.addEventListener("click", handleContainerClick);
     } catch (err) {
-      if (gen !== _loadGen) return; // 已切换类型，丢弃过期结果
+      if (guard.stale(gen)) return; // 已切换类型，丢弃过期结果
       container.innerHTML =
         '<div style="padding:12px;color:var(--status-error);font-size:var(--fs-base)">❌ ' +
         t("resource.loadFailed") +
@@ -324,10 +325,10 @@ export async function loadOldestModel(
   return () => {
     container.removeEventListener("click", handleContainerClick);
     cleanupRtype();
-    // P3 修复（审核发现）：cleanup 后递增代数——若 render 在清理后完成（迟到响应），
+    // P3 修复（审核发现）：cleanup 后使代数失效——若 render 在清理后完成（迟到响应），
     // 仍会向容器写 innerHTML 并重新 addEventListener；容器若被复用则残留点击监听
-    // （幽灵路径/泄漏）。递增后任何在途 render 的 gen 比对都会丢弃结果。
-    _loadGen++;
+    // （幽灵路径/泄漏）。失效后任何在途 render 的 gen 比对都会丢弃结果。
+    guard.invalidate();
   };
 }
 

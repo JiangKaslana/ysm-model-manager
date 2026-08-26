@@ -45,11 +45,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 155 | 627 |
-| frontend/views | 115 | 334 |
-| 前端·WASM | 8 | 14 |
+| 前端·工具 | 156 | 629 |
+| frontend/views | 115 | 339 |
+| 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **473** | **2038** |
+| **合计** | **475** | **2053** |
 
 ## Go·头像
 
@@ -1118,19 +1118,19 @@
 | `groupCollected()` | `frontend/src/features/dnd-shared:51` | 将收集到的条目分组： - 有目录前缀的条目 → 按「顶层目录」整组（dir = 第一段路径），组内保留完整 relPath（支持多层嵌套） - 无目录前缀的散落文件 → 单文件队列 |
 | `handleTreeDrop()` | `frontend/src/features/import-dnd:33` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
 | `bindTreeDnD()` | `frontend/src/features/import-dnd:150` | 在目标容器上注册仓库页 DnD 事件。 |
+| `CollectedEntry()` | `frontend/src/features/import-executor` | — |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
-| `ImportFile()` | `frontend/src/features/import-executor:19` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `ImportRecord()` | `frontend/src/features/import-executor:22` | 已导入历史条目（导入 tab「已导入」列表数据源） |
-| `CollectedEntry()` | `frontend/src/features/import-executor:30` | 收集条目（文件 + 相对路径） |
-| `ImportHistory()` | `frontend/src/features/import-executor:39` | — |
-| `directImport()` | `frontend/src/features/import-executor:97` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
-| `importFolder()` | `frontend/src/features/import-executor:142` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） rtype：页面上下文类型（当前树根属性，派生自注册表路由配置）——非空走 Im |
-| `executeCollected()` | `frontend/src/features/import-executor:230` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `importWebFilesWithToast()` | `frontend/src/features/import-executor:255` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
-| `loadOldestModel()` | `frontend/src/features/oldest-models:42` | 加载资历最深、仓库评分、热力图和每日推荐 |
-| `RecycleHost()` | `frontend/src/features/recycle-bin:28` | app-content 组件实例（initRecycleBin 依赖的成员） |
-| `isPathInRoot()` | `frontend/src/features/recycle-bin:39` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
-| `initRecycleBin()` | `frontend/src/features/recycle-bin:49` | 初始化回收站管理，返回清理函数 |
+| `ImportFile()` | `frontend/src/features/import-executor:20` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `ImportRecord()` | `frontend/src/features/import-executor:23` | 已导入历史条目（导入 tab「已导入」列表数据源） |
+| `ImportHistory()` | `frontend/src/features/import-executor:37` | — |
+| `directImport()` | `frontend/src/features/import-executor:95` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
+| `importFolder()` | `frontend/src/features/import-executor:140` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） rtype：页面上下文类型（当前树根属性，派生自注册表路由配置）——非空走 Im |
+| `executeCollected()` | `frontend/src/features/import-executor:228` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:253` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
+| `loadOldestModel()` | `frontend/src/features/oldest-models:43` | 加载资历最深、仓库评分、热力图和每日推荐 |
+| `RecycleHost()` | `frontend/src/features/recycle-bin:29` | app-content 组件实例（initRecycleBin 依赖的成员） |
+| `isPathInRoot()` | `frontend/src/features/recycle-bin:40` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
+| `initRecycleBin()` | `frontend/src/features/recycle-bin:50` | 初始化回收站管理，返回清理函数 |
 | `currentRepoType()` | `frontend/src/features/repo-rtype:18` | 读取当前仓库资源类型（时刻值）。 |
 | `useCurrentResourceType()` | `frontend/src/features/repo-rtype:28` | 订阅当前仓库资源类型。 |
 | `UpdateInfo()` | `frontend/src/features/version-updater:13` | 更新信息（CheckUpdate 返回） |
@@ -1442,9 +1442,9 @@
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:86` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:105` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:165` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:495` | — |
-| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:515` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:551` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
+| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:490` | — |
+| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:510` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:546` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:21` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:31` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:37` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
@@ -1748,6 +1748,8 @@
 | `compileMolang()` | `frontend/src/utils/animation/molang:71` | 编译 Molang 表达式为求值闭包。 |
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
+| `LoadGuard()` | `frontend/src/utils/async/load-guard:7` | — |
+| `createLoadGuard()` | `frontend/src/utils/async/load-guard:16` | — |
 | `CachePolicy()` | `frontend/src/utils/cache/with-cached:15` | 缓存策略 |
 | `withCached()` | `frontend/src/utils/cache/with-cached:48` | 带过期时间的异步缓存包装器 策略行为（优先级从高到低）： FORCE  — 忽略缓存，强制重新计算（不写入缓存） STALE  — 命中缓存直接返回；过期则立即返回旧值 + 后台刷 |
 | `invalidateCache()` | `frontend/src/utils/cache/with-cached:131` | 清除指定缓存条目 |
@@ -2213,13 +2215,18 @@
 | `applyFilter()` | `frontend/src/views/app-sync-manager/store:111` | 应用类型 + 状态筛选，写入 self._filteredItems（递归 + keep-ancestors）。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `SyncFile()` | `frontend/src/views/app-sync-manager/tpl:25` | 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） |
-| `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:35` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |
-| `syncFileRowHTML()` | `frontend/src/views/app-sync-manager/tpl:98` | 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） |
-| `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:123` | 容器骨架 |
-| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:166` | 状态筛选标签 HTML |
-| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:195` | 列表项 HTML（扁平文件行，按 isDir 为 false 渲染） |
-| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:260` | 空状态 HTML |
-| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:274` | 加载中 |
+| `STATUS_ICON()` | `frontend/src/views/app-sync-manager/tpl:32` | — |
+| `STATUS_COLOR()` | `frontend/src/views/app-sync-manager/tpl:41` | — |
+| `statusIconOf()` | `frontend/src/views/app-sync-manager/tpl:50` | — |
+| `statusColorOf()` | `frontend/src/views/app-sync-manager/tpl:51` | — |
+| `actionBtnHTML()` | `frontend/src/views/app-sync-manager/tpl:54` | 状态操作按钮（missing/diverged→push；optional→pull；legacy→pullHere；其余无） |
+| `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:71` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |
+| `syncFileRowHTML()` | `frontend/src/views/app-sync-manager/tpl:113` | 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） |
+| `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:138` | 容器骨架 |
+| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:181` | 状态筛选标签 HTML |
+| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:210` | 列表项 HTML（扁平文件行，按 isDir 为 false 渲染） |
+| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:253` | 空状态 HTML |
+| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:267` | 加载中 |
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
 | `AuthorInfo()` | `frontend/src/views/app-tree/authors:5` | 作者统计（Go ListModelAuthors 返回） |
 | `loadAuthors()` | `frontend/src/views/app-tree/authors:13` | 从 Go 端加载作者列表 |
@@ -2265,20 +2272,28 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `YsmDecodedFile()` | `frontend/src/wasm/parser-shared:8` | 解码输出文件 |
+| `FSLike()` | `frontend/src/wasm/parser-shared:14` | Emscripten FS 最小接口（WASM 导出） |
+| `WasmModuleLike()` | `frontend/src/wasm/parser-shared:26` | Emscripten Module 最小接口（WASM 实例） |
+| `classifyWasmError()` | `frontend/src/wasm/parser-shared:46` | WASM 错误分类：收敛 decodeYsmFileFromMemory / decodeYsmFile / decodeYsmInWorker / decodeYsmInWork |
+| `wipeDir()` | `frontend/src/wasm/parser-shared:64` | — |
+| `ensureDir()` | `frontend/src/wasm/parser-shared:78` | — |
+| `collectOutputFiles()` | `frontend/src/wasm/parser-shared:88` | — |
+| `writeHeapBytes()` | `frontend/src/wasm/parser-shared:109` | 将 JS 数据写入 WASM 内存，返回指针。 |
 | `_getGlueCodeMt()` | `frontend/src/wasm/ysm-glue-data-mt:3` | — |
 | `_getGlueCode()` | `frontend/src/wasm/ysm-glue-data:3` | — |
-| `YsmDecodedFile()` | `frontend/src/wasm/ysm-parser:46` | 解码输出文件 |
-| `initYSMParser()` | `frontend/src/wasm/ysm-parser:92` | — |
-| `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:187` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
-| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:236` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
+| `YsmDecodedFile()` | `frontend/src/wasm/ysm-parser` | — |
+| `initYSMParser()` | `frontend/src/wasm/ysm-parser:53` | — |
+| `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:138` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
+| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:187` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
 | `_getWasmBinaryMt()` | `frontend/src/wasm/ysm-wasm-data-mt.d:1` | — |
 | `_getWasmBinaryMt()` | `frontend/src/wasm/ysm-wasm-data-mt:4` | — |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data.d:1` | — |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
-| `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:68` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
-| `initYsmParserInWorkerMt()` | `frontend/src/wasm/ysm-worker-loader:81` | ADR-079 M3/M4：pthread 多线程版初始化（需 crossOriginIsolated=true——SharedArrayBuffer 前提，见 backend/c |
-| `decodeYsmInWorker()` | `frontend/src/wasm/ysm-worker-loader:237` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。 |
-| `decodeYsmInWorkerMemfs()` | `frontend/src/wasm/ysm-worker-loader:276` | callMain + MEMFS 解码 .ysm（回退路径，兼容旧 WASM 编译 / V3 文本头部等格式）。 |
+| `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:50` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
+| `initYsmParserInWorkerMt()` | `frontend/src/wasm/ysm-worker-loader:63` | ADR-079 M3/M4：pthread 多线程版初始化（需 crossOriginIsolated=true——SharedArrayBuffer 前提，见 backend/c |
+| `decodeYsmInWorker()` | `frontend/src/wasm/ysm-worker-loader:161` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。 |
+| `decodeYsmInWorkerMemfs()` | `frontend/src/wasm/ysm-worker-loader:200` | callMain + MEMFS 解码 .ysm（回退路径，兼容旧 WASM 编译 / V3 文本头部等格式）。 |
 
 ## frontend/workers
 

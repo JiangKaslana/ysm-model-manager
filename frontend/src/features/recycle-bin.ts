@@ -8,6 +8,7 @@ import { loadResourceRegistry } from "../utils/resource/registry.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { getApp } from "../backend/app.ts";
 import { useCurrentResourceType } from "./repo-rtype.ts";
+import { createLoadGuard } from "../utils/async/load-guard.ts";
 import { stagger } from "../utils/animation/stagger.ts";
 import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 
@@ -98,8 +99,8 @@ export function initRecycleBin(app: RecycleHost): () => void {
   const { get: getCurrentType, cleanup: cleanupRtype } = useCurrentResourceType(() => {
     loadRecycleBin();
   });
-  // 加载代数：rtype 快速切换时丢弃过期结果（与 oldest-models 的 _loadGen 同模式）
-  let _loadGen = 0;
+  // 加载代数守卫：rtype 快速切换时丢弃过期结果（与 oldest-models 共用 createLoadGuard）
+  const guard = createLoadGuard();
 
   // 文件名点击 → 模型详情：事件委托只绑一次，cleanup 成对移除（避免每次渲染累积监听）
   const listEl = root.getElementById("recy-list");
@@ -118,7 +119,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
 
   async function loadRecycleBin(): Promise<void> {
     // generation 守卫：每次加载自增，await 后比对，旧请求结果不再覆盖新列表
-    const gen = ++_loadGen;
+    const gen = guard.next();
     const list = root.getElementById("recy-list");
     const count = root.getElementById("recy-count");
     if (!list) return;
@@ -133,7 +134,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
       // 获取当前类型的根目录（用于路径过滤）
       const currentRoot = await GetRepoRoot(getCurrentType());
       const allEntries = (await ListRecycleBin("")) || [];
-      if (gen !== _loadGen) return; // 已有更新的加载，丢弃过期结果
+      if (guard.stale(gen)) return; // 已有更新的加载，丢弃过期结果
 
       // 过滤：只显示路径在当前类型根目录下的条目；空 Path 一律排除（防渲染 data-path=""
       // 点击发 model:select {path:""}——原仅 currentRoot 非空时要求 Path，回退全量时漏网）
@@ -145,7 +146,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
         return;
       }
       const reg = await loadResourceRegistry();
-      if (gen !== _loadGen) return;
+      if (guard.stale(gen)) return;
       const icon = (reg[getCurrentType()] && reg[getCurrentType()].icon) || "📦";
       if (count) count.textContent = icon + " " + entries.length + " 个文件";
       list.innerHTML = entries
@@ -229,7 +230,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
 
       // 文件名点击 → 模型详情：已在 init 用事件委托统一绑定（onListClick），此处无需逐元素绑定
     } catch (e) {
-      if (gen !== _loadGen) return;
+      if (guard.stale(gen)) return;
       list.innerHTML = `<div class="stat-row" style="padding:12px;color:var(--paid);font-size:11px">❌ ${esc(friendlyError(e, t("recycle.loadFailed")))}</div>`;
       if (count) count.textContent = t("common.loadFailed");
     }
@@ -237,10 +238,10 @@ export function initRecycleBin(app: RecycleHost): () => void {
 
   // 返回清理函数，供上层在组件销毁时调用
   return () => {
-    // P3 修复（子代理审计）：cleanup 后递增代数——若 loadRecycleBin 在清理后完成
-    // （迟到响应）仍会写 innerHTML/绑监听；递增后任何在途请求的 gen 比对都会丢弃
-    // 结果（对齐 oldest-models.ts:319 模式）
-    _loadGen++;
+    // P3 修复（子代理审计）：cleanup 后使代数失效——若 loadRecycleBin 在清理后完成
+    // （迟到响应）仍会写 innerHTML/绑监听；失效后任何在途请求的 gen 比对都会丢弃
+    // 结果（与 oldest-models 共用 createLoadGuard 模式）
+    guard.invalidate();
     cleanupRtype();
     if (listEl) listEl.removeEventListener("click", onListClick);
     root
@@ -249,7 +250,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
     root.getElementById("recy-empty")?.removeEventListener("click", onEmptyClick);
     // P3（审核发现）：条目「恢复/删除」按钮的 onclick 直接绑在元素上（bindRecycleAction），
     // cleanup 未移除时组件销毁后按钮仍可触发后端调用 + toast。清空列表即移除全部条目按钮
-    // （在途异步已有 _loadGen 守卫兜底，不会迟到重绘）。
+    // （在途异步已有 load-guard 守卫兜底，不会迟到重绘）。
     if (listEl) listEl.innerHTML = "";
   };
 }

@@ -10,6 +10,7 @@ import { getApp } from "../backend/app.ts";
 import { importWebFiles } from "../backend/browser-adapter.ts";
 import { currentRepoType } from "./repo-rtype.ts";
 import { groupCollected, isImportableFile } from "./dnd-shared.ts";
+import type { CollectedEntry } from "./dnd-shared.ts";
 import { isYsmName } from "../utils/icon/icon.ts";
 import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 import { dbg } from "../utils/debug/debug.ts";
@@ -26,11 +27,8 @@ export interface ImportRecord {
   relPath?: string; // ADR-039 P3：去重需比对相对路径，防同名不同目录文件误丢
 }
 
-/** 收集条目（文件 + 相对路径） */
-export interface CollectedEntry {
-  file: File;
-  relPath: string;
-}
+/** 收集条目类型复用 dnd-shared（唯一事实源，消除两处同构定义） */
+export type { CollectedEntry };
 
 let _records: ImportRecord[] = [];
 /** per-file 在途集合：仅阻止同一文件并发/重复提交，不同文件可并行 */

@@ -10,39 +10,21 @@
 //     本身是懒加载的（首次数值搜索才下载），且 SW 缓存后二次访问命中缓存。
 // 仅被 src/workers/stats.worker.ts 引用（Worker 内），主线程路径不受影响。
 // 解码链与 ysm-parser.ts 保持同口径：内存直解 → 失败时由调用方剥文本头部重试 → callMain。
+// 无状态公共部分（FS/Module 类型、错误分类、MEMFS 辅助）已收敛至 parser-shared.ts。
 import { _getWasmBinary } from "./ysm-wasm-data.js";
 import { _getGlueCode } from "./ysm-glue-data.js";
 // ADR-079 M3：pthread 多线程版（静态 import 随 Worker chunk 打包，懒加载不额外增加下载次数）
 import { _getWasmBinaryMt } from "./ysm-wasm-data-mt.js";
 import { _getGlueCodeMt } from "./ysm-glue-data-mt.js";
-import type { YsmDecodedFile } from "./ysm-parser.ts";
-
-/** Emscripten FS 最小接口（WASM 导出，与 ysm-parser.ts FSLike 同构） */
-interface FSLike {
-  readdir(path: string): string[];
-  stat(path: string): { mode: number };
-  isDir(mode: number): boolean;
-  readFile(path: string): Uint8Array;
-  writeFile(path: string, data: Uint8Array): void;
-  mkdir(path: string): void;
-  rmdir(path: string): void;
-  unlink(path: string): void;
-}
-
-/** Emscripten Module 最小接口（WASM 实例，与 ysm-parser.ts WasmModuleLike 同构） */
-interface WasmModuleLike {
-  _malloc(len: number): number;
-  _free(ptr: number): void;
-  ccall(
-    fn: string,
-    ret: string | null,
-    args: string[],
-    params: Array<number | string>,
-  ): number | null;
-  FS: FSLike;
-  HEAPU8?: Uint8Array;
-  callMain?: (args: string[]) => void;
-}
+import {
+  classifyWasmError,
+  collectOutputFiles,
+  ensureDir,
+  wipeDir,
+  writeHeapBytes,
+  type WasmModuleLike,
+  type YsmDecodedFile,
+} from "./parser-shared.ts";
 
 /** Worker 全局注入点（Emscripten 胶水代码消费；worker 无 window，用 globalThis） */
 interface WorkerModuleConfig {
@@ -154,24 +136,7 @@ function resetYsmParserInWorker(): void {
   delete g.Module;
 }
 
-/** WASM 错误分类（与 ysm-parser.ts classifyWasmError 同口径） */
-function classifyWasmError(err: unknown): {
-  kind: "fatal" | "exit" | "unknown";
-  exitCode?: number;
-} {
-  const errObj = err as { name?: string; status?: unknown };
-  const errStr = String(errObj?.name || err);
-  if (errStr.includes("ExitStatus")) {
-    return {
-      kind: "exit",
-      exitCode: typeof errObj?.status === "number" ? errObj.status : undefined,
-    };
-  }
-  if (/abort|trap|out of memory/i.test(errStr)) {
-    return { kind: "fatal" };
-  }
-  return { kind: "unknown" };
-}
+// classifyWasmError 见 parser-shared.ts（口径差异保留在下方 catch 块）
 
 /** 安全获取最新 WASM HEAPU8（patch 注入到 Module，内存扩容后自动更新） */
 function getHeap(): Uint8Array {
@@ -182,53 +147,12 @@ function getHeap(): Uint8Array {
   throw new Error("无法获取 WASM HEAPU8");
 }
 
-/** 将 JS 数据写入 WASM 内存，返回指针 */
+/** 将 JS 数据写入 WASM 内存，返回指针（写入算法见 parser-shared.writeHeapBytes） */
 function writeHeap(data: Uint8Array): number {
-  const src = data instanceof Uint8Array ? data : new Uint8Array(data);
-  const len = src.length;
-  const ptr = wasmModule!._malloc(len);
-  if (!ptr) throw new Error("malloc 失败 (" + len + " bytes)");
-  getHeap().set(src, ptr);
-  return ptr;
+  return writeHeapBytes(data, (len) => wasmModule!._malloc(len), getHeap);
 }
 
-// --- FS 辅助（与 ysm-parser.ts 同构副本；两处改动需同步，避免口径漂移）---
-function wipeDir(FS: FSLike, dir: string): void {
-  try {
-    for (const e of FS.readdir(dir).filter((n) => n !== "." && n !== "..")) {
-      const f = dir + "/" + e;
-      if (FS.isDir(FS.stat(f).mode)) {
-        wipeDir(FS, f);
-        FS.rmdir(f);
-      } else {
-        FS.unlink(f);
-      }
-    }
-  } catch (_) {}
-}
-
-function ensureDir(FS: FSLike, dir: string): void {
-  let cur = "";
-  for (const p of dir.split("/").filter(Boolean)) {
-    cur += "/" + p;
-    try {
-      FS.mkdir(cur);
-    } catch (_) {}
-  }
-}
-
-function collectOutputFiles(FS: FSLike, root: string): YsmDecodedFile[] {
-  const r: YsmDecodedFile[] = [];
-  (function w(d: string, rel: string): void {
-    for (const e of FS.readdir(d).filter((n) => n !== "." && n !== "..")) {
-      const f = d + "/" + e;
-      const rp = rel ? rel + "/" + e : e;
-      if (FS.isDir(FS.stat(f).mode)) w(f, rp);
-      else r.push({ path: rp, data: FS.readFile(f) });
-    }
-  })(root, "");
-  return r;
-}
+// FS 辅助（wipeDir/ensureDir/collectOutputFiles）见 parser-shared.ts（单一事实源）
 
 /**
  * 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。

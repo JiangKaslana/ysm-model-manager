@@ -1,6 +1,19 @@
 // ===== YSMParser WASM 封装 =====
 // 用 Module.wasmBinary 注入方式加载，规避 WebView2 fetch() 限制
 // 优先使用内存解析（ysm_decode_from_memory），回退 callMain + MEMFS
+// 无状态公共部分（FS/Module 类型、错误分类、MEMFS 辅助）已收敛至 parser-shared.ts
+
+import {
+  classifyWasmError,
+  collectOutputFiles,
+  ensureDir,
+  wipeDir,
+  writeHeapBytes,
+  type WasmModuleLike,
+  type YsmDecodedFile,
+} from "./parser-shared.ts";
+
+export type { YsmDecodedFile };
 
 declare global {
   interface Window {
@@ -15,38 +28,7 @@ declare global {
   }
 }
 
-/** Emscripten FS 最小接口（WASM 导出） */
-interface FSLike {
-  readdir(path: string): string[];
-  stat(path: string): { mode: number };
-  isDir(mode: number): boolean;
-  readFile(path: string): Uint8Array;
-  writeFile(path: string, data: Uint8Array): void;
-  mkdir(path: string): void;
-  rmdir(path: string): void;
-  unlink(path: string): void;
-}
-
-/** Emscripten Module 最小接口（WASM 实例） */
-interface WasmModuleLike {
-  _malloc(len: number): number;
-  _free(ptr: number): void;
-  ccall(
-    fn: string,
-    ret: string | null,
-    args: string[],
-    params: Array<number | string>,
-  ): number | null;
-  FS: FSLike;
-  HEAPU8?: Uint8Array;
-  callMain?: (args: string[]) => void;
-}
-
-/** 解码输出文件 */
-export interface YsmDecodedFile {
-  path: string;
-  data: Uint8Array;
-}
+// FSLike / WasmModuleLike / YsmDecodedFile 类型见 parser-shared.ts（单一事实源）
 
 let wasmModule: WasmModuleLike | null = null;
 let loading = false;
@@ -66,28 +48,7 @@ function resetYSMParser(): void {
   delete (window as Record<string, unknown>).Module;
 }
 
-/**
- * WASM 错误分类：收敛 decodeYsmFileFromMemory / decodeYsmFile 两个 catch 块的重复判定。
- * 口径差异保留在调用方：前者 ExitStatus 一并重置，后者按 exit code 细分。
- * @returns fatal=abort/trap/oOM 硬崩溃；exit=ExitStatus（调用方查 exitCode）；unknown=其他
- */
-function classifyWasmError(err: unknown): {
-  kind: "fatal" | "exit" | "unknown";
-  exitCode?: number;
-} {
-  const errObj = err as { name?: string; status?: unknown };
-  const errStr = String(errObj?.name || err);
-  if (errStr.includes("ExitStatus")) {
-    return {
-      kind: "exit",
-      exitCode: typeof errObj?.status === "number" ? errObj.status : undefined,
-    };
-  }
-  if (/abort|trap|out of memory/i.test(errStr)) {
-    return { kind: "fatal" };
-  }
-  return { kind: "unknown" };
-}
+// classifyWasmError 见 parser-shared.ts（口径差异保留在下方两个 catch 块）
 
 export async function initYSMParser(): Promise<boolean> {
   if (wasmModule) return true;
@@ -165,19 +126,9 @@ function _getHeap(): Uint8Array {
   throw new Error("无法获取 WASM HEAPU8");
 }
 
-/** 将 JS 数据写入 WASM 内存，返回指针 */
+/** 将 JS 数据写入 WASM 内存，返回指针（写入算法见 parser-shared.writeHeapBytes） */
 function _writeHeap(data: Uint8Array): number {
-  // data 现在是 Uint8Array（已在 _decodeYsmViaWasm 中从 base64 解码）
-  const src = data instanceof Uint8Array ? data : new Uint8Array(data);
-  const len = src.length;
-  const ptr = wasmModule!._malloc(len);
-  if (!ptr) throw new Error("malloc 失败 (" + len + " bytes)");
-  // ⚠️ _malloc 可能触发 WASM 内存增长（growMemory），此时 HEAPU8 会被新的
-  // ArrayBuffer 替换（旧 buffer 被分离/detached）。必须在写入前重新获取最新 HEAPU8，
-  // 而非在 _malloc 之前缓存——否则 heap.set() 写入已分离的 buffer，数据丢失且
-  // 不报错（静默损坏：WASM 解码输出全乱，前端渲染花屏/白屏，难以定位）。
-  _getHeap().set(src, ptr);
-  return ptr;
+  return writeHeapBytes(data, (len) => wasmModule!._malloc(len), _getHeap);
 }
 
 /**
@@ -282,39 +233,3 @@ export async function decodeYsmFile(
   return files;
 }
 
-function wipeDir(FS: FSLike, dir: string): void {
-  try {
-    for (const e of FS.readdir(dir).filter((n) => n !== "." && n !== "..")) {
-      const f = dir + "/" + e;
-      if (FS.isDir(FS.stat(f).mode)) {
-        wipeDir(FS, f);
-        FS.rmdir(f);
-      } else {
-        FS.unlink(f);
-      }
-    }
-  } catch (_) {}
-}
-
-function ensureDir(FS: FSLike, dir: string): void {
-  let cur = "";
-  for (const p of dir.split("/").filter(Boolean)) {
-    cur += "/" + p;
-    try {
-      FS.mkdir(cur);
-    } catch (_) {}
-  }
-}
-
-function collectOutputFiles(FS: FSLike, root: string): YsmDecodedFile[] {
-  const r: YsmDecodedFile[] = [];
-  (function w(d: string, rel: string): void {
-    for (const e of FS.readdir(d).filter((n) => n !== "." && n !== "..")) {
-      const f = d + "/" + e;
-      const rp = rel ? rel + "/" + e : e;
-      if (FS.isDir(FS.stat(f).mode)) w(f, rp);
-      else r.push({ path: rp, data: FS.readFile(f) });
-    }
-  })(root, "");
-  return r;
-}
