@@ -1,10 +1,10 @@
 // @vitest-environment node
 // ===== 全局导入执行器测试（import-executor.ts）=====
-// 覆盖：单文件直导、文件夹整组、执行入口分组、历史广播、去重、ysm.json 引导
+// 覆盖：单文件直导、文件夹整组、执行入口分组、去重、ysm.json 引导
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { bus } from "../bus.ts";
 import { getApp } from "../backend/app.ts";
-import { executeCollected, directImport, importFolder, ImportHistory } from "./import-executor.ts";
+import { executeCollected, directImport, importFolder } from "./import-executor.ts";
 import { t } from "../core/i18n/t.ts";
 
 const mocks = vi.hoisted(() => ({
@@ -40,46 +40,8 @@ vi.stubGlobal("FileReader", MockFileReader);
 
 const mkFile = (name: string): File => new File(["x"], name);
 
-describe("ImportHistory — 全局历史", () => {
-  beforeEach(() => {
-    ImportHistory.clear();
-    mocks.ImportModelFile.mockClear();
-    mocks.ImportModelFolder.mockClear();
-  });
-
-  it("push 后 records 首条为最新", () => {
-    ImportHistory.push({ name: "a.ysm", time: "t1" });
-    ImportHistory.push({ name: "b.ysm", time: "t2" });
-    expect(ImportHistory.records[0].name).toBe("b.ysm");
-    expect(ImportHistory.records.length).toBe(2);
-  });
-
-  it("clear 清空并广播", () => {
-    let got = -1;
-    const off = bus.on("import:history-changed", ({ records }) => {
-      got = records.length;
-    });
-    ImportHistory.push({ name: "a.ysm", time: "t" });
-    ImportHistory.clear();
-    expect(got).toBe(0);
-    off();
-  });
-
-  it("rename 更新条目并广播", () => {
-    ImportHistory.push({ name: "old.ysm", time: "t", isYsm: true });
-    let renamed = "";
-    const off = bus.on("import:history-changed", ({ records }) => {
-      renamed = records[0]?.name || "";
-    });
-    ImportHistory.rename("old.ysm", "new.ysm");
-    expect(renamed).toBe("new.ysm");
-    off();
-  });
-});
-
 describe("executeCollected — 静默导入入口", () => {
   beforeEach(() => {
-    ImportHistory.clear();
     mocks.ImportModelFile.mockClear();
     mocks.ImportModelFolder.mockClear();
     mocks.ImportModelFolderTo.mockClear();
@@ -90,10 +52,6 @@ describe("executeCollected — 静默导入入口", () => {
     expect(r.singles).toBe(1);
     expect(r.folders).toBe(0);
     expect(mocks.ImportModelFile).toHaveBeenCalledWith("模型.ysm", "QUJD");
-    expect(ImportHistory.records.length).toBe(1);
-    // P2 修复（审核发现）：isYsm 不得硬编码 false——.ysm 单文件须为 true，
-    // 否则已导入列表缺「✂️ 重命名」按钮（与表单路径行为不一致）
-    expect(ImportHistory.records[0].isYsm).toBe(true);
   });
 
   it("普通文件夹装 ysm → 整组导入（保留层级）", async () => {
@@ -111,8 +69,6 @@ describe("executeCollected — 静默导入入口", () => {
       { RelPath: "模型A.ysm", Base64: "QUJD" },
       { RelPath: "模型B.ysm", Base64: "QUJD" },
     ]);
-    // 文件夹条目 isYsm 保持 false（重命名按钮按单文件展示）
-    expect(ImportHistory.records[0].isYsm).toBe(false);
   });
 
   it("多层嵌套 → 顶层目录整组，深层 relPath 保留", async () => {
@@ -209,7 +165,6 @@ describe("directImport — 在途去重 / 失败释放（陷阱 #3）", () => {
     failingReads.clear();
     mocks.ImportModelFile.mockClear();
     mocks.ImportModelFolder.mockClear();
-    ImportHistory.clear();
   });
 
   it("同一文件并发在途 → 第二次命中 busy toast，不重复调后端，结束后在途释放", async () => {

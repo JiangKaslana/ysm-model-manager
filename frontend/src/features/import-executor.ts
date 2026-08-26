@@ -2,7 +2,7 @@
 // 拖拽导入不再依赖导入 tab 挂载（initImportQueue 懒加载），由本模块全局执行：
 // - directImport：单文件直导（.ysm/.zip 保留原名，后端自动路由）
 // - importFolder：文件夹整组导入（含 ysm.json 或普通文件夹，组内至少 1 个支持文件）
-// - 内存历史（导入 tab 渲染数据源）+ inFlight 去重 + toast/stats/tree 广播
+// - inFlight 去重 + toast/stats/tree 广播
 // 与 go/importer + go/fileops.WriteModelFolder 后端对齐。
 import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
@@ -11,7 +11,6 @@ import { importWebFiles } from "../backend/browser-adapter.ts";
 import { currentRepoType } from "./repo-rtype.ts";
 import { groupCollected, isImportableFile } from "./dnd-shared.ts";
 import type { CollectedEntry } from "./dnd-shared.ts";
-import { isYsmName } from "../utils/icon/icon.ts";
 import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 import { dbg } from "../utils/debug/debug.ts";
 import { TOAST_MS } from "../utils/dom/toast-ms.ts";
@@ -19,45 +18,11 @@ import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 /** 带相对路径的 File（文件夹导入时标记 _relPath） */
 export type ImportFile = File & { _relPath?: string };
 
-/** 已导入历史条目（导入 tab「已导入」列表数据源） */
-export interface ImportRecord {
-  name: string;
-  time: string;
-  isYsm?: boolean;
-  relPath?: string; // ADR-039 P3：去重需比对相对路径，防同名不同目录文件误丢
-}
-
 /** 收集条目类型复用 dnd-shared（唯一事实源，消除两处同构定义） */
 export type { CollectedEntry };
 
-let _records: ImportRecord[] = [];
 /** per-file 在途集合：仅阻止同一文件并发/重复提交，不同文件可并行 */
 const _inFlight = new Set<string>();
-
-export const ImportHistory = {
-  get records(): ImportRecord[] {
-    return _records;
-  },
-
-  push(rec: ImportRecord): void {
-    _records.unshift(rec);
-    bus.emit("import:history-changed", { records: _records });
-  },
-
-  /** 重命名历史条目（导入 tab ✂️ 重命名后同步） */
-  rename(oldName: string, newName: string): void {
-    const rec = _records.find((r) => r.name === oldName);
-    if (rec) {
-      rec.name = newName;
-      bus.emit("import:history-changed", { records: _records });
-    }
-  },
-
-  clear(): void {
-    _records = [];
-    bus.emit("import:history-changed", { records: [] });
-  },
-};
 
 const toast = (msg: string, type: "success" | "error" | "warn" | "info", duration: number = TOAST_MS.normal): void => {
   bus.emit("toast:show", { msg, duration, type });
@@ -116,13 +81,6 @@ export const directImport = async (file: File): Promise<void> => {
     const base64 = await fileToBase64(file);
     const { ImportModelFile } = await getApp();
     await ImportModelFile(file.name, base64);
-    ImportHistory.push({
-      name: file.name,
-      time: new Date().toLocaleTimeString(),
-      // P2 修复（审核发现）：isYsm 硬编码 false 导致 .ysm 单文件静默导入后
-      // 已导入列表无「✂️ 重命名」按钮（表单路径 isYsm:true 有按钮，行为不一致）
-      isYsm: isYsmName(file.name),
-    });
     refreshRepo();
     toast(t("import.success") + ": " + file.name, "success", 2000);
   } catch (e) {
@@ -196,13 +154,6 @@ export const importFolder = async (
       }
       await App.ImportModelFolder(folderName, subpath, items);
     }
-    ImportHistory.push({
-      name: folderName + "（文件夹）",
-      time: new Date().toLocaleTimeString(),
-      // P2 修复（审核）：isYsm 硬编码 false → 含 ysm.json 的文件夹标 true，
-      // 与表单路径（isYsm:true）一致，否则已导入列表无「✂️ 重命名」按钮
-      isYsm: items.some((it) => it.RelPath.toLowerCase().endsWith("ysm.json")),
-    });
     refreshRepo();
     // 部分文件跳过时成功 toast 带计数，避免用户以为全部导入（ADR-082 续）
     const skipHint = skipped > 0 ? `（${skipped} 个文件读取失败已跳过）` : "";

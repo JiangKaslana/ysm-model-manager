@@ -77,7 +77,10 @@ export interface BusEvents {
   "avatar:refresh": { author: string; dataUri: string };
   // 模型 / 选择
   "model:select": ModelSelectPayload;
-  "package:selected": { name: string; rtype?: string }; // sidebar loader 实证：{name, rtype}
+  // rtype 必填（与 instance:export-list/clear 同款收紧）：发射点（app-sidebar）
+  // 已显式拦截空 rtype（toast 报错不 emit），消费端（app-content init-pages）
+  // 有 !rtype 守卫；收紧为必填让编译期堵漏「漏传 → 同步面板静默错成 YSM」回归。
+  "package:selected": { name: string; rtype: string };
   // 菜单 / 上下文
   "menu:show": { x: number; y: number; items: MenuItem[] };
   "ctx:show": CtxShowPayload;
@@ -93,9 +96,6 @@ export interface BusEvents {
   // 守卫，发射点编译期强制提供非空 rtype，堵漏「漏传 → 导出/清空全部类型」回归。
   "instance:export-list": { name: string; rtype: string };
   "instance:clear": { name: string; rtype: string };
-  "import:history-changed": {
-    records: Array<{ name: string; time: string; isYsm?: boolean }>;
-  };
   // 批量操作
   "batch:rename": { paths: string[] };
   "batch:enable-all": void;
