@@ -1576,6 +1576,10 @@ export const autoSidebar = [
             "link": "/knowledge/dom-fab"
           },
           {
+            "text": "前端 TS 整包审计",
+            "link": "/knowledge/frontend_repo_audit"
+          },
+          {
             "text": "共享样式 shared-styles",
             "link": "/knowledge/shared-styles"
           },

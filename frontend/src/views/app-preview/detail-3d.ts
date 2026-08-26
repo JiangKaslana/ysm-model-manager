@@ -236,8 +236,7 @@ export async function showMorphPreview(
   if (fab) {
     promoteTitleIfPresent(fab);
     fab.onclick = (): void => {
-      // 广播 morph:apply 事件，由当前活跃的 3D 预览器消费（若有）
-      bus.emit("morph:apply", { path });
+      // P2: morph:apply 零订阅，删发射；保留 toast 反馈
       bus.emit("toast:show", {
         msg: `😊 已发送应用请求：${basename}`,
         duration: 2000,
@@ -303,7 +302,7 @@ export async function showStagePreview(
   if (fab) {
     promoteTitleIfPresent(fab);
     fab.onclick = (): void => {
-      bus.emit("stage:load", { path });
+      // P2: stage:load 零订阅，删发射；保留 toast 反馈
       bus.emit("toast:show", {
         msg: `🎤 已发送舞台加载请求：${basename}`,
         duration: 2000,

@@ -8,10 +8,6 @@
 ### 孤儿发射（emit 了但无 on/once 订阅方）
 
 - `import:history-changed` — emit×3
-- `theme:change` — emit×1
-- `config:updated` — emit×4
-- `morph:apply` — emit×1
-- `stage:load` — emit×1
 
 ## 事件总览
 
@@ -21,7 +17,6 @@
 | `batch:disable-all` | 1 | 1 | 0 | 0 | ✅ |
 | `batch:enable-all` | 1 | 1 | 0 | 0 | ✅ |
 | `batch:rename` | 1 | 1 | 0 | 0 | ✅ |
-| `config:updated` | 4 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `ctx:show` | 4 | 1 | 0 | 0 | ✅ |
 | `dir:batch-rename` | 1 | 1 | 0 | 0 | ✅ |
 | `dir:mkdir` | 1 | 1 | 0 | 0 | ✅ |
@@ -33,18 +28,15 @@
 | `lang:changed` | 2 | 2 | 0 | 0 | ✅ |
 | `menu:show` | 2 | 1 | 0 | 0 | ✅ |
 | `model:select` | 8 | 1 | 0 | 0 | ✅ |
-| `morph:apply` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `nav:changed` | 7 | 3 | 0 | 0 | ✅ |
 | `package:selected` | 2 | 1 | 0 | 0 | ✅ |
 | `repo:rtype-changed` | 3 | 6 | 0 | 0 | ✅ |
 | `repo:search-creator` | 2 | 1 | 0 | 0 | ✅ |
 | `repo:subdir-changed` | 1 | 1 | 0 | 0 | ✅ |
-| `stage:load` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `stats:refresh` | 21 | 2 | 0 | 0 | ✅ |
 | `sync:download:done` | 2 | 2 | 0 | 0 | ✅ |
 | `sync:download:missing` | 1 | 1 | 0 | 0 | ✅ |
 | `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
-| `theme:change` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `toast:show` | 202 | 2 | 0 | 0 | ✅ |
 | `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
@@ -98,16 +90,6 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 34 |
-
-### `config:updated`
-
-**发射方：**
-| 文件 | 行 |
-|------|----|
-| `frontend/src/views/app-content/settings/path-cards.ts` | 77 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 273 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 301 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 355 |
 
 ### `ctx:show`
 
@@ -241,7 +223,7 @@
 | `frontend/src/features/recycle-bin.ts` | 183 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 369 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 227 |
-| `frontend/src/views/app-preview/detail-3d.ts` | 295 |
+| `frontend/src/views/app-preview/detail-3d.ts` | 294 |
 | `frontend/src/views/app-tree/events.ts` | 158 |
 | `frontend/src/views/app-tree/events.ts` | 269 |
 | `frontend/src/views/app-tree/index.ts` | 406 |
@@ -250,13 +232,6 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-preview/index.ts` | 114 |
-
-### `morph:apply`
-
-**发射方：**
-| 文件 | 行 |
-|------|----|
-| `frontend/src/views/app-preview/detail-3d.ts` | 240 |
 
 ### `nav:changed`
 
@@ -305,7 +280,7 @@
 |------|----|
 | `frontend/src/features/repo-rtype.ts` | 33 |
 | `frontend/src/views/app-content/init-pages.ts` | 78 |
-| `frontend/src/views/app-content/init-pages.ts` | 190 |
+| `frontend/src/views/app-content/init-pages.ts` | 254 |
 | `frontend/src/views/app-nav/index.ts` | 153 |
 | `frontend/src/views/app-sidebar/index.ts` | 399 |
 | `frontend/src/views/app-sync-manager/index.ts` | 172 |
@@ -335,13 +310,6 @@
 |------|----|
 | `frontend/src/views/app-sync-manager/index.ts` | 195 |
 
-### `stage:load`
-
-**发射方：**
-| 文件 | 行 |
-|------|----|
-| `frontend/src/views/app-preview/detail-3d.ts` | 306 |
-
 ### `stats:refresh`
 
 **发射方：**
@@ -359,8 +327,8 @@
 | `frontend/src/features/recycle-bin.ts` | 167 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 419 |
 | `frontend/src/views/app-content/settings/init.ts` | 140 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 78 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 356 |
+| `frontend/src/views/app-content/settings/path-cards.ts` | 77 |
+| `frontend/src/views/app-content/settings/path-cards.ts` | 352 |
 | `frontend/src/views/app-sidebar/index.ts` | 288 |
 | `frontend/src/views/app-sync-manager/index.ts` | 218 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 66 |
@@ -414,13 +382,6 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/handlers/sync.ts` | 264 |
-
-### `theme:change`
-
-**发射方：**
-| 文件 | 行 |
-|------|----|
-| `frontend/src/theme-core.ts` | 34 |
 
 ### `toast:show`
 
@@ -506,8 +467,8 @@
 | `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 87 |
 | `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 353 |
 | `frontend/src/views/app-content/index.ts` | 169 |
-| `frontend/src/views/app-content/init-pages.ts` | 206 |
-| `frontend/src/views/app-content/init-pages.ts` | 263 |
+| `frontend/src/views/app-content/init-pages.ts` | 167 |
+| `frontend/src/views/app-content/init-pages.ts` | 280 |
 | `frontend/src/views/app-content/settings/init.ts` | 47 |
 | `frontend/src/views/app-content/settings/init.ts` | 82 |
 | `frontend/src/views/app-content/settings/init.ts` | 126 |
@@ -519,13 +480,13 @@
 | `frontend/src/views/app-content/settings/keymap.ts` | 103 |
 | `frontend/src/views/app-content/settings/keymap.ts` | 114 |
 | `frontend/src/views/app-content/settings/keymap.ts` | 135 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 79 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 274 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 280 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 302 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 308 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 330 |
-| `frontend/src/views/app-content/settings/path-cards.ts` | 357 |
+| `frontend/src/views/app-content/settings/path-cards.ts` | 78 |
+| `frontend/src/views/app-content/settings/path-cards.ts` | 272 |
+| `frontend/src/views/app-content/settings/path-cards.ts` | 278 |
+| `frontend/src/views/app-content/settings/path-cards.ts` | 299 |
+| `frontend/src/views/app-content/settings/path-cards.ts` | 305 |
+| `frontend/src/views/app-content/settings/path-cards.ts` | 327 |
+| `frontend/src/views/app-content/settings/path-cards.ts` | 353 |
 | `frontend/src/views/app-content/settings/store.ts` | 27 |
 | `frontend/src/views/app-content/settings/ui-prefs.ts` | 122 |
 | `frontend/src/views/app-content/settings/ui-prefs.ts` | 133 |
@@ -554,8 +515,8 @@
 | `frontend/src/views/app-content/workshop-tabs.ts` | 89 |
 | `frontend/src/views/app-content/workshop-tabs.ts` | 137 |
 | `frontend/src/views/app-nav/index.ts` | 100 |
-| `frontend/src/views/app-preview/detail-3d.ts` | 241 |
-| `frontend/src/views/app-preview/detail-3d.ts` | 307 |
+| `frontend/src/views/app-preview/detail-3d.ts` | 240 |
+| `frontend/src/views/app-preview/detail-3d.ts` | 306 |
 | `frontend/src/views/app-preview/index.ts` | 233 |
 | `frontend/src/views/app-preview/index.ts` | 253 |
 | `frontend/src/views/app-preview/mmd-controls.ts` | 290 |

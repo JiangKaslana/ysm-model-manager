@@ -74,7 +74,6 @@ export function bindPathClick(
       await onSelect(dir);
       refresh();
       refreshAdvanced();
-      bus.emit("config:updated");
       bus.emit("stats:refresh");
       bus.emit("toast:show", {
         msg: t("settings.path.updated"),
@@ -270,7 +269,6 @@ export function initAdvancedGrid(
           const found = advancedTypes.find((a) => a.rtype === rtype);
           if (found && found.cfgKey) cfgAny[found.cfgKey] = dir;
           refreshAdvanced();
-          bus.emit("config:updated");
           bus.emit("toast:show", {
             msg: t("settings.path.set"),
             duration: 2000,
@@ -298,7 +296,6 @@ export function initAdvancedGrid(
           if (found && found.cfgKey) cfgAny[found.cfgKey] = "";
           refreshAdvanced();
           cardRefreshers.forEach((fn) => fn());
-          bus.emit("config:updated");
           bus.emit("toast:show", {
             msg: t("settings.resetDefault"),
             duration: 2000,
@@ -352,7 +349,6 @@ export function initMcDetect(root: ShadowRoot): void {
       cardRefreshers.forEach((fn) => {
         fn();
       });
-      bus.emit("config:updated");
       bus.emit("stats:refresh");
       bus.emit("toast:show", {
         msg: t("content.mcPathSet", { path: selected }),

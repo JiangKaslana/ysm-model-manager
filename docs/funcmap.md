@@ -38,7 +38,7 @@
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
 | Go(internal)·应用入口 | 28 | 211 |
-| 前端·根 (app-modules/bus) | 4 | 18 |
+| 前端·根 (app-modules/bus) | 4 | 17 |
 | frontend/backend | 21 | 108 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 17 | 84 |
@@ -49,7 +49,7 @@
 | frontend/views | 114 | 332 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **480** | **2040** |
+| **合计** | **480** | **2039** |
 
 ## Go·头像
 
@@ -362,8 +362,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `RemoveRepoDuplicates()` | `go/recycle/recycle_clean:23` | RemoveRepoDuplicates 清理整合包子目录中仓库已有的文件： 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推） |
-| `DeduplicateEntries()` | `go/recycle/recycle_clean:109` | DeduplicateEntries 按 SHA256 哈希分组去重：每组显式按路径排序保留第一个，其余移入回收站 |
+| `RemoveRepoDuplicates()` | `go/recycle/recycle_clean:25` | RemoveRepoDuplicates 清理整合包子目录中仓库已有的文件： 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推）。 |
+| `DeduplicateEntries()` | `go/recycle/recycle_clean:117` | DeduplicateEntries 按 SHA256 哈希分组去重：每组显式按路径排序保留第一个，其余移入回收站 |
 | `CleanOpLogger()` | `go/recycle/recycle_clean:19` | CleanOpLogger 清理操作日志回调（薄壳注入 App.logger.Add） |
 | `New()` | `go/recycle/recycle:34` | New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle |
 | `TrashManager.RecycleDir()` | `go/recycle/recycle:44` | RecycleDir 返回回收站目录路径 |
@@ -462,14 +462,14 @@
 | `SyncCustomToRepo()` | `go/sync/sync_push:254` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
 | `Logger()` | `go/sync/sync_push:19` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
-| `GetInstanceStatus()` | `go/sync/sync:27` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.C |
-| `GetInstanceStatusWith()` | `go/sync/sync:33` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomD |
-| `SyncToggleStatus()` | `go/sync/sync:190` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:350` | — |
-| `SyncResourcesWithConfig()` | `go/sync/sync:355` | SyncResourcesWithConfig 同步资源，支持配置化（含冲突检测） |
-| `SortEntries()` | `go/sync/sync:441` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:448` | GetLinkType 判断文件的链接类型 |
-| `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
+| `GetInstanceStatus()` | `go/sync/sync:28` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.C |
+| `GetInstanceStatusWith()` | `go/sync/sync:34` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomD |
+| `SyncToggleStatus()` | `go/sync/sync:195` | SyncToggleStatus 同步启用/禁用状态 |
+| `SyncResources()` | `go/sync/sync:364` | — |
+| `SyncResourcesWithConfig()` | `go/sync/sync:369` | SyncResourcesWithConfig 同步资源，支持配置化（含冲突检测） |
+| `SortEntries()` | `go/sync/sync:455` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:462` | GetLinkType 判断文件的链接类型 |
+| `ScanFunc()` | `go/sync/sync:24` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
 
@@ -891,21 +891,20 @@
 | `normalizeTheme()` | `frontend/src/app-modules` | — |
 | `applyTheme()` | `frontend/src/app-modules` | — |
 | `initTheme()` | `frontend/src/app-modules` | — |
-| `bus()` | `frontend/src/bus:208` | 默认实例（组件直接使用） |
+| `bus()` | `frontend/src/bus:196` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
 | `NavPagePayload()` | `frontend/src/bus:38` | — |
-| `ThemeChangePayload()` | `frontend/src/bus:42` | — |
-| `ModelSelectPayload()` | `frontend/src/bus:46` | — |
-| `CtxShowPayload()` | `frontend/src/bus:51` | — |
-| `BusEvents()` | `frontend/src/bus:70` | — |
-| `BusEventName()` | `frontend/src/bus:119` | — |
-| `Bus()` | `frontend/src/bus:145` | — |
+| `ModelSelectPayload()` | `frontend/src/bus:42` | — |
+| `CtxShowPayload()` | `frontend/src/bus:47` | — |
+| `BusEvents()` | `frontend/src/bus:66` | — |
+| `BusEventName()` | `frontend/src/bus:108` | — |
+| `Bus()` | `frontend/src/bus:133` | — |
 | `revealMainWindow()` | `frontend/src/startup-reveal:2` | Wait until the DOM has been upgraded and painted before exposing the native window. |
-| `normalizeTheme()` | `frontend/src/theme-core:18` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
-| `applyTheme()` | `frontend/src/theme-core:22` | — |
-| `initTheme()` | `frontend/src/theme-core:37` | — |
+| `normalizeTheme()` | `frontend/src/theme-core:17` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
+| `applyTheme()` | `frontend/src/theme-core:21` | — |
+| `initTheme()` | `frontend/src/theme-core:34` | — |
 
 ## frontend/backend
 
@@ -1785,7 +1784,7 @@
 | `validateAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter-util:32` | 校验三组 min/max 范围（仅两端都填数字时比对），返回错误文案或 null。 |
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter` | — |
 | `AdvFilterResult()` | `frontend/src/utils/dom/dialogs/adv-filter:19` | — |
-| `modalAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter:26` | 弹出高级筛选弹窗 |
+| `modalAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter:181` | — |
 | `rebuildParsedName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:16` | 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.disabled)` - 作者/作品空值跳过；角色缺省回退到「剥禁用尾缀与扩展名后的文件名」； - 扩展 |
 | `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:31` | — |
 | `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:41` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
@@ -1971,10 +1970,10 @@
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:281` | 初始化 GitHub 页（纯分派：创建 ctx + 初始化缓存 + 触发 loadRepos） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:20` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:27` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:270` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:277` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:285` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:289` | — |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:287` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:294` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:302` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:306` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:38` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:171` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
@@ -1985,8 +1984,8 @@
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:130` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |
 | `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:52` | — |
-| `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:194` | — |
-| `initMcDetect()` | `frontend/src/views/app-content/settings/path-cards:321` | — |
+| `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:193` | — |
+| `initMcDetect()` | `frontend/src/views/app-content/settings/path-cards:318` | — |
 | `SettingsCfg()` | `frontend/src/views/app-content/settings/store:10` | 设置页当前配置类型（LoadAppConfig 返回值，经 Wails $CancellablePromise 解包） |
 | `cfg()` | `frontend/src/views/app-content/settings/store:13` | 当前配置：initSettings 加载后注入，各模块就地更新字段（saveCfg/检测/主题/链接模式） |
 | `cardRefreshers()` | `frontend/src/views/app-content/settings/store:16` | 所有路径卡片的刷新函数列表（绑定后收集，重排/重置时统一调用） |
@@ -2057,7 +2056,7 @@
 | `showFbxPreview()` | `frontend/src/views/app-preview/detail-3d:130` | 显示 FBX 预览卡（文件名 + FAB 进 3D；FBX 无标准 meta 读取，保持简单形态，ADR-112） |
 | `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:160` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
 | `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:190` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
-| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:251` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
+| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:250` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
 | `nextDetailGen()` | `frontend/src/views/app-preview/detail:25` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
 | `getDetailGen()` | `frontend/src/views/app-preview/detail:30` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
 | `showModelDetail()` | `frontend/src/views/app-preview/detail:35` | 显示模型详情（YSM 模型） |
@@ -2078,8 +2077,8 @@
 | `appendLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:49` | 同台追加 Litematic/蓝图 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4），与 mmd/vrm 对称 |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:54` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:28` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
-| `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:109` | 显示投影文件详情面板（tab 布局） |
-| `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:233` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
+| `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:183` | 显示投影文件详情面板（tab 布局） |
+| `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:251` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `LoadModelOpts()` | `frontend/src/views/app-preview/loader:11` | loadModelData 选项（Bedrock 通用模型加载控制） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:29` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
 | `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:174` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |

@@ -2,10 +2,9 @@
 // 2026-08-17 神桶拆分：原 app-modules.ts 同时承载「纯逻辑导出」与「启动装配
 // （Web Component import / 启动 IIFE / 总线发射 / addEventListener）」，测试
 // import 纯函数即触发全部顶层副作用 → 切 node 环境需逐个 stubGlobal 补不完。
-// 拆出本文件：normalizeTheme/applyTheme/initTheme 无顶层副作用，测试可独立 import；
-// 主题变更通过 bus.emit("theme:change") 广播，替代 window.applyTheme 暗契约（ADR-091 D21）。
+// 拆出本文件：normalizeTheme/applyTheme/initTheme 无顶层副作用，测试可独立 import。
+// 主题变更通过 document.body.classList 直接生效，无需 bus 广播（P2：theme:change 零订阅，删发射）。
 import { getApp } from "./backend/app.ts";
-import { bus } from "./bus.ts";
 import { safeGet, safeSet } from "./utils/dom/storage.ts";
 
 const THEME_DARK = "cyber";
@@ -30,8 +29,6 @@ export function applyTheme(mode: string): void {
   } else {
     document.body.classList.add("theme-" + mode);
   }
-  // ADR-091 D21 修复：替代 window.applyTheme 暗契约，通过 bus 广播主题变更
-  bus.emit("theme:change", { name: mode });
 }
 
 export async function initTheme() {

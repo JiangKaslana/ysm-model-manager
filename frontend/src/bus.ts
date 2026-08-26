@@ -39,10 +39,6 @@ export interface NavPagePayload {
   page: PageName;
 }
 
-export interface ThemeChangePayload {
-  name: string;
-}
-
 export interface ModelSelectPayload {
   path: string;
   isDir?: boolean;
@@ -70,8 +66,6 @@ export interface CtxShowPayload {
 export interface BusEvents {
   // 导航
   "nav:changed": NavPagePayload;
-  // 主题（ADR-091 D21：替代 window.applyTheme 暗契约）
-  "theme:change": ThemeChangePayload;
   // i18n
   "lang:changed": { lang: string };
   // 反馈
@@ -84,9 +78,6 @@ export interface BusEvents {
   // 模型 / 选择
   "model:select": ModelSelectPayload;
   "package:selected": { name: string; rtype?: string }; // sidebar loader 实证：{name, rtype}
-  // MMD 子类型动作
-  "morph:apply": { path: string };
-  "stage:load": { path: string };
   // 菜单 / 上下文
   "menu:show": { x: number; y: number; items: MenuItem[] };
   "ctx:show": CtxShowPayload;
@@ -103,8 +94,6 @@ export interface BusEvents {
   "import:history-changed": {
     records: Array<{ name: string; time: string; isYsm?: boolean }>;
   };
-  // 配置
-  "config:updated": void;
   // 批量操作
   "batch:rename": { paths: string[] };
   "batch:enable-all": void;
@@ -130,7 +119,6 @@ const VOID_EVENTS = [
   "stats:refresh",
   "tree:reload",
   "sync:toggle:status",
-  "config:updated",
   "batch:enable-all",
   "batch:disable-all",
 ] as const satisfies readonly VoidEventName[];
