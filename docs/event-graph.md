@@ -195,7 +195,7 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/core/context-menus.ts` | 80 |
-| `frontend/src/features/community/events.ts` | 180 |
+| `frontend/src/features/community/events.ts` | 195 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -409,11 +409,11 @@
 | `frontend/src/core/handlers/sync.ts` | 239 |
 | `frontend/src/features/community/download-queue.ts` | 268 |
 | `frontend/src/features/community/download-queue.ts` | 294 |
-| `frontend/src/features/community/events.ts` | 125 |
-| `frontend/src/features/community/events.ts` | 137 |
-| `frontend/src/features/community/events.ts` | 206 |
-| `frontend/src/features/community/events.ts` | 258 |
-| `frontend/src/features/community/events.ts` | 295 |
+| `frontend/src/features/community/events.ts` | 140 |
+| `frontend/src/features/community/events.ts` | 152 |
+| `frontend/src/features/community/events.ts` | 221 |
+| `frontend/src/features/community/events.ts` | 273 |
+| `frontend/src/features/community/events.ts` | 310 |
 | `frontend/src/features/import-dnd.ts` | 46 |
 | `frontend/src/features/import-dnd.ts` | 64 |
 | `frontend/src/features/import-dnd.ts` | 103 |

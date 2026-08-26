@@ -52,6 +52,26 @@ interface CmReCtx {
   selectedSet: Set<string>;
   queue: DownloadQueue;
   virtualList: VirtualList<WorkshopModel> | null;
+  /** 已注册的 DOM 监听（cleanup 时成对 removeEventListener，替代 cloneNode hack 清监听） */
+  listeners: ListenerRef[];
+}
+
+/** 单个已注册监听的引用（供 cmReCleanup 成对解绑） */
+interface ListenerRef {
+  el: EventTarget;
+  type: string;
+  handler: EventListenerOrEventListenerObject;
+}
+
+/** 注册监听并记录引用：addEventListener + 登记（K 泛型恢复事件类型推断，如 contextmenu→MouseEvent） */
+function cmReListen<K extends keyof HTMLElementEventMap>(
+  listeners: ListenerRef[],
+  el: HTMLElement,
+  type: K,
+  handler: (ev: HTMLElementEventMap[K]) => void,
+): void {
+  listeners.push({ el, type, handler: handler as EventListener });
+  el.addEventListener(type, handler);
 }
 
 const GH_ROW_H = 42;
@@ -73,26 +93,21 @@ function cmReUpdateSelectedUI(ctx: CmReCtx): void {
   }
 }
 
-function cmReBindBack(ctx: CmReCtx): void {
-  ctx.sr.querySelector(".gh-back-repo")?.addEventListener("click", () => {
-    ctx.backToSite();
-  });
+function cmReBindBack(ctx: CmReCtx, listeners: ListenerRef[]): void {
+  const el = ctx.sr.querySelector<HTMLElement>(".gh-back-repo");
+  if (el) cmReListen(listeners, el, "click", () => ctx.backToSite());
 }
 
-function cmReBindSearch(ctx: CmReCtx): void {
+function cmReBindSearch(ctx: CmReCtx, listeners: ListenerRef[]): void {
   const srch = ctx.sr.querySelector("#gh-repo-srch") as HTMLInputElement | null;
-  if (srch) {
-    srch.addEventListener("input", () => {
-      cmReRenderList(ctx, srch.value);
-    });
-  }
+  if (srch) cmReListen(listeners, srch, "input", () => cmReRenderList(ctx, srch.value));
 }
 
-function cmReBindToggle(ctx: CmReCtx): void {
+function cmReBindToggle(ctx: CmReCtx, listeners: ListenerRef[]): void {
   const { sr, state } = ctx;
   const toggleBtn = sr.querySelector(".gh-toggle-missing") as HTMLElement | null;
   if (toggleBtn) {
-    toggleBtn.addEventListener("click", () => {
+    cmReListen(listeners, toggleBtn, "click", () => {
       state.showAll = !state.showAll;
       toggleBtn.textContent = state.showAll ? t("workshop.showAll") : t("workshop.showMissing");
       toggleBtn.classList.toggle("active", state.showAll);
@@ -101,11 +116,11 @@ function cmReBindToggle(ctx: CmReCtx): void {
   }
 }
 
-function cmReBindSelChecks(ctx: CmReCtx): void {
+function cmReBindSelChecks(ctx: CmReCtx, listeners: ListenerRef[]): void {
   const { sr, selectedSet } = ctx;
-  const selContainer = sr.querySelector("#gh-repo-list");
+  const selContainer = sr.querySelector<HTMLElement>("#gh-repo-list");
   if (selContainer) {
-    selContainer.addEventListener("change", (e: Event) => {
+    cmReListen(listeners, selContainer, "change", (e: Event) => {
       const target = e.target as HTMLInputElement;
       if (!target.classList.contains("gh-sel")) return;
       const name = target.dataset.name || "";
@@ -116,11 +131,11 @@ function cmReBindSelChecks(ctx: CmReCtx): void {
   }
 }
 
-function cmReBindDlSelected(ctx: CmReCtx): void {
+function cmReBindDlSelected(ctx: CmReCtx, listeners: ListenerRef[]): void {
   const { sr, selectedSet, queue, models, dlPrefix } = ctx;
   const dlSelBtn = sr.querySelector(".gh-dl-selected") as HTMLElement | null;
   if (dlSelBtn) {
-    dlSelBtn.addEventListener("click", async () => {
+    cmReListen(listeners, dlSelBtn, "click", async () => {
       if (queue.isDownloading()) {
         bus.emit("toast:show", {
           msg: "下载进行中，请等待当前任务完成",
@@ -144,13 +159,13 @@ function cmReBindDlSelected(ctx: CmReCtx): void {
   }
 }
 
-function cmReBindSelAll(ctx: CmReCtx): void {
+function cmReBindSelAll(ctx: CmReCtx, listeners: ListenerRef[]): void {
   const { sr, state, selectedSet, localMap } = ctx;
   const selAllCb = sr.querySelector(
     ".gh-select-all input[type=checkbox]",
   ) as HTMLInputElement | null;
   if (selAllCb) {
-    selAllCb.addEventListener("change", () => {
+    cmReListen(listeners, selAllCb, "change", () => {
       const checked = selAllCb.checked;
       for (const m of state.currentFiltered) {
         if (isModelMissing(m, localMap)) {
@@ -164,11 +179,11 @@ function cmReBindSelAll(ctx: CmReCtx): void {
   }
 }
 
-function cmReBindContextMenu(ctx: CmReCtx): void {
+function cmReBindContextMenu(ctx: CmReCtx, listeners: ListenerRef[]): void {
   const { sr, models } = ctx;
   const listEl = sr.querySelector("#gh-repo-list") as HTMLElement | null;
   if (listEl) {
-    listEl.addEventListener("contextmenu", (e: MouseEvent) => {
+    cmReListen(listeners, listEl, "contextmenu", (e: MouseEvent) => {
       const row = (e.target as Element).closest(".gh-row") as HTMLElement | null;
       if (!row) return;
       e.preventDefault();
@@ -241,11 +256,11 @@ async function cmReHandleSingleDownload(
   }
 }
 
-function cmReBindRowClick(ctx: CmReCtx): void {
+function cmReBindRowClick(ctx: CmReCtx, listeners: ListenerRef[]): void {
   const { sr, queue } = ctx;
   const dlContainer = sr.querySelector("#gh-repo-list") as HTMLElement | null;
   if (dlContainer) {
-    dlContainer.addEventListener("click", async (e: MouseEvent) => {
+    cmReListen(listeners, dlContainer, "click", async (e: MouseEvent) => {
       try {
         const target = e.target as HTMLElement;
         if (target.classList.contains("gh-sel")) return;
@@ -303,12 +318,12 @@ function cmReBindRowClick(ctx: CmReCtx): void {
 }
 
 async function cmReCleanup(ctx: CmReCtx): Promise<void> {
-  const { sr, state, virtualList, queue, selectedSet } = ctx;
+  const { state, virtualList, queue, selectedSet, listeners } = ctx;
   state.disposed = true;
+  // 成对移除 cmReListen 登记的监听（替代 cloneNode hack：不重建 DOM、不清外部
+  // 监听、release 可预测——cloneNode 会丢弃元素引用与状态，逐个替换是暴力清监听反模式）
+  for (const { el, type, handler } of listeners) el.removeEventListener(type, handler);
   virtualList?.destroy();
-  sr.querySelectorAll(".gh-back-repo, #gh-repo-srch, .gh-toggle-missing, #gh-repo-list, .gh-dl-selected, .gh-cancel-queue, .gh-select-all input[type=checkbox]").forEach((el) => {
-    el.replaceWith(el.cloneNode(true));
-  });
   await queue.cancel();
   selectedSet.clear();
   queue.destroy();
@@ -340,11 +355,12 @@ export function bindRepoEvents(sr: HTMLElement, ctx: RepoEventsContext): RepoEve
     renderEmpty: () => { const empty = document.createElement("div"); empty.className = "gh-empty"; return empty; },
   }) : null;
 
-  const reCtx: CmReCtx = { sr, esc, models, dlPrefix, repo, source, showRepoModels, backToSite, localMap, state, selectedSet, queue, virtualList };
+  const listeners: ListenerRef[] = [];
+  const reCtx: CmReCtx = { sr, esc, models, dlPrefix, repo, source, showRepoModels, backToSite, localMap, state, selectedSet, queue, virtualList, listeners };
   reCtxShell.ctx = reCtx;
 
-  cmReBindBack(reCtx); cmReBindSearch(reCtx); cmReBindToggle(reCtx); cmReBindSelChecks(reCtx);
-  cmReBindDlSelected(reCtx); cmReBindSelAll(reCtx); cmReBindContextMenu(reCtx); cmReBindRowClick(reCtx);
+  cmReBindBack(reCtx, listeners); cmReBindSearch(reCtx, listeners); cmReBindToggle(reCtx, listeners); cmReBindSelChecks(reCtx, listeners);
+  cmReBindDlSelected(reCtx, listeners); cmReBindSelAll(reCtx, listeners); cmReBindContextMenu(reCtx, listeners); cmReBindRowClick(reCtx, listeners);
 
   const renderList = (f?: string): void => cmReRenderList(reCtx, f);
   const updateSelectedUI = (): void => cmReUpdateSelectedUI(reCtx);

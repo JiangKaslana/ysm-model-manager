@@ -46,10 +46,10 @@
 | frontend/test-utils | 5 | 34 |
 | frontend/ui | 18 | 64 |
 | 前端·工具 | 162 | 638 |
-| frontend/views | 114 | 332 |
+| frontend/views | 115 | 333 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **483** | **2043** |
+| **合计** | **484** | **2044** |
 
 ## Go·头像
 
@@ -1102,7 +1102,7 @@
 | `buildDownloadTasks()` | `frontend/src/features/community/download-tasks:31` | 选中集 → 下载任务列表（路径统一转正斜杠；未匹配的选中项静默跳过） |
 | `RepoEventsContext()` | `frontend/src/features/community/events:16` | bindRepoEvents 上下文 |
 | `RepoEventsHandle()` | `frontend/src/features/community/events:28` | 绑定返回值 |
-| `bindRepoEvents()` | `frontend/src/features/community/events:324` | 绑定仓库模型页面的所有事件。 |
+| `bindRepoEvents()` | `frontend/src/features/community/events:339` | 绑定仓库模型页面的所有事件。 |
 | `WorkshopModel()` | `frontend/src/features/community/render:10` | 工坊模型条目（index.json 结构） |
 | `WorkshopSite()` | `frontend/src/features/community/render:18` | 工坊站点 |
 | `isModelMissing()` | `frontend/src/features/community/render:28` | 判断模型是否缺失（本地不存在） |
@@ -2102,6 +2102,7 @@
 | `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:166` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
 | `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:182` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `fillMmdShotPanel()` | `frontend/src/views/app-preview/mmd-controls:263` | MMD 截图面板填充（ADR-052 P3：对齐 ysm-controls fillYsmShotPanel 范式）。 |
+| `makeMmdDataPort()` | `frontend/src/views/app-preview/mmd-data-port:11` | 构建一个接入 Go RPC 的 MMD 数据端口；scope 仅用于 AddOpLog 的运行时环打标 （角色预览用 "mmd-preview"，场景预览用 "mmd-scene" |
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:13` | 同类型 MMD 模型候选（委托共享底座 resolveSiblingsByType）；失败返回 []（下拉不渲染） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:12` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:24` | Go 返回的 3D spec（models 数组） |
