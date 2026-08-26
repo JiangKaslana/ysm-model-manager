@@ -1068,7 +1068,7 @@
 | `showProgress()` | `frontend/src/features/community/data:9` | 创建进度条 UI（插入到 searchResults 容器） |
 | `FetchModelsResult()` | `frontend/src/features/community/data:42` | 抓取结果 |
 | `isRecyclePath()` | `frontend/src/features/community/data:56` | 判断仓库相对路径是否含回收站目录段 `.recycle`（大小写不敏感，对齐 Go fsutil.IsRecycleDir， EqualFold 语义：.RECYCLE/.Recy |
-| `tryFetchModels()` | `frontend/src/features/community/data:244` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
+| `tryFetchModels()` | `frontend/src/features/community/data:242` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
 | `ProgressGuardHooks()` | `frontend/src/features/community/download-queue-progress:16` | createProgressGuard 依赖注入（controller 提供查找与收口回调） |
 | `ProgressGuard()` | `frontend/src/features/community/download-queue-progress:24` | 进度条守卫控制器 |
 | `createProgressGuard()` | `frontend/src/features/community/download-queue-progress:267` | — |

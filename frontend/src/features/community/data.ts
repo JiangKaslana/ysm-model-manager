@@ -96,11 +96,9 @@ function buildFetchModelsAttempts(
       label: "⏳ 正在连接 api.github.com…",
     },
   ];
-  return mirror === "jsdelivr"
-    ? [attempts[1], attempts[0], attempts[2]]
-    : mirror === "githubapi"
-      ? [attempts[2], attempts[0], attempts[1]]
-      : attempts;
+  if (mirror === "jsdelivr") return [attempts[1], attempts[0], attempts[2]];
+  if (mirror === "githubapi") return [attempts[2], attempts[0], attempts[1]];
+  return attempts;
 }
 
 /**
