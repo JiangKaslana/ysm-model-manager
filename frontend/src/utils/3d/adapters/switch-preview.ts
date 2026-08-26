@@ -92,14 +92,43 @@ export async function switchToSession(
   newPath: string,
   options?: { keepInScene?: boolean },
 ): Promise<void> {
-  if (ctx.aborted.v || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) return;
-  // r12 P1：并发切换抑制——已在切换中直接丢弃后续请求，避免重复 build 浪费 GPU + sceneRegistry 短暂不一致
-  if (ctx.inFlight) return;
-  // P3-2：空路径守卫——空路径会触发 adapter.build(ctx, "") 加载未定义内容
-  if (!newPath || !newPath.trim()) return;
   const keep = options?.keepInScene === true;
+  // 入口守卫 + inFlight 置位（r12 P1 并发抑制 / P3-2 空路径 / ADR-093 T6 超量拦截）
+  if (!beginSwitch(ctx, newPath, keep)) return;
 
-  // ADR-093 T6：同台追加超量拦截（GPU/内存上限）——必须先于 inFlight 置位，
+  // 清理旧内容层 + 重建新内容层（build 失败进 recoverSwitchFailure 恢复并 return null）
+  const beforeBuild = clearSwitchContent(ctx, keep);
+  const next = await buildSwitchContent(ctx, newPath, keep);
+  if (!next) return;
+  // build 成功但代际已失效（用户已关闭/切换）→ 丢弃新内容层
+  if (guardSwitchAborted(ctx, next)) return;
+
+  // 兑现本次切换：登记 built / 历史 / 注册表 / 相机灯光阴影 env 同步 / 基线更新
+  ctx.setBuilt(next);
+  pushSwitchHistory(ctx, keep, next);
+  unregisterSwitchPrevious(ctx, keep);
+  registerSwitchScene(ctx, newPath, next, beforeBuild);
+  syncSwitchView(ctx, next, beforeBuild, keep);
+  updateSwitchBaseline(ctx, beforeBuild);
+
+  const handle = ctx.getHandle();
+  if (handle) handle.screenshot = next.screenshot;
+  // 注意：适配器控件（分层切片等）通过 ctx.menu.setAdapterItems 在 build 时注入根菜单，
+  // 无需额外 extraControls/extraPanel 调用（ADR-076 v2 Phase 3 收编）。
+  ctx.inFlight = false;
+}
+
+/**
+ * 入口守卫 + 并发切换抑制（等价原 switchToSession 头部守卫，r12 P1 / P3-2 / ADR-093 T6）。
+ * 命中任一守卫返回 false（调用方直接 return）；放行则置位 inFlight 后返回 true。
+ */
+function beginSwitch(ctx: SwitchContext, newPath: string, keep: boolean): boolean {
+  if (ctx.aborted.v || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) return false;
+  // r12 P1：并发切换抑制——已在切换中直接丢弃后续请求，避免重复 build 浪费 GPU + sceneRegistry 短暂不一致
+  if (ctx.inFlight) return false;
+  // P3-2：空路径守卫——空路径会触发 adapter.build(ctx, "") 加载未定义内容
+  if (!newPath || !newPath.trim()) return false;
+  // ADR-093 T6：同台追加超量拦截（GPU/内存上限）——必须在 inFlight 置位前判，
   // 否则上限命中提前 return 会把 inFlight 卡死 true（后续所有切换被静默丢弃）
   //（code review P1：其他 early-return 路径都重置了，此守卫曾漏——r12 竞态抑制后成死锁）
   if (keep && sceneRegistry.count() >= MAX_MODELS) {
@@ -108,29 +137,41 @@ export async function switchToSession(
       duration: 4000,
       type: "warn",
     });
-    return;
+    return false;
   }
   ctx.inFlight = true;
+  return true;
+}
 
-  // 1) 清理旧内容层：菜单会通过 ctx.menu.setAdapterItems 在 build 时自动重建，无需手动清理
-
-  // 2) 非同台模式：移除旧内容层添加到共享 scene 的对象（快照 delta，防场景累积）
+/**
+ * 清理旧内容层（原 switchToSession §2/3）。菜单会通过 ctx.menu.setAdapterItems
+ * 在 build 时自动重建，无需手动清理。返回 build 前 scene.children 快照
+ * （ADR-093 T2：差量捕获本次新增根节点，适配器无关）。
+ */
+function clearSwitchContent(ctx: SwitchContext, keep: boolean): Set<THREE.Object3D> | null {
+  // 非同台模式：移除旧内容层添加到共享 scene 的对象（快照 delta，防场景累积）
   if (!keep && ctx.scene && ctx.getSceneBaseline()) {
     const stale = ctx.scene.children.filter((c) => !ctx.getSceneBaseline()!.has(c));
     for (const c of stale) ctx.scene.remove(c);
   }
-
-  // 3) 释放旧内容层 GPU 资源（非同台模式才 dispose；同台模式下旧模型仍需保持）
+  // 释放旧内容层 GPU 资源（非同台模式才 dispose；同台模式下旧模型仍需保持）
   if (!keep) {
     try { ctx.getBuilt()?.dispose(); } catch (e) { console.error("[preview] 旧内容层 dispose 失败:", e); }
   }
+  return ctx.scene ? new Set(ctx.scene.children) : null;
+}
 
-  // 4) 重建内容层（新 path）
-  // ADR-093 T2：build 前后 scene.children 差量捕获本次新增根节点（适配器无关）
-  const beforeBuild = ctx.scene ? new Set(ctx.scene.children) : null;
-  let next: PreviewScene;
+/**
+ * 重建内容层（新 path）。build 失败时执行 recoverSwitchFailure 恢复（含 inFlight 复位），
+ * 返回 null 请求调用方中止本次切换。
+ */
+async function buildSwitchContent(
+  ctx: SwitchContext,
+  newPath: string,
+  keep: boolean,
+): Promise<PreviewScene | null> {
   try {
-    next = await ctx.adapter.build(
+    return await ctx.adapter.build(
       {
         scene: ctx.scene,
         camera: ctx.camera,
@@ -146,53 +187,67 @@ export async function switchToSession(
       newPath,
     );
   } catch (e) {
-    // P2 守卫（对齐 mount3D 主流程 gen 守卫）：build 失败迟到且用户已关闭/切换
-    // 预览时不弹错误 toast，避免关闭后 1~2s 突然冒出「加载失败」掩盖用户意图
-    if (ctx.aborted.v || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) {
-      ctx.inFlight = false;
-      return;
-    }
-    console.error("[preview 3D] 切换失败:", e);
-    // P1 修复（审核 ADR-109 Checklist）：build 失败后旧内容层已 dispose（上方 L117）
-    // 但 perFrame 回调仍指向已 dispose 的 update → rAF 每帧驱动已释放对象；
-    // sceneRegistry 残留旧 entry → count 虚高（误触 MAX_MODELS）+ visibleRoots 含
-    // detached root（取景幽灵）；allBuilt 残留已释放引用（GPU 资源孤儿泄漏）
-    ctx.setPerFrame(null);
-    if (keep) {
-      // 同台模式：旧 built 未 dispose（上方 L116 跳过），此处补释放
-      try { ctx.getBuilt()?.dispose(); } catch (_) {}
-    }
-    const prevId = sceneRegistry.getActiveId();
-    if (prevId) sceneRegistry.unregister(prevId);
-    for (const b of ctx.allBuilt) {
-      try { b.dispose(); } catch (_) {}
-    }
-    ctx.allBuilt.length = 0;
-    ctx.setBuilt(null);
-    if (!ctx.loadingEl.parentNode) ctx.viewContainer.appendChild(ctx.loadingEl);
-    ctx.loadingEl.innerHTML =
-      `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(safeErrorMessage(e))}</div>`;
-    bus.emit("toast:show", {
-      msg: "❌ " + friendlyError(e, t("preview.loadFailed")),
-      duration: 5000,
-      type: "error",
-    });
+    recoverSwitchFailure(ctx, keep, e);
+    return null;
+  }
+}
+
+/**
+ * 切换失败恢复（原 switchToSession §4 catch 块，P1/P2 守卫 + GPU/sceneRegistry/allBuilt 清理）。
+ */
+function recoverSwitchFailure(ctx: SwitchContext, keep: boolean, e: unknown): void {
+  // P2 守卫（对齐 mount3D 主流程 gen 守卫）：build 失败迟到且用户已关闭/切换
+  // 预览时不弹错误 toast，避免关闭后 1~2s 突然冒出「加载失败」掩盖用户意图
+  if (ctx.aborted.v || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) {
     ctx.inFlight = false;
     return;
   }
+  console.error("[preview 3D] 切换失败:", e);
+  // P1 修复（审核 ADR-109 Checklist）：build 失败后旧内容层已 dispose（上方清除段）
+  // 但 perFrame 回调仍指向已 dispose 的 update → rAF 每帧驱动已释放对象；
+  // sceneRegistry 残留旧 entry → count 虚高（误触 MAX_MODELS）+ visibleRoots 含
+  // detached root（取景幽灵）；allBuilt 残留已释放引用（GPU 资源孤儿泄漏）
+  ctx.setPerFrame(null);
+  if (keep) {
+    // 同台模式：旧 built 未 dispose（清除段跳过），此处补释放
+    try { ctx.getBuilt()?.dispose(); } catch (_) {}
+  }
+  const prevId = sceneRegistry.getActiveId();
+  if (prevId) sceneRegistry.unregister(prevId);
+  for (const b of ctx.allBuilt) {
+    try { b.dispose(); } catch (_) {}
+  }
+  ctx.allBuilt.length = 0;
+  ctx.setBuilt(null);
+  if (!ctx.loadingEl.parentNode) ctx.viewContainer.appendChild(ctx.loadingEl);
+  ctx.loadingEl.innerHTML =
+    `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(safeErrorMessage(e))}</div>`;
+  bus.emit("toast:show", {
+    msg: "❌ " + friendlyError(e, t("preview.loadFailed")),
+    duration: 5000,
+    type: "error",
+  });
+  ctx.inFlight = false;
+}
 
+/**
+ * build 成功后的代际守卫：用户已关闭/切换预览则丢弃新内容层，返回 true 请求中止。
+ */
+function guardSwitchAborted(ctx: SwitchContext, next: PreviewScene): boolean {
   if (ctx.aborted.v || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) {
     try { next.dispose(); } catch (_) {}
     ctx.inFlight = false;
-    return;
+    return true;
   }
+  return false;
+}
 
-  ctx.setBuilt(next);
-  // P3-1：非同台模式旧 built 已在上方 dispose，allBuilt 只保留当前活跃项——
-  // 否则每次切换累积已释放的 PreviewScene 引用，长时间频繁切换内存泄漏。
-  // 清空前必须先 dispose allBuilt 中的其余条目（keep=true 追加的
-  // 多模型 m1/m2 在步骤 2 被移出 scene 但从未 dispose）——否则其 GPU 资源孤儿泄漏，
-  // 且 sceneRegistry 残留计数虚高（误触 MAX_MODELS 拦截）。
+/**
+ * 维护 allBuilt 历史（P3-1）。非同台模式先 dispose 其余条目再清空——否则
+ * keep=true 追加的多模型在清除段被移出 scene 但从未 dispose → GPU 孤儿泄漏，
+ * 且 sceneRegistry 残留计数虚高（误触 MAX_MODELS 拦截）。随后统一 push 新 built。
+ */
+function pushSwitchHistory(ctx: SwitchContext, keep: boolean, next: PreviewScene): void {
   if (!keep) {
     const active = ctx.getBuilt();
     for (const b of ctx.allBuilt) {
@@ -203,18 +258,30 @@ export async function switchToSession(
     ctx.allBuilt.length = 0;
   }
   ctx.allBuilt.push(next);
-  ctx.setCurrentPath(newPath);
+}
 
-  // ADR-093 T2 修正：非 keep 切换须 unregister 旧活跃模型，
-  // 否则注册表残留旧 entry → count 虚高（误触 MAX_MODELS 拦截）+ visibleRoots
-  // 含已移除的 detached root（取景幽灵）。单模型切换为最常见路径；
-  // keep 多模型后做非 keep 切换的残留由下次 mount 的 reset 兜底。
+/**
+ * 非 keep 切换注销旧活跃模型（ADR-093 T2 修正）：否则注册表残留旧 entry →
+ * count 虚高（误触 MAX_MODELS 拦截）+ visibleRoots 含已移除的 detached root
+ * （取景幽灵）。keep 多模型后非 keep 切换的残留由下次 mount 的 reset 兜底。
+ */
+function unregisterSwitchPrevious(ctx: SwitchContext, keep: boolean): void {
   if (!keep) {
     const prevId = sceneRegistry.getActiveId();
     if (prevId) sceneRegistry.unregister(prevId);
   }
+}
 
-  // ADR-093 T2：注册进场景注册表（keep 追加 / 普通切换均登记，单一事实来源）
+/**
+ * 注册进场景注册表（ADR-093 T2；keep 追加 / 普通切换均登记，单一事实来源）。
+ * 有无 beforeBuild 快照决定是否携带 roots/boneMaps 等增量元数据。
+ */
+function registerSwitchScene(
+  ctx: SwitchContext,
+  newPath: string,
+  next: PreviewScene,
+  beforeBuild: Set<THREE.Object3D> | null,
+): void {
   if (beforeBuild) {
     const added = ctx.scene ? ctx.scene.children.filter((c) => !beforeBuild.has(c)) : [];
     sceneRegistry.register({
@@ -229,8 +296,18 @@ export async function switchToSession(
   } else {
     sceneRegistry.register({ path: newPath, rtype: "", roots: [], built: next });
   }
+}
 
-  // 5) 同步相机状态到新内容层取景 + 重挂适配器控件/侧栏
+/**
+ * 同步相机状态到新内容层取景 + 灯光/shadow/env 同步 + keep 多模型排开取景。
+ * （原 switchToSession §5）
+ */
+function syncSwitchView(
+  ctx: SwitchContext,
+  next: PreviewScene,
+  beforeBuild: Set<THREE.Object3D> | null,
+  keep: boolean,
+): void {
   if (ctx.renderer && ctx.orbitTarget && ctx.controls && ctx.camera) {
     ctx.orbitTarget.copy(ctx.controls.target);
   }
@@ -253,21 +330,22 @@ export async function switchToSession(
     const roots = sceneRegistry.visibleRoots();
     if (roots.length) fitCameraToRoots(roots, ctx.camera, ctx.controls);
   }
+}
 
-  // 切换后更新 sceneBaseline，但须排除本次构建的内容层增量——
-  // 若把完整 scene（含刚构建的模型）作为基线，下次切换的 stale 差量
-  // （children - baseline）会把旧模型视为基线、永不移除 → 幽灵网格累积（P1）
+/**
+ * 切换后更新 sceneBaseline，但排除本次构建的内容层增量（ADR-093 T2 幽灵网格累积防护）——
+ * 若把完整 scene（含刚构建的模型）作基线，下次切换的 stale 差量会把旧模型视为基线、
+ * 永不移除 → 幽灵网格累积（P1）。
+ */
+function updateSwitchBaseline(
+  ctx: SwitchContext,
+  beforeBuild: Set<THREE.Object3D> | null,
+): void {
   if (ctx.setSceneBaseline && ctx.scene) {
     const added = beforeBuild ? ctx.scene.children.filter((c) => !beforeBuild.has(c)) : [];
     const addedSet = new Set(added);
     ctx.setSceneBaseline(new Set(ctx.scene.children.filter((c) => !addedSet.has(c))));
   }
-
-  const handle = ctx.getHandle();
-  if (handle) handle.screenshot = next.screenshot;
-  // 注意：适配器控件（分层切片等）通过 ctx.menu.setAdapterItems 在 build 时注入根菜单，
-  // 无需额外 extraControls/extraPanel 调用（ADR-076 v2 Phase 3 收编）。
-  ctx.inFlight = false;
 }
 
 // ---------------------------------------------------------------------------

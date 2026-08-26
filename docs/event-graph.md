@@ -12,7 +12,6 @@
 - `config:updated` — emit×4
 - `morph:apply` — emit×1
 - `stage:load` — emit×1
-- `sync:download:missing` — emit×1
 
 ### 鬼订阅（有 on/once 但从未被 emit）
 
@@ -50,10 +49,10 @@
 | `stage:load` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `stats:refresh` | 21 | 2 | 0 | 0 | ✅ |
 | `sync:download:done` | 2 | 2 | 0 | 0 | ✅ |
-| `sync:download:missing` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
+| `sync:download:missing` | 1 | 1 | 0 | 0 | ✅ |
 | `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
 | `theme:change` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
-| `toast:show` | 200 | 2 | 0 | 0 | ✅ |
+| `toast:show` | 201 | 2 | 0 | 0 | ✅ |
 | `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
 
@@ -372,8 +371,8 @@
 | `frontend/src/core/context-menu-shared.ts` | 17 |
 | `frontend/src/core/handlers/android-events.ts` | 65 |
 | `frontend/src/core/handlers/instance-ops.ts` | 157 |
-| `frontend/src/core/handlers/sync.ts` | 102 |
-| `frontend/src/core/handlers/sync.ts` | 211 |
+| `frontend/src/core/handlers/sync.ts` | 84 |
+| `frontend/src/core/handlers/sync.ts` | 205 |
 | `frontend/src/features/community/download-queue.ts` | 110 |
 | `frontend/src/features/import-executor.ts` | 68 |
 | `frontend/src/features/import-executor.ts` | 256 |
@@ -402,8 +401,8 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/handlers/sync.ts` | 23 |
-| `frontend/src/core/handlers/sync.ts` | 119 |
+| `frontend/src/core/handlers/sync.ts` | 104 |
+| `frontend/src/core/handlers/sync.ts` | 131 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -418,6 +417,11 @@
 |------|----|
 | `frontend/src/views/app-sidebar/index.ts` | 215 |
 
+**订阅方（on）：**
+| 文件 | 行 |
+|------|----|
+| `frontend/src/core/handlers/sync.ts` | 258 |
+
 ### `sync:toggle:status`
 
 **发射方：**
@@ -430,7 +434,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/handlers/sync.ts` | 131 |
+| `frontend/src/core/handlers/sync.ts` | 264 |
 
 ### `theme:change`
 
@@ -466,14 +470,15 @@
 | `frontend/src/core/handlers/instance-ops.ts` | 164 |
 | `frontend/src/core/handlers/instance-ops.ts` | 171 |
 | `frontend/src/core/handlers/require-mcroot.ts` | 13 |
-| `frontend/src/core/handlers/sync.ts` | 51 |
-| `frontend/src/core/handlers/sync.ts` | 103 |
-| `frontend/src/core/handlers/sync.ts` | 112 |
-| `frontend/src/core/handlers/sync.ts` | 135 |
-| `frontend/src/core/handlers/sync.ts` | 161 |
-| `frontend/src/core/handlers/sync.ts` | 170 |
-| `frontend/src/core/handlers/sync.ts` | 204 |
-| `frontend/src/core/handlers/sync.ts` | 227 |
+| `frontend/src/core/handlers/sync.ts` | 39 |
+| `frontend/src/core/handlers/sync.ts` | 85 |
+| `frontend/src/core/handlers/sync.ts` | 114 |
+| `frontend/src/core/handlers/sync.ts` | 124 |
+| `frontend/src/core/handlers/sync.ts` | 155 |
+| `frontend/src/core/handlers/sync.ts` | 164 |
+| `frontend/src/core/handlers/sync.ts` | 198 |
+| `frontend/src/core/handlers/sync.ts` | 213 |
+| `frontend/src/core/handlers/sync.ts` | 238 |
 | `frontend/src/features/community/download-queue.ts` | 268 |
 | `frontend/src/features/community/download-queue.ts` | 294 |
 | `frontend/src/features/community/events.ts` | 125 |
@@ -500,8 +505,8 @@
 | `frontend/src/features/version-updater.ts` | 253 |
 | `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 381 |
 | `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 974 |
-| `frontend/src/utils/3d/adapters/switch-preview.ts` | 97 |
-| `frontend/src/utils/3d/adapters/switch-preview.ts` | 166 |
+| `frontend/src/utils/3d/adapters/switch-preview.ts` | 123 |
+| `frontend/src/utils/3d/adapters/switch-preview.ts` | 204 |
 | `frontend/src/utils/dom/dialogs/batch-rename.ts` | 101 |
 | `frontend/src/utils/dom/dialogs/batch-rename.ts` | 391 |
 | `frontend/src/utils/dom/dialogs/batch-rename.ts` | 405 |
@@ -658,8 +663,8 @@
 |------|----|
 | `frontend/src/core/context-menu-shared.ts` | 16 |
 | `frontend/src/core/handlers/android-events.ts` | 64 |
-| `frontend/src/core/handlers/sync.ts` | 120 |
-| `frontend/src/core/handlers/sync.ts` | 234 |
+| `frontend/src/core/handlers/sync.ts` | 132 |
+| `frontend/src/core/handlers/sync.ts` | 245 |
 | `frontend/src/features/community/download-queue.ts` | 109 |
 | `frontend/src/features/import-executor.ts` | 69 |
 | `frontend/src/features/import-executor.ts` | 255 |
