@@ -83,8 +83,9 @@ function readBusContract() {
 /* ---------------- 源码扫描 ---------------- */
 
 function stripNoise(text) {
+  // 块注释替换为等宽空白（保留换行数），否则后续所有行号整体漂移
   return text
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
     .replace(/\/\/.*$/gm, ' ');
 }
 
@@ -105,20 +106,42 @@ function collectSrcFiles() {
   return files;
 }
 
-/** 方法调用点：接收者后允许可选链（bus.emit / window.bus?.emit 均可命中） */
-const CALL_LINE_RE = /(?:^|[^A-Za-z0-9_$])([A-Za-z_$][\w$]*)\s*\??\.\s*(emit|on|once|off)\s*\(\s*['"]([^'"]+)['"]/g;
-const CALL_TAIL_RE = /\.((?:emit|on|once|off)\s*\(\s*)$/;
-const CALL_PARENT_RE = /([A-Za-z_$][\w$]*)\s*\??\.\s*(emit|on|once|off)$/;
+/**
+ * 方法调用点发现（唯一入口）：接收者任意、允许可选链；
+ * 实参段由 extractArgs 平衡括号提取——天然支持跨行调用与字符串内逗号。
+ * 历史：曾用三个行级正则做发现，CALL_TAIL_RE 允许行尾 `(` 而 CALL_PARENT_RE 不允许，
+ * 导致 `bus.on(` 换行写事件名的跨行订阅恒漏检（实证：sync:download:missing 被误报孤儿发射）。
+ */
+const CALL_HEAD_RE = /(?:^|[^A-Za-z0-9_$])([A-Za-z_$][\w$]*)\s*\??\.\s*(emit|on|once|off)\s*\(/g;
 
-/** bus 接收者的 emit 全局扫描（实参契约只对 bus 有定义；自定义 emitter 不误伤） */
-const BUS_EMIT_RE = /\bbus\s*\??\.\s*emit\s*\(/g;
+/**
+ * / 前的最近非空白字符是否允许开启正则字面量（排除除法场景的经典 lexer 启发式）。
+ * 实证必要性：回调体 .replace(/"/g, "&quot;") 的裸引号曾被误当字符串边界，
+ * 括号配对失衡致整条调用点丢失（init-pages.ts 的 package:selected）。
+ */
+const REGEX_PRECEDING_RE = /[({[,;:!&|?+\-*%~^=]$/;
 
-/** 从左括号下一字符起提取平衡实参段；字符串内容不参与配对。返回段数组或 null */
+/** src[i]==='/' 时按正则字面量跳过：字符类内 / 不闭合、吃尾部 flags；越界/跨行返回 null（降级当普通字符） */
+function skipRegex(src, i) {
+  let inClass = false;
+  for (i++; i < src.length; i++) {
+    const c = src[i];
+    if (c === '\\') { i++; continue; }
+    if (inClass) { if (c === ']') inClass = false; continue; }
+    if (c === '[') { inClass = true; continue; }
+    if (c === '/') { while (i + 1 < src.length && /[a-z]/i.test(src[i + 1])) i++; return i; }
+    if (c === '\n') return null;
+  }
+  return null;
+}
+
+/** 从左括号下一字符起提取平衡实参段；字符串与正则字面量内容不参与配对。返回段数组或 null */
 function extractArgs(src, openParen) {
   let d = 0, i = openParen + 1;
   const n = src.length;
-  let cur = '';
+  let cur = '', lastSig = '('; // lastSig：最近非空白字符（正则/除法判定用）
   const parts = [];
+  const note = (c) => { if (!/\s/.test(c)) lastSig = c; };
   while (i < n) {
     const c = src[i];
     if (c === "'" || c === '"' || c === '`') {
@@ -129,15 +152,20 @@ function extractArgs(src, openParen) {
         cur += src[i]; i++;
       }
       cur += q; i++;
+      lastSig = q;
       continue;
+    }
+    if (c === '/' && REGEX_PRECEDING_RE.test(lastSig)) {
+      const end = skipRegex(src, i);
+      if (end !== null) { cur += src.slice(i, end + 1); i = end + 1; lastSig = '/'; continue; }
     }
     if (c === '(' || c === '[' || c === '{') d++;
     else if (c === ')' || c === ']' || c === '}') {
       if (d === 0 && c === ')') { parts.push(cur); return parts; }
       d--;
     }
-    if (c === ',' && d === 0) { parts.push(cur); cur = ''; i++; continue; }
-    cur += c; i++;
+    if (c === ',' && d === 0) { parts.push(cur); cur = ''; lastSig = ','; i++; continue; }
+    cur += c; note(c); i++;
   }
   return null; // 括号不平衡（跨模板拼接等），交由编译期兜底
 }
@@ -152,39 +180,26 @@ function scanFiles(files, includeHtml, contract, arityIssues) {
   const argcOf = (args) => args.map((s) => s.trim()).filter(Boolean).length;
   function scanFile(filePath, rel) {
     const text = stripNoise(fs.readFileSync(filePath, 'utf-8'));
-    const lines = text.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      let m;
-      const lineRe = new RegExp(CALL_LINE_RE.source, 'g');
-      while ((m = lineRe.exec(line)) !== null) add(m[3], m[2], rel, i + 1);
-      if (CALL_TAIL_RE.test(line.trimEnd())) {
-        if (i + 1 < lines.length) {
-          const next = lines[i + 1].trimStart();
-          const crossM = next.match(/^(['"])([^'"]+)\1/);
-          if (crossM) {
-            const parentM = line.match(CALL_PARENT_RE);
-            if (parentM) add(crossM[2], parentM[2], rel, i + 1);
-          }
-        }
-      }
-    }
-    // emit 实参契约（仅 bus 接收者；偏移法支持跨行调用）
-    let e;
-    const emitRe = new RegExp(BUS_EMIT_RE.source, 'g');
-    while ((e = emitRe.exec(text)) !== null) {
-      const openParen = e.index + e[0].length - 1;
+    let m;
+    const headRe = new RegExp(CALL_HEAD_RE.source, 'g');
+    while ((m = headRe.exec(text)) !== null) {
+      const receiver = m[1], method = m[2];
+      const openParen = m.index + m[0].length - 1;
       const args = extractArgs(text, openParen);
-      if (!args) continue;
+      if (!args) continue; // 括号不平衡（跨模板拼接等），交由编译期兜底
       const nameM = (args[0] ?? '').trim().match(/^["'`]([^"'`]*)["'`]$/);
-      if (!nameM) continue; // 非字面量事件名：类型表已约束，不在此重复
-      const event = nameM[1];
-      if (!contract.names.has(event)) continue; // 未声明事件归 undeclared 管
-      const isVoid = contract.voidDeclarations.has(event);
-      const argc = argcOf(args); // argc 含事件名实参：typed 合法 ≥2；void 合法 ==1
-      const line = text.slice(0, e.index).split('\n').length;
-      if (!isVoid && argc < 2) arityIssues.push({ type: 'missing_payload', event, file: rel, line });
-      else if (isVoid && argc > 1) arityIssues.push({ type: 'void_with_payload', event, file: rel, line });
+      if (!nameM) continue; // 非字面量事件名不记录（与旧版单行正则行为一致）
+      const line = text.slice(0, m.index).split('\n').length;
+      add(nameM[1], method, rel, line);
+      // emit 实参契约（仅 bus 接收者；自定义 emitter 不误伤）
+      if (receiver === 'bus' && method === 'emit') {
+        const event = nameM[1];
+        if (!contract.names.has(event)) continue; // 未声明事件归 undeclared 管
+        const isVoid = contract.voidDeclarations.has(event);
+        const argc = argcOf(args); // argc 含事件名实参：typed 合法 ≥2；void 合法 ==1
+        if (!isVoid && argc < 2) arityIssues.push({ type: 'missing_payload', event, file: rel, line });
+        else if (isVoid && argc > 1) arityIssues.push({ type: 'void_with_payload', event, file: rel, line });
+      }
     }
   }
   for (const f of files) scanFile(f, relPosix(f));

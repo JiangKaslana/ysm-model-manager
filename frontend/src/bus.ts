@@ -95,7 +95,7 @@ export interface BusEvents {
   "repo:subdir-changed": string; // MMD 子目录选择（ADR-095 后续）：sync 页按 subdir 过滤
   "repo:search-creator": string;
   "sync:toggle:status": void;
-  "sync:download:missing": { instanceName?: string; rtype?: string; token?: string };
+  "sync:download:missing": { instanceName?: string; rtype: string; token?: string };
   "sync:download:done": { token?: string; instanceName?: string; skipped?: boolean };
   // 实例 / 导入
   "instance:export-list": { name: string; rtype?: string };

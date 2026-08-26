@@ -30,7 +30,7 @@
 | 🏗 backend-idb | 浏览器后端 IndexedDB 封装 | architecture | io-bound | IndexedDB, 网页版, backend, 模型库, browser adapter, web mode |
 | 🏗 backend_web | 网页版后端 backend-web | architecture | — | 网页版, 浏览器模式, web mode, IndexedDB, IDB, 浏览器后端, browser adapter, 跨域隔离, COI, NBT 解析, 体素, 体素颜色, Web CLI, 社区下载, 网页版文件系统, 网页版仓库 |
 | 🏗 event-bus | 事件总线 bus.ts | architecture | — | 事件, 事件总线, 通信, emit, 跨组件通信, bus |
-| 🍃 event-graph-guard | Bus 事件契约守卫 | leaf | — | 未传参, 缺参, bus 事件, 事件契约, 事件漂移, 内联脚本, 可选链, event-graph |
+| 🍃 event-graph-guard | Bus 事件契约守卫 | leaf | — | 未传参, 缺参, bus 事件, 事件契约, 事件漂移, 内联脚本, 可选链, 跨行调用, 孤儿发射, event-graph |
 | 🏗 global-handlers | 全局事件处理 global-handlers | architecture | — | 全局事件, 拖拽导入, 拖拽提示, 同步缺失, 清空整合包, 导出清单 |
 | 🏗 i18n | 国际化 i18n 模块 | architecture | — | 翻译, 多语言, i18n, t(), 语言切换, lang:changed |
 | 🏗 model-stats | Web Worker 模型统计层 model-stats | architecture | cpu-bound, concurrent | 模型统计, 骨骼数, 立方体数, 纹理尺寸, SearchModels, 数值筛选, Web Worker, 批量统计 |

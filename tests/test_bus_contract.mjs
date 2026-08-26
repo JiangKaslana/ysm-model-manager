@@ -85,6 +85,57 @@ console.log('[1] fixture 违例检测');
   ok(!(s.undeclared ?? []).includes('ghost') && !(s.arityIssues ?? []).some((a) => a.event === 'ghost'), '注释内调用不误报');
 }
 
+// ── 1b. 跨行调用点发现 ───────────────────────────────────
+// 历史盲区：CALL_PARENT_RE 不允许尾随 `(`，`bus.on(` 换行写事件名的跨行订阅恒漏检
+// （实证：sync.ts 的 sync:download:missing 被误报孤儿发射）。跨行 emit 同理使缺参检查失明。
+console.log('[1b] 跨行 on / 跨行 emit');
+{
+  const { status, json } = runOnFixture({
+    'src/bus.ts': BUS_TS,
+    'src/views/sync.ts': [
+      `import { bus } from "../bus.ts";`,
+      `const unsubs = [`,
+      `  bus.on(`,
+      `    "a:void-event",`,
+      `    () => {},`,
+      `  ),`,
+      `];`,
+      `bus.emit(`,
+      `  "b:typed",`,
+      `); // 跨行非 void 缺 payload`,
+      `bus.emit(`,
+      `  "a:void-event",`,
+      `  { extra: 1 },`,
+      `); // 跨行 void 多传`,
+    ].join('\n'),
+  });
+  const s = json?._summary ?? {};
+  ok((json?.events?.['a:void-event']?.on?.length ?? 0) === 1,
+    '跨行 bus.on( 订阅被记录（不再误报孤儿发射）');
+  ok(status === 1 && (s.arityIssues ?? []).some((a) => a.type === 'missing_payload' && a.event === 'b:typed'),
+    '跨行 emit 缺参 → missing_payload');
+  ok((s.arityIssues ?? []).some((a) => a.type === 'void_with_payload' && a.event === 'a:void-event'),
+    '跨行 void 多传 → void_with_payload');
+}
+
+// ── 1c. 实参段中的正则字面量 ──────────────────────────────
+// 历史盲区：回调体 .replace(/"/g, ...) 的裸引号被 extractArgs 误当字符串边界，
+// 括号配对失衡 → 整条订阅丢失（实证：init-pages.ts 的 package:selected）。
+console.log('[1c] 正则字面量不干扰实参提取');
+{
+  const { json } = runOnFixture({
+    'src/bus.ts': BUS_TS,
+    'src/views/pkg.ts': [
+      `import { bus } from "../bus.ts";`,
+      `bus.on("b:typed", (pkg) => {`,
+      `  el.innerHTML = '<div a="' + String(pkg.x).replace(/"/g, "&quot;") + '">';`,
+      `});`,
+    ].join('\n'),
+  });
+  ok((json?.events?.['b:typed']?.on?.length ?? 0) === 1,
+    '回调体含正则字面量的订阅仍被记录');
+}
+
 // ── 2. VOID_EVENTS 清单与 BusEvents void 标记漂移 ─────────
 console.log('[2] VOID_EVENTS 漂移检测');
 {
