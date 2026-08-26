@@ -361,9 +361,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `RemoveRepoDuplicates()` | `go/recycle/recycle_clean:22` | RemoveRepoDuplicates 清理整合包子目录中仓库已有的文件： 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推） |
-| `DeduplicateEntries()` | `go/recycle/recycle_clean:87` | DeduplicateEntries 按 SHA256 哈希分组去重：每组显式按路径排序保留第一个，其余移入回收站 |
-| `CleanOpLogger()` | `go/recycle/recycle_clean:18` | CleanOpLogger 清理操作日志回调（薄壳注入 App.logger.Add） |
+| `RemoveRepoDuplicates()` | `go/recycle/recycle_clean:23` | RemoveRepoDuplicates 清理整合包子目录中仓库已有的文件： 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推） |
+| `DeduplicateEntries()` | `go/recycle/recycle_clean:88` | DeduplicateEntries 按 SHA256 哈希分组去重：每组显式按路径排序保留第一个，其余移入回收站 |
+| `CleanOpLogger()` | `go/recycle/recycle_clean:19` | CleanOpLogger 清理操作日志回调（薄壳注入 App.logger.Add） |
 | `New()` | `go/recycle/recycle:34` | New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle |
 | `TrashManager.RecycleDir()` | `go/recycle/recycle:44` | RecycleDir 返回回收站目录路径 |
 | `TrashManager.Move()` | `go/recycle/recycle:49` | Move 移动文件到回收站 |
@@ -631,7 +631,7 @@
 | `New()` | `go/watcher/watcher:45` | New 创建文件监听器 |
 | `Watcher.Start()` | `go/watcher/watcher:61` | Start 开始监听 |
 | `Watcher.Stop()` | `go/watcher/watcher:109` | Stop 停止监听 |
-| `Watcher.IsRunning()` | `go/watcher/watcher:153` | IsRunning 返回是否正在运行 |
+| `Watcher.IsRunning()` | `go/watcher/watcher:157` | IsRunning 返回是否正在运行 |
 | `ScanFunc()` | `go/watcher/watcher:18` | ScanFunc matches mdsync.ScanFunc |
 | `Watcher()` | `go/watcher/watcher:28` | Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包 |
 
