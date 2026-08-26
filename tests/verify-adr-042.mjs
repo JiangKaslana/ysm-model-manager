@@ -37,9 +37,9 @@ function checkScale() {
       evidence: "animation.ts:590 combined.scale = [ps[0] * cs[0], ps[1] * cs[1], ps[2] * cs[2]]",
     },
     {
-      name: "ysm-animation-player 应用 scale 到 THREE.Bone",
-      pass: playerTs.includes("transform?.scale") && playerTs.includes("_targetScale.set(sx, sy, sz)"),
-      evidence: "ysm-animation-player.ts:121-129 transform.scale → _targetScale.set",
+      name: "ysm-animation-player 应用 scale 到 THREE.Group/Bone",
+      pass: playerTs.includes("transform?.scale") && playerTs.includes("scratch.scale.set(sx, sy, sz)") && playerTs.includes("node.scale.copy(rest.scale).lerp(scratch.scale, alpha)"),
+      evidence: "ysm-animation-player.ts:179-188 transform.scale → scratch.scale.set(sx,sy,sz); :205 node.scale.copy(rest.scale).lerp(scratch.scale, alpha)",
     },
     {
       name: "scale=0 → node.visible=false（对齐上游 calculateBoneMatrix:213-215）",
@@ -196,3 +196,11 @@ console.log("- glow: Go isGlowBone 前缀检测 + BoneData.Glow → 前端 glowB
 console.log("- 世界坐标回填: 无需实现（Three.js getWorldPosition 可替代）");
 console.log();
 console.log("ADR-042 §2.2 bone 层二进制直读已落地（C++ YSMParserV3.cpp:862-876 直读 pivot/rotation）；cube 层反推猜错属另一条链路待解决。");
+
+// ===== 门禁：任何 GAP_FOUND 必须非零退出，阻断 pre-push =====
+if (gaps > 0) {
+  console.error(`\n❌ 门禁失败：${gaps} 项 ADR-042 声明仍处 GAP_FOUND（未建模）状态，需修复后再合并。`);
+  process.exit(1);
+}
+console.log("\n✅ ADR-042 四项核对闸门通过：无缺口（已落地 / 无需实现）。");
+process.exit(0);
