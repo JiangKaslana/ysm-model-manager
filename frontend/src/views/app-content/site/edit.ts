@@ -90,20 +90,21 @@ function eeApplyFilters(
 function eeBindToolbarBtns(
   state: SiteViewState,
   refreshView: () => void,
+  sig: AbortSignal,
 ): void {
   const { searchResults, wsEditModeRef, site, creators, allSites, bus: busRef } = state;
 
   searchResults.querySelector(".cr-edit-btn")?.addEventListener("click", () => {
     wsEditModeRef.v = true;
     refreshView();
-  });
+  }, { signal: sig });
 
   searchResults
     .querySelector(".cr-cancel-btn")
     ?.addEventListener("click", () => {
       wsEditModeRef.v = false;
       refreshView();
-    });
+    }, { signal: sig });
 
   searchResults
     .querySelector(".cr-save-btn")
@@ -151,12 +152,13 @@ function eeBindToolbarBtns(
           type: "error",
         });
       }
-    });
+    }, { signal: sig });
 }
 
 function eeBindFetchBtn(
   state: SiteViewState,
   refreshView: () => void,
+  sig: AbortSignal,
 ): void {
   const { searchResults, allCreators, allSites, bus: busRef } = state;
 
@@ -249,12 +251,13 @@ function eeBindFetchBtn(
         btn.textContent = "🌐 更新配置";
         btn.disabled = false;
       }
-    });
+    }, { signal: sig });
 }
 
 function eeBindCreatorsEdit(
   state: SiteViewState,
   refreshView: () => void,
+  sig: AbortSignal,
 ): void {
   const { searchResults, creators, allCreators, site } = state;
 
@@ -274,7 +277,7 @@ function eeBindCreatorsEdit(
             creators[idx][fld] = (inp as HTMLInputElement).value.trim();
           }
         }
-      });
+      }, { signal: sig });
     });
 
   searchResults.querySelectorAll(".cr-del").forEach((btn) => {
@@ -286,7 +289,7 @@ function eeBindCreatorsEdit(
         if (realIdx >= 0) allCreators.splice(realIdx, 1);
         refreshView();
       }
-    });
+    }, { signal: sig });
   });
 
   searchResults.querySelector(".cr-add")?.addEventListener("click", () => {
@@ -294,13 +297,14 @@ function eeBindCreatorsEdit(
     creators.push({ name: "新作者", desc: "描述", type: site.id, tag: "" } as LocalCreatorLike);
     allCreators.push(creators[creators.length - 1]);
     refreshView();
-  });
+  }, { signal: sig });
 }
 
 function eeBindCreatorsDrag(
   state: SiteViewState,
   refreshView: () => void,
   ds: DragStateShell,
+  sig: AbortSignal,
 ): void {
   const { searchResults, creators, allCreators, site } = state;
 
@@ -311,7 +315,7 @@ function eeBindCreatorsDrag(
       if (!handle) return;
       handle.addEventListener("pointerdown", () => {
         (card as HTMLElement).draggable = true;
-      });
+      }, { signal: sig });
       card.addEventListener("dragstart", (e: Event) => {
         const de = e as DragEvent;
         (card as HTMLElement).draggable = false;
@@ -319,15 +323,15 @@ function eeBindCreatorsDrag(
         card.classList.add("cr-dragging");
         de.dataTransfer!.effectAllowed = "move";
         de.dataTransfer!.setData("text/plain", "");
-      });
+      }, { signal: sig });
       card.addEventListener("dragend", () => {
         (card as HTMLElement).draggable = false;
         eeClearDragState(searchResults, ds);
-      });
+      }, { signal: sig });
       card.addEventListener("dragover", (e: Event) => {
         e.preventDefault();
         (e as DragEvent).dataTransfer!.dropEffect = "move";
-      });
+      }, { signal: sig });
       card.addEventListener("dragenter", (e) => {
         e.preventDefault();
         card.classList.add("cr-drag-target");
@@ -339,10 +343,10 @@ function eeBindCreatorsDrag(
             card.classList.add("cr-drag-after");
           }
         }
-      });
+      }, { signal: sig });
       card.addEventListener("dragleave", () => {
         card.classList.remove("cr-drag-target", "cr-drag-before", "cr-drag-after");
-      });
+      }, { signal: sig });
       card.addEventListener("drop", (e) => {
         e.preventDefault();
         card.classList.remove("cr-drag-target");
@@ -359,13 +363,14 @@ function eeBindCreatorsDrag(
         moveItem(allCreators, realSrc, realTgt);
         ds.srcIdx = -1;
         refreshView();
-      });
+      }, { signal: sig });
     });
 }
 
 function eeBindPresetsEdit(
   state: SiteViewState,
   refreshView: () => void,
+  sig: AbortSignal,
 ): void {
   const { searchResults, site, creators } = state;
 
@@ -377,7 +382,7 @@ function eeBindPresetsEdit(
         site.presetSearches.splice(idx, 1);
         refreshView();
       }
-    });
+    }, { signal: sig });
   });
 
   searchResults.querySelectorAll(".cr-order-up").forEach((btn) => {
@@ -389,7 +394,7 @@ function eeBindPresetsEdit(
         [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
         refreshView();
       }
-    });
+    }, { signal: sig });
   });
   searchResults.querySelectorAll(".cr-order-down").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -400,7 +405,7 @@ function eeBindPresetsEdit(
         [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
         refreshView();
       }
-    });
+    }, { signal: sig });
   });
 
   searchResults
@@ -410,13 +415,14 @@ function eeBindPresetsEdit(
       if (!site.presetSearches) site.presetSearches = [];
       site.presetSearches.push({ label: "", q: "" });
       refreshView();
-    });
+    }, { signal: sig });
 }
 
 function eeBindPresetsDrag(
   state: SiteViewState,
   refreshView: () => void,
   ds: DragStateShell,
+  sig: AbortSignal,
 ): void {
   const { searchResults, site, creators } = state;
 
@@ -427,7 +433,7 @@ function eeBindPresetsDrag(
       if (!handle) return;
       handle.addEventListener("pointerdown", () => {
         (card as HTMLElement).draggable = true;
-      });
+      }, { signal: sig });
       card.addEventListener("dragstart", (e: Event) => {
         const de = e as DragEvent;
         (card as HTMLElement).draggable = false;
@@ -435,15 +441,15 @@ function eeBindPresetsDrag(
         card.classList.add("cr-dragging");
         de.dataTransfer!.effectAllowed = "move";
         de.dataTransfer!.setData("text/plain", "");
-      });
+      }, { signal: sig });
       card.addEventListener("dragend", () => {
         (card as HTMLElement).draggable = false;
         eeClearDragState(searchResults, ds);
-      });
+      }, { signal: sig });
       card.addEventListener("dragover", (e: Event) => {
         e.preventDefault();
         (e as DragEvent).dataTransfer!.dropEffect = "move";
-      });
+      }, { signal: sig });
       card.addEventListener("dragenter", (e) => {
         e.preventDefault();
         card.classList.add("cr-drag-target");
@@ -455,10 +461,10 @@ function eeBindPresetsDrag(
             card.classList.add("cr-drag-after");
           }
         }
-      });
+      }, { signal: sig });
       card.addEventListener("dragleave", () => {
         card.classList.remove("cr-drag-target", "cr-drag-before", "cr-drag-after");
-      });
+      }, { signal: sig });
       card.addEventListener("drop", (e) => {
         e.preventDefault();
         card.classList.remove("cr-drag-target");
@@ -473,13 +479,14 @@ function eeBindPresetsDrag(
         moveItem(site.presetSearches, ds.presetSrcIdx, targetIdx);
         ds.presetSrcIdx = -1;
         refreshView();
-      });
+      }, { signal: sig });
     });
 }
 
 function eeBindGithubFilter(
   state: SiteViewState,
   fs: FilterStateShell,
+  sig: AbortSignal,
 ): void {
   const { searchResults } = state;
 
@@ -488,7 +495,7 @@ function eeBindGithubFilter(
     searchInput.addEventListener("input", () => {
       safeSet("ysm-ws-search-kw", searchInput.value);
       eeApplyFilters(searchResults, searchInput, fs);
-    });
+    }, { signal: sig });
   }
 
   searchResults.querySelectorAll(".cr-tag-filter-btn").forEach((btn) => {
@@ -499,7 +506,7 @@ function eeBindGithubFilter(
         .querySelectorAll(".cr-tag-filter-btn")
         .forEach((b) => b.classList.toggle("active", b === btn));
       eeApplyFilters(searchResults, searchInput, fs);
-    });
+    }, { signal: sig });
   });
 
   eeApplyFilters(searchResults, searchInput, fs);
@@ -519,13 +526,16 @@ export function bindEditEvents(state: SiteViewState, refreshView: () => void): C
   const ds: DragStateShell = { srcIdx: -1, presetSrcIdx: -1 };
   const fs: FilterStateShell = { activeTag: state.activeTag };
 
-  eeBindToolbarBtns(state, refreshView);
-  eeBindFetchBtn(state, refreshView);
-  eeBindCreatorsEdit(state, refreshView);
-  eeBindCreatorsDrag(state, refreshView, ds);
-  eeBindPresetsEdit(state, refreshView);
-  eeBindPresetsDrag(state, refreshView, ds);
-  eeBindGithubFilter(state, fs);
+  const ac = new AbortController();
+  const sig = ac.signal;
 
-  return () => {};
+  eeBindToolbarBtns(state, refreshView, sig);
+  eeBindFetchBtn(state, refreshView, sig);
+  eeBindCreatorsEdit(state, refreshView, sig);
+  eeBindCreatorsDrag(state, refreshView, ds, sig);
+  eeBindPresetsEdit(state, refreshView, sig);
+  eeBindPresetsDrag(state, refreshView, ds, sig);
+  eeBindGithubFilter(state, fs, sig);
+
+  return () => ac.abort();
 }

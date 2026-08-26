@@ -184,4 +184,40 @@ describe("bindEditEvents 编辑模式", () => {
       searchResults.querySelector("#ws-cr-count")?.textContent,
     ).toBe("(1/2)");
   });
+
+  it("9. cleanup 解绑全部编辑模式监听（切站点防泄漏）", () => {
+    const { state, searchResults, refresh, allCreators } = mount();
+    state.wsEditModeRef.v = false;
+    const cleanup = bindEditEvents(state, refresh);
+    cleanup();
+
+    // 工具栏：编辑入口 / 取消 不再生效
+    (searchResults.querySelector(".cr-edit-btn") as HTMLElement).click();
+    (searchResults.querySelector(".cr-cancel-btn") as HTMLElement).click();
+    expect(state.wsEditModeRef.v).toBe(false);
+    expect(refresh).not.toHaveBeenCalled();
+
+    // 创作者拖拽排序不再生效
+    const cards = searchResults.querySelectorAll(
+      ".cr-edit-card:not([data-edit='preset'])",
+    );
+    dragEvent(cards[0] as HTMLElement, "dragstart");
+    dragEvent(cards[1] as HTMLElement, "drop");
+    expect(allCreators.map((c) => c.name)).toEqual(["甲", "乙"]);
+
+    // 搜索过滤不再生效
+    searchResults.insertAdjacentHTML(
+      "beforeend",
+      '<div class="gh-card" data-name="甲" data-tag="creator"><span class="cr-card-desc">d</span></div>',
+    );
+    const input = searchResults.querySelector("#ws-cr-search") as HTMLInputElement;
+    input.value = "不存在的关键词";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(
+      searchResults.querySelector(".gh-card")!.classList.contains("cr-card-hidden"),
+    ).toBe(false);
+
+    // 幂等：重复调用不抛
+    expect(() => cleanup()).not.toThrow();
+  });
 });

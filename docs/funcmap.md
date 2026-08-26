@@ -45,11 +45,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 156 | 629 |
+| 前端·工具 | 160 | 639 |
 | frontend/views | 115 | 339 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **475** | **2053** |
+| **合计** | **479** | **2063** |
 
 ## Go·头像
 
@@ -1236,8 +1236,8 @@
 | `installUiComponentsStyles()` | `frontend/src/ui/ui-components-styles:25` | 将组件样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
 | `SLIDER_QUARTER_LARGE_STEP()` | `frontend/src/ui/ui-constants:6` | 左区大幅减步进：全范围 15% |
 | `SLIDER_QUARTER_SMALL_STEP()` | `frontend/src/ui/ui-constants:8` | 中左/中右微调步进：全范围 5% |
-| `HeaderToggleConfig()` | `frontend/src/ui/ui-header-toggle:8` | — |
-| `createHeaderToggle()` | `frontend/src/ui/ui-header-toggle:26` | 创建标题栏小型开关。返回 `&lt;label class="toggle header-toggle"&gt;`， 含双触发去重（跳过 target===input 的 synthetic |
+| `HeaderToggleConfig()` | `frontend/src/ui/ui-header-toggle:66` | — |
+| `createHeaderToggle()` | `frontend/src/ui/ui-header-toggle:84` | 创建标题栏小型开关。返回 `&lt;label class="toggle header-toggle"&gt;`， 含双触发去重（跳过 target===input 的 synthetic |
 | `ControlOptions()` | `frontend/src/ui/ui-helpers` | — |
 | `slideRow()` | `frontend/src/ui/ui-helpers` | — |
 | `initControl()` | `frontend/src/ui/ui-helpers` | — |
@@ -1399,7 +1399,7 @@
 | `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:66` | — |
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:86` | core 固定菜单项（不依赖适配器注入）： - roles：模型组唯一 core 项（已加载角色管理 + 底部内嵌加载入口 fillSwitch； 2026-08-21 合并：独立 |
 | `buildEnvSchema()` | `frontend/src/utils/3d/adapters/preview-menu-env:56` | — |
-| `renderEnvLevel()` | `frontend/src/utils/3d/adapters/preview-menu-env:136` | — |
+| `renderEnvLevel()` | `frontend/src/utils/3d/adapters/preview-menu-env:146` | 环境面板（ADR-075 + 统一注册表）：只渲染环境类能力（sky/ground/environment/fog/reflector） 独立面板排除项：light → light |
 | `PreviewStatePath()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:14` | 状态路径：类型化字符串（沿用 MikuMikuAR 契约；ysm 侧 state 映射表尚未建立时为占位） |
 | `PreviewActionMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:24` | 动作节点回调上下文（与 ActionMenuCtx 对齐；ysm 侧 toast/closeOverlays 由 ctx.menu 提供） |
 | `PreviewMenuNodeKind()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:30` | 节点种类：folder 可嵌套；其余为叶节点（与 MikuMikuAR MenuKind 对齐，加 ysm 的 panel 语义） |
@@ -1408,12 +1408,22 @@
 | `isPreviewFolderNode()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:104` | 类型守卫：节点是否为 folder（可下钻） |
 | `collectPreviewLeafNodes()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:109` | 递归收集全部叶子节点（folder 展开；供测试/审计遍历） |
 | `collectPreviewNodeIds()` | `frontend/src/utils/3d/adapters/preview-menu-node-types:122` | 递归收集全部节点 id（供 id 唯一性契约测试） |
+| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu-render:223` | — |
+| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu-roles:29` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
+| `roleDetailView()` | `frontend/src/utils/3d/adapters/preview-menu-roles:44` | 角色详情子面板（目标态「详情=模型信息面板本体」）： - model 组第一个 panel（恒为「模型信息」）→ renderCustom 直渲进详情主体（1 跳看内容，用户「最想 |
+| `fillRoles()` | `frontend/src/utils/3d/adapters/preview-menu-roles:273` | — |
+| `buildCameraSchema()` | `frontend/src/utils/3d/adapters/preview-menu-settings:31` | 相机面板 schema：wrap buildCameraControls 为声明式节点 |
+| `buildLightingSchema()` | `frontend/src/utils/3d/adapters/preview-menu-settings:45` | 灯光面板 schema：从 light cap 自报控件渲染 |
+| `buildShadowSchema()` | `frontend/src/utils/3d/adapters/preview-menu-settings:66` | 阴影面板 schema：从 shadow cap 自报控件渲染 |
+| `buildPostprocessingSchema()` | `frontend/src/utils/3d/adapters/preview-menu-settings:82` | 后处理面板 schema：从 postprocessing cap 自报控件渲染 |
+| `buildSettingsSchema()` | `frontend/src/utils/3d/adapters/preview-menu-settings:98` | 设置面板 schema：性能/画质开关声明式节点 |
+| `fillSwitch()` | `frontend/src/utils/3d/adapters/preview-menu-switch:216` | — |
+| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu` | — |
+| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu` | — |
 | `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu` | — |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:35` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:77` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:489` | — |
-| `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:797` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
-| `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:1017` | — |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:38` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:80` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:492` | — |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:206` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:209` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
@@ -2010,7 +2020,7 @@
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:40` | 本地创作者（绑定 + 运行时附加字段） |
 | `renderSiteView()` | `frontend/src/views/app-content/site-view:51` | 站点视图渲染主入口 — 编排壳：构造数据 → 构 HTML → 绑事件 → 聚 cleanup。 |
 | `bindDragEvents()` | `frontend/src/views/app-content/site/drag:14` | 绑定拖拽 JSON 导入事件：创作者 JSON / 站点 JSON 识别 + 合并。 |
-| `bindEditEvents()` | `frontend/src/views/app-content/site/edit:513` | 绑定编辑模式事件：编辑入口 / 拉取配置 / 取消 / 保存 / 行内编辑 / 删除创作者 / 拖拽排序 / 增删搜索词 / 搜索过滤。 |
+| `bindEditEvents()` | `frontend/src/views/app-content/site/edit:520` | 绑定编辑模式事件：编辑入口 / 拉取配置 / 取消 / 保存 / 行内编辑 / 删除创作者 / 拖拽排序 / 增删搜索词 / 搜索过滤。 |
 | `CrCardCtx()` | `frontend/src/views/app-content/site/render:13` | 创作者卡片工厂上下文 |
 | `BuildSiteHtmlCtx()` | `frontend/src/views/app-content/site/render:24` | buildSiteHtml 依赖的渲染上下文 |
 | `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |

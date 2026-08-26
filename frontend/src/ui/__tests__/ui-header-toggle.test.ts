@@ -255,3 +255,80 @@ describe("样式与类名", () => {
     expect(toggle.querySelector("span")!.className).toBe("slider");
   });
 });
+
+// ===== 多实例注册（bind 唯一 id + 断连清扫）=====
+
+import {
+  clearControls,
+  getControlCount,
+  iterateControls,
+} from "../control-registry.ts";
+
+function countBindEntries(): number {
+  return [...iterateControls()].filter(([id]) =>
+    id.startsWith("header-toggle-bind"),
+  ).length;
+}
+
+describe("多实例 bind 注册", () => {
+  beforeEach(() => clearControls());
+
+  it("两个带 bind 的 toggle 各自独立注册，互不覆盖", () => {
+    let ext1 = false;
+    let ext2 = false;
+    const t1 = createHeaderToggle(
+      makeConfig({ value: false, bind: () => ext1 }),
+    );
+    const t2 = createHeaderToggle(
+      makeConfig({ value: false, bind: () => ext2 }),
+    );
+    const in1 = t1.querySelector("input") as HTMLInputElement;
+    const in2 = t2.querySelector("input") as HTMLInputElement;
+
+    // Map 中存在两条独立条目（旧实现同 id 覆盖 → 只有 1 条）
+    expect(countBindEntries()).toBe(2);
+
+    // 各自 updater 只同步自己的 input
+    const entries = [...iterateControls()].filter(([id]) =>
+      id.startsWith("header-toggle-bind"),
+    );
+    ext1 = true;
+    entries[0][1]();
+    expect(in1.checked).toBe(true);
+    expect(in2.checked).toBe(false);
+
+    ext2 = true;
+    entries[1][1]();
+    expect(in2.checked).toBe(true);
+  });
+
+  it("断连清扫：连续两轮注册扫描后才注销已断连实例（宽限一轮防误杀未挂载实例）", () => {
+    const t1 = createHeaderToggle(
+      makeConfig({ value: false, bind: () => true }),
+    );
+    document.body.appendChild(t1);
+    expect(countBindEntries()).toBe(1);
+
+    t1.remove();
+    // 第 1 次后续注册：扫描标记 t1 待清（宽限），新实例照常注册
+    createHeaderToggle(makeConfig({ value: false, bind: () => true }));
+    expect(countBindEntries()).toBe(2);
+
+    // 第 2 次后续注册：t1 连续两轮断连 → 注销；净数量不变（-1 +1）
+    createHeaderToggle(makeConfig({ value: false, bind: () => true }));
+    expect(countBindEntries()).toBe(2);
+  });
+
+  it("已挂载实例在清扫中始终保留", () => {
+    const keep = createHeaderToggle(
+      makeConfig({ value: false, bind: () => true }),
+    );
+    document.body.appendChild(keep);
+
+    for (let i = 0; i < 3; i++) {
+      createHeaderToggle(makeConfig({ value: false, bind: () => true }));
+    }
+    expect(countBindEntries()).toBe(4);
+    expect(getControlCount()).toBe(4);
+  });
+});

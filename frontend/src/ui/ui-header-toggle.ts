@@ -3,7 +3,65 @@
 // 统一双触发去重 + bind 自更新 + disabled。
 // 自 MikuMikuAR 迁移：自更新注册改为本库的 control-registry（解耦 render-context）。
 
-import { registerControl } from "./control-registry.ts";
+import {
+    registerControl,
+    unregisterControl,
+    iterateControls,
+} from "./control-registry.ts";
+
+// 多实例唯一 id 前缀 + 序号；update 附带 __el 供断连清扫判定
+// （不把 isConnected 守卫加进 update，保住未挂载时直调同步的既有语义）。
+const ID_PREFIX = "header-toggle-bind#";
+let _bindSeq = 0;
+type HeaderToggleUpdater = (() => void) & { __el?: HTMLLabelElement };
+const _graceIds = new Set<string>();
+const _everConnected = new WeakSet<Element>();
+
+// 挂载历史：MO 记录同步收割（takeRecords）+ 扫描时 isConnected 补记，
+// 覆盖 Shadow DOM 内挂载（MO 观测不到影子树，靠后者兜底）。
+let _mo: MutationObserver | null = null;
+function _harvestMounts(): void {
+    if (!_mo) {
+        _mo = new MutationObserver(() => {});
+        _mo.observe(document.documentElement, { childList: true, subtree: true });
+    }
+    for (const rec of _mo.takeRecords()) {
+        rec.addedNodes.forEach((n) => {
+            if (n instanceof Element) {
+                _everConnected.add(n);
+            }
+        });
+    }
+}
+
+// 两击扫描：断连一轮记入宽限集，连续两轮断连才注销，中途恢复连接则移除标记；
+// 从未挂载的实例豁免（宽限防误杀），只有曾挂载后断连的才参与清扫。
+function _sweepDetached(): void {
+    _harvestMounts();
+    for (const [id, fn] of iterateControls()) {
+        if (!id.startsWith(ID_PREFIX)) {
+            continue;
+        }
+        const el = (fn as HeaderToggleUpdater).__el;
+        if (!el) {
+            continue;
+        }
+        if (el.isConnected) {
+            _everConnected.add(el);
+            _graceIds.delete(id);
+            continue;
+        }
+        if (!_everConnected.has(el)) {
+            continue;
+        }
+        if (_graceIds.has(id)) {
+            unregisterControl(id);
+            _graceIds.delete(id);
+        } else {
+            _graceIds.add(id);
+        }
+    }
+}
 
 export interface HeaderToggleConfig {
     value: boolean;
@@ -60,7 +118,7 @@ export function createHeaderToggle(config: HeaderToggleConfig): HTMLLabelElement
     // bind 自更新：菜单重渲染时同步 input.checked
     if (config.bind) {
         let cached = config.value;
-        const update = (): void => {
+        const update: HeaderToggleUpdater = (): void => {
             const v = !!config.bind!();
             if (v === cached) {
                 return;
@@ -68,7 +126,9 @@ export function createHeaderToggle(config: HeaderToggleConfig): HTMLLabelElement
             cached = v;
             input.checked = v;
         };
-        registerControl("header-toggle-bind", update);
+        update.__el = toggle;
+        _sweepDetached();
+        registerControl(ID_PREFIX + ++_bindSeq, update);
     }
 
     return toggle;
