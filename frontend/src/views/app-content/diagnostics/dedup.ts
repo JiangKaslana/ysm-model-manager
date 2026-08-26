@@ -263,7 +263,6 @@ async function dgDdScanEachDirectory(
         '<div class="stat-row diag-msg diag-msg-error" style="justify-content:center">❌ ' +
         t("diagnostics.scanFailed", { reason: esc(parsed.error) }) +
         "</div>";
-      _dedupBusy = false;
       return { allResults, earlyExit: true };
     }
     const groups = (parsed as DgDdDedupGroup[]) || [];
@@ -466,7 +465,6 @@ async function dgDdExecuteScanCore(
   if (!targets.length) {
     list.innerHTML =
       '<div class="stat-row diag-msg diag-msg-error">' + t("diagnostics.configResourceDir") + "</div>";
-    _dedupBusy = false;
     return;
   }
 
@@ -485,7 +483,6 @@ async function dgDdExecuteScanCore(
       '<div class="stat-row diag-msg diag-msg-success" style="justify-content:center">✅ ' +
       t("diagnostics.noDups") +
       "</div>";
-    _dedupBusy = false;
     return;
   }
 
@@ -542,53 +539,53 @@ export async function startDedup(
   esc: EscFn,
   rtype?: string,
 ): Promise<void> {
-  // ① 重入守卫
+  // ① 重入守卫：busy 命中直接返回；整段包 try/finally，_dedupBusy 仅在此单点复位
   if (_dedupBusy) return;
   _dedupBusy = true;
-
-  // ① loadResourceRegistry（early return err）
-  let reg: DgDdRegType | null = null;
-  let typeLabel = "";
-  let typeIcon = "📦";
   try {
-    reg = await loadResourceRegistry();
-    const entry = rtype ? reg[rtype] : undefined;
-    const entryName = entry && typeof entry.name === "string" ? entry.name : "";
-    const entryIcon = entry && typeof entry.icon === "string" ? entry.icon : "";
-    typeLabel = rtype ? entryName || rtype : "所有";
-    typeIcon = rtype ? entryIcon || "📦" : "📦";
-    list.innerHTML =
-      '<div class="stat-row diag-stat diag-stat-muted">' +
-      t("diagnostics.scanHash", { icon: esc(typeIcon), label: esc(typeLabel) }) +
-      "</div>";
-  } catch (e) {
-    list.innerHTML =
-      '<div class="stat-row diag-stat diag-stat-muted">❌ ' +
-      esc(friendlyError(e, "加载资源类型失败")) +
-      "</div>";
-    _dedupBusy = false;
-    return;
-  }
+    // ① loadResourceRegistry（early return err）
+    let reg: DgDdRegType | null = null;
+    let typeLabel = "";
+    let typeIcon = "📦";
+    try {
+      reg = await loadResourceRegistry();
+      const entry = rtype ? reg[rtype] : undefined;
+      const entryName = entry && typeof entry.name === "string" ? entry.name : "";
+      const entryIcon = entry && typeof entry.icon === "string" ? entry.icon : "";
+      typeLabel = rtype ? entryName || rtype : "所有";
+      typeIcon = rtype ? entryIcon || "📦" : "📦";
+      list.innerHTML =
+        '<div class="stat-row diag-stat diag-stat-muted">' +
+        t("diagnostics.scanHash", { icon: esc(typeIcon), label: esc(typeLabel) }) +
+        "</div>";
+    } catch (e) {
+      list.innerHTML =
+        '<div class="stat-row diag-stat diag-stat-muted">❌ ' +
+        esc(friendlyError(e, "加载资源类型失败")) +
+        "</div>";
+      return;
+    }
 
-  try {
-    const { FindDuplicateFiles, GetRepoRoot, MoveToRecycle } = await getApp();
-    await dgDdExecuteScan(
-      list,
-      esc,
-      rtype,
-      reg,
-      typeIcon,
-      typeLabel,
-      GetRepoRoot,
-      FindDuplicateFiles,
-      MoveToRecycle,
-    );
-  } catch (e) {
-    list.innerHTML =
-      '<div class="stat-row diag-stat diag-stat-muted">❌ ' +
-      esc(friendlyError(e, "加载去重配置失败")) +
-      "</div>";
+    try {
+      const { FindDuplicateFiles, GetRepoRoot, MoveToRecycle } = await getApp();
+      await dgDdExecuteScan(
+        list,
+        esc,
+        rtype,
+        reg,
+        typeIcon,
+        typeLabel,
+        GetRepoRoot,
+        FindDuplicateFiles,
+        MoveToRecycle,
+      );
+    } catch (e) {
+      list.innerHTML =
+        '<div class="stat-row diag-stat diag-stat-muted">❌ ' +
+        esc(friendlyError(e, "加载去重配置失败")) +
+        "</div>";
+    }
+  } finally {
     _dedupBusy = false;
   }
-  _dedupBusy = false;
 }

@@ -1951,7 +1951,7 @@
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:138` | — |
 | `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:231` | — |
 | `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:189` | 初始化去重配置面板（标签页打开时调用，配置实时保存） 扫描结果不覆盖面板，控件扫描后仍可改；code_review P3） |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:540` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:537` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
 | `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:125` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |

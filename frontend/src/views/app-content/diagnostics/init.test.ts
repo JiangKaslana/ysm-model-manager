@@ -288,6 +288,24 @@ describe("startDedup", () => {
       path: "/a/dup.ysm",
     });
   });
+
+  it("重入守卫：并发调用仅首次执行，busy 期间第二次早退且不重复扫描", async () => {
+    loadResourceRegistry.mockResolvedValue({
+      ysm: { id: "ysm", name: "模型", icon: "🧊" },
+    });
+    mockApp({ FindDuplicateFiles: vi.fn(() => groupJson) });
+    const list = document.createElement("div");
+    // 同步双调用：首次在首个 await 前已置 _dedupBusy=true，第二次必命中守卫早退
+    const p1 = startDedup(list, esc, "ysm");
+    const p2 = startDedup(list, esc, "ysm");
+    await Promise.all([p1, p2]);
+    expect(loadResourceRegistry).toHaveBeenCalledTimes(1);
+    expect(getApp).toHaveBeenCalledTimes(1);
+    // 守卫已复位，后续可正常再次扫描
+    const list2 = document.createElement("div");
+    await startDedup(list2, esc, "ysm");
+    expect(loadResourceRegistry).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("scanConflicts（diag-scan-conflict 按钮）", () => {
