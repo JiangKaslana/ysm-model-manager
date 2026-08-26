@@ -700,21 +700,23 @@
 | `QueueStatusInfo()` | `internal/app/app_download:18` | QueueStatusInfo 队列状态（替代多返回值，Wails 自动映射为 JS object） |
 | `DownloadTask()` | `internal/app/app_download:24` | DownloadTask 下载队列任务 |
 | `DownloadQueue()` | `internal/app/app_download:33` | DownloadQueue 串行下载队列 回调注入替代 *App 反向引用（ADR-002 P1：打破 DownloadQueue ↔ App 循环，解锁独立测试） |
-| `App.CreateDir()` | `internal/app/app_files:22` | ========== 目录操作 ========== |
-| `App.RenameDir()` | `internal/app/app_files:26` | — |
-| `App.RemoveDir()` | `internal/app/app_files:38` | — |
-| `App.RenameFile()` | `internal/app/app_files:50` | — |
-| `App.FindPreviewImage()` | `internal/app/app_files:64` | ========== 预览提取 ========== |
-| `App.ExtractPreviewTexture()` | `internal/app/app_files:68` | — |
-| `App.GetPackInfo()` | `internal/app/app_files:73` | ========== 包信息 ========== |
-| `App.MoveModelFile()` | `internal/app/app_files:145` | MoveModelFile 移动（findMoveRoot 遍历所有已配置根做路径安全校验， 修复原硬编码 cfg.FilesRoot 导致自定义根下文件无法移动的 bug。 |
-| `App.CopyModelFile()` | `internal/app/app_files:154` | CopyModelFile 复制（同 MoveModelFile 修复：findMoveRoot 多根校验，fail-closed） |
-| `App.ImportModelFolder()` | `internal/app/app_files:166` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模 |
-| `App.ImportModelFolderTo()` | `internal/app/app_files:184` | ImportModelFolderTo 带页面上下文类型的文件夹整组导入（拖拽导入上下文路由）。 |
-| `App.RevealInExplorer()` | `internal/app/app_files:259` | ========== 在资源管理器中显示 ========== |
-| `App.ToggleModelEnable()` | `internal/app/app_files:288` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
-| `App.IsFileBanned()` | `internal/app/app_files:296` | — |
-| `App.ToggleEnable()` | `internal/app/app_files:305` | ========== 统一启用/禁用（兄弟会话裁定：无 rtype，纯路径包含判定）========== ToggleEnable 统一启禁入口——root 归属由「哪个已知根包含 |
+| `App.CreateDir()` | `internal/app/app_files:23` | ========== 目录操作 ========== |
+| `App.RenameDir()` | `internal/app/app_files:27` | — |
+| `App.RemoveDir()` | `internal/app/app_files:39` | — |
+| `App.RenameFile()` | `internal/app/app_files:51` | — |
+| `App.FindPreviewImage()` | `internal/app/app_files:65` | ========== 预览提取 ========== |
+| `App.ExtractPreviewTexture()` | `internal/app/app_files:69` | — |
+| `App.GetPackInfo()` | `internal/app/app_files:74` | ========== 包信息 ========== |
+| `App.MoveModelFile()` | `internal/app/app_files:146` | MoveModelFile 移动（findMoveRoot 遍历所有已配置根做路径安全校验， 修复原硬编码 cfg.FilesRoot 导致自定义根下文件无法移动的 bug。 |
+| `App.CopyModelFile()` | `internal/app/app_files:155` | CopyModelFile 复制（同 MoveModelFile 修复：findMoveRoot 多根校验，fail-closed） |
+| `App.ImportModelFolder()` | `internal/app/app_files:167` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模 |
+| `App.ImportModelFolderTo()` | `internal/app/app_files:185` | ImportModelFolderTo 带页面上下文类型的文件夹整组导入（拖拽导入上下文路由）。 |
+| `App.RevealInExplorer()` | `internal/app/app_files:260` | ========== 在资源管理器中显示 ========== |
+| `App.OpenFolder()` | `internal/app/app_files:290` | ========== 打开文件夹 ========== OpenFolder 在宿主文件管理器中打开目录（explorer/open/xdg-open 平台分支）。 |
+| `App.OpenInstanceFolder()` | `internal/app/app_files:326` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
+| `App.ToggleModelEnable()` | `internal/app/app_files:347` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
+| `App.IsFileBanned()` | `internal/app/app_files:355` | — |
+| `App.ToggleEnable()` | `internal/app/app_files:364` | ========== 统一启用/禁用（兄弟会话裁定：无 rtype，纯路径包含判定）========== ToggleEnable 统一启禁入口——root 归属由「哪个已知根包含 |
 | `App.InstallModelFile()` | `internal/app/app_install_import:21` | ========== 安装 ========== |
 | `App.InstallModelTo()` | `internal/app/app_install_import:25` | — |
 | `App.InstallModelWithOverlay()` | `internal/app/app_install_import:43` | — |
@@ -771,23 +773,21 @@
 | `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:425` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
 | `App.SaveScreenshotFile()` | `internal/app/app_model:529` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `ReadFileMeta()` | `internal/app/app_model:191` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
-| `App.ExportModelStructureJSON()` | `internal/app/app_scan:27` | ========== 导出单模型骨骼结构 ========== ExportModelStructureJSON 导出单模型骨骼结构 |
-| `App.SearchModels()` | `internal/app/app_scan:65` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
-| `App.SearchAllModels()` | `internal/app/app_scan:218` | SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。 |
-| `App.ScanModelEntries()` | `internal/app/app_scan:344` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
-| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:366` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
-| `App.ScanModelEntriesFiltered()` | `internal/app/app_scan:419` | ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions 注 |
-| `App.ClearScanCache()` | `internal/app/app_scan:469` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
-| `App.ListModelAuthors()` | `internal/app/app_scan:476` | ListModelAuthors 统计 [作者] 前缀（轻量遍历：只看文件名，不读元数据不算哈希， 不占全量扫描缓存——原走 ScanEntries 会陪绑 SHA256，大库下拖 |
-| `App.GenerateRepoIndex()` | `internal/app/app_scan:485` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
-| `App.ScanLocalAuthors()` | `internal/app/app_scan:493` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
-| `App.ListVersionInstances()` | `internal/app/app_scan:502` | — |
-| `App.GetGlobalCustomDir()` | `internal/app/app_scan:506` | — |
-| `App.ListFileNames()` | `internal/app/app_scan:512` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:529` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:538` | — |
-| `App.OpenFolder()` | `internal/app/app_scan:630` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:666` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
+| `App.ExportModelStructureJSON()` | `internal/app/app_scan:25` | ========== 导出单模型骨骼结构 ========== ExportModelStructureJSON 导出单模型骨骼结构 |
+| `App.SearchModels()` | `internal/app/app_scan:63` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
+| `App.SearchAllModels()` | `internal/app/app_scan:216` | SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。 |
+| `App.ScanModelEntries()` | `internal/app/app_scan:295` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
+| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:317` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
+| `App.ScanModelEntriesFiltered()` | `internal/app/app_scan:370` | ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions 注 |
+| `App.ClearScanCache()` | `internal/app/app_scan:420` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
+| `App.ListModelAuthors()` | `internal/app/app_scan:427` | ListModelAuthors 统计 [作者] 前缀（轻量遍历：只看文件名，不读元数据不算哈希， 不占全量扫描缓存——原走 ScanEntries 会陪绑 SHA256，大库下拖 |
+| `App.GenerateRepoIndex()` | `internal/app/app_scan:436` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
+| `App.ScanLocalAuthors()` | `internal/app/app_scan:444` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
+| `App.ListVersionInstances()` | `internal/app/app_scan:453` | — |
+| `App.GetGlobalCustomDir()` | `internal/app/app_scan:457` | — |
+| `App.ListFileNames()` | `internal/app/app_scan:463` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:480` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:489` | — |
 | `App.DetectConflicts()` | `internal/app/app_sync:15` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
 | `App.ResolveConflicts()` | `internal/app/app_sync:59` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |

@@ -6,6 +6,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -281,6 +282,64 @@ func (a *App) RevealInExplorer(path string) error {
 		executil.HideWindow(cmd)
 	}
 	return cmd.Start()
+}
+
+// ========== 打开文件夹 ==========
+// OpenFolder 在宿主文件管理器中打开目录（explorer/open/xdg-open 平台分支）。
+// 与 RevealInExplorer 同源坑：explorer 是 GUI 程序，CREATE_NO_WINDOW 干扰单实例 DDE 转发。
+func (a *App) OpenFolder(dir string) error {
+	// 统一路径分隔符（Windows explorer 不接受混合斜杠）
+	dir = filepath.Clean(dir)
+	// 目录存在性检查（v1.5.9 曾加、重构中丢失）：explorer 打开不存在的路径
+	// 会静默无反应或弹不可见错误框——前置校验给前端明确错误
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		return fmt.Errorf("OpenFolder: 目录不存在: %s", dir)
+	}
+	// ADR-047 平台守卫：Android 无 xdg-open，SAF 打开需 content:// URI 桥
+	// （MikuMikuAR ADR-194 已弃用 SAF），明确返回不支持避免命令静默失败
+	if runtime.GOOS == "android" {
+		return fmt.Errorf("OpenFolder: Android 不支持打开文件夹，请在文件管理器中手动查找")
+	}
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer", dir)
+		// 不设 HideWindow：explorer 是 GUI 程序（无控制台窗口），
+		// CREATE_NO_WINDOW 会干扰其单实例 DDE 转发——文件夹打不开、
+		// 表现为应用窗口呆住约 1 秒后无反应（P5 实测坑）
+	case "darwin":
+		cmd = exec.Command("open", dir)
+		executil.HideWindow(cmd)
+	default:
+		cmd = exec.Command("xdg-open", dir)
+		executil.HideWindow(cmd)
+	}
+	return cmd.Start()
+}
+
+// OpenInstanceFolder 按资源类型打开整合包内资源存储目录
+//
+// 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_steve_model/custom）
+// 拼 instDir/instanceDir 作为打开目标；目录不存在也不回退（用户手动放错位置由他负责）。
+//
+// subdir 参数：保留签名为 Wails 绑定兼容，已不参与路由。
+func (a *App) OpenInstanceFolder(instDir, rtype, subdir string) error {
+	return a.OpenFolder(resolveInstDirTarget(instDir, rtype))
+}
+
+// resolveInstDirTarget 推导整合包内资源存储目录（纯函数可测）：
+// 仅使用 instanceDir（固定偏移，版本隔离无关）。
+// vanilla: instDir/instanceDir；Prism: instDir/instanceDir
+// 未知类型返回 instDir。
+func resolveInstDirTarget(instDir, rtype string) string {
+	rt := types.RegistryType(rtype)
+	if rt == nil {
+		return instDir
+	}
+	if rt.InstanceDir != "" {
+		return filepath.Join(instDir, rt.InstanceDir)
+	}
+	return instDir
 }
 
 // ========== 启用/禁用 ==========

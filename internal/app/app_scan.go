@@ -6,7 +6,6 @@ package app
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -14,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/packs"
 	"ysm-model-manager/go/scanner"
@@ -115,75 +113,18 @@ func (a *App) searchModelsSequential(entries []types.ModelEntry, minBones, maxBo
 
 // searchModelsConcurrent 并发分析（goroutine 池 + 有序收集结果）
 func (a *App) searchModelsConcurrent(entries []types.ModelEntry, minBones, maxBones, minCubes, maxCubes, minTex, maxTex int) []types.SearchResult {
-	type indexedResult struct {
-		index  int
-		result *types.SearchResult
-	}
-
-	workers := runtime.NumCPU()
-	if workers < 2 {
-		workers = 2
-	}
-
-	taskCh := make(chan int, len(entries))
-	resultCh := make(chan indexedResult, len(entries))
-	var wg sync.WaitGroup
-
-	for range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for idx := range taskCh {
-				entry := entries[idx]
-				model := a.AnalyzeBedrockModel(entry.Path)
-				if !modelMatchesFilters(model, minBones, maxBones, minCubes, maxCubes, minTex, maxTex) {
-					continue
-				}
-				resultCh <- indexedResult{
-					index: idx,
-					result: &types.SearchResult{
-						Name: entry.Name, Path: entry.Path,
-						BoneCount: model.BoneCount, CubeCount: model.CubeCount,
-						TexWidth: model.TexWidth, TexHeight: model.TexHeight,
-					},
-				}
-			}
-		}()
-	}
-
-	for i := range entries {
-		taskCh <- i
-	}
-	close(taskCh)
-
-	// 关闭 resultCh：所有 worker 完成后
-	go func() {
-		wg.Wait()
-		close(resultCh)
-	}()
-
-	// 收集带原始索引的结果（goroutine 完成序随机，index 用于确定性兜底）
-	var indexed []indexedResult
-	for r := range resultCh {
-		if r.result != nil {
-			indexed = append(indexed, r)
+	return runConcurrentAnalyze(len(entries), func(i int) *types.SearchResult {
+		entry := entries[i]
+		model := a.AnalyzeBedrockModel(entry.Path)
+		if !modelMatchesFilters(model, minBones, maxBones, minCubes, maxCubes, minTex, maxTex) {
+			return nil
 		}
-	}
-
-	// 按名称为主键、原始索引为兜底键稳定排序：
-	// 同名不同路径的模型按扫描声明序排列，消除并发完成序导致的「同输入不同输出」。
-	sort.SliceStable(indexed, func(i, j int) bool {
-		if ni, nj := indexed[i].result.Name, indexed[j].result.Name; ni != nj {
-			return ni < nj
+		return &types.SearchResult{
+			Name: entry.Name, Path: entry.Path,
+			BoneCount: model.BoneCount, CubeCount: model.CubeCount,
+			TexWidth: model.TexWidth, TexHeight: model.TexHeight,
 		}
-		return indexed[i].index < indexed[j].index
 	})
-
-	results := make([]types.SearchResult, len(indexed))
-	for i, r := range indexed {
-		results[i] = *r.result
-	}
-	return results
 }
 
 // modelMatchesFilters 检查模型是否满足所有过滤条件（bone/cube/tex）
@@ -210,6 +151,63 @@ func modelMatchesFilters(model types.BedrockModel, minBones, maxBones, minCubes,
 		return false
 	}
 	return true
+}
+
+// runConcurrentAnalyze 并发分析 count 个候选项并确定性排序返回（searchModelsConcurrent /
+// SearchAllModels 收敛复用，消除两处 Phase 2 复制）。analyze(i) 完成单项的过滤 + 构建：
+// 不满足条件返回 nil 即跳过该项。排序口径：名称主键 + 原始索引兜底，消除 goroutine
+// 完成序随机导致的「同输入不同输出」（ADR-119 确定性契约）。
+func runConcurrentAnalyze(count int, analyze func(i int) *types.SearchResult) []types.SearchResult {
+	workers := runtime.NumCPU()
+	if workers < 2 {
+		workers = 2
+	}
+	type indexedResult struct {
+		index  int
+		result *types.SearchResult
+	}
+	taskCh := make(chan int, count)
+	resultCh := make(chan indexedResult, count)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range taskCh {
+				if r := analyze(idx); r != nil {
+					resultCh <- indexedResult{index: idx, result: r}
+				}
+			}
+		}()
+	}
+	for i := range count {
+		taskCh <- i
+	}
+	close(taskCh)
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+	// 收集带原始索引的结果（goroutine 完成序随机，index 用于确定性兜底）
+	var indexed []indexedResult
+	for r := range resultCh {
+		if r.result != nil {
+			indexed = append(indexed, r)
+		}
+	}
+	// 按名称为主键、原始索引为兜底键稳定排序：
+	// 同名不同路径的候选按扫描声明序排列，消除并发完成序导致的「同输入不同输出」。
+	sort.SliceStable(indexed, func(i, j int) bool {
+		if ni, nj := indexed[i].result.Name, indexed[j].result.Name; ni != nj {
+			return ni < nj
+		}
+		return indexed[i].index < indexed[j].index
+	})
+	results := make([]types.SearchResult, len(indexed))
+	for i, r := range indexed {
+		results[i] = *r.result
+	}
+	return results
 }
 
 // SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。
@@ -254,65 +252,18 @@ func (a *App) SearchAllModels(allRoots map[string]string, keyword string, minBon
 	}
 
 	// Phase 2：并发分析 + 过滤
-	type indexedResult struct {
-		index  int
-		result *types.SearchResult
-	}
-	workers := runtime.NumCPU()
-	if workers < 2 {
-		workers = 2
-	}
-	taskCh := make(chan int, len(candidates))
-	resultCh := make(chan indexedResult, len(candidates))
-	var wg sync.WaitGroup
-	for range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for idx := range taskCh {
-				te := candidates[idx]
-				model := a.AnalyzeBedrockModel(te.entry.Path)
-				if !modelMatchesFilters(model, minBones, maxBones, minCubes, maxCubes, minTex, maxTex) {
-					continue
-				}
-				resultCh <- indexedResult{
-					index: idx,
-					result: &types.SearchResult{
-						Name: te.entry.Name, Path: te.entry.Path, Type: te.rtype,
-						BoneCount: model.BoneCount, CubeCount: model.CubeCount,
-						TexWidth: model.TexWidth, TexHeight: model.TexHeight,
-					},
-				}
-			}
-		}()
-	}
-	for i := range candidates {
-		taskCh <- i
-	}
-	close(taskCh)
-	go func() {
-		wg.Wait()
-		close(resultCh)
-	}()
-	// 收集带原始索引的结果（goroutine 完成序随机，index 用于确定性兜底）
-	var indexed []indexedResult
-	for r := range resultCh {
-		if r.result != nil {
-			indexed = append(indexed, r)
+	return runConcurrentAnalyze(len(candidates), func(i int) *types.SearchResult {
+		te := candidates[i]
+		model := a.AnalyzeBedrockModel(te.entry.Path)
+		if !modelMatchesFilters(model, minBones, maxBones, minCubes, maxCubes, minTex, maxTex) {
+			return nil
 		}
-	}
-	// 同 searchModelsConcurrent：名称主键 + 原始索引兜底，消除并发完成序导致的「同输入不同输出」。
-	sort.SliceStable(indexed, func(i, j int) bool {
-		if ni, nj := indexed[i].result.Name, indexed[j].result.Name; ni != nj {
-			return ni < nj
+		return &types.SearchResult{
+			Name: te.entry.Name, Path: te.entry.Path, Type: te.rtype,
+			BoneCount: model.BoneCount, CubeCount: model.CubeCount,
+			TexWidth: model.TexWidth, TexHeight: model.TexHeight,
 		}
-		return indexed[i].index < indexed[j].index
 	})
-	results := make([]types.SearchResult, len(indexed))
-	for i, r := range indexed {
-		results[i] = *r.result
-	}
-	return results
 }
 
 // ========== 模型扫描（薄壳）==========
@@ -625,61 +576,6 @@ func (a *App) isPathInRoot(path string) bool {
 		return false
 	}
 	return true
-}
-
-func (a *App) OpenFolder(dir string) error {
-	// 统一路径分隔符（Windows explorer 不接受混合斜杠）
-	dir = filepath.Clean(dir)
-	// 目录存在性检查（v1.5.9 曾加、重构中丢失）：explorer 打开不存在的路径
-	// 会静默无反应或弹不可见错误框——前置校验给前端明确错误
-	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
-		return fmt.Errorf("OpenFolder: 目录不存在: %s", dir)
-	}
-	// ADR-047 平台守卫：Android 无 xdg-open，SAF 打开需 content:// URI 桥
-	// （MikuMikuAR ADR-194 已弃用 SAF），明确返回不支持避免命令静默失败
-	if runtime.GOOS == "android" {
-		return fmt.Errorf("OpenFolder: Android 不支持打开文件夹，请在文件管理器中手动查找")
-	}
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("explorer", dir)
-		// 不设 HideWindow：explorer 是 GUI 程序（无控制台窗口），
-		// CREATE_NO_WINDOW 会干扰其单实例 DDE 转发——文件夹打不开、
-		// 表现为应用窗口呆住约 1 秒后无反应（P5 实测坑）
-	case "darwin":
-		cmd = exec.Command("open", dir)
-		executil.HideWindow(cmd)
-	default:
-		cmd = exec.Command("xdg-open", dir)
-		executil.HideWindow(cmd)
-	}
-	return cmd.Start()
-}
-
-// OpenInstanceFolder 按资源类型打开整合包内资源存储目录
-//
-// 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_steve_model/custom）
-// 拼 instDir/instanceDir 作为打开目标；目录不存在也不回退（用户手动放错位置由他负责）。
-//
-// subdir 参数：保留签名为 Wails 绑定兼容，已不参与路由。
-func (a *App) OpenInstanceFolder(instDir, rtype, subdir string) error {
-	return a.OpenFolder(resolveInstDirTarget(instDir, rtype))
-}
-
-// resolveInstDirTarget 推导整合包内资源存储目录（纯函数可测）：
-// 仅使用 instanceDir（固定偏移，版本隔离无关）。
-// vanilla: instDir/instanceDir；Prism: instDir/instanceDir
-// 未知类型返回 instDir。
-func resolveInstDirTarget(instDir, rtype string) string {
-	rt := types.RegistryType(rtype)
-	if rt == nil {
-		return instDir
-	}
-	if rt.InstanceDir != "" {
-		return filepath.Join(instDir, rt.InstanceDir)
-	}
-	return instDir
 }
 
 // isDir 路径存在且为目录

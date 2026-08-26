@@ -1324,6 +1324,10 @@ export const autoSidebar = [
             "link": "/knowledge/event-bus"
           },
           {
+            "text": "Bus 事件契约守卫",
+            "link": "/knowledge/event-graph-guard"
+          },
+          {
             "text": "全局事件处理 global-handlers",
             "link": "/knowledge/global-handlers"
           },
