@@ -22,15 +22,31 @@ const _everConnected = new WeakSet<Element>();
 let _mo: MutationObserver | null = null;
 function _harvestMounts(): void {
     if (!_mo) {
-        _mo = new MutationObserver(() => {});
-        _mo.observe(document.documentElement, { childList: true, subtree: true });
-    }
-    for (const rec of _mo.takeRecords()) {
-        rec.addedNodes.forEach((n) => {
-            if (n instanceof Element) {
-                _everConnected.add(n);
+        _mo = new MutationObserver((recs) => {
+            for (const rec of recs) {
+                for (const n of rec.addedNodes) {
+                    if (n instanceof Element) {
+                        _everConnected.add(n);
+                        // 子树内的后代也一并标记（MO 只报直接 addedNodes）
+                        for (const child of n.querySelectorAll("*")) {
+                            _everConnected.add(child);
+                        }
+                    }
+                }
             }
         });
+        _mo.observe(document.documentElement, { childList: true, subtree: true });
+    }
+    // takeRecords() 作为同任务补充：收割回调间隙的记录
+    for (const rec of _mo.takeRecords()) {
+        for (const n of rec.addedNodes) {
+            if (n instanceof Element) {
+                _everConnected.add(n);
+                for (const child of n.querySelectorAll("*")) {
+                    _everConnected.add(child);
+                }
+            }
+        }
     }
 }
 

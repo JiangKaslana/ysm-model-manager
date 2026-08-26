@@ -319,6 +319,30 @@ describe("多实例 bind 注册", () => {
     expect(countBindEntries()).toBe(2);
   });
 
+  it("跨任务时序：挂载→移除→下一 tick 创建，清扫能识别曾挂载元素", async () => {
+    // 1. 挂载并注册
+    const t1 = createHeaderToggle(
+      makeConfig({ value: false, bind: () => true }),
+    );
+    document.body.appendChild(t1);
+    expect(countBindEntries()).toBe(1);
+
+    // 2. 移除（断连）
+    t1.remove();
+
+    // 3. 等一个微任务——真实场景中 MO 记录在此间隙投递
+    await Promise.resolve();
+
+    // 4. 后续注册触发清扫：t1 已断连但曾挂载 → 宽限一轮
+    createHeaderToggle(makeConfig({ value: false, bind: () => true }));
+    expect(countBindEntries()).toBe(2);
+
+    // 5. 再等一个 tick + 再注册：t1 连续两轮断连 → 注销
+    await Promise.resolve();
+    createHeaderToggle(makeConfig({ value: false, bind: () => true }));
+    expect(countBindEntries()).toBe(2); // -1 t1 +1 新
+  });
+
   it("已挂载实例在清扫中始终保留", () => {
     const keep = createHeaderToggle(
       makeConfig({ value: false, bind: () => true }),
