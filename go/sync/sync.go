@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/installer"
@@ -164,6 +165,10 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 			status.Synced = syncedCount
 		}
 
+		// Missing 由 repoByHash/repoByRelKey map 迭代构建——Go 运行时随机化
+		// map 迭代序，不排序则列表每次刷新顺序跳动；字典序输出保证确定性
+		sort.Strings(status.Missing)
+
 		// 收集 custom 目录下每个文件的链接类型
 		for _, c := range customEntries {
 			linkType := GetLinkType(c.Path)
@@ -297,16 +302,25 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 	enableCount := 0
 	var failures []string
 	for _, op := range ops {
-		if err := os.Rename(op.src, op.dst); err == nil {
-			if types.IsDisableSuffix(op.dst) {
-				disableCount++
+		err := os.Rename(op.src, op.dst)
+		if err != nil && isFileLocked(err) {
+			// Windows 共享锁瞬时争用（播放器/编辑器短暂持有）：等待后重试一次，
+			// 避免瞬时占用永久跳过启禁；重试仍锁才静默跳过
+			time.Sleep(50 * time.Millisecond)
+			err = os.Rename(op.src, op.dst)
+		}
+		if err != nil {
+			if isFileLocked(err) {
+				log.Printf("[sync] 文件被占用，跳过: %s → %s: %v", op.src, op.dst, err)
 			} else {
-				enableCount++
+				failures = append(failures, fmt.Sprintf("%s→%s: %v", op.src, op.dst, err))
 			}
-		} else if isFileLocked(err) {
-			log.Printf("[sync] 文件被占用，跳过: %s → %s: %v", op.src, op.dst, err)
+			continue
+		}
+		if types.IsDisableSuffix(op.dst) {
+			disableCount++
 		} else {
-			failures = append(failures, fmt.Sprintf("%s→%s: %v", op.src, op.dst, err))
+			enableCount++
 		}
 	}
 	if len(failures) > 0 {

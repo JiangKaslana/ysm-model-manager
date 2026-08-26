@@ -29,7 +29,7 @@ func TestRemoveRepoDuplicates_RemovesRepoFilesOnly(t *testing.T) {
 	// 非仓库文件：inst 有 user.ysm，repo 没有 → 保留
 	_ = os.WriteFile(filepath.Join(dir, "user.ysm"), []byte("x"), 0644)
 
-	count := RemoveRepoDuplicates(dir, repoRoot, recycleRoot)
+	count := RemoveRepoDuplicates(dir, repoRoot, recycleRoot, nil)
 	if count != 1 {
 		t.Fatalf("应清理 1 个，实际 %d", count)
 	}
@@ -44,7 +44,7 @@ func TestRemoveRepoDuplicates_RemovesRepoFilesOnly(t *testing.T) {
 func TestRemoveRepoDuplicates_NoRepoRoot(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, "m.ysm"), []byte("x"), 0644)
-	if count := RemoveRepoDuplicates(dir, "", ""); count != 0 {
+	if count := RemoveRepoDuplicates(dir, "", "", nil); count != 0 {
 		t.Fatalf("无仓库根应返回 0，实际 %d", count)
 	}
 }
@@ -65,7 +65,7 @@ func TestRemoveRepoDuplicates_SameNameDiffContent_Kept(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(repoRoot, "m.ysm"), []byte("repo-version"), 0644)
 	_ = os.WriteFile(filepath.Join(dir, "m.ysm"), []byte("user-custom"), 0644)
 
-	count := RemoveRepoDuplicates(dir, repoRoot, "")
+	count := RemoveRepoDuplicates(dir, repoRoot, "", nil)
 	if count != 0 {
 		t.Fatalf("同名不同内容不应清理，实际清理 %d 个", count)
 	}

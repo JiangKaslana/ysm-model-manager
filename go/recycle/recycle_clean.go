@@ -19,8 +19,10 @@ import (
 type CleanOpLogger func(name, src, dst string, size int64, status, msg string)
 
 // RemoveRepoDuplicates 清理整合包子目录中仓库已有的文件：
-// 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推）
-func RemoveRepoDuplicates(dir, filesRoot, recycleRoot string) int {
+// 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推）。
+// logger 可为 nil（nil 时失败仅静默跳过）；非 nil 时移动/删除失败逐条上报
+// failed 回调，与 DeduplicateEntries 口径一致——清理数偏少可归因。
+func RemoveRepoDuplicates(dir, filesRoot, recycleRoot string, logger CleanOpLogger) int {
 	targets := fsutil.WalkAllFiles(dir, true)
 	if filesRoot == "" {
 		// 没有仓库根目录时不做处理
@@ -90,11 +92,17 @@ func RemoveRepoDuplicates(dir, filesRoot, recycleRoot string) int {
 		if recycleRoot != "" && paths.IsInsideResolved(recycleRoot, p) == nil {
 			// 实例文件在仓库根内 → 移回收站（可恢复）
 			if err := Move(p, recycleRoot); err != nil {
+				if logger != nil {
+					logger(filepath.Base(p), p, "", 0, "failed", "移入回收站失败: "+err.Error())
+				}
 				continue
 			}
 		} else {
 			// 实例文件不在仓库根内（常见情况：整合包在 mcRoot 下）→ 直接删
 			if err := os.Remove(p); err != nil {
+				if logger != nil {
+					logger(filepath.Base(p), p, "", 0, "failed", "直接删除失败: "+err.Error())
+				}
 				continue
 			}
 		}

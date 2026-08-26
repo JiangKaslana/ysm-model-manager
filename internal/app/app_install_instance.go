@@ -145,7 +145,7 @@ func isResourcePackFolder(path string) bool {
 // 整合包的 resourcepacks/ 等子目录中可能有用户自己安装的、仓库没有的资源包，保留不动
 // clearInstanceDir 清理整合包子目录中仓库已有的文件（执行逻辑下沉 go/recycle）
 func (a *App) clearInstanceDir(dir string, rtype string, filesRoot string) int {
-	return recycle.RemoveRepoDuplicates(dir, filesRoot, a.ysmRoot())
+	return recycle.RemoveRepoDuplicates(dir, filesRoot, a.ysmRoot(), a.logger.Add)
 }
 
 // DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle）
