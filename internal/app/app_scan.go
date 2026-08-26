@@ -5,7 +5,6 @@ package app
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -687,34 +686,4 @@ func resolveInstDirTarget(instDir, rtype string) string {
 func isDir(p string) bool {
 	info, err := os.Stat(p)
 	return err == nil && info.IsDir()
-}
-
-// progressReader 包装 io.Reader，下载时通过回调推送进度（保留：下载进度计算）
-type progressReader struct {
-	reader     io.Reader
-	total      int64
-	downloaded int64
-	lastPct    int
-	onProgress func(downloaded, total int64)
-}
-
-func (pr *progressReader) Read(p []byte) (int, error) {
-	n, err := pr.reader.Read(p)
-	pr.downloaded += int64(n)
-	if pr.total > 0 {
-		pct := int(pr.downloaded * 100 / pr.total)
-		if pct > pr.lastPct {
-			pr.lastPct = pct
-			if pr.onProgress != nil {
-				pr.onProgress(pr.downloaded, pr.total)
-			}
-		}
-	} else if n > 0 && pr.onProgress != nil {
-		kb := pr.downloaded / 256 / 1024
-		if kb > int64(pr.lastPct) {
-			pr.lastPct = int(kb)
-			pr.onProgress(pr.downloaded, pr.downloaded)
-		}
-	}
-	return n, err
 }
