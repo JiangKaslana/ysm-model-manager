@@ -47,6 +47,232 @@ export interface YsmAnimPlayer {
   getControllerState(): string | null;
 }
 
+interface MdApBonePose { pos: THREE.Vector3; quat: THREE.Quaternion; scale: THREE.Vector3; }
+
+interface MdApScratch {
+  quat: THREE.Quaternion;
+  euler: THREE.Euler;
+  pos: THREE.Vector3;
+  scale: THREE.Vector3;
+}
+
+interface MdApState {
+  currentIdx: number;
+  elapsed: number;
+  playing: boolean;
+  prevElapsed: number;
+  controllerRuntime: AnimationControllerRuntime | null;
+  controllerVariables: Record<string, number>;
+}
+
+interface MdApCtx {
+  boneByName: Map<string, THREE.Object3D>;
+  clips: AnimationClip[];
+  boneHierarchy: BoneHierarchyNode[];
+  labels: ReadonlyArray<{ label: string }>;
+  clipNameToIdx: Map<string, number>;
+  basePose: Map<string, MdApBonePose>;
+  restPose: Map<string, MdApBonePose>;
+  blendAlpha: Map<string, number>;
+  BLEND_RATE: number;
+  scratch: MdApScratch;
+}
+
+function mdApCreateBasePose(boneByName: Map<string, THREE.Object3D>): Map<string, MdApBonePose> {
+  const basePose = new Map<string, MdApBonePose>();
+  for (const [name, node] of boneByName) {
+    basePose.set(name, {
+      pos: node.position.clone(),
+      quat: node.quaternion.clone(),
+      scale: node.scale.clone(),
+    });
+  }
+  return basePose;
+}
+
+function mdApCaptureRestPose(
+  boneByName: Map<string, THREE.Object3D>,
+  restPose: Map<string, MdApBonePose>,
+  blendAlpha: Map<string, number>,
+): void {
+  for (const [name, node] of boneByName) {
+    let rest = restPose.get(name);
+    if (!rest) {
+      rest = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: new THREE.Vector3() };
+      restPose.set(name, rest);
+    }
+    rest.pos.copy(node.position);
+    rest.quat.copy(node.quaternion);
+    rest.scale.copy(node.scale);
+    blendAlpha.set(name, 0);
+  }
+}
+
+function mdApAdvanceTimeAndController(
+  dt: number,
+  state: MdApState,
+  ctx: MdApCtx,
+): void {
+  const clip = ctx.clips[state.currentIdx];
+  const prevTime = state.prevElapsed;
+  state.elapsed += dt;
+  if (clip.loop && clip.length > 0) {
+    state.elapsed = ((state.elapsed % clip.length) + clip.length) % clip.length;
+  } else if (state.elapsed > clip.length) {
+    state.elapsed = clip.length;
+    state.playing = false;
+  }
+
+  if (state.controllerRuntime) setMolangScope(state.controllerVariables);
+  try {
+    executeTimeline(clip.timeline, prevTime, state.elapsed);
+    state.prevElapsed = state.elapsed;
+
+    if (state.controllerRuntime) {
+      const switched = state.controllerRuntime.update(dt);
+      if (switched) {
+        const newAnim = state.controllerRuntime.currentAnimation;
+        const newIdx = ctx.clipNameToIdx.get(newAnim);
+        if (newIdx !== undefined && newIdx !== state.currentIdx) {
+          state.currentIdx = newIdx;
+          state.elapsed = 0;
+          state.prevElapsed = 0;
+          state.playing = true;
+          mdApCaptureRestPose(ctx.boneByName, ctx.restPose, ctx.blendAlpha);
+        }
+      }
+    }
+  } finally {
+    if (state.controllerRuntime) setMolangScope(null);
+  }
+}
+
+function mdApApplyPose(
+  dt: number,
+  state: MdApState,
+  ctx: MdApCtx,
+): void {
+  const clip = ctx.clips[state.currentIdx];
+  const transforms = evaluateClip(clip, state.elapsed, ctx.boneHierarchy, true);
+  const { scratch, basePose, restPose, blendAlpha, BLEND_RATE, boneByName } = ctx;
+
+  for (const [boneName, node] of boneByName) {
+    const base = basePose.get(boneName);
+    if (!base) continue;
+    const transform = transforms.get(boneName);
+
+    if (transform?.rotation) {
+      const [rx, ry, rz] = transform.rotation;
+      scratch.quat.setFromEuler(scratch.euler.set(rz, ry, rx, "ZYX"));
+    } else {
+      scratch.quat.copy(base.quat);
+    }
+    if (transform?.position) {
+      scratch.pos.set(
+        base.pos.x - transform.position[0],
+        base.pos.y + transform.position[1],
+        base.pos.z + transform.position[2],
+      );
+    } else {
+      scratch.pos.copy(base.pos);
+    }
+    if (transform?.scale) {
+      const [sx, sy, sz] = transform.scale;
+      if (sx === 0 && sy === 0 && sz === 0) {
+        node.visible = false;
+      } else {
+        node.visible = true;
+        scratch.scale.set(sx, sy, sz);
+      }
+    } else {
+      scratch.scale.copy(base.scale);
+      node.visible = true;
+    }
+
+    let rest = restPose.get(boneName);
+    let alpha = blendAlpha.get(boneName) ?? 0;
+    if (!rest) {
+      rest = { pos: node.position.clone(), quat: node.quaternion.clone(), scale: node.scale.clone() };
+      restPose.set(boneName, rest);
+      alpha = Math.min(1, dt * BLEND_RATE);
+    } else {
+      alpha = Math.min(1, alpha + dt * BLEND_RATE);
+    }
+    blendAlpha.set(boneName, alpha);
+
+    node.quaternion.copy(rest.quat).slerp(scratch.quat, alpha);
+    node.position.copy(rest.pos).lerp(scratch.pos, alpha);
+    node.scale.copy(rest.scale).lerp(scratch.scale, alpha);
+  }
+}
+
+function mdApSelectClip(
+  index: number,
+  state: MdApState,
+  ctx: MdApCtx,
+): void {
+  if (index < 0 || index >= ctx.clips.length) return;
+  state.currentIdx = index;
+  state.elapsed = 0;
+  state.prevElapsed = 0;
+  state.playing = true;
+  mdApCaptureRestPose(ctx.boneByName, ctx.restPose, ctx.blendAlpha);
+}
+
+function mdApSetController(
+  controller: AnimationController,
+  state: MdApState,
+  ctx: MdApCtx,
+): void {
+  state.controllerVariables = {};
+  state.controllerRuntime = new AnimationControllerRuntime(
+    controller,
+    (animationName: string, blendTime: number) => {
+      const idx = ctx.clipNameToIdx.get(animationName);
+      if (idx !== undefined && idx !== state.currentIdx) {
+        state.currentIdx = idx;
+        state.elapsed = 0;
+        state.prevElapsed = 0;
+        state.playing = true;
+        mdApCaptureRestPose(ctx.boneByName, ctx.restPose, ctx.blendAlpha);
+      }
+    },
+  );
+}
+
+function mdApDispose(
+  state: MdApState,
+  ctx: MdApCtx,
+): void {
+  setMolangScope(null);
+  state.elapsed = 0;
+  state.prevElapsed = 0;
+  state.playing = true;
+  ctx.restPose.clear();
+  ctx.blendAlpha.clear();
+}
+
+function mdApBuildMeta(
+  clips: AnimationClip[],
+  clipLabels: string[] | undefined,
+): { labels: ReadonlyArray<{ label: string }>; clipNameToIdx: Map<string, number> } {
+  const rawLabels = clipLabels ?? clips.map((_, i) => `Clip ${i}`);
+  const labels = rawLabels.slice(0, clips.length).map((label) => ({ label }));
+  const clipNameToIdx = new Map<string, number>();
+  for (let i = 0; i < clips.length; i++) clipNameToIdx.set(clips[i].name, i);
+  return { labels, clipNameToIdx };
+}
+
+function mdApCreateInitialState(): MdApState {
+  return { currentIdx: 0, elapsed: 0, playing: true, prevElapsed: 0, controllerRuntime: null, controllerVariables: {} };
+}
+
+function mdApToggle(state: MdApState, ctx: MdApCtx): void {
+  const clip = ctx.clips[state.currentIdx];
+  if (state.elapsed >= clip.length && !clip.loop) { state.elapsed = 0; state.playing = true; }
+  else { state.playing = !state.playing; }
+}
+
 /**
  * Builds a YSM animation player whose per-frame path reuses every temporary object.
  * boneHierarchy remains in the signature for API compatibility; Three.js already
@@ -59,239 +285,30 @@ export function createYsmAnimPlayer(
   clipLabels?: string[],
 ): YsmAnimPlayer {
   if (clips.length === 0) throw new Error("YSM animation player requires at least one clip");
-
-  const rawLabels = clipLabels ?? clips.map((_, i) => `Clip ${i}`);
-  const labels = rawLabels.slice(0, clips.length).map((label) => ({ label }));
-
-  // clip 名称 → 索引映射（Controller 驱动时按名称查找 clip）
-  const clipNameToIdx = new Map<string, number>();
-  for (let i = 0; i < clips.length; i++) {
-    clipNameToIdx.set(clips[i].name, i);
-  }
-
-  let currentIdx = 0;
-  let elapsed = 0;
-  let playing = true;
-
-  // 动画控制器运行时（可选，由 setController 设置）
-  let controllerRuntime: AnimationControllerRuntime | null = null;
-  let controllerVariables: Record<string, number> = {};
-
-  // L3 混合状态：base = 构造期姿态（未动画骨骼的回落目标）；
-  // rest = 混合段起点（selectClip/dispose 后从当前姿态重新采集），alpha 累加到 1。
-  interface BonePose { pos: THREE.Vector3; quat: THREE.Quaternion; scale: THREE.Vector3; }
-  const basePose = new Map<string, BonePose>();
-  for (const [name, node] of boneByName) {
-    basePose.set(name, { pos: node.position.clone(), quat: node.quaternion.clone(), scale: node.scale.clone() });
-  }
-  const restPose = new Map<string, BonePose>();
-  const blendAlpha = new Map<string, number>();
-  const BLEND_RATE = 5.0; // 混合速率：~0.2s 到达目标
-
-  // 每帧复用的 scratch（避免骨骼数×帧率级的小对象分配）
-  const _targetQuat = new THREE.Quaternion();
-  const _targetEuler = new THREE.Euler();
-  const _targetPos = new THREE.Vector3();
-  const _targetScale = new THREE.Vector3();
-
-  function getClip(): AnimationClip { return clips[currentIdx]; }
-
-  // 上一帧时间（用于 timeline 事件区间检测）
-  let prevElapsed = 0;
-
+  const { labels, clipNameToIdx } = mdApBuildMeta(clips, clipLabels);
+  const state = mdApCreateInitialState();
+  const ctx: MdApCtx = {
+    boneByName, clips, boneHierarchy, labels, clipNameToIdx,
+    basePose: mdApCreateBasePose(boneByName),
+    restPose: new Map<string, MdApBonePose>(),
+    blendAlpha: new Map<string, number>(),
+    BLEND_RATE: 5.0,
+    scratch: { quat: new THREE.Quaternion(), euler: new THREE.Euler(), pos: new THREE.Vector3(), scale: new THREE.Vector3() },
+  };
+  const getClip = (): AnimationClip => ctx.clips[state.currentIdx];
   return {
-    apply(dt: number): void {
-      if (!playing) return;
-      const clip = getClip();
-      const prevTime = prevElapsed;
-      elapsed += dt;
-      if (clip.loop && clip.length > 0) {
-        elapsed = ((elapsed % clip.length) + clip.length) % clip.length;
-      } else if (elapsed > clip.length) {
-        elapsed = clip.length;
-        playing = false;
-      }
-
-      // 执行 timeline 事件（v.* 变量赋值、粒子触发等）+ 控制器条件评估。
-      // 控制器启用时开启持久变量作用域：timeline 的 v.* 写入跨帧可见，控制器条件可读
-      // （ADR-100 L4 语义：v. 每实体持久，temp. 每帧重置）。
-      if (controllerRuntime) setMolangScope(controllerVariables);
-      try {
-        executeTimeline(clip.timeline, prevTime, elapsed);
-        prevElapsed = elapsed;
-
-        // 动画控制器：每帧评估转换条件，必要时切换 clip
-        if (controllerRuntime) {
-          const switched = controllerRuntime.update(dt);
-          if (switched) {
-            // 找到新动画对应的 clip 索引
-            const newAnim = controllerRuntime.currentAnimation;
-            const newIdx = clipNameToIdx.get(newAnim);
-            if (newIdx !== undefined && newIdx !== currentIdx) {
-              currentIdx = newIdx;
-              elapsed = 0;
-              prevElapsed = 0;
-              playing = true;
-              // 跨 clip transition：从当前姿态重新采集 rest
-              for (const [name, node] of boneByName) {
-                let rest = restPose.get(name);
-                if (!rest) {
-                  rest = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: new THREE.Vector3() };
-                  restPose.set(name, rest);
-                }
-                rest.pos.copy(node.position);
-                rest.quat.copy(node.quaternion);
-                rest.scale.copy(node.scale);
-                blendAlpha.set(name, 0);
-              }
-            }
-          }
-        }
-      } finally {
-        if (controllerRuntime) setMolangScope(null);
-      }
-
-      const transforms = evaluateClip(clip, elapsed, boneHierarchy, true);
-
-      for (const [boneName, node] of boneByName) {
-        const base = basePose.get(boneName);
-        if (!base) continue;
-        const transform = transforms.get(boneName);
-
-        // 目标姿态：clip 通道值；缺通道回落 base（停播骨骼渐回零位的来源）
-        // L4 修复（ADR-100 骨骼朝向遗留）：Bedrock 格式欧拉序为 ZYX（Blockbench bedrock.js
-        // L648-882），而非 THREE.Euler 默认 XYZ。错误序会导致旋转轴错乱，角色"乱飞"。
-        if (transform?.rotation) {
-          const [rx, ry, rz] = transform.rotation;
-          _targetQuat.setFromEuler(_targetEuler.set(rz, ry, rx, "ZYX"));
-        } else {
-          _targetQuat.copy(base.quat);
-        }
-        if (transform?.position) {
-          // 游戏内口径（NativeModelRenderer.calculateBoneMatrix L217-221 / RenderUtils
-          // prepMatrixForBone L95）：动画位移是**相对位移**——叠加到骨骼旋转中心
-          // （localPosition），而非覆盖；X 轴取负（游戏内 -posX）。骨骼 Group 在像素
-          // 空间（外层 modelScale=1/16 整体缩放），位移直接像素值叠加，与游戏内 /16
-          // 换算后等效（对拍 compare-bone-anim.mjs 实证：修复前 posΔ 4~32 全红）。
-          _targetPos.set(
-            base.pos.x - transform.position[0],
-            base.pos.y + transform.position[1],
-            base.pos.z + transform.position[2],
-          );
-        } else {
-          _targetPos.copy(base.pos);
-        }
-        if (transform?.scale) {
-          const [sx, sy, sz] = transform.scale;
-          if (sx === 0 && sy === 0 && sz === 0) {
-            // 游戏内 scale=0 → 整骨不可见（calculateBoneMatrix L213-215 isVisible=false），
-            // 而非塌缩成点
-            node.visible = false;
-          } else {
-            node.visible = true;
-            _targetScale.set(sx, sy, sz);
-          }
-        } else {
-          _targetScale.copy(base.scale);
-          node.visible = true;
-        }
-
-        let rest = restPose.get(boneName);
-        let alpha = blendAlpha.get(boneName) ?? 0;
-        if (!rest) {
-          // 混合段起点：采集当前姿态；alpha 从本帧 dt 起步（大 dt 单帧精确到位）
-          rest = { pos: node.position.clone(), quat: node.quaternion.clone(), scale: node.scale.clone() };
-          restPose.set(boneName, rest);
-          alpha = Math.min(1, dt * BLEND_RATE);
-        } else {
-          alpha = Math.min(1, alpha + dt * BLEND_RATE);
-        }
-        blendAlpha.set(boneName, alpha);
-
-        node.quaternion.copy(rest.quat).slerp(_targetQuat, alpha);
-        node.position.copy(rest.pos).lerp(_targetPos, alpha);
-        node.scale.copy(rest.scale).lerp(_targetScale, alpha);
-      }
-    },
-
-    dispose(): void {
-      // 兜底清空持久作用域（apply 中途异常退出时避免泄漏到其他播放器）
-      setMolangScope(null);
-      elapsed = 0;
-      prevElapsed = 0;
-      playing = true;
-      restPose.clear();
-      blendAlpha.clear();
-    },
-    toggle(): void {
-      if (elapsed >= getClip().length && !getClip().loop) {
-        elapsed = 0;
-        playing = true;
-      } else {
-        playing = !playing;
-      }
-    },
-    isPlaying: () => playing,
-    getTime: () => elapsed,
+    apply(dt: number): void { if (!state.playing) return; mdApAdvanceTimeAndController(dt, state, ctx); mdApApplyPose(dt, state, ctx); },
+    dispose(): void { mdApDispose(state, ctx); },
+    toggle(): void { mdApToggle(state, ctx); },
+    isPlaying: () => state.playing,
+    getTime: () => state.elapsed,
     getDuration: () => getClip().length || 0,
-    currentIndex: () => currentIdx,
-    clips: () => labels,
-    clipCount: () => clips.length,
-    selectClip(index: number): void {
-      if (index < 0 || index >= clips.length) return;
-      currentIdx = index;
-      elapsed = 0;
-      prevElapsed = 0;
-      playing = true;
-      // 跨 clip transition：从当前姿态重新采集 rest，alpha 归零。
-      // 下一帧从当前姿态插值到新 clip 的目标姿态，实现平滑切入。
-      // 不 clear() restPose——保留当前姿态作为过渡起点。
-      for (const [name, node] of boneByName) {
-        let rest = restPose.get(name);
-        if (!rest) {
-          rest = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: new THREE.Vector3() };
-          restPose.set(name, rest);
-        }
-        rest.pos.copy(node.position);
-        rest.quat.copy(node.quaternion);
-        rest.scale.copy(node.scale);
-        blendAlpha.set(name, 0);
-      }
-    },
-    isAnimActive(): boolean {
-      return playing && elapsed < (getClip().length || Infinity);
-    },
-    setController(controller: AnimationController): void {
-      // 新模型 → 全新变量作用域（v.* 不跨模型泄漏）
-      controllerVariables = {};
-      // 创建控制器运行时，回调在状态切换时自动切换 clip
-      controllerRuntime = new AnimationControllerRuntime(
-        controller,
-        (animationName: string, blendTime: number) => {
-          const idx = clipNameToIdx.get(animationName);
-          if (idx !== undefined && idx !== currentIdx) {
-            currentIdx = idx;
-            elapsed = 0;
-            prevElapsed = 0;
-            playing = true;
-            // 跨 clip transition：从当前姿态重新采集 rest
-            for (const [name, node] of boneByName) {
-              let rest = restPose.get(name);
-              if (!rest) {
-                rest = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: new THREE.Vector3() };
-                restPose.set(name, rest);
-              }
-              rest.pos.copy(node.position);
-              rest.quat.copy(node.quaternion);
-              rest.scale.copy(node.scale);
-              blendAlpha.set(name, 0);
-            }
-          }
-        },
-      );
-    },
-    getControllerState(): string | null {
-      return controllerRuntime?.current_state ?? null;
-    },
+    currentIndex: () => state.currentIdx,
+    clips: () => ctx.labels,
+    clipCount: () => ctx.clips.length,
+    selectClip(index: number): void { mdApSelectClip(index, state, ctx); },
+    isAnimActive(): boolean { return state.playing && state.elapsed < (getClip().length || Infinity); },
+    setController(controller: AnimationController): void { mdApSetController(controller, state, ctx); },
+    getControllerState(): string | null { return state.controllerRuntime?.current_state ?? null; },
   };
 }
