@@ -45,11 +45,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 34 |
 | frontend/ui | 18 | 64 |
-| 前端·工具 | 163 | 641 |
+| 前端·工具 | 163 | 645 |
 | frontend/views | 115 | 333 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **486** | **2049** |
+| **合计** | **486** | **2053** |
 
 ## Go·头像
 
@@ -1448,9 +1448,13 @@
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:37` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
-| `ResolveModeResponse()` | `frontend/src/utils/3d/adapters/worker-bridge:13` | 响应必须携带 id / ok；错误以 ok:false + error 回传，不走 reject |
-| `ResolveModeBridge()` | `frontend/src/utils/3d/adapters/worker-bridge:19` | — |
-| `createResolveModeBridge()` | `frontend/src/utils/3d/adapters/worker-bridge:26` | — |
+| `ResolveModeResponse()` | `frontend/src/utils/3d/adapters/worker-bridge:15` | 响应必须携带 id；resolve-mode 还需 ok 标志（错误以响应形式回传，不 reject） |
+| `WorkerErrorStrategy()` | `frontend/src/utils/3d/adapters/worker-bridge:22` | 崩溃/终止时的结算策略 |
+| `WorkerBridge()` | `frontend/src/utils/3d/adapters/worker-bridge:24` | — |
+| `CreateWorkerBridgeOpts()` | `frontend/src/utils/3d/adapters/worker-bridge:39` | — |
+| `createWorkerBridge()` | `frontend/src/utils/3d/adapters/worker-bridge:54` | — |
+| `ResolveModeBridge()` | `frontend/src/utils/3d/adapters/worker-bridge:138` | — |
+| `createResolveModeBridge()` | `frontend/src/utils/3d/adapters/worker-bridge:145` | — |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:43` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
 | `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:472` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
 | `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:502` | 工厂：构造统一 PreviewAdapter（shared 模式） |
