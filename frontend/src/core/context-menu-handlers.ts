@@ -3,6 +3,7 @@
 import { bus } from "../bus.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
+import { t } from "./i18n/t.ts";
 import { getApp } from "../backend/app.ts";
 import { modalConfirm, modalSelect } from "../utils/dom/dialogs/modal.ts";
 import { showRenameDialog } from "../utils/dom/dialogs/rename.ts";
@@ -94,16 +95,28 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       toast(`❌ ${friendlyError(e, "打开文件夹失败")}`, 3000, "error");
     }
   },
-  "instance.export-list": (ctx) =>
+  "instance.export-list": (ctx) => {
+    // rtype 契约必填（bus.ts 收紧）：发射点编译期强制提供非空；
+    // 运行期守卫与消费方（instance-ops）的 !rtype 失败守卫对称，双保险。
+    if (!ctx.rtype) {
+      toast(t("ctx.emptyRtype"), 3000, "error");
+      return;
+    }
     bus.emit("instance:export-list", {
       name: ctx.instanceName || "",
       rtype: ctx.rtype,
-    }),
-  "instance.clear": (ctx) =>
+    });
+  },
+  "instance.clear": (ctx) => {
+    if (!ctx.rtype) {
+      toast(t("ctx.emptyRtype"), 3000, "error");
+      return;
+    }
     bus.emit("instance:clear", {
       name: ctx.instanceName || "",
-      rtype: ctx.rtype || undefined,
-    }),
+      rtype: ctx.rtype,
+    });
+  },
 
   // ── batch ──
   "batch.rename": (ctx) => bus.emit("batch:rename", { paths: ctx.paths }),

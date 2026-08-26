@@ -89,8 +89,10 @@ export interface BusEvents {
   "sync:download:missing": { instanceName?: string; rtype: string; token?: string };
   "sync:download:done": { token?: string; instanceName?: string; skipped?: boolean };
   // 实例 / 导入
-  "instance:export-list": { name: string; rtype?: string };
-  "instance:clear": { name: string; rtype?: string };
+  // rtype 必填（P0 修复后收紧契约）：消费方（instance-ops）已有 !rtype 显式失败
+  // 守卫，发射点编译期强制提供非空 rtype，堵漏「漏传 → 导出/清空全部类型」回归。
+  "instance:export-list": { name: string; rtype: string };
+  "instance:clear": { name: string; rtype: string };
   "import:history-changed": {
     records: Array<{ name: string; time: string; isYsm?: boolean }>;
   };
