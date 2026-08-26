@@ -9,7 +9,10 @@ description: "Go包代码评审：包结构/惯用Go/命名/坏味道/测试覆�
 只研究、绝不改文件。全程只读工具；改动另起任务。
 
 ## 流程
-1. LS go/ 确认真实目录（包名拼写可能不准，以 LS 为准，如 go/path 实为 paths）
+1. LS go/ 确认真实目录（包名拼写可能不准，以 LS 为准，如 go/path 实为 paths）,最近使用的指令如下
+```bash
+$ for d in go/*/; do files=$(ls "$d"*.go 2>/dev/null | wc -l); loc=$(cat "$d"*.go 2>/dev/null | wc -l); echo "$d $files files, $loc LOC"; done
+```
 2. 逐个通读包的 .go 源码（抽查 _test.go）,如果代码量太大，建议划定文件范围后，交给子代理执行。
 3. 调查完成后，五维评审 → 按模板输出
 

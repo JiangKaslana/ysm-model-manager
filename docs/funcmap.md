@@ -1561,8 +1561,8 @@
 | `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `computeBoneLocalPos()` | `frontend/src/utils/3d/cube-mesh:24` | 计算骨骼本地位置（对齐 YSMViewer/C# ConvertBones 口径）。 |
-| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:64` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
-| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:229` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
+| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:192` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
+| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:261` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:58` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `MeshFragment()` | `frontend/src/utils/3d/face-split:14` | 网格碎片：同一 meshGroup 按 alpha 特征拆出的子几何 + 渲染路径 |
 | `splitMeshByFaceAlpha()` | `frontend/src/utils/3d/face-split:24` | 按三角形 UV 包围盒查询 AlphaIndex，把 md 拆成 ≤3 个 mode 碎片。 |
@@ -1610,7 +1610,7 @@
 | `toggleMmdMaterialVisible()` | `frontend/src/utils/3d/mmd-materials:48` | 材质显隐切换：返回切换后的可见状态（越界返回 false） |
 | `setMmdMaterialOpacity()` | `frontend/src/utils/3d/mmd-materials:59` | 材质透明度（0-1）：opacity 设置 + transparent 联动（opacity &lt; 1 → transparent = true） |
 | `getMmdMaterialDetail()` | `frontend/src/utils/3d/mmd-materials:71` | 材质详情：name/可见/透明/高光/光泽（越界返回 null） |
-| `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:80` | 单组件 spec 构建核心。 |
+| `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:299` | 单组件 spec 构建核心。 |
 | `BedrockCube()` | `frontend/src/utils/3d/model2d:14` | Bedrock cube（AnalyzeBedrockModel 结构） |
 | `BedrockBone()` | `frontend/src/utils/3d/model2d:24` | Bedrock bone |
 | `BedrockModel()` | `frontend/src/utils/3d/model2d:30` | BedrockModel（AnalyzeBedrockModel 返回） |
@@ -1717,7 +1717,7 @@
 | `setVrmMaterialOpacity()` | `frontend/src/utils/3d/vrm-materials:48` | 材质透明度（0-1）：opacity 设置 + transparent 联动 |
 | `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
 | `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:32` | — |
-| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:55` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
+| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:281` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:25` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
 | `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:50` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
