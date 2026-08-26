@@ -422,98 +422,21 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   document.addEventListener("keydown", escH);
 
   if (!selfMode) {
-    // 复用单例 scene（多模型共享同一场景）
-    if (!_singletonScene) {
-      _singletonScene = new THREE.Scene();
-      _singletonScene.background = new THREE.Color("#171820");
-    }
-    scene = _singletonScene;
-    // 复用单例 camera（多模型共用同一相机，controls 控制同一套）
-    const ar = viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1);
-    if (!_singletonCamera) {
-      _singletonCamera = new THREE.PerspectiveCamera(50, ar, 0.05, 5000);
-    } else {
-      _singletonCamera.aspect = ar;
-      _singletonCamera.updateProjectionMatrix();
-    }
-    camera = _singletonCamera;
-    // 复用单例 renderer（唯一 WebGL context）
-    if (!_singletonRenderer) {
-      _singletonRenderer = new THREE.WebGLRenderer({
-        antialias: true,
-        powerPreference: "high-performance",
-      });
-      _singletonRenderer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
-      _singletonRenderer.setPixelRatio(previewPixelRatio(window.devicePixelRatio));
-      _singletonRenderer.domElement.style.touchAction = "none";
-      viewContainer.appendChild(_singletonRenderer.domElement);
-    }
-    renderer = _singletonRenderer;
-    // 修复：fullCleanup（ESC/关闭按钮）会移除旧 viewContainer（连同 canvas），但
-    // 保留 _singletonRenderer——再次 mount3D 复用 renderer 时若不重新挂载 canvas，
-    // 渲染循环照常跑但 canvas 已脱离 DOM → 用户「第二次进 3D 预览」看到空白/无反应。
-    if (_singletonRenderer.domElement.parentNode !== viewContainer) {
-      viewContainer.appendChild(_singletonRenderer.domElement);
-    }
-    // 程序化能力（ADR-073 L1 + 统一注册表）：由 registry 统一创建并持久化
-    const caps = sceneCapabilityRegistry.createAll({ scene, renderer, camera });
-    skyCap = (sceneCapabilityRegistry.getById("sky") as SkyCapability) ?? null;
-    groundCap = (sceneCapabilityRegistry.getById("ground") as GroundCapability) ?? null;
-    lightCap = (sceneCapabilityRegistry.getById("light") as LightCapability) ?? null;
-    fogCap = (sceneCapabilityRegistry.getById("fog") as FogCapability) ?? null;
-    shadowCap = (sceneCapabilityRegistry.getById("shadow") as ShadowCapability) ?? null;
-    reflectorCap = (sceneCapabilityRegistry.getById("reflector") as ReflectorCapability) ?? null;
-    environmentCap = (sceneCapabilityRegistry.getById("environment") as EnvironmentCapability) ?? null;
-    // 从 localStorage 恢复上次会话状态
-    sceneCapabilityRegistry.loadAll();
-    // 按模型类别套用预设（已有持久化状态的 cap 不覆盖）
-    skyCap?.setPreset(adapter.id);
-    lightCap?.setPreset(adapter.id);
-    fogCap?.setPreset(adapter.id);
-    shadowCap?.setPreset(adapter.id);
-    reflectorCap?.setPreset(adapter.id);
-    environmentCap?.setPreset(adapter.id);
-    // 全部挂入场景
-    for (const cap of caps) cap.apply();
-    // ShadowCapability 同步：光 castShadow（光已由 LightCapability 创建）
-    if (shadowCap && lightCap) {
-      // 优先注入 LightCapability 引用（ShadowCapability 通过 getter 精准取 3 方向灯+1 聚光灯，不会误吞外部自定义灯）
-      shadowCap.setLightCap(lightCap);
-      const lights: Array<THREE.DirectionalLight | THREE.SpotLight> = [];
-      // 兼容路径（旧版 shadow-capability 走 scene 遍历取实例，新 shadow-capability 已用 setLightCap 注入，但仍留 syncLights 兜底，防自定义灯）
-      scene.traverse((obj) => {
-        if ((obj as unknown as THREE.DirectionalLight).isDirectionalLight
-          || (obj as unknown as THREE.SpotLight).isSpotLight) {
-          lights.push(obj as THREE.DirectionalLight | THREE.SpotLight);
-        }
-      });
-      shadowCap.syncLights(lights);
-    }
-    // 后处理体积光管线（ADR-081 L2）：PostprocessingCapability（registry 驱动）
-    postProcCap = (sceneCapabilityRegistry.getById("postprocessing") as PostprocessingCapability) ?? null;
-    // 兼容老接口：postProc 变量也指向同一 capability（对外 render/setSize/dispose 方法签名一致）
-    postProc = postProcCap;
-    // 按模型类别套用预设
-    postProcCap?.setPreset(adapter.id);
-    // SSR↔Reflector 联动（postprocessing-capability.setReflectorCap）：SSR 开启时自动禁用单平面镜面，防 z-fighting
-    postProcCap?.setReflectorCap(reflectorCap);
-    // ADR-085 S3：caps 创建后触发 refreshDock()，修复 litematic/pack 的 environment 项时序缺失
-    // （菜单先于 caps 挂载，挂载时 requiresEnvironment 被过滤；此处重渲染补回）
-    menuHandle.refreshDock();
-    // 复用单例 controls（多模型共用同一套相机控制）
-    if (!_singletonControls) {
-      _singletonControls = new OrbitControls(camera, renderer.domElement);
-      _singletonControls.enableDamping = true;
-      _singletonControls.dampingFactor = 0.1;
-      _singletonControls.minDistance = 0.1;
-      _singletonControls.maxDistance = 5000;
-      _singletonControls.update();
-      _singletonControls.enableRotate = true;
-    }
-    controls = _singletonControls;
-    // orbitTarget 是本次 mount 的会话局部变量：复用单例 controls（非首次）时不进上面的 if，
-    // 但必须每次从当前 controls 目标刷新，否则下方 orbitTarget!.copy 读到 undefined。
-    orbitTarget = controls.target.clone();
+    const infra = mpBuildSharedInfra(adapter, viewContainer, menuHandle);
+    scene = infra.scene;
+    camera = infra.camera;
+    renderer = infra.renderer;
+    controls = infra.controls;
+    orbitTarget = infra.orbitTarget;
+    skyCap = infra.skyCap;
+    groundCap = infra.groundCap;
+    lightCap = infra.lightCap;
+    fogCap = infra.fogCap;
+    shadowCap = infra.shadowCap;
+    reflectorCap = infra.reflectorCap;
+    environmentCap = infra.environmentCap;
+    postProc = infra.postProc;
+    postProcCap = infra.postProcCap;
 
     // ===== §4a 输入绑定（WASD 键盘 + 拖拽自转 + resize）=====
     const inputOpts: InputOptions = {
@@ -532,47 +455,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     onKeyDown = handlers.onKeyDown;
 
     // ADR-093 T5：统一多模型拾取器（仅 count>=2 激活，单模型完全沿用逐模型 registerBoneRaycast，零回归）
-    const raycaster = new THREE.Raycaster();
-    const pickPointer = new THREE.Vector2();
-    onUnifiedPick = (e: MouseEvent): void => {
-      if (sceneRegistry.count() < 2) return;
-      if (!renderer || !camera || !scene) return;
-      const rect = renderer.domElement.getBoundingClientRect();
-      pickPointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      pickPointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pickPointer, camera);
-      const hits = raycaster.intersectObjects(scene.children, true);
-      for (const hit of hits) {
-        // THREE Raycaster 不检查 visible，手动跳过隐藏链
-        let node: THREE.Object3D | null = hit.object;
-        let hidden = false;
-        while (node) {
-          if (!node.visible) { hidden = true; break; }
-          node = node.parent;
-        }
-        if (hidden) continue;
-        const entry = sceneRegistry.pickModelByObject(hit.object);
-        if (!entry) continue;
-        // 切活跃模型 + 换菜单（菜单会话级共享、后建覆盖前建，故需按归属换项）
-        sceneRegistry.setActive(entry.id);
-        if (entry.boneMaps) {
-          const boneId = getMeshBoneId(hit.object, entry.boneMaps.nameMap);
-          if (boneId) {
-            const info = assembleBoneSelectInfo(
-              boneId,
-              entry.boneMaps.boneGroupMap,
-              entry.boneMaps.nameMap,
-              entry.boneMaps.parentMap,
-              entry.boneMaps.childrenMap,
-              hit.object,
-            );
-            entry.built.onBoneSelect?.(info);
-            entry.onBonePick?.(boneId);
-          }
-        }
-        break;
-      }
-    };
+    onUnifiedPick = mpMakeUnifiedPickHandler(renderer, camera, scene);
     renderer.domElement.addEventListener("click", onUnifiedPick);
     onKeyUp = handlers.onKeyUp;
     onDragPointerDown = handlers.onDragPointerDown;
@@ -586,7 +469,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       // rAF 每帧复用 Vector3 实例，避免 5 次 GC 分配（R1-P1-1）
       const _camDir = new THREE.Vector3();
       const _forward = new THREE.Vector3();
-      const _up = new THREE.Vector3(0, 1, 0);
       const _right = new THREE.Vector3();
       const _move = new THREE.Vector3();
       let lastTime = performance.now() - PREVIEW_FRAME_INTERVAL_MS;
@@ -619,29 +501,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         const rd = renderer as THREE.WebGLRenderer;
         const ctr = controls as OrbitControls;
         const ot = orbitTarget as THREE.Vector3;
-        cam.getWorldDirection(_camDir);
-        _forward.set(_camDir.x, 0, _camDir.z).normalize();
-        _right.crossVectors(_forward, _up).normalize();
-        _move.set(0, 0, 0);
-        if (keys["w"] || keys["arrowup"]) _move.add(_forward);
-        if (keys["s"] || keys["arrowdown"]) _move.sub(_forward);
-        if (keys["a"] || keys["arrowleft"]) _move.sub(_right);
-        if (keys["d"] || keys["arrowright"]) _move.add(_right);
-        if (keys[" "]) _move.y += 1;
-        if (keys["shift"]) _move.y -= 1;
-        if (_move.length() > 0) {
-          _move.normalize().multiplyScalar(camSpeed * dt);
-          cam.position.add(_move);
-          if (orbitMode) ot.add(_move);
-        }
-        if (orbitMode && ctr && ot) {
-          ctr.target.copy(ot);
-          ctr.update();
-          ot.copy(ctr.target);
-        } else if (ctr && cam) {
-          ctr.target.copy(cam.position).addScaledVector(_camDir, 10);
-          ctr.update();
-        }
+        mpApplyWasdCameraMotion(keys, cam, ctr, camSpeed, dt, orbitMode, ot, {
+          camDir: _camDir,
+          forward: _forward,
+          right: _right,
+          move: _move,
+        });
         // 驱动所有 session 的 perFrame 回调
         for (const fn of _globalPerFrames) {
           const pfStart = performance.now();
@@ -988,4 +853,237 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   }
 }
 
-// ===== §5 私有工具函数 → cleanup-3d.ts =====
+// ===== §5 私有工具函数（mount3D 拆出的包级子函数，命名前缀 mp*/MountPreview）=====
+// → cleanup-3d.ts（runFullCleanup / CleanupContext）
+// → input-and-animation.ts（bindInputHandlers / InputOptions）
+// → switch-preview.ts（switchToSession / SwitchContext）
+
+/** mpBuildSharedInfra 返回的 shared 基础设施 + 程序化能力引用（mount3D 赋值给会话局部变量） */
+interface MpSharedInfra {
+  scene: THREE.Scene;
+  camera: THREE.PerspectiveCamera;
+  renderer: THREE.WebGLRenderer;
+  controls: OrbitControls;
+  orbitTarget: THREE.Vector3;
+  skyCap: SkyCapability | null;
+  groundCap: GroundCapability | null;
+  lightCap: LightCapability | null;
+  fogCap: FogCapability | null;
+  shadowCap: ShadowCapability | null;
+  reflectorCap: ReflectorCapability | null;
+  environmentCap: EnvironmentCapability | null;
+  postProc: PostprocessingLike | null;
+  postProcCap: PostprocessingCapability | null;
+}
+
+/** mpBuildSharedInfra：shared 模式基础设施 + 程序化能力装配（scene/camera/renderer/OrbitControls 单例复用 + caps 创建/preset/Shadow/postProc 联动）。
+ *  返回带出的局部引用，mount3D 仅赋值给会话变量；self 模式走适配器自驱，不走本函数。 */
+function mpBuildSharedInfra(adapter: PreviewAdapter, viewContainer: HTMLElement, menuHandle: PreviewMenuHandle): MpSharedInfra {
+  // 复用单例 scene（多模型共享同一场景）
+  if (!_singletonScene) {
+    _singletonScene = new THREE.Scene();
+    _singletonScene.background = new THREE.Color("#171820");
+  }
+  const scene = _singletonScene;
+  // 复用单例 camera（多模型共用同一相机，controls 控制同一套）
+  const ar = viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1);
+  if (!_singletonCamera) {
+    _singletonCamera = new THREE.PerspectiveCamera(50, ar, 0.05, 5000);
+  } else {
+    _singletonCamera.aspect = ar;
+    _singletonCamera.updateProjectionMatrix();
+  }
+  const camera = _singletonCamera;
+  // 复用单例 renderer（唯一 WebGL context）
+  if (!_singletonRenderer) {
+    _singletonRenderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: "high-performance",
+    });
+    _singletonRenderer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+    _singletonRenderer.setPixelRatio(previewPixelRatio(window.devicePixelRatio));
+    _singletonRenderer.domElement.style.touchAction = "none";
+    viewContainer.appendChild(_singletonRenderer.domElement);
+  }
+  const renderer = _singletonRenderer;
+  // 修复：fullCleanup（ESC/关闭按钮）会移除旧 viewContainer（连同 canvas），但
+  // 保留 _singletonRenderer——再次 mount3D 复用 renderer 时若不重新挂载 canvas，
+  // 渲染循环照常跑但 canvas 已脱离 DOM → 用户「第二次进 3D 预览」看到空白/无反应。
+  if (_singletonRenderer.domElement.parentNode !== viewContainer) {
+    viewContainer.appendChild(_singletonRenderer.domElement);
+  }
+  // 程序化能力（ADR-073 L1 + 统一注册表）：由 registry 统一创建并持久化
+  const caps = sceneCapabilityRegistry.createAll({ scene, renderer, camera });
+  const skyCap = (sceneCapabilityRegistry.getById("sky") as SkyCapability) ?? null;
+  const groundCap = (sceneCapabilityRegistry.getById("ground") as GroundCapability) ?? null;
+  const lightCap = (sceneCapabilityRegistry.getById("light") as LightCapability) ?? null;
+  const fogCap = (sceneCapabilityRegistry.getById("fog") as FogCapability) ?? null;
+  const shadowCap = (sceneCapabilityRegistry.getById("shadow") as ShadowCapability) ?? null;
+  const reflectorCap = (sceneCapabilityRegistry.getById("reflector") as ReflectorCapability) ?? null;
+  const environmentCap = (sceneCapabilityRegistry.getById("environment") as EnvironmentCapability) ?? null;
+  // 从 localStorage 恢复上次会话状态
+  sceneCapabilityRegistry.loadAll();
+  // 按模型类别套用预设（已有持久化状态的 cap 不覆盖）
+  skyCap?.setPreset(adapter.id);
+  lightCap?.setPreset(adapter.id);
+  fogCap?.setPreset(adapter.id);
+  shadowCap?.setPreset(adapter.id);
+  reflectorCap?.setPreset(adapter.id);
+  environmentCap?.setPreset(adapter.id);
+  // 全部挂入场景
+  for (const cap of caps) cap.apply();
+  // ShadowCapability 同步：光 castShadow（光已由 LightCapability 创建）
+  if (shadowCap && lightCap) mpSyncShadowLights(scene, shadowCap, lightCap);
+  // 后处理体积光管线（ADR-081 L2）：PostprocessingCapability（registry 驱动）
+  const postProcCap = (sceneCapabilityRegistry.getById("postprocessing") as PostprocessingCapability) ?? null;
+  // 兼容老接口：postProc 变量也指向同一 capability（对外 render/setSize/dispose 方法签名一致）
+  const postProc = postProcCap;
+  // 按模型类别套用预设
+  postProcCap?.setPreset(adapter.id);
+  // SSR↔Reflector 联动（postprocessing-capability.setReflectorCap）：SSR 开启时自动禁用单平面镜面，防 z-fighting
+  postProcCap?.setReflectorCap(reflectorCap);
+  // ADR-085 S3：caps 创建后触发 refreshDock()，修复 litematic/pack 的 environment 项时序缺失
+  // （菜单先于 caps 挂载，挂载时 requiresEnvironment 被过滤；此处重渲染补回）
+  menuHandle.refreshDock();
+  // 复用单例 controls（多模型共用同一套相机控制）
+  if (!_singletonControls) {
+    _singletonControls = new OrbitControls(camera, renderer.domElement);
+    _singletonControls.enableDamping = true;
+    _singletonControls.dampingFactor = 0.1;
+    _singletonControls.minDistance = 0.1;
+    _singletonControls.maxDistance = 5000;
+    _singletonControls.update();
+    _singletonControls.enableRotate = true;
+  }
+  const controls = _singletonControls;
+  // orbitTarget 是本次 mount 的会话局部变量：复用单例 controls（非首次）时不进上面的 if，
+  // 但必须每次从当前 controls 目标刷新，否则下方 orbitTarget!.copy 读到 undefined。
+  const orbitTarget = controls.target.clone();
+  return {
+    scene,
+    camera,
+    renderer,
+    controls,
+    orbitTarget,
+    skyCap,
+    groundCap,
+    lightCap,
+    fogCap,
+    shadowCap,
+    reflectorCap,
+    environmentCap,
+    postProc,
+    postProcCap,
+  };
+}
+
+/** rAF 相机运动复用的 Vector3 实例（避免每帧 GC 分配）；mpUP 只读常量 */
+const mpUP = new THREE.Vector3(0, 1, 0);
+
+/** mpSyncShadowLights：ShadowCapability 同步光 castShadow（优先 setLightCap 精准注入 3 方向灯+聚光灯；
+ *  再 scene.traverse 收集外部自定义灯走 syncLights 兜底），防误吞外部灯 */
+function mpSyncShadowLights(scene: THREE.Scene, shadowCap: ShadowCapability, lightCap: LightCapability): void {
+  shadowCap.setLightCap(lightCap);
+  const lights: Array<THREE.DirectionalLight | THREE.SpotLight> = [];
+  scene.traverse((obj) => {
+    if ((obj as unknown as THREE.DirectionalLight).isDirectionalLight
+      || (obj as unknown as THREE.SpotLight).isSpotLight) {
+      lights.push(obj as THREE.DirectionalLight | THREE.SpotLight);
+    }
+  });
+  shadowCap.syncLights(lights);
+}
+
+/** mpApplyWasdCameraMotion 的复用向量槽位（rAF loop 一次性创建，每帧传入） */
+interface MpWasmReuse {
+  camDir: THREE.Vector3;
+  forward: THREE.Vector3;
+  right: THREE.Vector3;
+  move: THREE.Vector3;
+}
+
+/** mpApplyWasdCameraMotion：rAF 帧内 WASD/方向键 → 相机平移与焦点跟随（纯函数，无单例依赖；
+ *  仅改传入 cam/ctr/ot 引用，移动向量经 reuse 复用，返回值 void） */
+function mpApplyWasdCameraMotion(
+  keys: Record<string, boolean>,
+  cam: THREE.PerspectiveCamera,
+  ctr: OrbitControls,
+  camSpeed: number,
+  dt: number,
+  orbitMode: boolean,
+  ot: THREE.Vector3,
+  reuse: MpWasmReuse,
+): void {
+  cam.getWorldDirection(reuse.camDir);
+  reuse.forward.set(reuse.camDir.x, 0, reuse.camDir.z).normalize();
+  reuse.right.crossVectors(reuse.forward, mpUP).normalize();
+  reuse.move.set(0, 0, 0);
+  if (keys["w"] || keys["arrowup"]) reuse.move.add(reuse.forward);
+  if (keys["s"] || keys["arrowdown"]) reuse.move.sub(reuse.forward);
+  if (keys["a"] || keys["arrowleft"]) reuse.move.sub(reuse.right);
+  if (keys["d"] || keys["arrowright"]) reuse.move.add(reuse.right);
+  if (keys[" "]) reuse.move.y += 1;
+  if (keys["shift"]) reuse.move.y -= 1;
+  if (reuse.move.length() > 0) {
+    reuse.move.normalize().multiplyScalar(camSpeed * dt);
+    cam.position.add(reuse.move);
+    if (orbitMode) ot.add(reuse.move);
+  }
+  if (orbitMode && ot) {
+    ctr.target.copy(ot);
+    ctr.update();
+    ot.copy(ctr.target);
+  } else {
+    ctr.target.copy(cam.position).addScaledVector(reuse.camDir, 10);
+    ctr.update();
+  }
+}
+
+/** mpMakeUnifiedPickHandler：统一多模型拾取器工厂（仅 count>=2 激活，单模型完全沿用逐模型
+ *  registerBoneRaycast，零回归）；renderer/camera/scene 显式注入，语义骨骼映射经模块级导入消费 */
+function mpMakeUnifiedPickHandler(
+  renderer: THREE.WebGLRenderer,
+  camera: THREE.PerspectiveCamera,
+  scene: THREE.Scene,
+): (e: MouseEvent) => void {
+  const raycaster = new THREE.Raycaster();
+  const pickPointer = new THREE.Vector2();
+  return (e: MouseEvent): void => {
+    if (sceneRegistry.count() < 2) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    pickPointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pickPointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pickPointer, camera);
+    const hits = raycaster.intersectObjects(scene.children, true);
+    for (const hit of hits) {
+      // THREE Raycaster 不检查 visible，手动跳过隐藏链
+      let node: THREE.Object3D | null = hit.object;
+      let hidden = false;
+      while (node) {
+        if (!node.visible) { hidden = true; break; }
+        node = node.parent;
+      }
+      if (hidden) continue;
+      const entry = sceneRegistry.pickModelByObject(hit.object);
+      if (!entry) continue;
+      // 切活跃模型 + 换菜单（菜单会话级共享、后建覆盖前建，故需按归属换项）
+      sceneRegistry.setActive(entry.id);
+      if (entry.boneMaps) {
+        const boneId = getMeshBoneId(hit.object, entry.boneMaps.nameMap);
+        if (boneId) {
+          const info = assembleBoneSelectInfo(
+            boneId,
+            entry.boneMaps.boneGroupMap,
+            entry.boneMaps.nameMap,
+            entry.boneMaps.parentMap,
+            entry.boneMaps.childrenMap,
+            hit.object,
+          );
+          entry.built.onBoneSelect?.(info);
+          entry.onBonePick?.(boneId);
+        }
+      }
+      break;
+    }
+  };
+}
