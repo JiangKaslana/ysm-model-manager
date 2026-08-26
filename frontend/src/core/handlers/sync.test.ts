@@ -181,6 +181,22 @@ describe("registerSync — sync:download:missing", () => {
     expect(doneEvents.length).toBe(1);
   });
 
+  it("缺 rtype → 显式失败（error toast + done skipped），不静默降级 YSM", async () => {
+    await register();
+    const { toasts, doneEvents } = spyEvents();
+
+    // 故意违反契约（bus.ts 已声明 rtype 必填）：runtime 守卫应显式失败而非降级
+    bus.emit("sync:download:missing", { instanceName: "PackA", token: "t8" } as never);
+    await flush();
+    await flush();
+
+    expect(mocks.GetRepoRoot).not.toHaveBeenCalled();
+    expect(mocks.InstallModelTo).not.toHaveBeenCalled();
+    expect(toasts.some((t) => t.type === "error")).toBe(true);
+    expect(doneEvents.length).toBe(1);
+    expect(doneEvents[0].skipped).toBe(true);
+  });
+
   it("非 YSM rtype → 走 InstallResourceToInstance", async () => {
     await register();
     spyEvents();
