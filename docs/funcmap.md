@@ -1068,7 +1068,7 @@
 | `showProgress()` | `frontend/src/features/community/data:9` | 创建进度条 UI（插入到 searchResults 容器） |
 | `FetchModelsResult()` | `frontend/src/features/community/data:42` | 抓取结果 |
 | `isRecyclePath()` | `frontend/src/features/community/data:56` | 判断仓库相对路径是否含回收站目录段 `.recycle`（大小写不敏感，对齐 Go fsutil.IsRecycleDir， EqualFold 语义：.RECYCLE/.Recy |
-| `tryFetchModels()` | `frontend/src/features/community/data:70` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
+| `tryFetchModels()` | `frontend/src/features/community/data:244` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
 | `ProgressGuardHooks()` | `frontend/src/features/community/download-queue-progress:16` | createProgressGuard 依赖注入（controller 提供查找与收口回调） |
 | `ProgressGuard()` | `frontend/src/features/community/download-queue-progress:24` | 进度条守卫控制器 |
 | `createProgressGuard()` | `frontend/src/features/community/download-queue-progress:267` | — |
@@ -2085,7 +2085,7 @@
 | `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:39` | — |
 | `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:88` | 关闭活跃女仆 3D 预览 |
 | `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:93` | 作废在途女仆 3D 加载 |
-| `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:102` | 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。 |
+| `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:282` | 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。 |
 | `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:78` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:83` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `appendMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:88` | 同台追加 MMD 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） |
