@@ -39,7 +39,7 @@
 | Go·YSM 核心 | 7 | 26 |
 | Go(internal)·应用入口 | 28 | 212 |
 | 前端·根 (app-modules/bus) | 4 | 18 |
-| frontend/backend | 18 | 97 |
+| frontend/backend | 21 | 108 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 17 | 83 |
 | 前端·服务 | 2 | 18 |
@@ -49,7 +49,7 @@
 | frontend/views | 115 | 339 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **479** | **2063** |
+| **合计** | **482** | **2074** |
 
 ## Go·头像
 
@@ -981,15 +981,26 @@
 | `base64ToBytes()` | `frontend/src/backend/web-common:66` | base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:88` | — |
 | `webCommunityBindings()` | `frontend/src/backend/web-community:236` | — |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:74` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:134` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:166` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:188` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:206` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:243` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:255` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:314` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:490` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `FsaAuthState()` | `frontend/src/backend/web-fs-auth:29` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs-auth:61` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs-auth:83` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs-auth:101` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs-auth:138` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫主文件 → importWebFiles 落 IDB。 |
+| `importWebFiles()` | `frontend/src/backend/web-fs-import:284` | 导入主流程：.7z 过滤 → ZIP 展平 → 粗分组 → 细分组 → 逐组 校验/写入/回滚。 |
+| `dirKey()` | `frontend/src/backend/web-fs-shared:9` | — |
+| `fileKey()` | `frontend/src/backend/web-fs-shared:10` | — |
+| `MAIN_FILE_RANK_TYPE()` | `frontend/src/backend/web-fs-shared:20` | — |
+| `MAIN_FILE_RANK_NONE()` | `frontend/src/backend/web-fs-shared:21` | — |
+| `mainFileRank()` | `frontend/src/backend/web-fs-shared:36` | 主文件优先级打分（注册表驱动：YSM .ysm/.zip &gt; ysm.json &gt; 其他类型主文件 &gt; 辅助文件）。 |
+| `importWebFiles()` | `frontend/src/backend/web-fs` | — |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs` | — |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs` | — |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs` | — |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs` | — |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:73` | 从 /web/&lt;type&gt;/... |
+| `scanWebModels()` | `frontend/src/backend/web-fs:79` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:138` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:314` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
 | `onStatsProgress()` | `frontend/src/backend/web-stats:40` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |
@@ -2285,11 +2296,11 @@
 | `YsmDecodedFile()` | `frontend/src/wasm/parser-shared:8` | 解码输出文件 |
 | `FSLike()` | `frontend/src/wasm/parser-shared:14` | Emscripten FS 最小接口（WASM 导出） |
 | `WasmModuleLike()` | `frontend/src/wasm/parser-shared:26` | Emscripten Module 最小接口（WASM 实例） |
-| `classifyWasmError()` | `frontend/src/wasm/parser-shared:46` | WASM 错误分类：收敛 decodeYsmFileFromMemory / decodeYsmFile / decodeYsmInWorker / decodeYsmInWork |
-| `wipeDir()` | `frontend/src/wasm/parser-shared:64` | — |
-| `ensureDir()` | `frontend/src/wasm/parser-shared:78` | — |
-| `collectOutputFiles()` | `frontend/src/wasm/parser-shared:88` | — |
-| `writeHeapBytes()` | `frontend/src/wasm/parser-shared:109` | 将 JS 数据写入 WASM 内存，返回指针。 |
+| `classifyWasmError()` | `frontend/src/wasm/parser-shared:55` | WASM 错误分类：收敛 decodeYsmFileFromMemory / decodeYsmFile / decodeYsmInWorker / decodeYsmInWork |
+| `wipeDir()` | `frontend/src/wasm/parser-shared:78` | — |
+| `ensureDir()` | `frontend/src/wasm/parser-shared:92` | — |
+| `collectOutputFiles()` | `frontend/src/wasm/parser-shared:102` | — |
+| `writeHeapBytes()` | `frontend/src/wasm/parser-shared:123` | 将 JS 数据写入 WASM 内存，返回指针。 |
 | `_getGlueCodeMt()` | `frontend/src/wasm/ysm-glue-data-mt:3` | — |
 | `_getGlueCode()` | `frontend/src/wasm/ysm-glue-data:3` | — |
 | `YsmDecodedFile()` | `frontend/src/wasm/ysm-parser` | — |

@@ -1,27 +1,29 @@
 // ===== 网页版文件系统职责（ADR-040 拆分：browser-adapter.ts 职责切分产物）=====
-// 文件系统类操作：IndexedDB 虚拟根 /web 的扫描/读写/导入/删除/重命名/子目录映射，
-// 以及 FSA 授权本地仓库导入。被 web-store（标签聚合扫描）与 web-community
-// （作者扫描/仓库索引）复用；browser-adapter.ts 从本文件 import 组装 webImpls。
+// 文件系统类操作：IndexedDB 虚拟根 /web 的扫描/读写/删除/重命名/子目录映射。
+// 被 web-store（标签聚合扫描）与 web-community（作者扫描/仓库索引）复用；
+// browser-adapter.ts 从本文件 import 组装 webImpls。
 // 共享原语（WebUnsupportedError / WEB_ROOT / MAX_IMPORT_BYTES / arrayBufferToBase64）
-// 见 web-common.ts。
+// 见 web-common.ts。拆分子模块（本文件门面 re-export 保持公共 API 原路径不变）：
+//   - web-fs-shared.ts   key 规约 + 主文件优先级（叶子，断 auth↔import↔主文件 循环）
+//   - web-fs-import.ts   导入分组（§15：zip 展平 / 粗细分组 / 写入回滚）
+//   - web-fs-auth.ts     FSA 授权本地仓库（§3：句柄持久化 / 授权态 / 重扫入库）
 //
 // ┌─ 快速跳转 ───────────────────────────────────────────────────────────────────┐
-// │  §1  key 规约            → L47    dirKey / fileKey                            │
-// │  §2  主文件优先级         → L57    MAIN_FILE_RANK_* / mainFileRank             │
-// │  §3  FSA 授权持久化      → L90    restore/reauthorize/rescan FSA handle        │
-// │  §4  模型库扫描           → L230   scanWebModels / scanAllWebModels            │
-// │  §5  文件读取            → L280   readWebFile                                   │
-// │  §6  NBT/体素 meta 读取   → L293   readVoxelJson / readNbtMetaJson             │
-// │  §7  pack/shaderpack 读取 → L352   readPackMetaJson / readShaderpackLangJson   │
-// │  §8  路径解析            → L396   parseWebModelPath / parseWebModelDir        │
-// │  §9  列表                → L424   listWebModelDirFiles                        │
-// │  §10 搜索                → L457  searchWebModels                               │
-// │  §11 重命名              → L553  assertValidRenameName / renameWebDir/File    │
-// │  §12 删除               → L569  deleteWebModel                                 │
-// │  §13 移动/复制          → L673  rekeyWebModelGroup / moveOrCopyWebModel       │
-// │  §14 子目录映射          → L795  getWebSubDirMap / collectAllWebEntries        │
-// │  §15 导入分组            → L816  importWebFiles / expandZipFiles / stem helpers│
-// │  §16 binding 装配        → L1102 webFsBindings（Top 6 注册表驱动）            │
+// │  §1  key 规约 + 主文件优先级 → web-fs-shared.ts                               │
+// │  §3  FSA 授权持久化      → web-fs-auth.ts                                    │
+// │  §4  模型库扫描           → 下文    scanWebModels / scanAllWebModels           │
+// │  §5  文件读取            → 下文    readWebFile                                 │
+// │  §6  NBT/体素 meta 读取   → 下文    readVoxelJson / readNbtMetaJson           │
+// │  §7  pack/shaderpack 读取 → 下文    readPackMetaJson / readShaderpackLangJson │
+// │  §8  路径解析            → 下文    parseWebModelPath / parseWebModelDir       │
+// │  §9  列表                → 下文    listWebModelDirFiles                       │
+// │  §10 搜索                → 下文    searchWebModels                            │
+// │  §11 重命名              → 下文    assertValidRenameName / renameWebDir/File  │
+// │  §12 删除               → 下文    deleteWebModel                              │
+// │  §13 移动/复制          → 下文    rekeyWebModelGroup / moveOrCopyWebModel    │
+// │  §14 子目录映射          → 下文    getWebSubDirMap / collectAllWebEntries     │
+// │  §15 导入分组            → web-fs-import.ts                                   │
+// │  §16 binding 装配        → 下文    webFsBindings（Top 6 注册表驱动）           │
 // └──────────────────────────────────────────────────────────────────────────────┘
 import { idbGet, idbSet, idbKeys, idbDel } from "./idb.ts";
 import { safeErrorMessage } from "../utils/safe-error-msg.ts";
@@ -31,17 +33,10 @@ import type { ModelEntry } from "../../bindings/ysm-model-manager/go/types/model
 // 避免 browser-adapter 另起一套扩展名校验导致漂移
 import resourceTypesJson from "../../../resource_types.json" with { type: "json" };
 // rtype 魔法字符串统一走 RESOURCE_TYPES 常量（治理红线 R7）
-import { RESOURCE_TYPES } from "../utils/resource/types.ts";
-import { currentRepoType } from "../features/repo-rtype.ts";
-// ADR-066 识别层对齐：RESOURCE_EXTS（resource_types.json 派生）驱动主文件判定，
-// 让网页版模型库显示全类型（.nbt/.schematic/.litematic/.pmx/.pmd/.vrca/.vrm），
-// 不再 YSM 单类型硬编码（原 mainFileRank 只认 .ysm/.zip/ysm.json）
-import { RESOURCE_EXTS } from "../utils/resource/extensions.ts";
-import { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64, base64ToBytes, parseWebPath, parseWebDirPath, webDirType, isWebPath } from "./web-common.ts";
-// R2 导入增强：ZIP 解压（extractZip 解出文件 + gbkDecodeEntry 还原中文名）；
-// detectZipType 供 DetectResourceType 歧义容器内容指纹（ADR-066 web 识别层）
-import { extractZip, gbkDecodeEntry, detectZipType } from "./extract.ts";
-import { resolveTypeSafe } from "../utils/resource/types.ts";
+import { RESOURCE_TYPES, resolveTypeSafe } from "../utils/resource/types.ts";
+import { arrayBufferToBase64, base64ToBytes, parseWebPath, parseWebDirPath, webDirType, isWebPath, WEB_ROOT } from "./web-common.ts";
+// R2 导入增强：detectZipType 供 DetectResourceType 歧义容器内容指纹（ADR-066 web 识别层）
+import { extractZip, detectZipType } from "./extract.ts";
 // ADR-070 M1：蓝图/投影 meta 读取（NBT 解析 + 三个视图提取，TS 平移 go/litematic/parser.go）
 import { parseNbtRoot, litematicMetaView, nbtStructureView, schematicSummaryView } from "./nbt-parse.ts";
 // ADR-070 M2：蓝图/投影 voxel 读取（TS 平移 go/litematic/voxel.go；parseNbtRootExact 提供
@@ -63,191 +58,20 @@ import {
 // ADR-071 #6：SearchModels 数值条件的统计来源 —— Web Worker 批量统计
 // （Worker 内独立加载 WASM + open IndexedDB，主线程零解析负载；不可用/失败降级）
 import { batchStatsWebModels, type WebModelStats } from "./web-stats.ts";
+// 拆分子模块（ADR-040 职责切分延续）
+import { dirKey, fileKey, mainFileRank, MAIN_FILE_RANK_NONE, MAIN_FILE_RANK_TYPE } from "./web-fs-shared.ts";
+import { getFsaAuthState, reauthorizeFsaRoot, rescanFsaRoot, selectLocalRepo } from "./web-fs-auth.ts";
 
-// ===== §1 key 规约（dir:*: / file:*: 前缀，ADR-177 对齐）=====
-// --- key 规约（对齐 MikuMikuAR ADR-177：dir:*: / file:*: 前缀）---
-const dirKey = (type: string, name: string): string => `dir:${type}/${name}:`;
-const fileKey = (type: string, name: string, rel: string): string =>
-  `file:${type}/${name}/${rel}`;
+// 公共 API 原路径透出（browser-adapter / web-store / web-community 消费面零改动）：
+// importWebFiles 主文件不再直接消费（FSA 入库走 web-fs-auth），仅门面转出
+export { importWebFiles } from "./web-fs-import.ts";
+export { getFsaAuthState, reauthorizeFsaRoot, rescanFsaRoot, selectLocalRepo } from "./web-fs-auth.ts";
+
+// ===== §1 key 规约 → web-fs-shared.ts =====
 
 /** 从 /web/<type>/... 提取类型段（ScanModelEntries 参数语义） */
 export function typeFromWebDir(dir: string): string {
   return webDirType(dir) || RESOURCE_TYPES.YSM;
-}
-
-// ===== §2 主文件优先级（注册表驱动，ADR-066）=====
-// --- 主文件优先级（scanWebModels / importWebFiles 共用）---
-// ADR-066 识别层对齐 Go scanner：主文件判定注册表驱动——每类型注册表扩展名都是
-// 该类型主文件；.json 仅 ysm.json（IsYsmEntryJSON 口径）；.ysm/.zip 为 YSM 主文件
-// （多文件模型竞争时优先）。原实现只认 .ysm/.zip/ysm.json，蓝图/投影/MMD/VRC
-// 的 .nbt/.schematic/.litematic/.pmx/.pmd/.vrca/.vrm 全被归为辅助文件不显示。
-const MAIN_FILE_RANK_YSM = 3;
-const MAIN_FILE_RANK_JSON = 2;
-const MAIN_FILE_RANK_TYPE = 1; // 其他类型主文件（注册表扩展名，.json 除外）
-const MAIN_FILE_RANK_NONE = 0;
-
-/** 注册表主文件扩展名集合（全类型，.json 除外——仅 ysm.json 是主文件） */
-const TYPE_MAIN_EXTS: Set<string> = (() => {
-  const s = new Set<string>();
-  for (const exts of Object.values(RESOURCE_EXTS)) {
-    for (const e of exts) {
-      if (e !== ".json") s.add(e.toLowerCase());
-    }
-  }
-  return s;
-})();
-
-/** 主文件优先级打分（注册表驱动：YSM .ysm/.zip > ysm.json > 其他类型主文件 > 辅助文件）。
- * 不剥 .ban/.disabled——禁用模型在导入层即被拒（与 Go 导入层拒绝 .ban 一致）。 */
-function mainFileRank(rel: string): number {
-  const low = rel.toLowerCase();
-  const dot = low.lastIndexOf(".");
-  const ext = dot > 0 ? low.slice(dot) : "";
-  if (ext === ".json") return low === "ysm.json" ? MAIN_FILE_RANK_JSON : MAIN_FILE_RANK_NONE;
-  if (ext === ".ysm" || ext === ".zip") return MAIN_FILE_RANK_YSM;
-  if (TYPE_MAIN_EXTS.has(ext)) return MAIN_FILE_RANK_TYPE;
-  return MAIN_FILE_RANK_NONE;
-}
-
-// ===== §3 FSA 授权持久化（网页版本地仓库目录授权）=====
-// --- FSA 授权本地仓库（网页版文件来源桥接，替代 Go 本地文件系统扫描）---
-// 对齐 MikuMikuAR browser-adapter 的 [doc:adr-177] 方案：网页版无本地文件系统，
-// 用 File System Access API 让用户手动授权本地目录，递归扫 .ysm 写入 IndexedDB，
-// 作为模型库「文件来源」（ADR-049 能力门控缺口补齐）。
-// 复用已有 importWebFiles（File → IDB 落库），不重复造 IDB 写入逻辑。
-interface _FsaDirHandle {
-  name: string;
-  values(): AsyncIterableIterator<FileSystemHandle>;
-}
-
-// ===== FSA 根目录句柄持久化（R2 数据互通，参照 MikuMikuAR ADR-180/183）=====
-// 网页版重启后浏览器不会自动保留 FSA 授权，但 FileSystemDirectoryHandle 可
-// 结构化克隆存入 IndexedDB（原生支持）——下次启动 queryPermission 恢复授权，
-// 免用户重新选目录。设计要点：
-//   - restoreFsaRootHandle：仅 queryPermission 恢复，绝不 requestPermission
-//     （后者须用户手势，启动期无手势会被浏览器拦截）
-//   - getFsaAuthState：权限三态判定（unsupported/none/granted/revoked），供 UI 引导
-//   - reauthorizeFsaRoot：须在用户手势内调用（confirm 点击），主动 requestPermission
-const FSA_ROOT_KEY = "fsaRootHandle";
-
-/** FSA 授权状态（供 UI 启动引导，不触发权限弹窗） */
-export type FsaAuthState = "unsupported" | "none" | "granted" | "revoked";
-
-/** 持久化根目录句柄（用户手势内调用，showDirectoryPicker 后落库） */
-async function saveFsaRootHandle(h: unknown): Promise<void> {
-  try {
-    await idbSet("config", FSA_ROOT_KEY, h);
-  } catch {
-    // 句柄结构化克隆失败（罕见）→ 仅本次调用用局部 handle，后续会话需重新授权
-  }
-}
-
-/** 从 IndexedDB 恢复持久化句柄（仅 queryPermission，启动自愈；失败/null → 降级手动重选） */
-async function restoreFsaRootHandle(): Promise<unknown> {
-  const h = await idbGet<unknown>("config", FSA_ROOT_KEY);
-  if (!h) return null;
-  const permHandle = h as FileSystemDirectoryHandle & {
-    queryPermission?: (o: { mode: "readwrite" }) => Promise<PermissionState>;
-  };
-  if (typeof permHandle.queryPermission === "function") {
-    try {
-      if ((await permHandle.queryPermission({ mode: "readwrite" })) === "granted") {
-        return h;
-      }
-    } catch {
-      /* 句柄失效（权限撤销/隐私模式）→ 降级手动重选 */
-    }
-  }
-  // 不支持 queryPermission 的旧实现：保守不自动恢复，避免静默失败
-  return null;
-}
-
-/** 查询根目录授权状态（不触发权限弹窗） */
-export async function getFsaAuthState(): Promise<FsaAuthState> {
-  if (typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker !== "function") {
-    return "unsupported";
-  }
-  const h = await idbGet<unknown>("config", FSA_ROOT_KEY);
-  if (!h) return "none";
-  const permHandle = h as FileSystemDirectoryHandle & {
-    queryPermission?: (o: { mode: "readwrite" }) => Promise<PermissionState>;
-  };
-  if (typeof permHandle.queryPermission === "function") {
-    try {
-      return (await permHandle.queryPermission({ mode: "readwrite" })) === "granted"
-        ? "granted"
-        : "revoked";
-    } catch {
-      return "revoked";
-    }
-  }
-  return "revoked"; // 老实现不支持 queryPermission，保守视为需重选
-}
-
-/** 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true */
-export async function reauthorizeFsaRoot(): Promise<boolean> {
-  const h = await idbGet<unknown>("config", FSA_ROOT_KEY);
-  if (!h) return false;
-  const permHandle = h as FileSystemDirectoryHandle & {
-    requestPermission?: (o: { mode: "readwrite" }) => Promise<PermissionState>;
-  };
-  if (typeof permHandle.requestPermission !== "function") return false;
-  try {
-    if ((await permHandle.requestPermission({ mode: "readwrite" })) === "granted") {
-      return true;
-    }
-  } catch {
-    /* 用户拒绝 / 句柄失效 */
-  }
-  return false;
-}
-
-/** 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） */
-export async function rescanFsaRoot(): Promise<{ ok: boolean; imported: number; failed: number; dir: string }> {
-  const h = await restoreFsaRootHandle();
-  if (!h) return { ok: false, imported: 0, failed: 0, dir: "" };
-  return scanFsaHandle(h);
-}
-
-/** 扫描 FSA 目录句柄 → importWebFiles 落库（selectLocalRepo / rescanFsaRoot 共用） */
-async function scanFsaHandle(handle: unknown): Promise<{ ok: boolean; imported: number; failed: number; dir: string }> {
-  const files: File[] = [];
-  await _collectModelFiles(handle as _FsaDirHandle, files);
-  const { imported, failed } = await importWebFiles(files, currentRepoType());
-  return { ok: true, imported, failed, dir: (handle as _FsaDirHandle).name };
-}
-
-/** 递归遍历目录句柄，收集所有 .ysm 文件的 File 句柄 */
-async function _collectModelFiles(
-  dir: _FsaDirHandle,
-  out: File[],
-): Promise<void> {
-  for await (const entry of dir.values()) {
-    if (entry.kind === "directory") {
-      await _collectModelFiles(entry as unknown as _FsaDirHandle, out);
-    } else if (entry.kind === "file") {
-      const f = entry as FileSystemFileHandle;
-      if (mainFileRank(f.name) > MAIN_FILE_RANK_NONE) {
-        const file = await f.getFile();
-        out.push(file);
-      }
-    }
-  }
-}
-
-/**
- * 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。
- * 必须在用户手势中调用（FSA 要求）。无 FSA 能力时抛明确错误。
- * 返回 { ok, imported, failed, dir }，dir 为授权目录名（供 UI 展示状态）。
- */
-export async function selectLocalRepo(): Promise<{ ok: boolean; imported: number; failed: number; dir: string }> {
-  if (typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker !== "function") {
-    throw new WebUnsupportedError(t("webFs.fsaUnsupported"));
-  }
-  const handle = (await (window as unknown as { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker());
-  // R2 持久化：句柄结构化克隆落库，下次启动无手势 queryPermission 自愈免重选
-  await saveFsaRootHandle(handle);
-  return scanFsaHandle(handle);
 }
 
 // ===== §4 模型库扫描 =====
@@ -861,373 +685,6 @@ export async function collectAllWebEntries(): Promise<ModelEntry[]> {
     all.push(...entries);
   }
   return all;
-}
-
-/**
- * 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。
- * UI 入口（拖拽区/导入按钮）由 Phase 3 能力门控接入；本函数独立可测。
- * 返回 {imported, failed} 供调用方提示。
- *
- * 过滤与分组（对齐桌面 dnd-shared 白名单 + import-dnd 100MB 上限）：
- * - 多文件模型按 stem 分组：文件夹拖入扁平化后，同 stem（webkitRelativePath 首段
- *   或去扩展名 basename）的辅助文件（avatar.png / main.json / tex_*.png）并入该模型，
- *   仅主文件建 dir 条目 → 消灭「每文件独立成模型」的碎片化
- * - 组内须存在主文件（.ysm / ysm.json），否则整组失败（散落 .txt/.png/任意 json
- *   无主文件 → 明确 failed 提示，而非假成功入库）
- * - .zip 视为模型主文件（与 .ysm 同属 ZIP 容器，WASM 解码器直接处理），不拒绝
- * - 超出 100MB 跳过（对齐 import-dnd oversize 过滤）
- */
-
-/**
- * 检测 ZIP entries 是否共享公共顶层目录。
- * 例：["狐狸/ysm.json", "狐狸/models/main.json"] → "狐狸"
- *     ["ysm.json", "models/main.json"] → null（扁平，无公共顶层）
- */
-function findCommonTopDir(metas: Array<{ fflateKey: string }>): string | null {
-  const firstDir = metas[0]?.fflateKey.split("/")[0];
-  if (!firstDir) return null;
-  for (const m of metas) {
-    const d = m.fflateKey.split("/")[0];
-    if (d !== firstDir) return null;
-  }
-  return firstDir;
-}
-
-/**
- * 安全审计：zip entry 路径清洗——剥离路径穿越段（`..`）和空段，
- * 防止恶意 zip 条目名逃出 IndexedDB 模型组命名空间导致数据损坏。
- * 返回 null 表示路径全部由无效段组成（如纯 `../..`），调用方应跳过该条目。
- */
-function sanitizeZipEntryPath(name: string): string | null {
-  // 拆分路径段，过滤 `.` 和 `..`（`..` 为路径穿越攻击，必须拒绝）
-  const parts = name.split(/[\/\\]/);
-  const safe: string[] = [];
-  for (const p of parts) {
-    if (p === ".." || p === "") continue; // 跳过空段和父目录引用
-    safe.push(p);
-  }
-  if (safe.length === 0) return null;
-  return safe.join("/");
-}
-
-/**
- * R2 导入增强：把输入里的 .zip 文件解压展平成目录文件，返回新的 File[]。
- * - .zip → extractZip 解出 entries（带相对路径），转成带 webkitRelativePath 的 File[]，
- *   复用文件夹拖入的「同 stem 分组 + 主文件目录收敛」语义，rel 保留子目录层级
- * - 非 .zip / .ysm → 原样透传（.ysm 保持整体，WASM 解码器直接处理）
- * - 解压失败（非标准 zip / 超限）→ 保留原 zip 单个文件（走「zip 当主文件」兜底），不阻断
- * - ADR-066 审计缺口 #3：解压后**无主文件**（如资源包 zip 解出 pack.mcmeta + data/，
- *   均非主文件扩展名）→ 保留原 zip 整体当主文件（救回 resourcepack/shaderpack 导入，
- *   原实现整组 failed imported=0）
- */
-async function expandZipFiles(files: File[]): Promise<File[]> {
-  const out: File[] = [];
-  for (const f of files) {
-    if (!/\.zip$/i.test(f.name) || f.size > MAX_IMPORT_BYTES) {
-      out.push(f);
-      continue;
-    }
-    try {
-      const data = new Uint8Array(await f.arrayBuffer());
-      const { entries, metas } = extractZip(data);
-      if (!metas.length) {
-        out.push(f);
-        continue;
-      }
-      // 安全审计：先用 sanitizeZipEntryPath 清洗路径，再判断公共前缀
-      // 避免恶意 zip 的 `..` 段干扰 findCommonTopDir（CodeReview 第五轮发现）
-      const sanitizedMetas = metas.map((m) => {
-        const { realName } = gbkDecodeEntry(m);
-        return { fflateKey: realName ? (sanitizeZipEntryPath(realName) ?? "") : "", _meta: m };
-      }).filter((m) => m.fflateKey !== "");
-      // 检测 zip 内是否有公共顶层目录（如 "狐狸/ysm.json" → 公共前缀 "狐狸/"）
-      // 扁平 zip（"ysm.json" + "models/main.json"）无公共前缀 → 用 zipStem 防碎片化
-      const topLevelDir = findCommonTopDir(sanitizedMetas);
-      const prefix = topLevelDir ? "" : f.name.replace(/\.zip$/i, "");
-      const expanded: File[] = [];
-      for (const sm of sanitizedMetas) {
-        const m = sm._meta;
-        const raw = entries[m.fflateKey];
-        if (!raw) continue;
-        const sanitized = sm.fflateKey; // 已清洗路径
-        // webkitRelativePath：有公共前缀则保留原样；扁平 zip 用 zipStem 作公共前缀
-        // slice() 两用：① TS 泛型 Uint8Array<ArrayBufferLike>→Uint8Array<ArrayBuffer> 过 BlobPart 类型关；
-        // ② 隔离 entries[m.fflateKey] 底层 buffer，防 File 与 entries 共享后被改写（内容竞态）
-        const wf = new File([raw.slice()], sanitized.split("/").pop() || sanitized, {
-          type: "application/octet-stream",
-        });
-        Object.defineProperty(wf, "webkitRelativePath", { value: prefix ? `${prefix}/${sanitized}` : sanitized });
-        expanded.push(wf);
-      }
-      // 解压空/无有效文件，或解压后无主文件（资源包/光影包 zip）→ 保留原 zip 整体当主文件
-      if (expanded.length === 0 || !expanded.some((wf) => mainFileRank(wf.name) >= MAIN_FILE_RANK_TYPE)) {
-        out.push(f);
-      } else {
-        out.push(...expanded);
-      }
-      // GBK 中文名降级提示：gpf 未设时 fflateKey 为 Latin-1 乱码，
-      // 前端无 GBK 码表无法解码真名——仅 dev 日志，用户端用 modelPath 不影响预览
-      if (metas.length > 0 && metas.some((m) => !m.gpfUtf8)) {
-        console.warn("[web] ZIP 含非 UTF-8 文件名（可能为 GBK），解压后文件名以 fflateKey 原值入库（中文可能乱码）");
-      }
-    } catch {
-      out.push(f); // 解压失败 → 降级为整体入库，不阻断
-    }
-  }
-  return out;
-}
-
-// ===================================================================
-// importWebFiles — 子函数类型与工具
-// ===================================================================
-
-/** 已写入 key + 先前是否存在（P3 回滚精度护栏） */
-type WrittenKey = { key: string; preExisted: boolean };
-
-/**
- * [子函数 1/6] .7z 过滤：网页版不支持 7z 解压，剔除并提示。
- * 返回过滤后的 File[]（不改入参 files）。
- */
-function filterSevenZ(files: File[]): File[] {
-  const sevenZCount = files.filter((f) => f.name.toLowerCase().endsWith(".7z")).length;
-  if (sevenZCount > 0) {
-    console.warn(`[web-fs] ${sevenZCount} 个 .7z 文件已跳过（网页版暂不支持 .7z 解压）`);
-    return files.filter((f) => !f.name.toLowerCase().endsWith(".7z"));
-  }
-  return files;
-}
-
-/**
- * [子函数 2/6] 阶段1 粗分组：按 roughStemOf（首段目录或去扩展名 basename）聚堆。
- * 返回 { rough, failed }：无有效 stem / 抛异常的文件计入 failed。
- */
-function buildRoughGroups(expanded: File[]): { rough: Map<string, File[]>; failed: number } {
-  const rough = new Map<string, File[]>();
-  let failed = 0;
-  for (const f of expanded) {
-    try {
-      const key = roughStemOf(f);
-      if (!key) {
-        failed++;
-        continue;
-      }
-      const arr = rough.get(key);
-      if (arr) arr.push(f);
-      else rough.set(key, [f]);
-    } catch {
-      failed++;
-    }
-  }
-  return { rough, failed };
-}
-
-/**
- * [子函数 3/6] 阶段2 细分组：粗组 → 主文件目录集合 → 按 assignMainDir 归属精分组。
- * 无目录主文件时回退「basenameStem 单文件分组」。
- */
-function buildFinalGroups(rough: Map<string, File[]>): Map<string, File[]> {
-  const groups = new Map<string, File[]>();
-  for (const [, rg] of rough) {
-    // 主文件目录集合（rank>=TYPE 且未超限，超限主文件不参与定组）
-    const mainDirs = new Set<string>();
-    for (const f of rg) {
-      if (mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE && f.size <= MAX_IMPORT_BYTES) {
-        const d = fsaDirOf(f);
-        if (d) mainDirs.add(d);
-      }
-    }
-    if (mainDirs.size === 0) {
-      // 无目录主文件（纯 basename 拖入 / 顶层文件）：退化单文件分组
-      for (const f of rg) {
-        const stem = basenameStem(f);
-        const arr = groups.get(stem);
-        if (arr) arr.push(f);
-        else groups.set(stem, [f]);
-      }
-      continue;
-    }
-    for (const f of rg) {
-      const d = assignMainDir(f, mainDirs);
-      const stem = d ?? roughStemOf(f);
-      const arr = groups.get(stem);
-      if (arr) arr.push(f);
-      else groups.set(stem, [f]);
-    }
-  }
-  return groups;
-}
-
-/**
- * [子函数 4/6] 组有效性前置校验：
- *   - 组内存在任一主文件（散杂物→整组失败）
- *   - 至少有 1 个主文件未超限（全部超限→不写任何东西，防新旧混合）
- * 通过返回 true；失败时调用方负责把 group.length 计入 failed。
- */
-function validateGroupHasUsableMain(group: File[]): boolean {
-  let hasMain = false;
-  for (const f of group) {
-    if (mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE) {
-      hasMain = true;
-      break;
-    }
-  }
-  if (!hasMain) return false;
-  return group.some(
-    (f) => mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE && f.size <= MAX_IMPORT_BYTES,
-  );
-}
-
-/**
- * [子函数 5/6] 组写入主流程：遍历文件落 IDB → 写 dirKey 目录条目。
- * 返回 { success, fileFails }。success=false 表示无任何文件写入。
- * writtenKeys 为调用方传入的**累积器**（out-param）：每次写入成功即 push，
- * 中途抛错时调用方 catch 仍能拿到已落盘的 key 做回滚（若用局部数组只在成功路径
- * 返回，idbSet 中途抛错会丢——P2 回归：回滚 no-op 留下孤儿条目）。
- */
-async function writeGroupFiles(
-  group: File[],
-  type: string,
-  stem: string,
-  writtenKeys: WrittenKey[],
-): Promise<{ success: boolean; fileFails: number }> {
-  let wrote = false;
-  let fileFails = 0;
-
-  for (const f of group) {
-    if (f.size > MAX_IMPORT_BYTES) {
-      fileFails++;
-      continue;
-    }
-    const data = await f.arrayBuffer();
-    const k = fileKey(type, stem, relOf(f, stem));
-    const preExisted = (await idbGet("files", k)) !== undefined;
-    await idbSet("files", k, {
-      data,
-      size: data.byteLength,
-      mime: f.type || "application/octet-stream",
-    });
-    writtenKeys.push({ key: k, preExisted });
-    wrote = true;
-  }
-
-  if (!wrote) return { success: false, fileFails };
-
-  const dk = dirKey(type, stem);
-  const dkPreExisted = (await idbGet("files", dk)) !== undefined;
-  await idbSet("files", dk, { name: stem, addedAt: Date.now() });
-  writtenKeys.push({ key: dk, preExisted: dkPreExisted });
-
-  return { success: true, fileFails };
-}
-
-/**
- * [子函数 6/6] 组失败回滚（P2/P3 精度护栏）：
- * 仅删 preExisted=false 的本次新建 key；回滚失败静默——已处于失败路径，不改变结局。
- */
-async function rollbackWrittenKeys(writtenKeys: WrittenKey[]): Promise<void> {
-  for (const { key, preExisted } of writtenKeys) {
-    if (preExisted) continue;
-    try {
-      await idbDel("files", key);
-    } catch {
-      /* best-effort */
-    }
-  }
-}
-
-// ===================================================================
-// importWebFiles — 主函数
-// ===================================================================
-
-// ===== §15 导入分组（expandZipFiles + 粗/细分组 + stem helpers）=====
-export async function importWebFiles(
-  files: File[],
-  type: string,
-): Promise<{ imported: number; failed: number }> {
-  // 阶段1：.7z 过滤（网页版不支持）+ ZIP 展平为目录文件数组
-  const cleanFiles = filterSevenZ(files);
-  let imported = 0;
-  let failed = 0;
-  const expanded = await expandZipFiles(cleanFiles);
-
-  // 阶段2：粗分组（按 top-dir / basename 首段）
-  const { rough, failed: roughFailed } = buildRoughGroups(expanded);
-  failed += roughFailed;
-
-  // 阶段3：细分组（按主文件目录收敛，最长匹配胜）
-  const groups = buildFinalGroups(rough);
-
-  // 阶段4-6：逐组 校验 → 写入 → 回滚
-  for (const [stem, group] of groups) {
-    if (!validateGroupHasUsableMain(group)) {
-      failed += group.length;
-      continue;
-    }
-    // writtenKeys 累积器传入 writeGroupFiles（out-param）：每次写入成功即 push，
-    // 中途抛错时 catch 仍能拿到已落盘的 key 做回滚（若在 writeGroupFiles 内用局部
-    // 数组只在成功路径返回，idbSet 中途抛错会丢——P2 回归：回滚 no-op 留下孤儿条目）。
-    const writtenKeys: WrittenKey[] = [];
-    try {
-      const result = await writeGroupFiles(group, type, stem, writtenKeys);
-      if (!result.success) {
-        failed += group.length;
-        continue;
-      }
-      imported++;
-      failed += result.fileFails;
-    } catch {
-      // P2/P3 护栏：回滚 writtenKeys 中「本次新建」的条目，保留旧数据不被误删
-      await rollbackWrittenKeys(writtenKeys);
-      failed += group.length;
-    }
-  }
-
-  return { imported, failed };
-}
-
-/**
- * 粗分组键（阶段1）：webkitRelativePath 首段（文件夹拖入）或去扩展名 basename（单文件拖入）。
- */
-function roughStemOf(f: File): string {
-  const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
-  if (rel) {
-    const top = rel.split("/")[0];
-    if (top) return top;
-  }
-  return basenameStem(f);
-}
-
-/** 去扩展名 basename（纯 basename 分组 / 单文件拖入场景的组名） */
-function basenameStem(f: File): string {
-  return f.name.replace(/\.\w+$/, "");
-}
-
-/** 文件所在目录（webkitRelativePath 去文件名，可多段）；无相对路径或顶层文件 → null */
-function fsaDirOf(f: File): string | null {
-  const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
-  if (!rel) return null;
-  const dir = rel.split("/").slice(0, -1).join("/");
-  return dir || null;
-}
-
-/** 归属判定（阶段2）：文件所在目录包含于某主文件目录 → 归该组（最长者胜）；否则 null */
-function assignMainDir(f: File, mainDirs: Set<string>): string | null {
-  const d = fsaDirOf(f);
-  if (!d) return null;
-  let best: string | null = null;
-  for (const m of mainDirs) {
-    if (d === m || d.startsWith(`${m}/`)) {
-      if (!best || m.length > best.length) best = m;
-    }
-  }
-  return best;
-}
-
-/** 组内文件相对模型目录的路径：webkitRelativePath 去掉 stem 前缀（保留子目录层级）；无相对路径时用 basename */
-function relOf(f: File, stem: string): string {
-  const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
-  if (rel && rel.startsWith(`${stem}/`)) return rel.slice(stem.length + 1);
-  return f.name;
 }
 
 // ===== §16 binding 装配（browser-adapter.ts 消费入口）=====
