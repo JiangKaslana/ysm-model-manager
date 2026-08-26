@@ -38,7 +38,7 @@
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
 | `texture_cache/` | 纹理缓存管理（KTX2/PNG 缓存，支持后台编码与快速命中） 〔源码 1: texture_cache.go · 测试 2〕 |
 | `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 7〕 |
-| `types/` | 共享类型 + 注册表 〔源码 8: bedrock.go classify.go config.go extensions.go findinst.go location.go resource.go types.go · 测试 17 · 子目录 1: testdata/〕 |
+| `types/` | 共享类型 + 注册表 〔源码 8: bedrock.go classify.go config.go extensions.go findinst.go location.go resource.go types.go · 测试 18 · 子目录 1: testdata/〕 |
 | `updater/` | 自动更新 〔源码 3: updater.go updater_other.go updater_windows.go · 测试 8〕 |
 | `version/` | 版本号 〔源码 1: version.go · 测试 1〕 |
 | `watcher/` | 文件监听 〔源码 1: watcher.go · 测试 2〕 |

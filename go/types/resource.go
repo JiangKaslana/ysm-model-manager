@@ -284,6 +284,84 @@ func validateRegistrySchema(reg *ResourceTypeRegistry) []string {
 		}
 	}
 
+	// 守卫 4：裸扩展名 last-wins 防护——仅靠共享扩展名、无任何锚点/指纹/嵌套模式的类型
+	// 在收敛后的 ClassifyExt（多声明者→"other"）下无法被识别，是历史 last-wins 回归源。
+	// 仅当该类型确有「裸扩展名兜底」需求（无 location 锚点、无指纹、无嵌套模式）
+	// 且至少依赖一个被多类型共享的扩展名时才告警——单一声明者的裸扩展名（如 .fbx）合法。
+	isNaked := func(rt ResourceType) bool {
+		hasAnchor := rt.StorageSubDir != "" || rt.InstanceDir != ""
+		hasFingerprint := len(rt.ZipEntries) > 0 ||
+			strings.EqualFold(rt.Detector, "ysm") ||
+			strings.EqualFold(rt.Detector, "mcmeta") ||
+			strings.EqualFold(rt.Detector, "shader") ||
+			strings.EqualFold(rt.Detector, "zipentry")
+		return !hasAnchor && !hasFingerprint && len(rt.NestedPatterns) == 0
+	}
+	for _, rt := range reg.ResourceTypes {
+		if !isNaked(rt) {
+			continue
+		}
+		for _, ext := range rt.EffectiveExtensions() {
+			if owners := ExtBelongsToBy(ext, reg); len(owners) > 1 {
+				violations = append(violations, fmt.Sprintf(
+					"类型 %s 仅靠裸扩展名 %s 识别（无 location 锚点/无指纹），且该扩展名被 %v 共享——last-wins 回归源，必须补锚点或指纹",
+					rt.ID, ext, owners))
+				break
+			}
+		}
+	}
+
+	// 守卫 5：共享 .zip 且 location 锚点碰撞的容器型必须显式 priority。
+	// 收敛后 tiebreak 为 (priority desc, id asc)，但 priority==0 仍隐含「同 priority 取 id」，
+	// 为消除「注册序兜底」遗留语义，要求碰撞组内的 .zip 容器型显式声明 priority。
+	// 典型碰撞：blueprint 与 litematic 共享 instanceDir="schematics" 且均声明 .zip。
+	anchorOwners := make(map[string]map[string]ResourceType) // anchor → typeID → ResourceType
+	for _, rt := range reg.ResourceTypes {
+		declaresZip := false
+		for _, e := range rt.EffectiveExtensions() {
+			if e == ".zip" {
+				declaresZip = true
+				break
+			}
+		}
+		if !declaresZip {
+			continue
+		}
+		containerCapable := len(rt.ZipEntries) > 0 ||
+			strings.EqualFold(rt.Detector, "ysm") ||
+			strings.EqualFold(rt.Detector, "mcmeta") ||
+			strings.EqualFold(rt.Detector, "shader") ||
+			strings.EqualFold(rt.Detector, "zipentry")
+		if !containerCapable {
+			continue
+		}
+		for _, a := range []string{rt.StorageSubDir, rt.InstanceDir} {
+			if a == "" {
+				continue
+			}
+			if anchorOwners[a] == nil {
+				anchorOwners[a] = make(map[string]ResourceType)
+			}
+			anchorOwners[a][rt.ID] = rt
+		}
+	}
+	for anchor, owners := range anchorOwners {
+		if len(owners) < 2 {
+			continue
+		}
+		ids := make([]string, 0, len(owners))
+		for id := range owners {
+			ids = append(ids, id)
+		}
+		for id, rt := range owners {
+			if rt.Priority == 0 {
+				violations = append(violations, fmt.Sprintf(
+					"类型 %s 与 %v 共享 location 锚点 %q 且均声明 .zip——必须显式 priority 以消除注册序兜底",
+					id, ids, anchor))
+			}
+		}
+	}
+
 	return violations
 }
 

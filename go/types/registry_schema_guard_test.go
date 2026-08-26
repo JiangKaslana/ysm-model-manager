@@ -180,3 +180,83 @@ func TestSchemaGuard_ConcurrentLoadNoPanic(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// ===== 守卫 4：裸扩展名 last-wins 防护 =====
+
+func TestSchemaGuard_NakedSharedExt_Warns(t *testing.T) {
+	payload := `{
+		"resourceTypes": [
+			{"id": "naked", "name": "裸类型", "group": "g", "extensions": [".shared"], "detector": "extension"},
+			{"id": "other", "name": "其他", "group": "g", "storageSubDir": "other", "extensions": [".shared"]}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if !hasViolation(violations, "naked") || !hasViolation(violations, "last-wins 回归源") {
+		t.Fatalf("期望裸共享扩展名违规，实际: %v", violations)
+	}
+}
+
+func TestSchemaGuard_NakedUniqueExt_NoWarn(t *testing.T) {
+	payload := `{
+		"resourceTypes": [
+			{"id": "solo", "name": "独占", "group": "g", "extensions": [".solo"], "detector": "extension"}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if hasViolation(violations, "last-wins 回归源") {
+		t.Fatalf("单一声明者裸扩展名不应触发违规，实际: %v", violations)
+	}
+}
+
+func TestSchemaGuard_AnchoredSharedExt_NoWarn(t *testing.T) {
+	payload := `{
+		"resourceTypes": [
+			{"id": "a", "name": "A", "group": "g", "storageSubDir": "a", "extensions": [".shared"]},
+			{"id": "b", "name": "B", "group": "g", "storageSubDir": "b", "extensions": [".shared"]}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if hasViolation(violations, "last-wins 回归源") {
+		t.Fatalf("有锚点的共享扩展名不应触发裸扩展名违规，实际: %v", violations)
+	}
+}
+
+// ===== 守卫 5：共享 .zip 锚点碰撞需显式 priority =====
+
+func TestSchemaGuard_SharedZipAnchorNeedsPriority_Warns(t *testing.T) {
+	payload := `{
+		"resourceTypes": [
+			{"id": "bp", "name": "蓝图", "group": "g", "instanceDir": "schematics", "extensions": [".zip"], "detector": "zipentry", "zipEntries": [{"name": ".nbt", "match": "suffix"}]},
+			{"id": "lm", "name": "投影", "group": "g", "instanceDir": "schematics", "extensions": [".zip"], "detector": "zipentry", "zipEntries": [{"name": ".litematic", "match": "suffix"}]}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if !hasViolation(violations, "bp") || !hasViolation(violations, "必须显式 priority") {
+		t.Fatalf("期望共享 .zip 锚点缺 priority 违规，实际: %v", violations)
+	}
+}
+
+func TestSchemaGuard_SharedZipAnchorWithPriority_NoWarn(t *testing.T) {
+	payload := `{
+		"resourceTypes": [
+			{"id": "bp", "name": "蓝图", "group": "g", "instanceDir": "schematics", "priority": 5, "extensions": [".zip"], "detector": "zipentry", "zipEntries": [{"name": ".nbt", "match": "suffix"}]},
+			{"id": "lm", "name": "投影", "group": "g", "instanceDir": "schematics", "priority": 5, "extensions": [".zip"], "detector": "zipentry", "zipEntries": [{"name": ".litematic", "match": "suffix"}]}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if hasViolation(violations, "必须显式 priority") {
+		t.Fatalf("共享 .zip 锚点已显式 priority 不应触发违规，实际: %v", violations)
+	}
+}
+
+func TestSchemaGuard_UniqueZipAnchor_NoWarn(t *testing.T) {
+	payload := `{
+		"resourceTypes": [
+			{"id": "rp", "name": "资源包", "group": "g", "storageSubDir": "resourcepacks", "extensions": [".zip"], "detector": "mcmeta", "zipEntries": [{"name": "pack.mcmeta", "match": "suffix"}]}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if hasViolation(violations, "必须显式 priority") {
+		t.Fatalf("独占锚点的 .zip 类型不应触发违规，实际: %v", violations)
+	}
+}

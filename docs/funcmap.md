@@ -525,14 +525,14 @@
 | `YsmMetadata()` | `go/types/bedrock:79` | YsmMetadata ysm.json 的 metadata 段（模型详情：名称/许可/作者/链接）。 |
 | `YsmLicense()` | `go/types/bedrock:88` | YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}） |
 | `YsmAuthor()` | `go/types/bedrock:94` | YsmAuthor 作者条目 |
-| `ClassifyResource()` | `go/types/classify:37` | ClassifyResource 规范资源类型识别器（单一事实源）。 |
-| `ClassifyExt()` | `go/types/classify:63` | ClassifyExt 扩展名兜底判定：仅单一声明者直判，多/零声明者返回 "other"。 |
-| `ExtBelongsToBy()` | `go/types/classify:72` | ExtBelongsToBy 返回扩展名在指定注册表中的声明者 ID 列表（ExtBelongsTo 的可注入版本）。 |
-| `DetectByEntries()` | `go/types/classify:90` | DetectByEntries 条目名列表指纹裁决（importer 字节流路径专用，不开文件）： 对每个有指纹能力的类型做匹配，(priority desc, id asc) 裁 |
-| `IsYsmFile()` | `go/types/classify:277` | IsYsmFile YSM 模型判定：.ysm 直判；.json 仅 ysm.json 入口清单； .zip/.7z 统一开容器走段后缀指纹（ADR-082 续：坏容器 false |
-| `MatchZipArchive()` | `go/types/classify:292` | MatchZipArchive 打开容器并按 rt.ZipEntries 内容指纹匹配（packs.matchZipArchive 收敛版）。 |
-| `CountZipEntryMatches()` | `go/types/classify:297` | CountZipEntryMatches 对已打开条目统计匹配数（去重：同一文件被多条规则命中只计一次）。 |
-| `MatchYsmEntries()` | `go/types/classify:311` | MatchYsmEntries 对已打开条目做 ysm 段后缀指纹判定（ysm.json/models/ 任意层级）。 |
+| `ClassifyResource()` | `go/types/classify:38` | ClassifyResource 规范资源类型识别器（单一事实源）。 |
+| `ClassifyExt()` | `go/types/classify:64` | ClassifyExt 扩展名兜底判定：仅单一声明者直判，多/零声明者返回 "other"。 |
+| `ExtBelongsToBy()` | `go/types/classify:73` | ExtBelongsToBy 返回扩展名在指定注册表中的声明者 ID 列表（ExtBelongsTo 的可注入版本）。 |
+| `DetectByEntries()` | `go/types/classify:91` | DetectByEntries 条目名列表指纹裁决（importer 字节流路径专用，不开文件）： 对每个有指纹能力的类型做匹配，(priority desc, id asc) 裁 |
+| `IsYsmFile()` | `go/types/classify:278` | IsYsmFile YSM 模型判定：.ysm 直判；.json 仅 ysm.json 入口清单； .zip/.7z 统一开容器走段后缀指纹（ADR-082 续：坏容器 false |
+| `MatchZipArchive()` | `go/types/classify:293` | MatchZipArchive 打开容器并按 rt.ZipEntries 内容指纹匹配（packs.matchZipArchive 收敛版）。 |
+| `CountZipEntryMatches()` | `go/types/classify:298` | CountZipEntryMatches 对已打开条目统计匹配数（去重：同一文件被多条规则命中只计一次）。 |
+| `MatchYsmEntries()` | `go/types/classify:312` | MatchYsmEntries 对已打开条目做 ysm 段后缀指纹判定（ysm.json/models/ 任意层级）。 |
 | `ParseDedupConfig()` | `go/types/config:105` | ParseDedupConfig 解析去重配置 JSON 字符串（绑定层 configStr 的统一入口）。 |
 | `AppConfig()` | `go/types/config:10` | AppConfig 应用持久化配置 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"）， 取 |
 | `PackInfo()` | `go/types/config:50` | PackInfo 模型整合包信息（ysm-pack.json） |
@@ -578,25 +578,25 @@
 | `ResourceType.MatchZipEntry()` | `go/types/resource:119` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
 | `SetRegistryPath()` | `go/types/resource:154` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
 | `LoadRegistry()` | `go/types/resource:165` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
-| `BundledRegistryJSON()` | `go/types/resource:319` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
-| `RegistryType()` | `go/types/resource:326` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `ResourceTypeRegistry.FindByID()` | `go/types/resource:332` | FindByID 按 id 查找资源类型，不存在时返回 nil（深拷贝） |
-| `ModKeywordsFor()` | `go/types/resource:351` | ModKeywordsFor 从注册表查询资源类型的 mod 文件名关键词（ADR-110）：   - 类型自身有 mod.jarKeywords → 返回   - 类型无声明但所 |
-| `ModMetaFor()` | `go/types/resource:378` | ModMetaFor 从注册表查询内容检测型资源类型的 mod 信息（ADR-110）：   - 类型有 mod.modId → 返回 (modId, displayName) |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:393` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:489` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `BundledRegistryJSON()` | `go/types/resource:397` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
+| `RegistryType()` | `go/types/resource:404` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `ResourceTypeRegistry.FindByID()` | `go/types/resource:410` | FindByID 按 id 查找资源类型，不存在时返回 nil（深拷贝） |
+| `ModKeywordsFor()` | `go/types/resource:429` | ModKeywordsFor 从注册表查询资源类型的 mod 文件名关键词（ADR-110）：   - 类型自身有 mod.jarKeywords → 返回   - 类型无声明但所 |
+| `ModMetaFor()` | `go/types/resource:456` | ModMetaFor 从注册表查询内容检测型资源类型的 mod 信息（ADR-110）：   - 类型有 mod.modId → 返回 (modId, displayName) |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:471` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:567` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:25` | ResourceTypeRegistry 资源类型注册表 |
 | `ResourceType()` | `go/types/resource:30` | ResourceType 一种受支持的资源类型定义 |
 | `ModRequirement()` | `go/types/resource:63` | ModRequirement mod 依赖声明（ADR-110）：   - JarKeywords：文件名关键词匹配（如 "mmdskin" 匹配 mmdskin-1.0.jar） |
 | `Variant()` | `go/types/resource:72` | Variant 格式变体声明（ADR-111：variants 解耦）： 同一资源类型内不同格式变体的预览器路由。 |
 | `NestedPattern()` | `go/types/resource:93` | NestedPattern 嵌套模型模式配置（ADR-XXX）： 支持任意深度的嵌套路径检测，用于识别多层嵌套的模型结构。 |
 | `ZipEntryMatch()` | `go/types/resource:110` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
-| `FormatRange()` | `go/types/resource:387` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:478` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:496` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:513` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:519` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:527` | VoxelGroup 同一颜色的方块组 |
+| `FormatRange()` | `go/types/resource:465` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:556` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:574` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:591` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:597` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:605` | VoxelGroup 同一颜色的方块组 |
 | `StatusToLevel()` | `go/types/types:130` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
 | `AppError.WithCause()` | `go/types/types:178` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:184` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
