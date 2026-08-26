@@ -12,17 +12,7 @@ import { t } from "../../core/i18n/t.ts";
 import { esc as escUtil } from "../../utils/dom/html.ts";
 import type { WorkshopModel } from "../../features/community/render.ts";
 import { stripBanSuffix } from "../../utils/dom/display.ts";
-
-/** app-content 组件接口（供 github 初始化函数访问） */
-export interface AppContentHost {
-  _root: ShadowRoot;
-  _unsubs: Array<() => void>;
-  _globalUnsubs: Array<() => void>;
-  _repoEventsCleanup: (() => Promise<void>) | null;
-  _setRepoEventsCleanup(fn: (() => Promise<void>) | null): void;
-  _githubCache: Map<string, { models: WorkshopModel[]; source: string; localMap?: Map<string, string> }> | null;
-  _setGithubCache(cache: Map<string, { models: WorkshopModel[]; source: string; localMap?: Map<string, string> }>): void;
-}
+import type { AppContentHost } from "./init-workshop.ts";
 
 /**
  * 初始化 GitHub 页

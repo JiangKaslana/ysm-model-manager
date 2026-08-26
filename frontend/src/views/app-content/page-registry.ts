@@ -18,12 +18,13 @@ import {
   initGithubPage,
   initDiagnosticsPage,
 } from "./init-pages.ts";
+import type { AppContentHost } from "./init-workshop.ts";
 
 export interface PageDefinition {
   html: () => string;
-  // init 接收组件实例（调用方用 this as never 传入，与 init-pages.ts 接口对齐）。
+  // init 接收组件实例（统一 AppContentHost 接口，单一事实源在 init-workshop.ts）。
   // 可 async（如 settings）；调用方负责 reject 转 toast（ADR-044 ①异步范式）。
-  init: (host: never) => void | Promise<void>;
+  init: (host: AppContentHost) => void | Promise<void>;
 }
 
 export const PAGE_REGISTRY: Record<string, PageDefinition> = {

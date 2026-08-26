@@ -69,7 +69,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-content/init-workshop.ts` | 132 |
+| `frontend/src/views/app-content/init-workshop.ts` | 133 |
 
 ### `batch:disable`
 
@@ -311,7 +311,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-content/init-pages.ts` | 37 |
+| `frontend/src/views/app-content/init-pages.ts` | 32 |
 
 ### `repo:rtype-changed`
 
@@ -326,8 +326,8 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/features/repo-rtype.ts` | 23 |
-| `frontend/src/views/app-content/init-pages.ts` | 74 |
-| `frontend/src/views/app-content/init-pages.ts` | 183 |
+| `frontend/src/views/app-content/init-pages.ts` | 69 |
+| `frontend/src/views/app-content/init-pages.ts` | 178 |
 | `frontend/src/views/app-nav/index.ts` | 153 |
 | `frontend/src/views/app-sidebar/index.ts` | 399 |
 | `frontend/src/views/app-sync-manager/index.ts` | 171 |
@@ -525,8 +525,8 @@
 | `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 91 |
 | `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 282 |
 | `frontend/src/views/app-content/index.ts` | 169 |
-| `frontend/src/views/app-content/init-pages.ts` | 199 |
-| `frontend/src/views/app-content/init-pages.ts` | 254 |
+| `frontend/src/views/app-content/init-pages.ts` | 194 |
+| `frontend/src/views/app-content/init-pages.ts` | 249 |
 | `frontend/src/views/app-content/settings/init.ts` | 117 |
 | `frontend/src/views/app-content/settings/init.ts` | 149 |
 | `frontend/src/views/app-content/settings/init.ts` | 184 |

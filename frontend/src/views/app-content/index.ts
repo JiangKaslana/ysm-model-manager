@@ -41,7 +41,7 @@ import {
 
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { t } from "../../core/i18n/t.ts";
-import type { WorkshopSite } from "../../features/community/render.ts";
+import type { WorkshopSite } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 import { AppContentState, type RepoCacheEntry } from "./state.ts";
 import { SubscriptionBucket } from "./subscription-bucket.ts";
 import { PAGE_REGISTRY } from "./page-registry.ts";
@@ -151,7 +151,7 @@ class AppContent extends WebComponentBase {
       // 新增页面只需在 PAGE_REGISTRY 添加一行，init 自动执行（不再有死代码）。
       // async init（如 settings）显式挂 catch 出口（ADR-044 ①：reject 转 toast）；
       // 同步 init 抛错由外层 try/catch 统一兜底。
-      const initResult = page.init(this as never);
+      const initResult = page.init(this);
       if (initResult instanceof Promise) {
         void initResult.catch((e) => this._pageInitFailed(e));
       }
@@ -180,7 +180,7 @@ class AppContent extends WebComponentBase {
   }
 
   _initPreviewResize(): void {
-    initPreviewResize(this as never);
+    initPreviewResize(this);
   }
 
   /**
@@ -188,33 +188,33 @@ class AppContent extends WebComponentBase {
    *   _bindTabs(".repo-tab", "ins", ["versions"]) —— 按钮用 repo-tab 样式类，内容卡 id 为 ins-tab-versions
    */
   _bindTabs(tabSelector: string, prefix: string, ids: string[]): void {
-    initRepositoryPage(this as never);
+    initRepositoryPage(this);
     // 注意：这里需要调用真实的 bindTabs，但为了测试兼容，我们保留方法签名
     // 实际逻辑在 init-pages.ts 中
   }
 
   _initDiagnostics(): void {
-    initDiagnosticsPage(this as never);
+    initDiagnosticsPage(this);
   }
 
   _initInstances(): void {
-    initInstancesPage(this as never);
+    initInstancesPage(this);
   }
 
   _initRepository(): void {
-    initRepositoryPage(this as never);
+    initRepositoryPage(this);
   }
 
   _initWorkshop(): void {
-    initWorkshopPage(this as never);
+    initWorkshopPage(this);
   }
 
   _initGithub(): void {
-    initGithubPage(this as never);
+    initGithubPage(this);
   }
 
   async _initSettings(): Promise<void> {
-    void initSettingsPage(this as never).catch((e) => this._pageInitFailed(e));
+    void initSettingsPage(this).catch((e) => this._pageInitFailed(e));
   }
 }
 

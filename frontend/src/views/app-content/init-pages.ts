@@ -12,12 +12,7 @@ import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { initWorkshopPage as _initWorkshopPage } from "./init-workshop.ts";
 import { initGithubPage as _initGithubPage } from "./init-github.ts";
-
-/** app-content 组件接口（供页面初始化函数访问） */
-export interface AppContentHost {
-  _root: ShadowRoot;
-  _unsubs: Array<() => void>;
-}
+import type { AppContentHost } from "./init-workshop.ts";
 
 /**
  * 初始化诊断页
@@ -269,15 +264,15 @@ export async function initSettingsPage(host: AppContentHost): Promise<void> {
 /**
  * 初始化创意工坊页（委托到 init-workshop.ts）
  */
-export function initWorkshopPage(host: never): void {
-  _initWorkshopPage(host as never);
+export function initWorkshopPage(host: AppContentHost): void {
+  _initWorkshopPage(host);
 }
 
 /**
  * 初始化 GitHub 页（委托到 init-github.ts）
  */
-export function initGithubPage(host: never): void {
-  _initGithubPage(host as never);
+export function initGithubPage(host: AppContentHost): void {
+  _initGithubPage(host);
 }
 
 // ===== 最近选中模型（供导航栏 3D 一键跳转复用；app-tree 在 model:select 时写入）=====

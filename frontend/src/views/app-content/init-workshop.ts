@@ -23,6 +23,7 @@ import { extractAvatars } from "./workshop-avatar.ts";
 import { t } from "../../core/i18n/t.ts";
 import type { WorkshopModel } from "../../features/community/render.ts";
 import type { WorkshopSite } from "../../../bindings/ysm-model-manager/go/types/models.ts";
+import type { RepoCacheEntry } from "./state.ts";
 
 /**
  * 创建创意工坊页的共享 ref 对象——单一入口，tabs / showSiteView / edit 等全部从此处取。
@@ -181,10 +182,10 @@ export interface AppContentHost {
   _setCurrentSite(site: WorkshopSite | null): void;
   _avatarCache: Record<string, string>;
   _setAvatarCache(cache: Record<string, string>): void;
-  _workshopCache: Map<string, { models: WorkshopModel[]; source: string; localMap?: Map<string, string> }> | null;
-  _setWorkshopCache(cache: Map<string, { models: WorkshopModel[]; source: string; localMap?: Map<string, string> }>): void;
-  _githubCache: Map<string, { models: WorkshopModel[]; source: string; localMap?: Map<string, string> }> | null;
-  _setGithubCache(cache: Map<string, { models: WorkshopModel[]; source: string; localMap?: Map<string, string> }>): void;
+  _workshopCache: Map<string, RepoCacheEntry> | null;
+  _setWorkshopCache(cache: Map<string, RepoCacheEntry> | null): void;
+  _githubCache: Map<string, RepoCacheEntry> | null;
+  _setGithubCache(cache: Map<string, RepoCacheEntry> | null): void;
   _workshopTimer: ReturnType<typeof setTimeout> | null;
   _setWorkshopTimer(timer: ReturnType<typeof setTimeout> | null): void;
   _avatarRefreshRegistered: boolean;

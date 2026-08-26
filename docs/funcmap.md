@@ -46,10 +46,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 160 | 639 |
-| frontend/views | 115 | 339 |
+| frontend/views | 115 | 337 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **482** | **2074** |
+| **合计** | **482** | **2072** |
 
 ## Go·头像
 
@@ -1994,21 +1994,19 @@
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf` | — |
 | `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:14` | 初始化性能面板（single-bench / gui-flow / perf-log / 加载剖析） |
 | `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
-| `AppContentHost()` | `frontend/src/views/app-content/init-github:17` | app-content 组件接口（供 github 初始化函数访问） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
-| `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
-| `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
-| `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:272` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:279` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:287` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:291` | — |
+| `initGithubPage()` | `frontend/src/views/app-content/init-github:20` | 初始化 GitHub 页 |
+| `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:20` | 初始化诊断页 |
+| `initInstancesPage()` | `frontend/src/views/app-content/init-pages:27` | 初始化实例页 |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:267` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:274` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:282` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:286` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:37` | 初始化创意工坊页（编排入口） |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:163` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
-| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:174` | app-content 组件接口（供 workshop/github 初始化函数访问） |
-| `PageDefinition()` | `frontend/src/views/app-content/page-registry:22` | — |
-| `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:29` | — |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:38` | 初始化创意工坊页（编排入口） |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:164` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
+| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:175` | app-content 组件接口（供 workshop/github 初始化函数访问） |
+| `PageDefinition()` | `frontend/src/views/app-content/page-registry:23` | — |
+| `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:30` | — |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:31` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:130` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |
@@ -2037,8 +2035,8 @@
 | `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |
 | `SiteViewState()` | `frontend/src/views/app-content/site/types:12` | SiteViewState —— renderSiteView 内部闭包共享变量的显式收拢。 |
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
-| `RepoCacheEntry()` | `frontend/src/views/app-content/state:12` | — |
-| `AppContentState()` | `frontend/src/views/app-content/state:18` | — |
+| `RepoCacheEntry()` | `frontend/src/views/app-content/state:13` | — |
+| `AppContentState()` | `frontend/src/views/app-content/state:19` | — |
 | `SubscriptionBucket()` | `frontend/src/views/app-content/subscription-bucket:11` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
 | `aboutHTML()` | `frontend/src/views/app-content/tpl-settings-about:6` | About 标签页（版本/特性/技术栈/链接/快速上手） |
