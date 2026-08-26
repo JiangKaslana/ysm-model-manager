@@ -11,6 +11,7 @@ import (
 
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/paths"
+	"ysm-model-manager/go/scanner"
 	"ysm-model-manager/go/types"
 )
 
@@ -25,16 +26,44 @@ func RemoveRepoDuplicates(dir, filesRoot, recycleRoot string) int {
 		// 没有仓库根目录时不做处理
 		return 0
 	}
-	// 预加载仓库文件列表（仅文件名，用于判断是否在仓库中）
-	repoFiles := make(map[string]bool)
+	// 预加载仓库文件索引：文件名(小写) → 完整路径列表（同名可能散布多处）
+	repoFiles := make(map[string][]string)
 	for _, p := range fsutil.WalkAllFiles(filesRoot, true) {
-		repoFiles[strings.ToLower(filepath.Base(p))] = true
+		name := strings.ToLower(filepath.Base(p))
+		repoFiles[name] = append(repoFiles[name], p)
+	}
+	// 候选仓库文件哈希缓存：同一候选被多个实例文件比对时不重复读盘
+	candidateHashes := make(map[string]string)
+	hashOf := func(path string) string {
+		if h, ok := candidateHashes[path]; ok {
+			return h
+		}
+		h := scanner.ComputeFileHash(path)
+		candidateHashes[path] = h
+		return h
 	}
 	count := 0
 	for _, p := range targets {
-		name := strings.ToLower(filepath.Base(p))
-		if !repoFiles[name] {
+		candidates, ok := repoFiles[strings.ToLower(filepath.Base(p))]
+		if !ok {
 			// 仓库没有此文件，跳过（整合包自带资源）
+			continue
+		}
+		// 内容必须与某仓库副本一致才清理——go-installer 卡语义「只删仓库同名副本、
+		// 保留整合包用户自装资源」：同名不同内容是自装改版，仅按名匹配会误删。
+		// 哈希失败/超限返回空 → 一律保守保留。
+		targetHash := hashOf(p)
+		if targetHash == "" {
+			continue
+		}
+		matched := false
+		for _, c := range candidates {
+			if h := hashOf(c); h == targetHash {
+				matched = true
+				break
+			}
+		}
+		if !matched {
 			continue
 		}
 		if recycleRoot != "" && paths.IsInside(recycleRoot, p) == nil {

@@ -62,7 +62,7 @@ invariant_anchors:
 - `installDirRecursive` 单个文件失败不中断整棵树，逐条记日志并聚合成一条错误返回；扩展名白名单**注册表驱动**（`types.InstallExtsFor(rtype)`，来自 `resource_types.json` 的 `installExts`）：`ysm` → `.json/.png/.jpg/.jpeg`；`EntityPlayer` 等在无 `installExts` 时不设白名单，全部非可执行文件放行（仅 `.exe/.bat/.dll/.cmd/.scr/.pif/.com/.msi/.ps1/.vbs` 黑名单拦截）
 - 扩展名校验兼容 `.ban` 变体（先剥 `.ban` 再判 `types.IsSupportedExt`）
 - `InstallDir` 回滚时仅删除本次新建目录（`!dstExisted`），失败路径返回复合错误（含原始安装错误 + 回滚错误），调用方可区分「安装失败」与「安装失败+回滚失败留残渣」两种状态（P2 修复）
-- **同步删除备案（2026-08-11 审计评估）**：源（仓库）文件删除后，整合包实例中的副本**不自动镜像删除**——安装侧语义为「落地不删目标」（同源幂等 / 异源原子替换），清理走显式入口 `ClearInstanceResources` → `clearInstanceDir` → `RemoveRepoDuplicates`（只删仓库同名副本，**明确保留整合包用户自装资源**，recycle_clean.go 注释「仓库没有此文件，跳过（整合包自带资源）」）。若在 InstallDir 加同步删除会误删用户自装同名资源，与既有「保留自装」语义冲突——**有意不做，勿复活**。
+- **同步删除备案（2026-08-11 审计评估）**：源（仓库）文件删除后，整合包实例中的副本**不自动镜像删除**——安装侧语义为「落地不删目标」（同源幂等 / 异源原子替换），清理走显式入口 `ClearInstanceResources` → `clearInstanceDir` → `RemoveRepoDuplicates`（只删仓库同名副本，**明确保留整合包用户自装资源**，recycle_clean.go 注释「仓库没有此文件，跳过（整合包自带资源）」）。若在 InstallDir 加同步删除会误删用户自装同名资源，与既有「保留自装」语义冲突——**有意不做，勿复活**。2026-08-26 起「同名」判定落地为**文件名命中 + SHA256 内容一致**（scanner.ComputeFileHash，候选缓存防重复读盘；哈希失败/超限一律保守保留）——此前仅按名匹配会把自装同名改版误删，与本文语义相悖，已修。
 
 ## 相关
 

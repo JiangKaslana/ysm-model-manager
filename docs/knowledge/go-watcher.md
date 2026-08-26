@@ -41,7 +41,7 @@ invariant_anchors:
 ## 不变量
 
 - 文件变化事件必须去重（800ms 防抖 + syncRunning/syncPending 串行化）
-- **loop 入口必须一次性捕获本地 channel 引用**（P2 修复：原 select 每轮读共享字段 `w.w.Events`/`w.w.Errors`/`w.done`，Stop→立即 Start（restartWatcher 正是此序列）后旧 loop 读到新 watcher → 双 loop 双倍触发防抖 + `-race` 数据竞争，且旧 loop 的 recover 可能误关新 watcher）
+- **loop 入口必须一次性捕获本地 channel 引用**（P2 修复：原 select 每轮读共享字段 `w.w.Events`/`w.w.Errors`/`w.done`，Stop→立即 Start（restartWatcher 正是此序列）后旧 loop 读到新 watcher → 双 loop 双倍触发防抖 + `-race` 数据竞争，且旧 loop 的 recover 可能误关新 watcher）；入口捕获前须判 `w.w == nil` 直接退出——Stop 关闭即置 nil（谁关闭谁置空，与 recover 分支同一不变量，杜绝二次 Close），晚到的 loop 不再触碰已关闭 watcher
 - `Start` 每次重建 `done` channel（已关闭的 channel 不可复用，ADR-031）；`syncAll` 串行化 + `wg.Wait()` 在 Unlock 后等 in-flight 同步
 
 ## 相关

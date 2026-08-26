@@ -53,6 +53,28 @@ func TestResolveSavePath_Fragment(t *testing.T) {
 }
 
 // ---------- 3. URL 无 main/master 分支 ----------
+// ---------- 3b. 非 main/master 分支的 raw URL：结构化解析拿完整相对路径 ----------
+
+// raw.githubusercontent.com/{owner}/{repo}/{branch}/{path} 是固定四段式，
+// 分支名任意（dev/develop/release/1.0 等）都应解析出完整 relPath 与带正确
+// 分支的 jsd/api 回退源，而不是退化为仅文件名（历史行为：只枚举 /main/ /master/）。
+func TestResolveSavePath_DevBranch(t *testing.T) {
+	url := "https://raw.githubusercontent.com/user/repo/dev/a/b/file.ysm"
+	savePath, jsd, api := ResolveSavePath(url, t.TempDir())
+	if savePath == "" {
+		t.Fatal("expected non-empty savePath")
+	}
+	if !strings.HasSuffix(savePath, filepath.Join("a", "b", "file.ysm")) {
+		t.Fatalf("dev 分支应解析完整相对路径 a/b/file.ysm，实际 savePath: %s", savePath)
+	}
+	if jsd == "" || !strings.Contains(jsd, "@dev/") {
+		t.Fatalf("jsd 回退源应带 @dev 分支: %q", jsd)
+	}
+	if api == "" {
+		t.Fatal("api 回退源不应为空")
+	}
+}
+
 func TestResolveSavePath_NoMainMaster(t *testing.T) {
 	url := "https://raw.githubusercontent.com/user/repo/release/1.0/file.ysm"
 	savePath, jsd, api := ResolveSavePath(url, t.TempDir())

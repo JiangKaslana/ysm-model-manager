@@ -119,6 +119,10 @@ func (w *Watcher) Stop() {
 	close(w.done)
 	if w.w != nil {
 		w.w.Close()
+		// 关闭即置 nil：与 loop panic 恢复路径（同样 Close+nil）保持同一不变量——
+		// 谁关闭谁置空，杜绝「已 Close 的 watcher 再被 recover 分支二次 Close」；
+		// Start 每次 NewWatcher 重建，置 nil 不影响 Stop→Start 重启。
+		w.w = nil
 	}
 	w.mu.Unlock()
 	// 等待 loop 退出（上限防挂起）——close(done) 后 loop 退出是异步的，
@@ -178,6 +182,12 @@ func (w *Watcher) loop() {
 	// 旧 loop 回到 select 会读到新 watcher → 双 loop 双倍触发防抖 + -race 数据竞争，
 	// 且旧 loop 的 recover 可能误关新 watcher
 	w.mu.Lock()
+	if w.w == nil {
+		// Stop 已先行（Close + 置 nil，见 Stop 内不变量注释）：本代 loop 无 watcher
+		// 可监听，直接退出（defer 仍会 close(loopDone)，Stop 的等待正常解除）
+		w.mu.Unlock()
+		return
+	}
 	evs, errs, done := w.w.Events, w.w.Errors, w.done
 	w.mu.Unlock()
 	for {

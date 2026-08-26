@@ -556,18 +556,32 @@ func ResolveSavePath(rawURL, saveDir string) (savePath string, jsdURL, apiURL st
 	relPath := ""
 	repoPath := ""
 	branch := ""
-	// 支持 main 与 master 默认分支（默认分支非 main 的仓库不再解析失败）
-	for _, b := range []string{"/main/", "/master/"} {
-		if idx := strings.Index(urlPath, b); idx > 0 {
-			relPath = urlPath[idx+len(b):]
-			branch = b[1 : len(b)-1]
-			break
+	// raw.githubusercontent.com 结构化定位：/{owner}/{repo}/{branch}/{path...} 固定四段式，
+	// 分支名任意（dev/develop/release/1.0 等）都能拿到完整 relPath 与带正确分支的
+	// jsd/api 回退源，不再依赖 /main/ /master/ 枚举（枚举只对默认分支恰好是二者的仓库有效）。
+	if strings.HasPrefix(rawURL, "https://raw.githubusercontent.com/") {
+		if parts := strings.SplitN(strings.TrimPrefix(urlPath, "/"), "/", 4); len(parts) == 4 &&
+			parts[0] != "" && parts[1] != "" && parts[2] != "" && parts[3] != "" {
+			repoPath = parts[0] + "/" + parts[1]
+			branch = parts[2]
+			relPath = parts[3]
 		}
 	}
-	if relPath != "" && strings.HasPrefix(rawURL, "https://raw.githubusercontent.com/") {
+	if repoPath == "" && relPath != "" && strings.HasPrefix(rawURL, "https://raw.githubusercontent.com/") {
 		parts := strings.SplitN(rawURL[len("https://raw.githubusercontent.com/"):], "/", 3)
 		if len(parts) >= 2 {
 			repoPath = parts[0] + "/" + parts[1]
+		}
+	}
+	if relPath == "" {
+		// 支持 main 与 master 默认分支（默认分支非 main 的仓库不再解析失败）；
+		// 非 raw 前缀来源（jsdelivr 直链等）走此回退。
+		for _, b := range []string{"/main/", "/master/"} {
+			if idx := strings.Index(urlPath, b); idx > 0 {
+				relPath = urlPath[idx+len(b):]
+				branch = b[1 : len(b)-1]
+				break
+			}
 		}
 	}
 	if relPath == "" {

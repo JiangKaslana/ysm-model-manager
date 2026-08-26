@@ -49,6 +49,31 @@ func TestRemoveRepoDuplicates_NoRepoRoot(t *testing.T) {
 	}
 }
 
+// TestRemoveRepoDuplicates_SameNameDiffContent_Kept 锁定内容校验契约：
+// 与仓库文件同名但内容不同的文件是用户自装资源（go-installer 卡「只删仓库
+// 同名副本、保留自装」语义），必须保留——仅按文件名匹配会误删。
+func TestRemoveRepoDuplicates_SameNameDiffContent_Kept(t *testing.T) {
+	base := t.TempDir()
+	dir := filepath.Join(base, "inst")
+	repoRoot := filepath.Join(base, "repo")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(repoRoot, 0755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(repoRoot, "m.ysm"), []byte("repo-version"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "m.ysm"), []byte("user-custom"), 0644)
+
+	count := RemoveRepoDuplicates(dir, repoRoot, "")
+	if count != 0 {
+		t.Fatalf("同名不同内容不应清理，实际清理 %d 个", count)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "m.ysm")); err != nil {
+		t.Fatalf("用户自装 m.ysm 应保留: %v", err)
+	}
+}
+
 func TestDeduplicateEntries(t *testing.T) {
 	base := t.TempDir()
 	recycleRoot := filepath.Join(base, "ysm")
