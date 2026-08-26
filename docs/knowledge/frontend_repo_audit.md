@@ -26,7 +26,7 @@ use_when:
 
 | 目录 | 分 | 规模 | 一句话结论 |
 |------|----|------|-----------|
-| utils/3d/adapters | 4.2 | 11.0k | PreviewAdapter 统一接口+端口注入；最大债 = MdMmBuildCtx 巨型可变上下文 |
+| utils/3d/adapters | 4.2 | 11.0k | PreviewAdapter 统一接口+端口注入；MdMmBuildCtx 已域拆 6 接口+逐 stage Pick 收窄（tier1/2 落地），tier3 Builder 化待办 |
 | utils/3d 其余 | 4.2 | 12.8k | caps 注册表+感知层解耦优秀；model2d.ts 650 行待拆 |
 | backend | 4.5 | 10.1k | ZIP bomb 三重防护、idb FIFO 双上限；web-fs 三函数可抽 idbRekeyGroup |
 | core | 4.0 | 4.0k | menu-defs 声明式唯一事实源；DOM 渗透 core 层是主要问题 |
@@ -45,11 +45,11 @@ use_when:
 
 1. **`utils/resource/short-label.ts:21-22`**：引用 `RESOURCE_TYPES.MOD_MODEL` / `VANILLA_ASSETS`，但 types.ts 中不存在 → computed key 成字面量 `"undefined"` 死代码。修法：补常量或删行。
 2. **`utils/3d/perception/autodance.ts:157`**：`targetRot.multiply(restQuat)` 乘序疑似反了（期望 `restQuat * offset`），可能是静默 bug，需可视化验证。
-3. **`utils/3d/adapters/vrm-bone-ui.ts:107`**：`field()` 内 k/v 未 `esc()`（骨骼名来自模型文件，理论 XSS）。
+3. ~~**`utils/3d/adapters/vrm-bone-ui.ts:107`**：`field()` 内 k/v 未 `esc()`（骨骼名来自模型文件，理论 XSS）。~~ ✅ **已修复** 2026-08-26 `2fbfe5ce`：`field()` 改 `textContent`/`createTextNode` 注入，骨骼名/路径中 `<>&` 不再当 HTML 解析（同批 skeleton `iRow` 经 `da664cf2` 同法收口，见 app-preview.md 不变量）。
 
 ## 架构债 TOP5
 
-1. mmd-adapter.ts `MdMmBuildCtx` 30+ 可变字段全闭包共享（L179-240）
+1. 🔄 mmd-adapter.ts `MdMmBuildCtx` 域拆分(tier1)+stage Pick 收窄(tier2)已完成（L184-269，字段 60→55，`!` 非空断言清零）；tier3 **Builder 化仍待办**——构造点 `const c = {} as MdMmBuildCtx`（L1141）仍为单体可变上下文全闭包共享，运行时未结构化
 2. app-content/perf-cli.ts 534L God Object（趋势图+single-bench+诊断面板三合一）
 3. app-content/dedup.ts 596L 模块级全局 `_dedupBusy/_dedupStrategy` 竞态隐患
 4. model2d.ts 650L（拆 core/render/hit 三件）、ui-rows.ts 822L（按 row 类型拆）
@@ -61,7 +61,7 @@ use_when:
 - app-preview/app-sidebar/app-sync-manager 三套 generation 守卫实现各异 → 抽 `GenerationGuard`
 - scene-3d makeScenePort 与 mmd-3d 六 binding `as unknown as Record` 绕类型重复 → 抽公共 port（bindings 类型不全的临时方案，生成类型完善后回收）
 - backend web-fs rename/rekey/moveOrCopy 三函数「读→写新→删旧」→ `idbRekeyGroup` 原语
-- sidebar push/pull IIFE 超时守卫 → `withEventTimeout(bus, event, token, ms)`
+- sidebar 等事件+超时兜底 → 已裁决**暂不**抽 `withEventTimeout`：全仓仅 sidebar 一处消费（已局部扁平化为 asbPushOne/asbWaitBusQuiet）；触发条件=出现第二个消费方时再抽进 core/bus
 - 事件清理三种模式共存（removeEventListener / cloneNode replaceWith hack / addDisposableListener）→ 收敛到显式 removeEventListener
 
 ## 治理红线复核结论（check-redlines 11 条 Warn 判定）
