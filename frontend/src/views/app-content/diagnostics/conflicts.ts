@@ -13,118 +13,220 @@ import type { EscFn } from "./logs.ts";
 // 同一 list 互相覆盖（结果写 innerHTML 竞争）；busy 命中直接返回
 let diagScanning = false;
 
-export async function scanConflicts(root: ShadowRoot, esc: EscFn): Promise<void> {
-  // P2-2 修复（web 门控）：冲突扫描依赖 ListVersionInstances/ScanModelEntriesWithLabel 等
-  // 桌面绑定（网页版 browser adapter 未实现 → fail-fast 抛错），web 模式 UI 显示但点击必败——
-  // 入口直接提示返回（对齐同文件 diag-clear 的 isViewerMode 门控 toast 写法）
+// 同步冲突扫描并发标志
+let diagSyncBusy = false;
+
+interface DgCfInstanceFile {
+  name: string;
+}
+
+// ===== scanConflicts 子函数 =====
+
+function dgCfWebGate(): boolean {
   if (resolveWebMode()) {
     bus.emit("toast:show", {
       msg: "网页版不支持冲突扫描",
       duration: 3000,
       type: "warn",
     });
-    return;
+    return true;
   }
-  const list = root.getElementById("diag-conflict-list");
-  if (!list) return;
-  // P3 修复（子代理审计，重入守卫）：在途扫描时丢弃重复点击（快速 3 连点防并发）
-  if (diagScanning) return;
-  diagScanning = true;
-  // 扫描按钮雷达动画
-  const scanBtn = root.getElementById("diag-scan-conflict") as HTMLElement | null;
-  const resetBtn = (): void => {
-    if (scanBtn) {
-      scanBtn.classList.remove("scanning");
-      scanBtn.textContent = t("diagnostics.startScan");
-    }
-  };
-  if (scanBtn) {
+  return false;
+}
+
+function dgCfSetScanBtnState(scanBtn: HTMLElement | null, scanning: boolean): void {
+  if (!scanBtn) return;
+  if (scanning) {
     scanBtn.classList.add("scanning");
     scanBtn.textContent = t("diagnostics.scanningDot");
+  } else {
+    scanBtn.classList.remove("scanning");
+    scanBtn.textContent = t("diagnostics.startScan");
   }
+}
+
+function dgCfRenderRadarPlaceholder(list: HTMLElement): void {
   list.innerHTML =
     '<div class="scan-radar-wrap"><div class="scan-radar"></div><div class="scan-radar-dot"></div></div><div class="stat-row diag-msg diag-msg-muted" style="text-align:center">' +
     t("diagnostics.scanningConflicts") +
     "</div>";
-  try {
-    const { LoadAppConfig, ListVersionInstances, ScanModelEntriesWithLabel } =
-      await getApp();
-    const cfg = await LoadAppConfig();
-    const mcRoot = cfg.mcRoot || "";
-    if (!mcRoot) {
-      resetBtn();
-      list.innerHTML =
-        '<div class="stat-row diag-msg diag-msg-error">' + t("diagnostics.configGameDir") + "</div>";
-      return;
-    }
+}
 
-    const instances = (await ListVersionInstances(mcRoot)) || [];
-    if (!instances || !instances.length) {
-      resetBtn();
-      list.innerHTML =
-        '<div class="stat-row diag-msg diag-msg-muted">' + t("diagnostics.noModpacks") + "</div>";
-      return;
-    }
+async function dgCfLoadCfgAndInstances(): Promise<{
+  cfg: any;
+  mcRoot: string;
+  instances: any[];
+  errorHtml: string | null;
+}> {
+  const { LoadAppConfig, ListVersionInstances } = await getApp();
+  const cfg = await LoadAppConfig();
+  const mcRoot = cfg.mcRoot || "";
+  if (!mcRoot) {
+    return {
+      cfg,
+      mcRoot: "",
+      instances: [],
+      errorHtml:
+        '<div class="stat-row diag-msg diag-msg-error">' + t("diagnostics.configGameDir") + "</div>",
+    };
+  }
+  const instances = (await ListVersionInstances(mcRoot)) || [];
+  if (!instances || !instances.length) {
+    return {
+      cfg,
+      mcRoot,
+      instances: [],
+      errorHtml:
+        '<div class="stat-row diag-msg diag-msg-muted">' + t("diagnostics.noModpacks") + "</div>",
+    };
+  }
+  return { cfg, mcRoot, instances, errorHtml: null };
+}
 
-    interface InstanceFile {
-      name: string;
-    }
-    const instanceFiles: Record<string, InstanceFile[]> = {};
-    for (const ins of instances) {
-      if (!ins.Exists) continue;
-      const entries = (await ScanModelEntriesWithLabel(ins.CustomDir, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
-      instanceFiles[ins.Name] = entries.map((e) => ({
-        name: e.Name.replace(/\.(disabled|ban)$/i, ""),
-      }));
-    }
+async function dgCfCollectInstanceFiles(instances: any[]): Promise<Record<string, DgCfInstanceFile[]>> {
+  const { ScanModelEntriesWithLabel } = await getApp();
+  const instanceFiles: Record<string, DgCfInstanceFile[]> = {};
+  for (const ins of instances) {
+    if (!ins.Exists) continue;
+    const entries = (await ScanModelEntriesWithLabel(ins.CustomDir, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+    instanceFiles[ins.Name] = entries.map((e) => ({
+      name: e.Name.replace(/\.(disabled|ban)$/i, ""),
+    }));
+  }
+  return instanceFiles;
+}
 
-    const nameMap: Record<string, string[]> = {};
-    for (const [insName, files] of Object.entries(instanceFiles)) {
-      for (const f of files) {
-        if (!nameMap[f.name]) nameMap[f.name] = [];
-        nameMap[f.name].push(insName);
-      }
+function dgCfBuildNameConflictMap(
+  instanceFiles: Record<string, DgCfInstanceFile[]>,
+): [string, string[]][] {
+  const nameMap: Record<string, string[]> = {};
+  for (const [insName, files] of Object.entries(instanceFiles)) {
+    for (const f of files) {
+      if (!nameMap[f.name]) nameMap[f.name] = [];
+      nameMap[f.name].push(insName);
     }
+  }
+  return Object.entries(nameMap)
+    .filter(([, v]) => v.length > 1)
+    .sort((a, b) => b[1].length - a[1].length);
+}
 
-    const conflicts = Object.entries(nameMap)
-      .filter(([, v]) => v.length > 1)
-      .sort((a, b) => b[1].length - a[1].length);
-
-    if (!conflicts.length) {
-      resetBtn();
-      list.innerHTML =
-        '<div class="stat-row diag-msg diag-msg-success">✅ ' + t("diagnostics.noNameConflict") + "</div>";
-      return;
-    }
-
-    let html = `<div class="stat-row diag-msg diag-msg-error" style="animation:conflictRowIn .3s ease">⚠️ ${t("diagnostics.conflictsFound", { n: conflicts.length })}</div>`;
-    conflicts.slice(0, 50).forEach(([name, insNames], i) => {
-      const delay = stagger(i, 30, 600);
-      html += `<div class="conflict-row" style="animation-delay:${delay}ms">
+function dgCfRenderConflictList(
+  conflicts: [string, string[]][],
+  esc: EscFn,
+): string {
+  if (!conflicts.length) {
+    return '<div class="stat-row diag-msg diag-msg-success">✅ ' + t("diagnostics.noNameConflict") + "</div>";
+  }
+  let html = `<div class="stat-row diag-msg diag-msg-error" style="animation:conflictRowIn .3s ease">⚠️ ${t("diagnostics.conflictsFound", { n: conflicts.length })}</div>`;
+  conflicts.slice(0, 50).forEach(([name, insNames], i) => {
+    const delay = stagger(i, 30, 600);
+    html += `<div class="conflict-row" style="animation-delay:${delay}ms">
 <span class="conflict-name">${renderDisplayName(name)}</span>
 <span class="conflict-ver">${t("diagnostics.modpackCount", { n: insNames.length })}</span>
 </div>`;
-      insNames.forEach((n, j) => {
-        html += `<div class="conflict-ins" style="animation-delay:${delay + (j + 1) * 15}ms">&nbsp;&nbsp;📦 ${esc(n)}</div>`;
-      });
+    insNames.forEach((n, j) => {
+      html += `<div class="conflict-ins" style="animation-delay:${delay + (j + 1) * 15}ms">&nbsp;&nbsp;📦 ${esc(n)}</div>`;
     });
-    if (conflicts.length > 50) {
-      html += `<div class="stat-row diag-msg diag-msg-muted" style="font-size:10px">...${t("diagnostics.moreCount", { n: conflicts.length - 50 })}</div>`;
+  });
+  if (conflicts.length > 50) {
+    html += `<div class="stat-row diag-msg diag-msg-muted" style="font-size:10px">...${t("diagnostics.moreCount", { n: conflicts.length - 50 })}</div>`;
+  }
+  return html;
+}
+
+export async function scanConflicts(root: ShadowRoot, esc: EscFn): Promise<void> {
+  if (dgCfWebGate()) return;
+  const list = root.getElementById("diag-conflict-list");
+  if (!list) return;
+  if (diagScanning) return;
+  diagScanning = true;
+
+  const scanBtn = root.getElementById("diag-scan-conflict") as HTMLElement | null;
+  dgCfSetScanBtnState(scanBtn, true);
+  dgCfRenderRadarPlaceholder(list as HTMLElement);
+
+  try {
+    const { instances, errorHtml } = await dgCfLoadCfgAndInstances();
+    if (errorHtml) {
+      dgCfSetScanBtnState(scanBtn, false);
+      list.innerHTML = errorHtml;
+      return;
     }
-    resetBtn();
-    list.innerHTML = html;
+    const instanceFiles = await dgCfCollectInstanceFiles(instances);
+    const conflicts = dgCfBuildNameConflictMap(instanceFiles);
+    list.innerHTML = dgCfRenderConflictList(conflicts, esc);
   } catch (err) {
-    resetBtn();
     list.innerHTML = `<div class="stat-row diag-msg diag-msg-error">${t("diagnostics.scanFailed")}: ${esc(String(err))}</div>`;
   } finally {
-    diagScanning = false; // P3：所有出口复位重入标志（含 early return 分支）
+    dgCfSetScanBtnState(scanBtn, false);
+    diagScanning = false;
   }
 }
 
 // ===== 同步冲突检测与解决（P1 优先级） =====
 
-// 同步冲突扫描并发标志
-let diagSyncBusy = false;
+// ===== scanSyncConflicts 子函数 =====
+
+function dgCfSyncWebGate(): boolean {
+  if (resolveWebMode()) {
+    bus.emit("toast:show", {
+      msg: "网页版不支持同步冲突扫描",
+      duration: 3000,
+      type: "warn",
+    });
+    return true;
+  }
+  return false;
+}
+
+async function dgCfLoadSyncContext(): Promise<{
+  mcRoot: string;
+  availableInstances: string[];
+  errorHtml: string | null;
+}> {
+  const { ListVersionInstances, LoadAppConfig } = await getApp();
+  const cfg = await LoadAppConfig();
+  const mcRoot = cfg.mcRoot || "";
+  if (!mcRoot) {
+    return {
+      mcRoot: "",
+      availableInstances: [],
+      errorHtml:
+        '<div class="stat-row diag-msg diag-msg-error">' + t("diagnostics.configGameDir") + "</div>",
+    };
+  }
+  const instances = (await ListVersionInstances(mcRoot)) || [];
+  const availableInstances = instances.filter((ins: any) => ins.Exists).map((ins: any) => ins.Name);
+  return { mcRoot, availableInstances, errorHtml: null };
+}
+
+async function dgCfRunSyncDetection(
+  list: HTMLElement,
+  esc: EscFn,
+  rtype: string,
+  instanceName: string,
+): Promise<void> {
+  const { DetectConflicts } = await getApp();
+  list.innerHTML =
+    '<div class="scan-radar-wrap"><div class="scan-radar"></div><div class="scan-radar-dot"></div></div><div class="stat-row diag-msg diag-msg-muted" style="text-align:center">' +
+    t("diagnostics.scanningConflicts") +
+    "</div>";
+  const resultJSON = await DetectConflicts(rtype, instanceName);
+  const result = JSON.parse(resultJSON);
+  if (result.error) {
+    list.innerHTML =
+      '<div class="stat-row diag-msg diag-msg-error">❌ ' + esc(result.error) + "</div>";
+    return;
+  }
+  const conflicts = result.conflicts || [];
+  if (conflicts.length === 0) {
+    list.innerHTML =
+      '<div class="stat-row diag-msg diag-msg-success">✅ ' + t("diagnostics.noSyncConflict") + "</div>";
+    return;
+  }
+  renderSyncConflictsResult(list, esc, conflicts, rtype, instanceName);
+}
 
 export async function scanSyncConflicts(
   list: HTMLElement,
@@ -132,63 +234,21 @@ export async function scanSyncConflicts(
   rtype?: string,
   instanceName?: string,
 ): Promise<void> {
-  if (resolveWebMode()) {
-    bus.emit("toast:show", {
-      msg: "网页版不支持同步冲突扫描",
-      duration: 3000,
-      type: "warn",
-    });
-    return;
-  }
-
+  if (dgCfSyncWebGate()) return;
   if (diagSyncBusy) return;
   diagSyncBusy = true;
 
   try {
-    const { DetectConflicts, ListVersionInstances, LoadAppConfig } = await getApp();
-
-    // 获取可用的整合包列表
-    const cfg = await LoadAppConfig();
-    const mcRoot = cfg.mcRoot || "";
-    if (!mcRoot) {
-      list.innerHTML =
-        '<div class="stat-row diag-msg diag-msg-error">' + t("diagnostics.configGameDir") + "</div>";
+    const { availableInstances, errorHtml } = await dgCfLoadSyncContext();
+    if (errorHtml) {
+      list.innerHTML = errorHtml;
       return;
     }
-
-    const instances = (await ListVersionInstances(mcRoot)) || [];
-    const availableInstances = instances.filter((ins: any) => ins.Exists).map((ins: any) => ins.Name);
-
-    // 如果没有指定参数，显示配置面板
     if (!rtype || !instanceName) {
       renderSyncConfigPanel(list, esc, availableInstances);
       return;
     }
-
-    // 执行扫描
-    list.innerHTML =
-      '<div class="scan-radar-wrap"><div class="scan-radar"></div><div class="scan-radar-dot"></div></div><div class="stat-row diag-msg diag-msg-muted" style="text-align:center">' +
-      t("diagnostics.scanningConflicts") +
-      "</div>";
-
-    const resultJSON = await DetectConflicts(rtype, instanceName);
-    const result = JSON.parse(resultJSON);
-
-    if (result.error) {
-      list.innerHTML =
-        '<div class="stat-row diag-msg diag-msg-error">❌ ' + esc(result.error) + "</div>";
-      return;
-    }
-
-    const conflicts = result.conflicts || [];
-
-    if (conflicts.length === 0) {
-      list.innerHTML =
-        '<div class="stat-row diag-msg diag-msg-success">✅ ' + t("diagnostics.noSyncConflict") + "</div>";
-      return;
-    }
-
-    renderSyncConflictsResult(list, esc, conflicts, rtype, instanceName);
+    await dgCfRunSyncDetection(list, esc, rtype, instanceName);
   } catch (err) {
     list.innerHTML =
       `<div class="stat-row diag-msg diag-msg-error">${t("diagnostics.scanFailed")}: ${esc(String(err))}</div>`;
@@ -197,31 +257,26 @@ export async function scanSyncConflicts(
   }
 }
 
-function renderSyncConfigPanel(
-  list: HTMLElement,
-  esc: EscFn,
+// ===== renderSyncConfigPanel 子函数 =====
+
+function dgCfBuildConfigPanelHtml(
   instances: string[],
-): void {
-  // 默认选中第一个整合包和第一个资源类型
-  let selectedInstance = instances[0] || "";
-  const rtypeOptions = Object.entries(RESOURCE_TYPE_LABELS);
-  let selectedRtype = rtypeOptions[0]?.[0] || "";
-
-  const renderPanel = () => {
-    const instanceOptions = instances
-      .map((ins) => `<option value="${esc(ins)}"${ins === selectedInstance ? " selected" : ""}>${esc(ins)}</option>`)
-      .join("");
-
-    const rtypeSelectOptions = rtypeOptions
-      .map(([id, label]) => `<option value="${esc(id)}"${id === selectedRtype ? " selected" : ""}>${esc(label)}</option>`)
-      .join("");
-
-    list.innerHTML = `
+  selectedInstance: string,
+  selectedRtype: string,
+  esc: EscFn,
+): string {
+  const instanceOptions = instances
+    .map((ins) => `<option value="${esc(ins)}"${ins === selectedInstance ? " selected" : ""}>${esc(ins)}</option>`)
+    .join("");
+  const rtypeOptions = Object.entries(RESOURCE_TYPE_LABELS)
+    .map(([id, label]) => `<option value="${esc(id)}"${id === selectedRtype ? " selected" : ""}>${esc(label)}</option>`)
+    .join("");
+  return `
       <div class="diag-sync-config">
         <div class="diag-config-item">
           <label for="sync-rtype">📦 ${t("diagnostics.selectResourceType")}:</label>
           <select id="sync-rtype" class="diag-config-select">
-            ${rtypeSelectOptions}
+            ${rtypeOptions}
           </select>
         </div>
         <div class="diag-config-item">
@@ -233,45 +288,52 @@ function renderSyncConfigPanel(
         <button id="sync-scan-btn" class="diag-dedup-exec">🔍 ${t("diagnostics.scanSyncConflict")}</button>
       </div>
     `;
-
-    list.querySelector("#sync-rtype")?.addEventListener("change", (e) => {
-      selectedRtype = (e.target as HTMLSelectElement).value;
-    });
-
-    list.querySelector("#sync-instance")?.addEventListener("change", (e) => {
-      selectedInstance = (e.target as HTMLSelectElement).value;
-    });
-
-    list.querySelector("#sync-scan-btn")?.addEventListener("click", async () => {
-      await scanSyncConflicts(list, esc, selectedRtype, selectedInstance);
-    });
-  };
-
-  renderPanel();
 }
 
-function renderSyncConflictsResult(
+function dgCfBindConfigPanelEvents(
   list: HTMLElement,
   esc: EscFn,
-  conflicts: any[],
-  rtype: string,
-  instanceName: string,
+  state: { selectedInstance: string; selectedRtype: string },
 ): void {
-  let html = `<div class="stat-row diag-msg diag-msg-error">⚠️ ${t("diagnostics.syncConflictFound", { n: conflicts.length })}</div>`;
+  list.querySelector("#sync-rtype")?.addEventListener("change", (e) => {
+    state.selectedRtype = (e.target as HTMLSelectElement).value;
+  });
+  list.querySelector("#sync-instance")?.addEventListener("change", (e) => {
+    state.selectedInstance = (e.target as HTMLSelectElement).value;
+  });
+  list.querySelector("#sync-scan-btn")?.addEventListener("click", async () => {
+    await scanSyncConflicts(list, esc, state.selectedRtype, state.selectedInstance);
+  });
+}
 
+function renderSyncConfigPanel(
+  list: HTMLElement,
+  esc: EscFn,
+  instances: string[],
+): void {
+  const rtypeOptions = Object.entries(RESOURCE_TYPE_LABELS);
+  const state = {
+    selectedInstance: instances[0] || "",
+    selectedRtype: rtypeOptions[0]?.[0] || "",
+  };
+  list.innerHTML = dgCfBuildConfigPanelHtml(instances, state.selectedInstance, state.selectedRtype, esc);
+  dgCfBindConfigPanelEvents(list, esc, state);
+}
+
+// ===== renderSyncConflictsResult 子函数 =====
+
+function dgCfBuildSyncConflictRows(conflicts: any[], esc: EscFn): string {
+  let html = "";
+  const strategyLabels: Record<string, string> = {
+    force_remote: t("diagnostics.resolveForceRemote"),
+    force_local: t("diagnostics.resolveForceLocal"),
+    manual: t("diagnostics.resolveManual"),
+  };
   conflicts.forEach((c, i) => {
     const conflictTypeLabel = c.type === "content_modified"
       ? t("diagnostics.conflictTypeContent")
       : t("diagnostics.conflictTypeBoth");
-
-    // 嵌套三元改查表（项目 TS 规则禁嵌套三元，code_review P3）
-    const strategyLabels: Record<string, string> = {
-      force_remote: t("diagnostics.resolveForceRemote"),
-      force_local: t("diagnostics.resolveForceLocal"),
-      manual: t("diagnostics.resolveManual"),
-    };
     const suggestedLabel = strategyLabels[c.suggestedStrategy] ?? t("diagnostics.resolveManual");
-
     const delay = stagger(i, 30, 600);
     html += `<div class="conflict-row" style="animation-delay:${delay}ms">
 <span class="conflict-name">${esc(c.path)}</span>
@@ -281,9 +343,11 @@ function renderSyncConflictsResult(
 &nbsp;&nbsp;📏 ${esc(String(c.localSize))} ↔ ${esc(String(c.remoteSize))} | 💡 ${suggestedLabel}
 </div>`;
   });
+  return html;
+}
 
-  // 解决策略选择
-  html += `<div class="diag-sync-resolve" style="margin-top:16px;padding:12px;background:var(--diag-stat-bg);border-radius:8px">
+function dgCfBuildResolveSectionHtml(): string {
+  return `<div class="diag-sync-resolve" style="margin-top:16px;padding:12px;background:var(--diag-stat-bg);border-radius:8px">
 <div class="diag-config-item">
   <label for="resolve-strategy">🎯 ${t("diagnostics.resolveConflicts")}:</label>
   <select id="resolve-strategy" class="diag-config-select">
@@ -294,32 +358,48 @@ function renderSyncConflictsResult(
 </div>
 <button id="do-resolve-btn" class="diag-dedup-exec" style="margin-top:8px">✅ ${t("diagnostics.resolveConflicts")}</button>
 </div>`;
+}
 
-  list.innerHTML = html;
-
-  list.querySelector("#do-resolve-btn")?.addEventListener("click", async () => {
-    const strategyEl = list.querySelector("#resolve-strategy") as HTMLSelectElement;
-    const strategy = strategyEl?.value || "force_remote";
-
-    try {
-      const { ResolveConflicts } = await getApp();
-      const conflictsJSON = JSON.stringify(conflicts);
-      const resultJSON = await ResolveConflicts(conflictsJSON, strategy, rtype, instanceName);
-      const result = JSON.parse(resultJSON);
-
-      let resultMsg = `✅ ${t("diagnostics.resolvedCount", { n: result.resolved || 0 })}`;
-      if (result.failed > 0) resultMsg += ` | ❌ ${t("diagnostics.failedCount", { n: result.failed })}`;
-      if (result.manual > 0) resultMsg += ` | ⚠️ ${t("diagnostics.manualCount", { n: result.manual })}`;
-
-      if (result.error) {
-        list.innerHTML = `<div class="stat-row diag-msg diag-msg-error">❌ ${esc(result.error)}</div>`;
-      } else {
-        list.innerHTML += `<div class="stat-row diag-msg diag-msg-success" style="margin-top:12px">${resultMsg}</div>`;
-        // 重新扫描
-        setTimeout(() => scanSyncConflicts(list, esc, rtype, instanceName), 1500);
-      }
-    } catch (err) {
-      list.innerHTML += `<div class="stat-row diag-msg diag-msg-error" style="margin-top:12px">❌ ${esc(String(err))}</div>`;
+async function dgCfExecuteResolve(
+  list: HTMLElement,
+  esc: EscFn,
+  conflicts: any[],
+  rtype: string,
+  instanceName: string,
+): Promise<void> {
+  const strategyEl = list.querySelector("#resolve-strategy") as HTMLSelectElement;
+  const strategy = strategyEl?.value || "force_remote";
+  try {
+    const { ResolveConflicts } = await getApp();
+    const conflictsJSON = JSON.stringify(conflicts);
+    const resultJSON = await ResolveConflicts(conflictsJSON, strategy, rtype, instanceName);
+    const result = JSON.parse(resultJSON);
+    let resultMsg = `✅ ${t("diagnostics.resolvedCount", { n: result.resolved || 0 })}`;
+    if (result.failed > 0) resultMsg += ` | ❌ ${t("diagnostics.failedCount", { n: result.failed })}`;
+    if (result.manual > 0) resultMsg += ` | ⚠️ ${t("diagnostics.manualCount", { n: result.manual })}`;
+    if (result.error) {
+      list.innerHTML = `<div class="stat-row diag-msg diag-msg-error">❌ ${esc(result.error)}</div>`;
+    } else {
+      list.innerHTML += `<div class="stat-row diag-msg diag-msg-success" style="margin-top:12px">${resultMsg}</div>`;
+      setTimeout(() => scanSyncConflicts(list, esc, rtype, instanceName), 1500);
     }
+  } catch (err) {
+    list.innerHTML += `<div class="stat-row diag-msg diag-msg-error" style="margin-top:12px">❌ ${esc(String(err))}</div>`;
+  }
+}
+
+function renderSyncConflictsResult(
+  list: HTMLElement,
+  esc: EscFn,
+  conflicts: any[],
+  rtype: string,
+  instanceName: string,
+): void {
+  const header = `<div class="stat-row diag-msg diag-msg-error">⚠️ ${t("diagnostics.syncConflictFound", { n: conflicts.length })}</div>`;
+  const rowsHtml = dgCfBuildSyncConflictRows(conflicts, esc);
+  const resolveHtml = dgCfBuildResolveSectionHtml();
+  list.innerHTML = header + rowsHtml + resolveHtml;
+  list.querySelector("#do-resolve-btn")?.addEventListener("click", async () => {
+    await dgCfExecuteResolve(list, esc, conflicts, rtype, instanceName);
   });
 }
