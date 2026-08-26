@@ -133,6 +133,16 @@ export function buildEnvSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
   });
   return [presetNode, ...capNodes];
 }
+/** 环境面板（ADR-075 + 统一注册表）：只渲染环境类能力（sky/ground/environment/fog/reflector）
+ *  独立面板排除项：light → lighting；shadow → shadow；postprocessing → postproc；避免同一能力控件双面板重复。
+ *
+ *  两级菜单（2026-08-20 改造）：
+ *  - 第一层（环境根视图）：每个 cap 渲染一行摘要 = 主控件 + 名称 + ›
+ *    · environment/fog/reflector：第一个控件是 *-enabled toggle → 第一层放该 toggle
+ *    · sky：无 enabled toggle，第一个控件是 sky-time slider → 第一层直接放该 slider
+ *    · ground：仅一个 visible toggle、无数值 → 纯 toggle 行，无 ›
+ *  - › 点击 → menu.navigate(subView)，subView 渲染该 cap 的完整 getMenuControls()
+ *  - 无 menu 句柄（旧调用路径）→ 回退到平铺渲染，保持向后兼容 */
 export function renderEnvLevel(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMenuHandle): void {
   if (!menu) {
     const caps = orderedCaps(resolveCaps(ctx));
