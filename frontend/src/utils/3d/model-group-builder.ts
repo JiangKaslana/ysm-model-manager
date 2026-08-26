@@ -12,12 +12,23 @@ interface BoneFirst {
   hasRot: boolean;
 }
 
+/** buildModelGroup 骨骼构建上下文（类型提级） */
+interface MdMgBonesCtx {
+  bones: BoneData[];
+  boneIdx: Map<string, number>;
+  boneCubes: Map<string, Cube2D[]>;
+  first: Map<string, BoneFirst>;
+  pivots: Map<string, Vec3>;
+  texW: number;
+  texH: number;
+}
+
 /**
  * 同名骨骼 overwrite 决策（bug-chronicle #14）：
  * 已有骨骼无父 → 新有父则覆盖；均有父且已有无旋 → 新有旋则覆盖。
- * 收敛 first 预收集与 bones 合并两处逐字同构的公式（原 50-51 与 92-93 行）。
+ * 收敛 first 预收集与 bones 合并两处逐字同构的公式。
  */
-const shouldOverwrite = (
+const mdMgShouldOverwrite = (
   existingHasParent: boolean,
   existingHasRot: boolean,
   newHasParent: boolean,
@@ -28,9 +39,9 @@ const shouldOverwrite = (
 
 /**
  * 修复断裂的父子链：沿父链向上找第一个有 pivot 且在 bones 列表中的祖先，
- * 若链断则挂到 root。从 buildModelGroup 内联段抽独立函数以降低圈复杂度。
+ * 若链断则挂到 root。
  */
-function fixOrphanBoneChain(
+function mdMgFixOrphanBoneChain(
   bones: BoneData[],
   modelBones: BedrockModel["bones"],
   pivots: Map<string, Vec3>,
@@ -39,13 +50,11 @@ function fixOrphanBoneChain(
   for (const b of bones) boneNameSet.add(b.name);
   for (let i = 0; i < bones.length; i++) {
     if (bones[i].parentId === null) continue;
-    // 沿父链向上找第一个有 pivot 且在 bones 列表中的祖先
     let ancestor = bones[i].parentId!;
     const visited = new Set<string>([bones[i].name]);
     while (true) {
       const ancHasPivot = pivots.has(ancestor);
       if (boneNameSet.has(ancestor) && ancHasPivot) break;
-      // 找 ancestor 的 parent
       let found = false;
       for (const b of modelBones) {
         if (b.name === ancestor && b.parent !== "" && !visited.has(b.parent)) {
@@ -56,7 +65,7 @@ function fixOrphanBoneChain(
         }
       }
       if (!found) {
-        ancestor = ""; // 链断了，挂到 root
+        ancestor = "";
         break;
       }
     }
@@ -74,20 +83,22 @@ function fixOrphanBoneChain(
 }
 
 /**
- * 单组件 spec 构建核心。
- * 对齐 Go threejs/spec.go buildModelGroup（L103-390）。
+ * 阶段①：初始化空壳 + tex 尺寸 + first/pivots 预收集 map
  */
-export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase: number): ModelGroup {
+function mdMgInitShellAndMaps(model: BedrockModel): { ctx: MdMgBonesCtx; emptyReturn: ModelGroup | null } {
   if (!model.bones || model.bones.length === 0) {
     return {
-      id: compID,
-      name: compID,
-      defaultVisible: true,
-      textureWidth: 0,
-      textureHeight: 0,
-      textureId: null,
-      bones: [],
-      meshGroups: [],
+      ctx: null as unknown as MdMgBonesCtx,
+      emptyReturn: {
+        id: "",
+        name: "",
+        defaultVisible: true,
+        textureWidth: 0,
+        textureHeight: 0,
+        textureId: null,
+        bones: [],
+        meshGroups: [],
+      },
     };
   }
   let texW = model.texWidth;
@@ -95,7 +106,6 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
   let texH = model.texHeight;
   if (texH === 0) texH = 64;
 
-  // 同名骨骼 overwrite 决策预收集（bug-chronicle #14）
   const first = new Map<string, BoneFirst>();
   const pivots = new Map<string, Vec3>();
   for (const b of model.bones) {
@@ -108,22 +118,31 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
     }
     const newHasParent = b.parent !== "";
     const newHasRot = hasBoneRotation(b.rotation);
-    if (shouldOverwrite(fi.hasParent, fi.hasRot, newHasParent, newHasRot)) {
+    if (mdMgShouldOverwrite(fi.hasParent, fi.hasRot, newHasParent, newHasRot)) {
       pivots.set(b.name, np);
       first.set(b.name, { pivot: np, hasParent: newHasParent, hasRot: newHasRot });
     }
   }
 
-  const bones: BoneData[] = [];
-  const boneIdx = new Map<string, number>(); // name → index in bones[]
-  const boneCubes = new Map<string, Cube2D[]>(); // name → accumulated cubes
+  const ctx: MdMgBonesCtx = {
+    bones: [],
+    boneIdx: new Map<string, number>(),
+    boneCubes: new Map<string, Cube2D[]>(),
+    first,
+    pivots,
+    texW,
+    texH,
+  };
+  return { ctx, emptyReturn: null };
+}
 
+/**
+ * 阶段②：遍历 model.bones 构建 bones 数组 + boneIdx + boneCubes（按 parent 挂树）
+ */
+function mdMgBuildBonesTree(model: BedrockModel, ctx: MdMgBonesCtx): void {
   for (const b of model.bones) {
-    const bp = pivots.get(b.name)!;
-
-    // 骨骼 local position = (bone.pivot - parent.pivot)，X 翻转对齐 C# ConvertBones（-pivot.x）
-    // ADR-052 P3: 收敛为 computeBoneLocalPos 工具函数
-    const parentPivot = b.parent !== "" ? pivots.get(b.parent) ?? null : null;
+    const bp = ctx.pivots.get(b.name)!;
+    const parentPivot = b.parent !== "" ? ctx.pivots.get(b.parent) ?? null : null;
     const localPos = computeBoneLocalPos(bp, parentPivot);
 
     let localRot: [number, number, number, number] = [0, 0, 0, 1];
@@ -132,25 +151,24 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
     }
     const parentID: string | null = b.parent !== "" ? b.parent : null;
 
-    // 同名骨骼：保留第一次出现的层级信息，cube 用 mergeCubes 合并
-    const idx = boneIdx.get(b.name);
+    const idx = ctx.boneIdx.get(b.name);
     if (idx !== undefined) {
-      const existingHasParent = bones[idx].parentId !== null;
+      const existingHasParent = ctx.bones[idx].parentId !== null;
       const newHasParent = b.parent !== "";
-      const existingHasRot = !isIdentityQuat(bones[idx].localRotation);
+      const existingHasRot = !isIdentityQuat(ctx.bones[idx].localRotation);
       const newHasRot = !isIdentityQuat(localRot);
 
-      if (shouldOverwrite(existingHasParent, existingHasRot, newHasParent, newHasRot)) {
-        bones[idx].parentId = parentID;
-        bones[idx].localPosition = localPos;
-        bones[idx].localRotation = localRot;
-        boneCubes.set(b.name, b.cubes.slice());
+      if (mdMgShouldOverwrite(existingHasParent, existingHasRot, newHasParent, newHasRot)) {
+        ctx.bones[idx].parentId = parentID;
+        ctx.bones[idx].localPosition = localPos;
+        ctx.bones[idx].localRotation = localRot;
+        ctx.boneCubes.set(b.name, b.cubes.slice());
       } else {
-        boneCubes.set(b.name, mergeCubes(boneCubes.get(b.name) || [], b.cubes));
+        ctx.boneCubes.set(b.name, mergeCubes(ctx.boneCubes.get(b.name) || [], b.cubes));
       }
     } else {
-      boneIdx.set(b.name, bones.length);
-      bones.push({
+      ctx.boneIdx.set(b.name, ctx.bones.length);
+      ctx.bones.push({
         id: b.name,
         name: b.name,
         parentId: parentID,
@@ -158,126 +176,148 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
         localRotation: localRot,
         _cubeCount: 0,
       });
-      boneCubes.set(b.name, b.cubes.slice());
+      ctx.boneCubes.set(b.name, b.cubes.slice());
     }
   }
+}
 
-  // 第二遍：将合并后的 cube 转为 mesh 数据
+/**
+ * 阶段③-1：逐 bone 的 cubes 构建 mesh 数据
+ */
+function mdMgBuildMeshesFromCubes(model: BedrockModel, ctx: MdMgBonesCtx): MeshData[] {
   const meshes: MeshData[] = [];
   const boneDone = new Set<string>();
   for (const b of model.bones) {
-    if (!boneIdx.has(b.name)) continue; // 同名骨骼已合并到第一次出现的条目中
+    if (!ctx.boneIdx.has(b.name)) continue;
     if (boneDone.has(b.name)) continue;
     boneDone.add(b.name);
 
-    let bonePivot = pivots.get(b.name);
+    let bonePivot = ctx.pivots.get(b.name);
     if (!bonePivot) {
       bonePivot = { x: b.pivot[0], y: b.pivot[1], z: b.pivot[2] };
     }
-    // 前端统计：该骨骼合并后的立方体数
-    const idx = boneIdx.get(b.name);
+    const idx = ctx.boneIdx.get(b.name);
     if (idx !== undefined) {
-      bones[idx]._cubeCount = (boneCubes.get(b.name) || []).length;
+      ctx.bones[idx]._cubeCount = (ctx.boneCubes.get(b.name) || []).length;
     }
-    const cubs = boneCubes.get(b.name) || [];
+    const cubs = ctx.boneCubes.get(b.name) || [];
     for (let ci = 0; ci < cubs.length; ci++) {
-      const meshData = buildCubeMeshData(cubs[ci], bonePivot, texW, texH, b.name, ci);
+      const meshData = buildCubeMeshData(cubs[ci], bonePivot, ctx.texW, ctx.texH, b.name, ci);
       if (meshData) meshes.push(meshData);
     }
   }
+  return meshes;
+}
 
-  // 确保所有骨骼都在 bones 列表中（包括无 cube 的中间骨骼）
+/**
+ * 阶段③-2：补全无 cube 的中间骨骼到 bones 列表
+ */
+function mdMgEnsureAllBonesPresent(model: BedrockModel, ctx: MdMgBonesCtx): void {
   const allBoneNames = new Set<string>();
   for (const b of model.bones) {
     allBoneNames.add(b.name);
     if (b.parent !== "") allBoneNames.add(b.parent);
   }
   for (const name of allBoneNames) {
-    if (!boneIdx.has(name)) {
-      const bp = pivots.get(name);
-      let parentName = "";
-      let localPos: [number, number, number] = [0, 0, 0];
-      let found = false;
-      for (const b of model.bones) {
-        if (b.name === name) {
-          found = true;
-          parentName = b.parent;
-          // ADR-052 P3: 收敛为 computeBoneLocalPos 工具函数
-          const parentPivot2 = b.parent !== "" ? pivots.get(b.parent) ?? null : null;
-          localPos = parentPivot2 && bp ? computeBoneLocalPos(bp, parentPivot2) : (bp ? computeBoneLocalPos(bp, null) : [0, 0, 0]);
+    if (ctx.boneIdx.has(name)) continue;
+    const bp = ctx.pivots.get(name);
+    let parentName = "";
+    let localPos: [number, number, number] = [0, 0, 0];
+    let found = false;
+    for (const b of model.bones) {
+      if (b.name === name) {
+        found = true;
+        parentName = b.parent;
+        const parentPivot2 = b.parent !== "" ? ctx.pivots.get(b.parent) ?? null : null;
+        localPos = parentPivot2 && bp ? computeBoneLocalPos(bp, parentPivot2) : (bp ? computeBoneLocalPos(bp, null) : [0, 0, 0]);
+        break;
+      }
+    }
+    if (!found) {
+      if (!bp) {
+        console.warn("[spec-builder] 骨骼 " + name + " 无 pivot（纯 parent 引用）");
+      }
+      localPos = bp ? computeBoneLocalPos(bp, null) : [0, 0, 0];
+      parentName = "";
+    }
+    const parentID: string | null = parentName !== "" ? parentName : null;
+    ctx.boneIdx.set(name, ctx.bones.length);
+    ctx.bones.push({
+      id: name,
+      name: name,
+      parentId: parentID,
+      localPosition: localPos,
+      localRotation: [0, 0, 0, 1],
+      _cubeCount: 0,
+    });
+  }
+}
+
+/**
+ * 阶段④：后处理（断链修复 + Arm 挂接）+ 纹理 ID 计算
+ */
+function mdMgPostProcessAndTextures(model: BedrockModel, ctx: MdMgBonesCtx, texIdxBase: number): string | null {
+  mdMgFixOrphanBoneChain(ctx.bones, model.bones, ctx.pivots);
+
+  for (let i = 0; i < ctx.bones.length; i++) {
+    if (ctx.bones[i].name === "RightArm" && ctx.bones[i].parentId === null) {
+      for (let j = 0; j < ctx.bones.length; j++) {
+        if (ctx.bones[j].name === "Arm" && ctx.bones[j].parentId !== null) {
+          const raPivot = ctx.pivots.get("RightArm")!;
+          const armPivot = ctx.pivots.get("Arm")!;
+          ctx.bones[i].parentId = ctx.bones[j].name;
+          ctx.bones[i].localPosition = computeBoneLocalPos(raPivot, armPivot);
           break;
         }
       }
-      if (!found) {
-        if (!bp) {
-          console.warn("[spec-builder] 骨骼 " + name + " 无 pivot（纯 parent 引用）");
+    }
+    if (ctx.bones[i].name === "LeftArm" && ctx.bones[i].parentId === null) {
+      for (let j = 0; j < ctx.bones.length; j++) {
+        if (ctx.bones[j].name === "Arm" && ctx.bones[j].parentId !== null) {
+          const laPivot = ctx.pivots.get("LeftArm")!;
+          const armPivot = ctx.pivots.get("Arm")!;
+          ctx.bones[i].parentId = ctx.bones[j].name;
+          ctx.bones[i].localPosition = computeBoneLocalPos(laPivot, armPivot);
+          break;
         }
-        // 挂到 root，用世界坐标（ADR-052 P3: 收敛为 computeBoneLocalPos）
-        localPos = bp ? computeBoneLocalPos(bp, null) : [0, 0, 0];
-        parentName = "";
       }
-      const parentID: string | null = parentName !== "" ? parentName : null;
-      boneIdx.set(name, bones.length);
-      bones.push({
-        id: name,
-        name: name,
-        parentId: parentID,
-        localPosition: localPos,
-        localRotation: [0, 0, 0, 1],
-        _cubeCount: 0,
-      });
     }
   }
 
-  // 后处理：修复断裂的父子链（抽为独立函数 fixOrphanBoneChain）
-  fixOrphanBoneChain(bones, model.bones, pivots);
-
-  // 后处理：将 RightArm/LeftArm 挂到 Arm 下面
-  for (let i = 0; i < bones.length; i++) {
-    if (bones[i].name === "RightArm" && bones[i].parentId === null) {
-      for (let j = 0; j < bones.length; j++) {
-        if (bones[j].name === "Arm" && bones[j].parentId !== null) {
-          const raPivot = pivots.get("RightArm")!;
-          const armPivot = pivots.get("Arm")!;
-          bones[i].parentId = bones[j].name;
-          bones[i].localPosition = computeBoneLocalPos(raPivot, armPivot);
-          break;
-        }
-      }
-    }
-    if (bones[i].name === "LeftArm" && bones[i].parentId === null) {
-      for (let j = 0; j < bones.length; j++) {
-        if (bones[j].name === "Arm" && bones[j].parentId !== null) {
-          const laPivot = pivots.get("LeftArm")!;
-          const armPivot = pivots.get("Arm")!;
-          bones[i].parentId = bones[j].name;
-          bones[i].localPosition = computeBoneLocalPos(laPivot, armPivot);
-          break;
-        }
-      }
-    }
-  }
-
-  // Texture ID
   let texID: string | null = null;
-  const hasTextures = false; // parseBedrockGeometry 不产出 Textures/Texture
+  const hasTextures = false;
   if (hasTextures) {
     texID = "tex_" + texIdxBase;
   }
+  return texID;
+}
 
-  // Name 用组件源模型文件名（main/arm/arrow，UI 组件选择器显示），空则回退 compID
+/**
+ * 单组件 spec 构建核心。
+ * 对齐 Go threejs/spec.go buildModelGroup（L103-390）。
+ */
+export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase: number): ModelGroup {
+  const { ctx, emptyReturn } = mdMgInitShellAndMaps(model);
+  if (emptyReturn !== null) {
+    emptyReturn.id = compID;
+    emptyReturn.name = compID;
+    return emptyReturn;
+  }
+
+  mdMgBuildBonesTree(model, ctx);
+  const meshes = mdMgBuildMeshesFromCubes(model, ctx);
+  mdMgEnsureAllBonesPresent(model, ctx);
+  const texID = mdMgPostProcessAndTextures(model, ctx, texIdxBase);
+
   const compName = model.sourceName || compID;
-  // 全组件默认可见（与 Go spec.go 同步）：UI「全部组件」初始选中态须与渲染一致——
-  // 「仅 main 默认可见」会让主体不叫 main 的拆分模型整组隐藏，打开一片空。
-  // 视锥剔除 bbox 已只计可见子树（frustum-cull 修复②），全亮无闪烁顾虑。
   return {
     id: compID,
     name: compName,
     defaultVisible: true,
-    textureWidth: texW,
-    textureHeight: texH,
+    textureWidth: ctx.texW,
+    textureHeight: ctx.texH,
     textureId: texID,
-    bones,
+    bones: ctx.bones,
     meshGroups: meshes,
   };
 }
