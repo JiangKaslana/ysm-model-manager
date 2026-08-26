@@ -57,7 +57,7 @@ use_when:
 
 ## 共性抽象机会（横向收敛）
 
-- 四个 Worker 同构 id+timeout+pending Map → `createWorkerBridge<Req,Resp>()` 工厂（省 ~150 行）
+- Worker 桥收敛 → 已实证四桥**不同构**：pmx/fbx 逐字同码且永远 resolve(ok:false 编码)、ktx2 reject+池终止，三者可入 `createWorkerBridge`（现实收益 60–90 行非 150）；texture-decoder 为 1:N 批量聚合，基数不匹配 1:1 签名，**明确排除**防假统一
 - app-preview/app-sidebar/app-sync-manager 三套 generation 守卫实现各异 → 抽 `GenerationGuard`
 - scene-3d makeScenePort 与 mmd-3d 六 binding `as unknown as Record` 绕类型重复 → 抽公共 port（bindings 类型不全的临时方案，生成类型完善后回收）
 - backend web-fs rename/rekey/moveOrCopy 三函数「读→写新→删旧」→ `idbRekeyGroup` 原语
