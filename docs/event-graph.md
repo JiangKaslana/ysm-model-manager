@@ -3,11 +3,9 @@
 > **自动生成** — 由 `scripts/event-graph.mjs` 生成。
 > 基于 `frontend/src/bus.ts` 的 `BusEvents` 接口校验所有调用方（含 html 内联、可选链调用）。
 
-## ⚠️ 异常摘要
+## ✅ 无异常
 
-### 孤儿发射（emit 了但无 on/once 订阅方）
-
-- `import:history-changed` — emit×3
+所有调用均在 BusEvents 契约内，无孤儿发射 / 鬼订阅 / 未声明事件 / 缺参。
 
 ## 事件总览
 
@@ -22,7 +20,6 @@
 | `dir:mkdir` | 1 | 1 | 0 | 0 | ✅ |
 | `dir:recycle` | 1 | 1 | 0 | 0 | ✅ |
 | `dir:rename` | 1 | 1 | 0 | 0 | ✅ |
-| `import:history-changed` | 3 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `instance:clear` | 1 | 1 | 0 | 0 | ✅ |
 | `instance:export-list` | 1 | 1 | 0 | 0 | ✅ |
 | `lang:changed` | 2 | 2 | 0 | 0 | ✅ |
@@ -153,15 +150,6 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 30 |
-
-### `import:history-changed`
-
-**发射方：**
-| 文件 | 行 |
-|------|----|
-| `frontend/src/features/import-executor.ts` | 44 |
-| `frontend/src/features/import-executor.ts` | 52 |
-| `frontend/src/features/import-executor.ts` | 58 |
 
 ### `instance:clear`
 
@@ -321,8 +309,8 @@
 | `frontend/src/core/handlers/sync.ts` | 84 |
 | `frontend/src/core/handlers/sync.ts` | 205 |
 | `frontend/src/features/community/download-queue.ts` | 110 |
-| `frontend/src/features/import-executor.ts` | 68 |
-| `frontend/src/features/import-executor.ts` | 268 |
+| `frontend/src/features/import-executor.ts` | 33 |
+| `frontend/src/features/import-executor.ts` | 219 |
 | `frontend/src/features/recycle-bin.ts` | 107 |
 | `frontend/src/features/recycle-bin.ts` | 167 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 419 |
@@ -432,9 +420,9 @@
 | `frontend/src/features/import-dnd.ts` | 116 |
 | `frontend/src/features/import-dnd.ts` | 130 |
 | `frontend/src/features/import-dnd.ts` | 216 |
-| `frontend/src/features/import-executor.ts` | 63 |
-| `frontend/src/features/import-executor.ts` | 259 |
-| `frontend/src/features/import-executor.ts` | 272 |
+| `frontend/src/features/import-executor.ts` | 28 |
+| `frontend/src/features/import-executor.ts` | 210 |
+| `frontend/src/features/import-executor.ts` | 223 |
 | `frontend/src/features/recycle-bin.ts` | 240 |
 | `frontend/src/features/version-updater.ts` | 147 |
 | `frontend/src/features/version-updater.ts` | 156 |
@@ -608,8 +596,8 @@
 | `frontend/src/core/handlers/sync.ts` | 132 |
 | `frontend/src/core/handlers/sync.ts` | 245 |
 | `frontend/src/features/community/download-queue.ts` | 109 |
-| `frontend/src/features/import-executor.ts` | 69 |
-| `frontend/src/features/import-executor.ts` | 267 |
+| `frontend/src/features/import-executor.ts` | 34 |
+| `frontend/src/features/import-executor.ts` | 218 |
 | `frontend/src/features/recycle-bin.ts` | 108 |
 | `frontend/src/features/recycle-bin.ts` | 168 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 420 |

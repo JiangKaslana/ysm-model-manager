@@ -41,15 +41,15 @@
 | 前端·根 (app-modules/bus) | 4 | 17 |
 | frontend/backend | 21 | 108 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 17 | 84 |
+| 前端·特性 | 17 | 82 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 34 |
 | frontend/ui | 18 | 64 |
-| 前端·工具 | 159 | 632 |
+| 前端·工具 | 161 | 637 |
 | frontend/views | 114 | 332 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **480** | **2039** |
+| **合计** | **482** | **2042** |
 
 ## Go·头像
 
@@ -1132,13 +1132,11 @@
 | `bindTreeDnD()` | `frontend/src/features/import-dnd:151` | 在目标容器上注册仓库页 DnD 事件。 |
 | `CollectedEntry()` | `frontend/src/features/import-executor` | — |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
-| `ImportFile()` | `frontend/src/features/import-executor:20` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `ImportRecord()` | `frontend/src/features/import-executor:23` | 已导入历史条目（导入 tab「已导入」列表数据源） |
-| `ImportHistory()` | `frontend/src/features/import-executor:37` | — |
-| `directImport()` | `frontend/src/features/import-executor:95` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
-| `importFolder()` | `frontend/src/features/import-executor:140` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） rtype：页面上下文类型（当前树根属性，派生自注册表路由配置）——非空走 Im |
-| `executeCollected()` | `frontend/src/features/import-executor:228` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `importWebFilesWithToast()` | `frontend/src/features/import-executor:253` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
+| `ImportFile()` | `frontend/src/features/import-executor:19` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `directImport()` | `frontend/src/features/import-executor:60` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
+| `importFolder()` | `frontend/src/features/import-executor:98` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） rtype：页面上下文类型（当前树根属性，派生自注册表路由配置）——非空走 Im |
+| `executeCollected()` | `frontend/src/features/import-executor:179` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:204` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `loadOldestModel()` | `frontend/src/features/oldest-models:290` | — |
 | `RecycleHost()` | `frontend/src/features/recycle-bin:23` | — |
 | `isPathInRoot()` | `frontend/src/features/recycle-bin:33` | — |
@@ -1607,12 +1605,17 @@
 | `setMmdMaterialOpacity()` | `frontend/src/utils/3d/mmd-materials:59` | 材质透明度（0-1）：opacity 设置 + transparent 联动（opacity &lt; 1 → transparent = true） |
 | `getMmdMaterialDetail()` | `frontend/src/utils/3d/mmd-materials:71` | 材质详情：name/可见/透明/高光/光泽（越界返回 null） |
 | `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:299` | 单组件 spec 构建核心。 |
-| `BedrockCube()` | `frontend/src/utils/3d/model2d:14` | Bedrock cube（AnalyzeBedrockModel 结构） |
-| `BedrockBone()` | `frontend/src/utils/3d/model2d:24` | Bedrock bone |
-| `BedrockModel()` | `frontend/src/utils/3d/model2d:30` | BedrockModel（AnalyzeBedrockModel 返回） |
-| `Model2DOptions()` | `frontend/src/utils/3d/model2d:35` | renderModel2D 选项 |
-| `renderModel2D()` | `frontend/src/utils/3d/model2d:65` | 在 Canvas 上绘制模型骨骼的 2D 正交投影（前视图，支持 Y 轴旋转） |
-| `calcBoneHitZones()` | `frontend/src/utils/3d/model2d:213` | 计算骨骼在屏幕上的命中热区（2D 正交投影，供鼠标拾取；导出供测试） |
+| `drawView()` | `frontend/src/utils/3d/model2d-draw:234` | 主视图绘制：逐 bone/cube 投影 + 可选高亮 + 可选标签 |
+| `drawMiniView()` | `frontend/src/utils/3d/model2d-draw:301` | 小地图：俯视图投影全部 cube 包围盒 |
+| `cubeVec()` | `frontend/src/utils/3d/model2d-draw:11` | — |
+| `HitZone()` | `frontend/src/utils/3d/model2d-hit-zones:9` | 骨骼屏幕热区（鼠标拾取） |
+| `calcBoneHitZones()` | `frontend/src/utils/3d/model2d-hit-zones:18` | 计算骨骼在屏幕上的命中热区（2D 正交投影，供鼠标拾取；导出供测试） |
+| `calcBoneHitZones()` | `frontend/src/utils/3d/model2d` | — |
+| `BedrockCube()` | `frontend/src/utils/3d/model2d:16` | Bedrock cube（AnalyzeBedrockModel 结构） |
+| `BedrockBone()` | `frontend/src/utils/3d/model2d:26` | Bedrock bone |
+| `BedrockModel()` | `frontend/src/utils/3d/model2d:32` | BedrockModel（AnalyzeBedrockModel 返回） |
+| `Model2DOptions()` | `frontend/src/utils/3d/model2d:37` | renderModel2D 选项 |
+| `renderModel2D()` | `frontend/src/utils/3d/model2d:58` | 在 Canvas 上绘制模型骨骼的 2D 正交投影（前视图，支持 Y 轴旋转） |
 | `CUBE_EPS()` | `frontend/src/utils/3d/model3d-spec:6` | 立方体几何 epsilon（0.001）——单点导出，cube-mesh.ts 的 THICKNESS_EPSILON/CUBE_EPSILON 同值收敛于此 |
 | `SpecCube()` | `frontend/src/utils/3d/model3d-spec:11` | 立方体（骨骼上的 box 元素） |
 | `SpecBone()` | `frontend/src/utils/3d/model3d-spec:23` | 骨骼 |

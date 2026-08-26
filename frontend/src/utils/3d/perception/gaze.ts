@@ -82,11 +82,9 @@ export function createGazeController() {
       .setFromEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
 
     // 应用到 head：在 restRot 基础上叠加 targetQuat
-    const headObj2 = getSemanticBone(map, "head")?.object;
-    if (headObj2) {
-      const offset = new THREE.Quaternion().copy(targetQuat).multiply(headSnap.restRot);
-      headObj2.quaternion.slerp(offset, GAZE_SMOOTH);
-    }
+    // （headObj 已在上面 getSemanticBone("head") 查得并守卫非空——复用，避免重复查找）
+    const offset = new THREE.Quaternion().copy(targetQuat).multiply(headSnap.restRot);
+    headObj.quaternion.slerp(offset, GAZE_SMOOTH);
 
     // eyes：基于 head-local 坐标系微动（让眼珠跟着头转，同时在 head 上再微偏）
     for (const eyeId of ["leftEye", "rightEye"] as SemanticBoneId[]) {

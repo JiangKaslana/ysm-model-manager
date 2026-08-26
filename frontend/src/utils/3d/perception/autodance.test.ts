@@ -66,4 +66,26 @@ describe("createAutoDanceController", () => {
     expect(hips.rotation.y).toBeCloseTo(0, 6);
     ctrl.dispose();
   });
+
+  it("静止姿态非恒等时摇摆落在骨骼局部轴（P2 乘序回归护栏）", () => {
+    // 回归场景：hips 初始绕 X 旋转 45°（静止姿态非恒等）。
+    // 乘序反时（dance*rest）摇摆作用于父空间轴——局部 Y 混入 X 分量、偏离 21°；
+    // 正确（rest*dance）摇摆落在局部轴——局部 Y 保持 X=0 且长度不变。
+    const hips = new THREE.Object3D();
+    hips.quaternion.setFromEuler(new THREE.Euler(0.785, 0, 0, "XYZ")); // Rx(45°)
+    const restLocalY = new THREE.Vector3(0, 1, 0).clone().applyQuaternion(hips.quaternion.clone());
+    const map = fakeMap({ hips });
+    const ctrl = createAutoDanceController({ bpm: 120, intensity: 0.8 });
+
+    ctrl.apply(0.05, map); // 驱动一轮
+    const drivenLocalY = new THREE.Vector3(0, 1, 0).clone().applyQuaternion(hips.quaternion.clone());
+
+    // 局部 Y 轴不应混入 X 分量（父空间轴摇摆的指纹是 X 分量非零）
+    expect(Math.abs(drivenLocalY.x)).toBeLessThan(1e-6);
+    // 长度保持 1（纯旋转不缩放）
+    expect(drivenLocalY.length()).toBeCloseTo(1, 6);
+    // 与静止姿态的局部 Y 同向（摇摆绕自身轴，不把轴带偏）
+    expect(drivenLocalY.angleTo(restLocalY)).toBeLessThan(1e-6);
+    ctrl.dispose();
+  });
 });

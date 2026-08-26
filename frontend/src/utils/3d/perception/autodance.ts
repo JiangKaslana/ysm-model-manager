@@ -154,7 +154,12 @@ export function createAutoDanceController(opts: AutoDanceOptions = {}) {
 
       // 平滑 slerp 到目标
       const restQuat = snap.rot;
-      const offset = targetRot.multiply(restQuat);
+      // 乘序修正（P2 静默 bug）：quaternion.multiply 右操作数先应用。
+      // 原 targetRot.multiply(restQuat) = dance*rest——摇摆作用于父空间轴，
+      // 静止姿态非恒等时骨骼局部轴被带偏（实测局部Y混入X分量、夹角差 21°）。
+      // 正确 rest*dance：先摇摆（局部轴）再叠静止姿态；restQuat 是 warmup 快照，
+      // 不能就地改 → clone。
+      const offset = restQuat.clone().multiply(targetRot);
       entry.object.quaternion.slerp(offset, 0.15);
 
       // 应用平移（仅 hips/spine 有 X 位移）
