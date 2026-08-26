@@ -77,18 +77,35 @@ describe("classifyWasmError", () => {
     expect(classifyWasmError({ name: "ExitStatus" })).toEqual({ kind: "exit" });
   });
 
-  it("判定只看 err.name（既有口径）：裸字符串 / name 含关键词才命中", () => {
+  it("判定材料：裸字符串全文；Error 对象取 name+message（真实崩溃关键词在 message）", () => {
     // Emscripten OOM 走裸字符串 throw → err 本身被 stringify → 命中
     for (const msg of ["abort(OOM)", "out of memory", "Aborted(). Build with -s ASSERTIONS"]) {
       expect(classifyWasmError(msg).kind).toBe("fatal");
     }
-    // 已知局限：普通 Error/WebAssembly.RuntimeError 的 name 不含关键词时落 unknown
-    //（如 new Error("abort") name="Error"；RuntimeError name="RuntimeError"）
-    // —— 与两处旧实现逐字一致，本次仅收敛不改变行为
-    expect(classifyWasmError(new Error("abort")).kind).toBe("unknown");
+    expect(classifyWasmError(new Error("some io error")).kind).toBe("unknown");
+    expect(classifyWasmError("plain string")).toEqual({ kind: "unknown" });
+  });
+
+  it("真实硬崩溃形态（ysm-glue-data.js 实际 abort/trap 实现）→ fatal 触发重置链", () => {
+    // Emscripten abort()：throw new WebAssembly.RuntimeError(`Aborted(${what}). Build with -sASSERTIONS...`)
+    // —— OOM/C++ 异常/mmapAlloc 全走此路径：name="RuntimeError"，关键词只在 message
     expect(
-      classifyWasmError(new WebAssembly.RuntimeError("memory access out of bounds")).kind,
-    ).toBe("unknown");
+      classifyWasmError(
+        new WebAssembly.RuntimeError("Aborted(out of memory). Build with -sASSERTIONS for more info."),
+      ).kind,
+    ).toBe("fatal");
+    // 原生 WASM trap（引擎直接抛，无 abort 包装）
+    for (const msg of [
+      "memory access out of bounds",
+      "unreachable executed",
+      "null function or function signature mismatch",
+    ]) {
+      expect(classifyWasmError(new WebAssembly.RuntimeError(msg)).kind).toBe("fatal");
+    }
+    // 跨 Worker 结构化克隆丢原型（instanceof 失效）→ name+message 关键词兜底
+    expect(
+      classifyWasmError({ name: "RuntimeError", message: "memory access out of bounds" }).kind,
+    ).toBe("fatal");
   });
 
   it("其他错误 → unknown", () => {

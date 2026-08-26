@@ -41,21 +41,35 @@ export interface WasmModuleLike {
  * WASM 错误分类：收敛 decodeYsmFileFromMemory / decodeYsmFile / decodeYsmInWorker /
  * decodeYsmInWorkerMemfs 四个 catch 块的重复判定。
  * 口径差异保留在调用方：内存路径 ExitStatus 一并重置；callMain 路径按 exit code 细分。
+ *
+ * 判定材料（2026-08 修复：旧版只看 err.name，而真实崩溃全是 WebAssembly.RuntimeError
+ * ——Emscripten abort() 抛 `Aborted(...). Build with -sASSERTIONS...`，原生 trap 抛
+ * "memory access out of bounds"，name 均为 "RuntimeError"，关键词只在 message → 全漏判
+ * 为 unknown，硬崩溃重置链永不触发 → ABORT=true 的死模块永久占坑）：
+ * - 裸字符串 throw 用全文；Error 对象用 name + message；
+ * - instanceof WebAssembly.RuntimeError 兜底无关键词 trap（unreachable / stack overflow），
+ *   能逃逸到 catch 的 RuntimeError 必然意味着模块状态可疑，重置是安全且廉价的自愈；
+ * - name+message 关键词兜底结构化克隆丢原型的跨 Worker 场景。
  * @returns fatal=abort/trap/oOM 硬崩溃；exit=ExitStatus（调用方查 exitCode）；unknown=其他
  */
 export function classifyWasmError(err: unknown): {
   kind: "fatal" | "exit" | "unknown";
   exitCode?: number;
 } {
-  const errObj = err as { name?: string; status?: unknown };
-  const errStr = String(errObj?.name || err);
-  if (errStr.includes("ExitStatus")) {
+  const errObj = err as { name?: string; message?: string; status?: unknown };
+  const errText =
+    typeof err === "string"
+      ? err
+      : `${errObj?.name ?? ""} ${errObj?.message ?? ""}${
+          err instanceof WebAssembly.RuntimeError ? " wasm-runtime-error" : ""
+        }`;
+  if (errText.includes("ExitStatus")) {
     return {
       kind: "exit",
       exitCode: typeof errObj?.status === "number" ? errObj.status : undefined,
     };
   }
-  if (/abort|trap|out of memory/i.test(errStr)) {
+  if (/abort|trap|out of memory|out of bounds|wasm-runtime-error/i.test(errText)) {
     return { kind: "fatal" };
   }
   return { kind: "unknown" };
