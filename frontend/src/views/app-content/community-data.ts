@@ -136,7 +136,7 @@ export async function loadLocalAuthors(): Promise<LocalAuthorLike[]> {
   const authors = await withCached(
     SCAN_AUTHORS_KEY,
     SCAN_AUTHORS_TTL_MS,
-    () => App.ScanLocalAuthors(),
+    () => App.ScanLocalAuthors(""),
     "STALE",
   ).catch(() => []);
   return authors || [];

@@ -676,21 +676,21 @@
 | `App.BatchExtractCreatorAvatars()` | `internal/app/app_avatar:23` | BatchExtractCreatorAvatars 批量提取所有有本地模型的创作者头像 |
 | `App.DebugExtractCreatorAvatar()` | `internal/app/app_avatar:76` | DebugExtractCreatorAvatar 调试版：提取指定作者头像 |
 | `App.CacheModelAvatars()` | `internal/app/app_avatar:131` | CacheModelAvatars 从模型文件缓存作者头像（覆盖 .ysm/.zip/.json 等所有格式） |
-| `App.GetConfigPath()` | `internal/app/app_config:61` | GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application |
-| `App.SaveAppConfig()` | `internal/app/app_config:131` | — |
-| `App.SetDownloadMirror()` | `internal/app/app_config:201` | — |
-| `App.SaveThresholds()` | `internal/app/app_config:210` | SaveThresholds 保存运行阈值配置（ADR-062 §2.3：前端设置页写入入口）。 |
-| `App.LoadAppConfig()` | `internal/app/app_config:242` | — |
-| `App.GetSubDirMap()` | `internal/app/app_config:265` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
-| `App.CurrentVersion()` | `internal/app/app_config:269` | — |
-| `App.CheckUpdate()` | `internal/app/app_config:271` | — |
-| `App.DoUpdate()` | `internal/app/app_config:298` | — |
-| `App.RestartApplication()` | `internal/app/app_config:316` | — |
-| `App.SaveWindowPosition()` | `internal/app/app_config:351` | — |
-| `App.GetWindowPosition()` | `internal/app/app_config:365` | — |
-| `App.SelectDirectory()` | `internal/app/app_config:398` | ========== 目录选择 ========== |
-| `App.GetMinecraftPaths()` | `internal/app/app_config:461` | — |
-| `App.ValidateMinecraftDir()` | `internal/app/app_config:463` | — |
+| `App.GetConfigPath()` | `internal/app/app_config:62` | GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application |
+| `App.SaveAppConfig()` | `internal/app/app_config:134` | — |
+| `App.SetDownloadMirror()` | `internal/app/app_config:204` | — |
+| `App.SaveThresholds()` | `internal/app/app_config:213` | SaveThresholds 保存运行阈值配置（ADR-062 §2.3：前端设置页写入入口）。 |
+| `App.LoadAppConfig()` | `internal/app/app_config:245` | — |
+| `App.GetSubDirMap()` | `internal/app/app_config:268` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
+| `App.CurrentVersion()` | `internal/app/app_config:272` | — |
+| `App.CheckUpdate()` | `internal/app/app_config:274` | — |
+| `App.DoUpdate()` | `internal/app/app_config:301` | — |
+| `App.RestartApplication()` | `internal/app/app_config:319` | — |
+| `App.SaveWindowPosition()` | `internal/app/app_config:354` | — |
+| `App.GetWindowPosition()` | `internal/app/app_config:368` | — |
+| `App.SelectDirectory()` | `internal/app/app_config:401` | ========== 目录选择 ========== |
+| `App.GetMinecraftPaths()` | `internal/app/app_config:464` | — |
+| `App.ValidateMinecraftDir()` | `internal/app/app_config:466` | — |
 | `NewDownloadQueue()` | `internal/app/app_download:51` | NewDownloadQueue 创建串行下载队列（回调由 App 初始化时注入） |
 | `App.EnqueueDownloads()` | `internal/app/app_download:56` | — |
 | `App.CancelQueue()` | `internal/app/app_download:86` | — |
@@ -782,12 +782,12 @@
 | `App.ClearScanCache()` | `internal/app/app_scan:428` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
 | `App.ListModelAuthors()` | `internal/app/app_scan:435` | ListModelAuthors 统计 [作者] 前缀（轻量遍历：只看文件名，不读元数据不算哈希， 不占全量扫描缓存——原走 ScanEntries 会陪绑 SHA256，大库下拖 |
 | `App.GenerateRepoIndex()` | `internal/app/app_scan:444` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
-| `App.ScanLocalAuthors()` | `internal/app/app_scan:452` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
-| `App.ListVersionInstances()` | `internal/app/app_scan:461` | — |
-| `App.GetGlobalCustomDir()` | `internal/app/app_scan:465` | — |
-| `App.ListFileNames()` | `internal/app/app_scan:471` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:488` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:497` | — |
+| `App.ScanLocalAuthors()` | `internal/app/app_scan:455` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 ScanLocalAuthors 扫描本地仓库的作者信息。 |
+| `App.ListVersionInstances()` | `internal/app/app_scan:467` | — |
+| `App.GetGlobalCustomDir()` | `internal/app/app_scan:471` | — |
+| `App.ListFileNames()` | `internal/app/app_scan:477` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:494` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:503` | — |
 | `App.DetectConflicts()` | `internal/app/app_sync:15` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
 | `App.ResolveConflicts()` | `internal/app/app_sync:59` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |

@@ -449,10 +449,16 @@ func (a *App) GenerateRepoIndex(repoPath string) (string, error) {
 }
 
 // ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者
-func (a *App) ScanLocalAuthors() []types.WorkshopCreator {
+// ScanLocalAuthors 扫描本地仓库的作者信息。
+// rtype 可选，指定资源类型 ID（如 ysm/maid-model），非空时只扫该类型的作者，
+// 避免全类型扫描浪费；空时保持现状（全类型遍历）。
+func (a *App) ScanLocalAuthors(rtype string) []types.WorkshopCreator {
 	roots := map[string]string{}
 	// ADR-064 锚定：遍历注册表而非硬编码 6 类型数组（新增类型自动纳入作者扫描）
 	for _, rt := range types.LoadRegistry().ResourceTypes {
+		if rtype != "" && rt.ID != rtype {
+			continue
+		}
 		roots[rt.ID], _ = a.GetRepoRoot(rt.ID)
 	}
 	return scanner.ScanLocalAuthors(roots)

@@ -52,7 +52,7 @@ func printCreatorUsage() {
 
 // runCreatorScan 扫描本地作者
 func runCreatorScan(ctx *CmdContext) error {
-	creators := ctx.App.ScanLocalAuthors()
+	creators := ctx.App.ScanLocalAuthors("")
 	if len(creators) == 0 {
 		fmt.Println("📭 未扫描到本地作者")
 		return nil

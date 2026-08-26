@@ -1075,9 +1075,12 @@ export function SaveWorkshopSites(sites: types$0.WorkshopSite[] | null): $Cancel
 
 /**
  * ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者
+ * ScanLocalAuthors 扫描本地仓库的作者信息。
+ * rtype 可选，指定资源类型 ID（如 ysm/maid-model），非空时只扫该类型的作者，
+ * 避免全类型扫描浪费；空时保持现状（全类型遍历）。
  */
-export function ScanLocalAuthors(): $CancellablePromise<types$0.WorkshopCreator[] | null> {
-    return $Call.ByID(3176279871);
+export function ScanLocalAuthors(rtype: string): $CancellablePromise<types$0.WorkshopCreator[] | null> {
+    return $Call.ByID(3176279871, rtype);
 }
 
 /**
