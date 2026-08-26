@@ -1,4 +1,5 @@
 // ===== 创意工坊站点打开器 =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { getApp } from "../../backend/app.ts";
 import { resolveWebMode } from "../../backend/platform.ts";
 import { safeSet } from "../../utils/dom/storage.ts";
@@ -115,7 +116,7 @@ export function bindSiteEvents(
       if (resolveWebMode()) {
         bus.emit("toast:show", {
           msg: "网页版暂不支持导出站点配置，请使用桌面版",
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "warn",
         });
         return;
@@ -125,13 +126,13 @@ export function bindSiteEvents(
         const path = await ExportWorkshopSitesJSONFile();
         bus.emit("toast:show", {
           msg: "📤 站点已导出: " + path,
-          duration: 2000,
+          duration: TOAST_MS.success,
           type: "success",
         });
       } catch (e) {
         bus.emit("toast:show", {
           msg: "❌ " + friendlyError(e, "导出失败"),
-          duration: 4000,
+          duration: TOAST_MS.verbose,
           type: "error",
         });
       }
@@ -143,7 +144,7 @@ export function bindSiteEvents(
       if (resolveWebMode()) {
         bus.emit("toast:show", {
           msg: "网页版暂不支持导入站点配置，请使用桌面版",
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "warn",
         });
         return;
@@ -154,13 +155,13 @@ export function bindSiteEvents(
         // TODO: 重新加载创作者列表
         bus.emit("toast:show", {
           msg: "✅ 已导入 " + n + " 个站点",
-          duration: 2000,
+          duration: TOAST_MS.success,
           type: "success",
         });
       } catch (e) {
         bus.emit("toast:show", {
           msg: "❌ " + friendlyError(e, t("content.importFailed")),
-          duration: 4000,
+          duration: TOAST_MS.verbose,
           type: "error",
         });
       }

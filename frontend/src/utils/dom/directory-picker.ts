@@ -5,6 +5,7 @@
 //   → 改为「授权检查 → 自动定位公共仓库目录」（查看器模式：固定路径
 //   /storage/emulated/0/YSM-Model-Manager，授权 MANAGE_EXTERNAL_STORAGE 后 Go os.*
 //   直读，用户把模型放入该目录即可使用，无需选择器）。
+import { TOAST_MS } from ".//toast-ms.ts";
 import { getApp } from "../../backend/app.ts";
 import { resolveWebMode } from "../../backend/platform.ts";
 import { bus } from "../../bus.ts";
@@ -32,7 +33,7 @@ export async function resolveAndroidRepoDir(): Promise<string | null> {
       if (!dir) return null;
       bus.emit("toast:show", {
         msg: t("settings.path.autoRepoRoot") + " " + dir,
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "info",
       });
       return dir;
@@ -43,7 +44,7 @@ export async function resolveAndroidRepoDir(): Promise<string | null> {
   if (!bridge.hasStoragePermission?.()) {
     bus.emit("toast:show", {
       msg: t("settings.path.needStoragePermission"),
-      duration: 4000,
+      duration: TOAST_MS.verbose,
       type: "warn",
     });
     bridge.requestStoragePermission?.();
@@ -55,7 +56,7 @@ export async function resolveAndroidRepoDir(): Promise<string | null> {
   if (!dir) return null;
   bus.emit("toast:show", {
     msg: t("settings.path.autoRepoRoot") + " " + dir,
-    duration: 4000,
+    duration: TOAST_MS.verbose,
     type: "info",
   });
   return dir;

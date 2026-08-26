@@ -1,6 +1,7 @@
 // ===== 诊断页初始化（为 _initDiagnostics 减负） =====
 // ADR-040 按职责切文件：日志加载（logs.ts）/ 去重（dedup.ts）/ 冲突扫描（conflicts.ts）已拆出；
 // 本文件保留 initDiagnostics 编排壳，并 re-export startDedup 保持外部 import 路径（./diagnostics/init.ts）不变
+import { TOAST_MS } from "../../../utils/dom/toast-ms.ts";
 import { t } from "../../../core/i18n/t.ts";
 import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
@@ -38,7 +39,7 @@ function dgInBindRefreshClear(root: ShadowRoot, esc: EscFn): void {
     if (!can("ClearImportLogs")) {
       bus.emit("toast:show", {
         msg: "网页版不支持清除日志",
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "warn",
       });
       return;
@@ -49,13 +50,13 @@ function dgInBindRefreshClear(root: ShadowRoot, esc: EscFn): void {
       loadDiagnosticsLogs(root, esc);
       bus.emit("toast:show", {
         msg: "🗑️ " + t("diagnostics.logsCleared"),
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "info",
       });
     } catch (e) {
       bus.emit("toast:show", {
         msg: "❌ " + friendlyError(e, t("diagnostics.clearFailed")),
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "error",
       });
     }
@@ -73,7 +74,7 @@ function dgInBindCopyPanel(root: ShadowRoot): void {
     if (!text) {
       bus.emit("toast:show", {
         msg: "📋 当前无日志可复制",
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "info",
       });
       return;
@@ -85,7 +86,7 @@ function dgInBindCopyPanel(root: ShadowRoot): void {
     }
     bus.emit("toast:show", {
       msg: "📋 " + t("diagnostics.copiedLogPrivacy"),
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "info",
     });
   });
@@ -100,7 +101,7 @@ function dgInCopyRowLog(row: HTMLElement): void {
     .then(() => {
       bus.emit("toast:show", {
         msg: "📋 " + t("diagnostics.copiedLogPrivacy"),
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "info",
       });
     })
@@ -108,7 +109,7 @@ function dgInCopyRowLog(row: HTMLElement): void {
       dgInCopyTextFallback(text);
       bus.emit("toast:show", {
         msg: "📋 " + t("diagnostics.copiedLog"),
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "success",
       });
     });

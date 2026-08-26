@@ -2,6 +2,7 @@
 // 从 document 级 registerDnD 收敛为 <app-tree> 容器内绑定，去掉全局遮罩。
 // 收集器统一走 features/dnd-collector.ts，与导入页收集器一致。
 
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { getApp } from "../backend/app.ts";
@@ -45,7 +46,7 @@ export async function handleTreeDrop(
   if (isBusy()) {
     bus.emit("toast:show", {
       msg: "⏳ " + t("import.busyImporting"),
-      duration: 2000,
+      duration: TOAST_MS.success,
       type: "info",
     });
     return;
@@ -63,7 +64,7 @@ export async function handleTreeDrop(
       if (files.length === 0) {
         bus.emit("toast:show", {
           msg: "⚠️ 网页版暂不支持文件夹导入，请拖入 .ysm 等模型文件",
-          duration: 4000,
+          duration: TOAST_MS.verbose,
           type: "warn",
         });
         return;
@@ -102,7 +103,7 @@ export async function handleTreeDrop(
       logDrop("drop: 收集 0 文件（webkitGetAsEntry fallback 也空）");
       bus.emit("toast:show", {
         msg: "📂 " + t("import.noSupportedFiles") + "（" + DROP_EXTS_STR + "）",
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "info",
       });
       return;
@@ -115,7 +116,7 @@ export async function handleTreeDrop(
     if (oversized.length > 0) {
       bus.emit("toast:show", {
         msg: `⚠️ ${oversized.length} 个文件超过 ${Math.round(MAX_IMPORT_BYTES / 1024 / 1024)}MB 上限已跳过（${oversized[0].file.name}${oversized.length > 1 ? " 等" : ""}）`,
-        duration: 5000,
+        duration: TOAST_MS.long,
         type: "warn",
       });
       collected = collected.filter((c) => c.file.size <= MAX_IMPORT_BYTES);
@@ -129,7 +130,7 @@ export async function handleTreeDrop(
       logDrop("drop: execute 返回 0 成功但 total>0（全部被 filter 过滤）");
       bus.emit("toast:show", {
         msg: "📂 " + t("import.noSupportedFiles") + "（" + DROP_EXTS_STR + "）",
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "info",
       });
     }
@@ -217,7 +218,7 @@ export function bindTreeDnD(container: HTMLElement, rtype: string | (() => strin
         // 显式化：friendlyError 展示 Go 结构化错误（ADR-082 续），
         // 未归类 Code 透传 Reason/Suggestion 并剥离内部路径
         msg: `❌ ${t("import.processError")}: ` + friendlyError(err),
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "error",
       });
     });

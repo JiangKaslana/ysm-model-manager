@@ -1,4 +1,5 @@
 // ===== sidebar 数据加载层 =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { t } from "../../core/i18n/t.ts";
 import { dbg } from "../../utils/debug/debug.ts";
@@ -150,7 +151,7 @@ async function doLoadInstances(rtypeActual: string): Promise<SidebarInstance[]> 
     // 失败不静默：显示空整合包列表会误导用户以为没装实例
     bus.emit("toast:show", {
       msg: "❌ 整合包列表加载失败: " + friendlyError(err, "读取整合包失败"),
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
     return [];

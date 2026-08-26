@@ -1,4 +1,5 @@
 // ===== <app-sidebar> 入口 =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
@@ -146,7 +147,7 @@ function asbBeginSync(
   if (!item) return null;
   const selected = asbGetSelected(ctx);
   if (!selected.length) {
-    bus.emit("toast:show", { msg: `请先勾选要${verb}的整合包`, duration: 2000, type: "info" });
+    bus.emit("toast:show", { msg: `请先勾选要${verb}的整合包`, duration: TOAST_MS.success, type: "info" });
     return null;
   }
   if (flags.getSyncInProgress()) return null;
@@ -260,12 +261,12 @@ async function asbRunPush(
       const parts: string[] = [];
       if (skipped > 0) parts.push(`${skipped} 个被跳过（同步进行中）`);
       if (timedOut > 0) parts.push(`${timedOut} 个超时`);
-      bus.emit("toast:show", { msg: `⚠️ 推送完成，${parts.join("，")}`, duration: 3000, type: "warn" });
+      bus.emit("toast:show", { msg: `⚠️ 推送完成，${parts.join("，")}`, duration: TOAST_MS.normal, type: "warn" });
     } else {
-      bus.emit("toast:show", { msg: `✅ 推送完成：${selected.length} 个整合包`, duration: 2500 });
+      bus.emit("toast:show", { msg: `✅ 推送完成：${selected.length} 个整合包`, duration: TOAST_MS.info });
     }
   } catch (err) {
-    bus.emit("toast:show", { msg: "❌ 推送失败: " + (safeErrorMessage(err)), duration: 3000, type: "error" });
+    bus.emit("toast:show", { msg: "❌ 推送失败: " + (safeErrorMessage(err)), duration: TOAST_MS.normal, type: "error" });
   } finally {
     pushBtn.textContent = "⬆️ 推送所选 ▾";
     pushBtn.disabled = false;
@@ -309,16 +310,16 @@ async function asbRunPull(
       }
     }
     if (failed > 0) {
-      bus.emit("toast:show", { msg: `⚠️ 拉取完成: ${totalPulled} 个文件, ${failed} 个失败`, duration: 3000, type: "warn" });
+      bus.emit("toast:show", { msg: `⚠️ 拉取完成: ${totalPulled} 个文件, ${failed} 个失败`, duration: TOAST_MS.normal, type: "warn" });
     } else if (totalPulled > 0) {
-      bus.emit("toast:show", { msg: `✅ 拉取完成，共 ${totalPulled} 个文件`, duration: 2500 });
+      bus.emit("toast:show", { msg: `✅ 拉取完成，共 ${totalPulled} 个文件`, duration: TOAST_MS.info });
     } else {
-      bus.emit("toast:show", { msg: "📭 没有可拉取的文件（实例中无多余资源）", duration: 2500, type: "info" });
+      bus.emit("toast:show", { msg: "📭 没有可拉取的文件（实例中无多余资源）", duration: TOAST_MS.info, type: "info" });
     }
     bus.emit("stats:refresh");
     bus.emit("tree:reload");
   } catch (err) {
-    bus.emit("toast:show", { msg: "❌ 拉取失败: " + (safeErrorMessage(err)), duration: 3000, type: "error" });
+    bus.emit("toast:show", { msg: "❌ 拉取失败: " + (safeErrorMessage(err)), duration: TOAST_MS.normal, type: "error" });
   } finally {
     pullBtn.textContent = "⬇️ " + t("sidebar.pullSelected") + " ▾";
     pullBtn.disabled = false;

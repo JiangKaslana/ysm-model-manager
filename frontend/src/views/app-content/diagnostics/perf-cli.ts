@@ -2,6 +2,7 @@
 // 数据来源：Go CLI 命令文本输出，通过 executeCLI 白名单调用后解析渲染。
 // 纯前端逻辑，零 Go 改动；与 perf-trace.ts（load-trace store 消费层）职责隔离。
 
+import { TOAST_MS } from "../../../utils/dom/toast-ms.ts";
 import { t } from "../../../core/i18n/t.ts";
 import { executeCLI } from "../../../services/cli-bridge.ts";
 import type { CLIArgs } from "../../../services/cli-bridge.ts";
@@ -352,7 +353,7 @@ function dgPcGfWebModeCheck(): boolean {
   if (resolveWebMode()) {
     bus.emit("toast:show", {
       msg: "网页版不支持性能诊断",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     return true;

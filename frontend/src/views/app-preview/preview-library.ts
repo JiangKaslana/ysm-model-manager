@@ -11,6 +11,7 @@
 // opts.siblings（同目录兄弟，mount 时一次性过滤），点击即 switchTo 复用外壳重建，
 // 全程轻量获取文件——不再全量扫描各仓库、不再按扩展名分类贴标签。
 
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { getApp } from "../../backend/app.ts";
 import { RESOURCE_TYPE_LABELS, resolvePreviewKey, resolvePreviewKeyToRtype, getPreviewableTypeTabs } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
@@ -85,7 +86,7 @@ export async function openModel3DFullscreen(path: string, options?: OpenModel3DO
     return;
   }
   const { bus } = await import("../../bus.ts");
-  bus.emit("toast:show", { msg: "3D 预览暂不支持该类型", duration: 3000, type: "warn" });
+  bus.emit("toast:show", { msg: "3D 预览暂不支持该类型", duration: TOAST_MS.normal, type: "warn" });
 }
 
 interface PreviewExtras extends Mount3DOptions {

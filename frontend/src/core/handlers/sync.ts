@@ -1,4 +1,5 @@
 // ===== 同步相关：导入缺失 / 同步启用状态（类型化版 — ADR-014 P3）=====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
@@ -39,7 +40,7 @@ async function runDownloadMissing(
   if (!filesRoot) {
     bus.emit("toast:show", {
       msg: "请先配置该资源类型目录",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     return false;
@@ -87,7 +88,7 @@ async function runDownloadMissing(
     msg: instanceName
       ? t("sync.downloadDone", { name: instanceName, ok: totalOk, fail: totalFail })
       : t("sync.downloadAllDone", { ok: totalOk, fail: totalFail }),
-    duration: 4000,
+    duration: TOAST_MS.verbose,
     type: totalFail > 0 ? "warn" : "success",
   });
   return true;
@@ -114,7 +115,7 @@ async function handleSyncDownloadMissing(
     failed = true;
     bus.emit("toast:show", {
       msg: "sync:download:missing 缺少 rtype 参数",
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
   }
@@ -124,7 +125,7 @@ async function handleSyncDownloadMissing(
     failed = true;
     bus.emit("toast:show", {
       msg: `❌ ${friendlyError(e)}`,
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
   } finally {
@@ -155,7 +156,7 @@ async function runSyncToggleStatus(): Promise<void> {
   if (!filesRoot || !mcRoot) {
     bus.emit("toast:show", {
       msg: "请先配置目录",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     return;
@@ -164,7 +165,7 @@ async function runSyncToggleStatus(): Promise<void> {
   if (!instances?.length) {
     bus.emit("toast:show", {
       msg: t("sync.noPacks"),
-      duration: 2000,
+      duration: TOAST_MS.success,
       type: "info",
     });
     return;
@@ -198,7 +199,7 @@ async function runSyncToggleStatus(): Promise<void> {
   if (!parts.length) parts.push(t("sync.alreadySync"));
   bus.emit("toast:show", {
     msg: t("sync.doneToast", { parts: parts.join("，") }),
-    duration: 4000,
+    duration: TOAST_MS.verbose,
     // P3（审核发现）：有错误但存在成功项时旧逻辑仍报 success，与 AddImportLog 的
     // "failed" 自相矛盾（同一操作对用户 ✅、对日志 ✗）——统一按 errors 判定
     type: errors.length === 0 ? "success" : "warn",
@@ -213,7 +214,7 @@ async function handleSyncToggleStatus(flag: SyncBusyFlag): Promise<void> {
     // 发 toast 让调用方（app-tree 批量/单文件）感知被跳过，避免 UI 乐观更新后无反馈
     bus.emit("toast:show", {
       msg: t("sync.busySkip"),
-      duration: 2000,
+      duration: TOAST_MS.success,
       type: "info",
     });
     return;

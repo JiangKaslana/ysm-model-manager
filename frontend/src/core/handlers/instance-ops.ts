@@ -1,4 +1,5 @@
 // ===== 整合包操作：导出清单 / 清空目录（类型化版 — ADR-014 P3）=====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
@@ -25,7 +26,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         // 否则用户右键「复制模型清单」会导出整合包所有类型的文件，
         // 而不是当前选中类型（如 MMD）的文件。
         if (!rtype) {
-          bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: 3000, type: "error" });
+          bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: TOAST_MS.normal, type: "error" });
           return;
         }
 
@@ -34,7 +35,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         if (!ins?.VersionDir) {
           bus.emit("toast:show", {
             msg: "未找到整合包",
-            duration: 3000,
+            duration: TOAST_MS.normal,
             type: "error",
           });
           return;
@@ -73,7 +74,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         if (totalFiles === 0) {
           bus.emit("toast:show", {
             msg: "该整合包没有资源文件",
-            duration: 2000,
+            duration: TOAST_MS.success,
             type: "info",
           });
           return;
@@ -83,13 +84,13 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         await navigator.clipboard.writeText(text);
         bus.emit("toast:show", {
           msg: `📋 已复制 ${totalFiles} 个文件清单到剪贴板`,
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "success",
         });
       } catch (e) {
         bus.emit("toast:show", {
           msg: `❌ ${friendlyError(e)}`,
-          duration: 5000,
+          duration: TOAST_MS.long,
           type: "error",
         });
       }
@@ -111,7 +112,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         // 否则用户右键「清空此整合包的模型」会误删所有类型的文件，
         // 而不是当前选中类型（如 MMD）的文件。
         if (!rtype) {
-          bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: 3000, type: "error" });
+          bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: TOAST_MS.normal, type: "error" });
           return;
         }
 
@@ -123,7 +124,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
           // 统计失败不静默：显示「没有资源」会误导用户以为整合包为空
           bus.emit("toast:show", {
             msg: "❌ 统计失败: " + friendlyError(countErr, "无法统计资源数量"),
-            duration: 3000,
+            duration: TOAST_MS.normal,
             type: "error",
           });
           return;
@@ -131,7 +132,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         if (totalCount === 0) {
           bus.emit("toast:show", {
             msg: "该整合包没有可清空的资源文件",
-            duration: 2000,
+            duration: TOAST_MS.success,
             type: "info",
           });
           return;
@@ -147,7 +148,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         if (!confirmed) {
           bus.emit("toast:show", {
             msg: "已取消",
-            duration: 1500,
+            duration: TOAST_MS.quick,
             type: "info",
           });
           return;
@@ -157,20 +158,20 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
           bus.emit("stats:refresh");
           bus.emit("toast:show", {
             msg: `🗑️ ${insName}: 已清空 ${count} 个文件（移入回收站）`,
-            duration: 3000,
+            duration: TOAST_MS.normal,
             type: "success",
           });
         } catch (err) {
           bus.emit("toast:show", {
             msg: `❌ 清空失败: ${friendlyError(err, "清空失败")}`,
-            duration: 5000,
+            duration: TOAST_MS.long,
             type: "error",
           });
         }
       } catch (e) {
         bus.emit("toast:show", {
           msg: `❌ ${friendlyError(e)}`,
-          duration: 5000,
+          duration: TOAST_MS.long,
           type: "error",
         });
       }

@@ -169,6 +169,8 @@ const ALL_STATIC_TOOLS = [
   // css-layer-check.mjs — Shadow DOM 样式越界门禁（keyframe 跨 shadow 静默失效 /
   // 类误归全局 <link> 在 shadow 内不生效）。ERROR 阻断，见 21c01725 / 9942ada3 复盘。
   { tool: 'css-layer-check.mjs', args: ['--strict'] },
+  // toast 时长单一事实源守护（R7）：非阻断 [WARN] 观察期，防回流不误伤并行 push
+  'check-toast-duration.mjs',
 ];
 
 /** 文档相关静态工具（--docs 模式，doctor DOC_STATIC_TOOLS 迁入） */
@@ -209,6 +211,8 @@ const FRONTEND_STATIC_TOOLS = [
   // Bus 事件契约硬闸（2026-08-29）：可选链盲区修复后升级——未声明/emit 缺参/
   // VOID_EVENTS 清单漂移在 --strict 下阻断；孤儿/鬼订阅仅记录不阻断
   { tool: 'event-graph.mjs', args: ['--strict'] },
+  // toast 时长单一事实源守护（R7）：非阻断 [WARN] 观察期
+  'check-toast-duration.mjs',
 ];
 
 /** push 模式按变更域补挂的 Go 静态工具 */

@@ -2,6 +2,7 @@
 // ADR-040 按职责切文件：1063 行巨型 initSettings 拆分——路径卡片/高级面板/检测 → path-cards.ts，
 // 主题 → theme.ts，3D 键位 → keymap.ts，UI 偏好 → ui-prefs.ts，共享状态 → store.ts。
 // 本文件保留为编排壳：加载 cfg/registry → 调用各模块初始化 → 组装其余事件绑定骨架。
+import { TOAST_MS } from "../../../utils/dom/toast-ms.ts";
 import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
 import { resolveWebMode } from "../../../backend/platform.ts";
@@ -52,7 +53,7 @@ function stgBindMirrorSelect(
               : val === "githubapi"
                 ? "GitHub API"
                 : "直连"),
-          duration: 2000,
+          duration: TOAST_MS.success,
           type: "success",
         });
       } catch (e) {
@@ -81,7 +82,7 @@ function stgBindUpdateInterval(
         cfgLocal.updateCheckIntervalMs = Number(updateCheckSelect.value);
         bus.emit("toast:show", {
           msg: "✅ " + t("settings.updateCheck.saved"),
-          duration: 2000,
+          duration: TOAST_MS.success,
           type: "success",
         });
       } catch (e) {
@@ -123,7 +124,7 @@ function stgBindLinkMode(
       const cfg2 = await LoadAppConfig();
       const mcRoot = cfg2.mcRoot || "";
       if (!mcRoot) {
-        bus.emit("toast:show", { msg: "请先设置游戏根目录", duration: 2500, type: "warn" });
+        bus.emit("toast:show", { msg: "请先设置游戏根目录", duration: TOAST_MS.info, type: "warn" });
         return;
       }
       const instances = (await ListVersionInstances(mcRoot)) || [];
@@ -141,20 +142,20 @@ function stgBindLinkMode(
       if (total === 0) {
         bus.emit("toast:show", {
           msg: failed > 0 ? `⚠️ ${failed} 个整合包重新链接失败` : "没有需要重新链接的文件",
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: failed > 0 ? "error" : "info",
         });
         return;
       }
       bus.emit("toast:show", {
         msg: failed > 0 ? `🔄 已重新链接 ${total} 个文件（${failed} 个失败）` : `🔄 已重新链接 ${total} 个文件`,
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "success",
       });
     } catch (e) {
       bus.emit("toast:show", {
         msg: `❌ ${friendlyError(e)}`,
-        duration: 5000,
+        duration: TOAST_MS.long,
         type: "error",
       });
     } finally {
@@ -182,7 +183,7 @@ function stgBindLinkMode(
         cfgLocal.linkMode = val;
         bus.emit("toast:show", {
           msg: `✅ 链接模式已切换至: ${val}`,
-          duration: 2000,
+          duration: TOAST_MS.success,
           type: "success",
         });
         await doRelink();
@@ -229,7 +230,7 @@ function stgBindReleasesClick(
         console.warn("[settings] 打开发布页失败:", e);
         bus.emit("toast:show", {
           msg: "❌ 打开浏览器失败",
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "error",
         });
       });

@@ -31,7 +31,7 @@ async function runBatchFileOp(
   },
 ): Promise<void> {
   if (_batchBusy) {
-    toast("⏳ 操作进行中，请稍候", 1500, "info");
+    toast("⏳ 操作进行中，请稍候", TOAST_MS.quick, "info");
     return;
   }
   _batchBusy = true;
@@ -41,7 +41,7 @@ async function runBatchFileOp(
     const { folder, dstDir } = resolved;
     const app = await getApp();
     const fn = app[op.binding];
-    toast(`📦 正在${op.verb} ${ctx.paths.length} 个文件到 ${folder}...`, 3000);
+    toast(`📦 正在${op.verb} ${ctx.paths.length} 个文件到 ${folder}...`, TOAST_MS.normal);
     let ok = 0;
     let fail = 0;
     for (const p of ctx.paths) {
@@ -54,18 +54,17 @@ async function runBatchFileOp(
       }
     }
     if (ok > 0) {
-      toast(
-        fail > 0
+      toast(fail > 0
           ? `✅ ${ok} 个已${op.verb} / ❌ ${fail} 失败${op.partialFailMsg ? `（${op.partialFailMsg}）` : ""}`
           : `✅ ${ok} 个文件已${op.verb}到 ${folder}`,
         4000,
       );
     } else {
-      toast(`❌ ${op.allFailMsg}`, 4000, "error");
+      toast(`❌ ${op.allFailMsg}`, TOAST_MS.verbose, "error");
     }
     refreshUI();
   } catch (e) {
-    toast(`❌ ${friendlyError(e)}`, 4000, "error");
+    toast(`❌ ${friendlyError(e)}`, TOAST_MS.verbose, "error");
   } finally {
     _batchBusy = false;
   }
@@ -82,7 +81,7 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
   // ── instance ──
   "instance.open-folder": async (ctx) => {
     if (!ctx.path) {
-      toast("❌ 整合包目录未找到", 3000, "error");
+      toast("❌ 整合包目录未找到", TOAST_MS.normal, "error");
       return;
     }
     try {
@@ -91,14 +90,14 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       // subdir 参数保留为 Wails 绑定兼容，已不参与路由
       await OpenInstanceFolder(ctx.path, ctx.rtype || "", ctx.subdir || "");
     } catch (e) {
-      toast(`❌ ${friendlyError(e, "打开文件夹失败")}`, 3000, "error");
+      toast(`❌ ${friendlyError(e, "打开文件夹失败")}`, TOAST_MS.normal, "error");
     }
   },
   "instance.export-list": (ctx) => {
     // rtype 契约必填（bus.ts 收紧）：发射点编译期强制提供非空；
     // 运行期守卫与消费方（instance-ops）的 !rtype 失败守卫对称，双保险。
     if (!ctx.rtype) {
-      toast(t("ctx.emptyRtype"), 3000, "error");
+      toast(t("ctx.emptyRtype"), TOAST_MS.normal, "error");
       return;
     }
     bus.emit("instance:export-list", {
@@ -108,7 +107,7 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
   },
   "instance.clear": (ctx) => {
     if (!ctx.rtype) {
-      toast(t("ctx.emptyRtype"), 3000, "error");
+      toast(t("ctx.emptyRtype"), TOAST_MS.normal, "error");
       return;
     }
     bus.emit("instance:clear", {
@@ -137,7 +136,7 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
     }),
   "batch.recycle": async (ctx) => {
     if (_batchBusy) {
-      toast("⏳ 操作进行中，请稍候", 1500, "info");
+      toast("⏳ 操作进行中，请稍候", TOAST_MS.quick, "info");
       return;
     }
     _batchBusy = true;
@@ -162,13 +161,13 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
         }
       }
       if (fail > 0) {
-        toast(`❌ ${fail} 个文件移入回收站失败：${friendlyError(lastErr, "移动失败")}`, 5000, "error");
+        toast(`❌ ${fail} 个文件移入回收站失败：${friendlyError(lastErr, "移动失败")}`, TOAST_MS.long, "error");
       } else {
-        toast(`✅ ${ctx.paths.length} 个文件已移入回收站`, 3000);
+        toast(`✅ ${ctx.paths.length} 个文件已移入回收站`, TOAST_MS.normal);
       }
       refreshUI();
     } catch (e) {
-      toast(`❌ ${friendlyError(e)}`, 5000, "error");
+      toast(`❌ ${friendlyError(e)}`, TOAST_MS.long, "error");
     } finally {
       _batchBusy = false;
     }
@@ -199,6 +198,6 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
-    toast(`✅ 已导出 ${ctx.paths.length} 个文件名`, 2000);
+    toast(`✅ 已导出 ${ctx.paths.length} 个文件名`, TOAST_MS.success);
   },
 };

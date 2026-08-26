@@ -1,6 +1,7 @@
 // ===== 设置页：路径卡片 / 高级面板 / 游戏目录检测（ADR-040 拆分自 init.ts）=====
 // 原 initSettings 巨型闭包中的路径相关逻辑整体迁出：共享状态（cfg/cardRefreshers/
 // busy/toastError）统一走 store.ts 模块级，root/refreshAdvanced 显式参数传递。
+import { TOAST_MS } from "../../../utils/dom/toast-ms.ts";
 import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
 import { t } from "../../../core/i18n/t.ts";
@@ -77,7 +78,7 @@ export function bindPathClick(
       bus.emit("stats:refresh");
       bus.emit("toast:show", {
         msg: t("settings.path.updated"),
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "success",
       });
     } catch (e) {
@@ -271,13 +272,13 @@ export function initAdvancedGrid(
           refreshAdvanced();
           bus.emit("toast:show", {
             msg: t("settings.path.set"),
-            duration: 2000,
+            duration: TOAST_MS.success,
             type: "success",
           });
         } catch (e) {
           bus.emit("toast:show", {
             msg: "❌ " + friendlyError((e as Error)?.message || e, t("settings.saveFailed")),
-            duration: 4000,
+            duration: TOAST_MS.verbose,
             type: "error",
           });
         }
@@ -298,13 +299,13 @@ export function initAdvancedGrid(
           cardRefreshers.forEach((fn) => fn());
           bus.emit("toast:show", {
             msg: t("settings.resetDefault"),
-            duration: 2000,
+            duration: TOAST_MS.success,
             type: "success",
           });
         } catch (e) {
           bus.emit("toast:show", {
             msg: "❌ " + friendlyError((e as Error)?.message || e, t("settings.resetFailed")),
-            duration: 4000,
+            duration: TOAST_MS.verbose,
             type: "error",
           });
         }
@@ -326,7 +327,7 @@ export function initMcDetect(root: ShadowRoot): void {
       if (!paths?.length) {
         bus.emit("toast:show", {
           msg: t("settings.mc.noFound"),
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "warn",
         });
         return;
@@ -352,7 +353,7 @@ export function initMcDetect(root: ShadowRoot): void {
       bus.emit("stats:refresh");
       bus.emit("toast:show", {
         msg: t("content.mcPathSet", { path: selected }),
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "success",
       });
     } catch (e) {

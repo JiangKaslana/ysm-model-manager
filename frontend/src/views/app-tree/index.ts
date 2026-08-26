@@ -1,4 +1,5 @@
 // ===== <app-tree> 入口 — 生命周期编排 =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { safeGet } from "../../utils/dom/storage.ts";
@@ -198,7 +199,7 @@ export class AppTree extends WebComponentBase {
       console.error("[Tree root change Error]", e);
       bus.emit("toast:show", {
         msg: "❌ " + friendlyError(e),
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "error",
       });
     }
@@ -341,7 +342,7 @@ export class AppTree extends WebComponentBase {
     if (!paths.length) {
       bus.emit("toast:show", {
         msg: t("tree.selectFilesFirst"),
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "warn",
       });
       return true;
@@ -349,7 +350,7 @@ export class AppTree extends WebComponentBase {
     if (!can("DeleteResourcePack")) {
       bus.emit("toast:show", {
         msg: "网页版不支持删除模型",
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "warn",
       });
       return true;
@@ -450,14 +451,14 @@ export class AppTree extends WebComponentBase {
       this._renderTree();
       bus.emit("toast:show", {
         msg: `✅ ${t("tree.deleted", { ok, fail: fail || 0 })}`,
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "success",
       });
     } catch (e) {
       // P2 修复：getApp/删除/刷新任一环节失败都要有出口，避免 unhandled rejection 静默
       bus.emit("toast:show", {
         msg: "❌ " + friendlyError(e),
-        duration: 5000,
+        duration: TOAST_MS.long,
         type: "error",
       });
     } finally {

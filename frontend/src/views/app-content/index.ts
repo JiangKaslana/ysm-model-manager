@@ -1,4 +1,5 @@
 // ===== <app-content> 入口（ADR-040：≤400 行红线）=====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { resolveInitialPage } from "../../core/page-store.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
@@ -168,7 +169,7 @@ class AppContent extends WebComponentBase {
     console.error("[app-content] 页面初始化失败:", e);
     bus.emit("toast:show", {
       msg: "❌ " + t("content.pageLoadFailed") + ": " + friendlyError(e),
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
     // 重置页面状态为仓库页，防止 nav 高亮与内容脱节；

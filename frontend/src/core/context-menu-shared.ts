@@ -51,7 +51,7 @@ export async function resolveDstDir(opts: {
   if (isUnsafeFolderName(folder)) {
     bus.emit("toast:show", {
       msg: "❌ 文件夹名包含非法字符",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "error",
     });
     return null;
@@ -61,7 +61,7 @@ export async function resolveDstDir(opts: {
   if (!filesRoot) {
     bus.emit("toast:show", {
       msg: opts.emptyMsg,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "error",
     });
     return null;

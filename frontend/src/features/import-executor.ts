@@ -60,8 +60,7 @@ const fileToBase64 = (file: File): Promise<string> =>
 export const directImport = async (file: File): Promise<void> => {
   // ysm.json 单文件 = 光杆清单（geometry/纹理全丢），引导拖整个文件夹
   if (file.name.toLowerCase() === "ysm.json") {
-    toast(
-      t("import.ysmJsonHint"),
+    toast(t("import.ysmJsonHint"),
       "warn",
       4000,
     );
@@ -73,7 +72,7 @@ export const directImport = async (file: File): Promise<void> => {
     // P2 修复（子代理审计）：busy 命中静默 return 违反 ADR-044①「busy 命中必回
     // 反馈」——用户重复提交同一文件时零反馈（无 toast/无 skipped）；与 sync.ts
     // 「busy 命中回 done+skipped」范式对齐，此处发 toast
-    toast(t("import.busyImporting"), "warn", 2000);
+    toast(t("import.busyImporting"), "warn", TOAST_MS.success);
     return;
   }
   _inFlight.add(key);
@@ -82,11 +81,11 @@ export const directImport = async (file: File): Promise<void> => {
     const { ImportModelFile } = await getApp();
     await ImportModelFile(file.name, base64);
     refreshRepo();
-    toast(t("import.success") + ": " + file.name, "success", 2000);
+    toast(t("import.success") + ": " + file.name, "success", TOAST_MS.success);
   } catch (e) {
     // 显式化：friendlyError 消费 AppError.Code → i18n 文案（FILE_EXISTS 等），
     // 未归类 Code 透传 Go Reason/Suggestion 并剥离内部路径（ADR-082 续）
-    toast("❌ " + t("import.failed") + ": " + friendlyError(e), "error", 4000);
+    toast("❌ " + t("import.failed") + ": " + friendlyError(e), "error", TOAST_MS.verbose);
   } finally {
     _inFlight.delete(key);
   }
@@ -109,7 +108,7 @@ export const importFolder = async (
   const dirKey = dir + ":" + (firstFile ? firstFile.name + ":" + firstFile.size + ":" + firstFile.lastModified : "");
   if (_inFlight.has(dirKey)) {
     // P2 修复（子代理审计）：同上——busy 命中静默 return 零反馈，改 toast
-    toast(t("import.busyImporting"), "warn", 2000);
+    toast(t("import.busyImporting"), "warn", TOAST_MS.success);
     return;
   }
   _inFlight.add(dirKey);
@@ -137,7 +136,7 @@ export const importFolder = async (
       items.push({ RelPath: rel, Base64: b64 });
     }
     if (!items.length) {
-      toast("❌ " + t("import.emptyFolder"), "error", 4000);
+      toast("❌ " + t("import.emptyFolder"), "error", TOAST_MS.verbose);
       return;
     }
     const App = await getApp();
@@ -150,21 +149,21 @@ export const importFolder = async (
     } else {
       if (rtype) {
         console.warn(`[import] ImportModelFolderTo 不可用（旧桥/Android 时序），降级为内容推断：rtype=${rtype}`);
-        toast(t("import.contextRouteUnavailable"), "warn", 4000);
+        toast(t("import.contextRouteUnavailable"), "warn", TOAST_MS.verbose);
       }
       await App.ImportModelFolder(folderName, subpath, items);
     }
     refreshRepo();
     // 部分文件跳过时成功 toast 带计数，避免用户以为全部导入（ADR-082 续）
     const skipHint = skipped > 0 ? `（${skipped} 个文件读取失败已跳过）` : "";
-    toast(t("import.success") + ": " + folderName + skipHint, "success", 2500);
+    toast(t("import.success") + ": " + folderName + skipHint, "success", TOAST_MS.info);
   } catch (e) {
     // 统一文件已存在判定（索引 4.2）：结构化 Code 优先，字符串兜底覆盖漂移文案
     if (isFileExistsError(e)) {
-      toast(`❌ ${folderName} ${t("import.alreadyExists")}`, "error", 4000);
+      toast(`❌ ${folderName} ${t("import.alreadyExists")}`, "error", TOAST_MS.verbose);
     } else {
       // 显式化：friendlyError 展示 Go 结构化错误（Reason/Suggestion），剥内部路径
-      toast("❌ " + t("import.failed") + ": " + friendlyError(e), "error", 4000);
+      toast("❌ " + t("import.failed") + ": " + friendlyError(e), "error", TOAST_MS.verbose);
     }
   } finally {
     _inFlight.delete(dirKey);
@@ -212,7 +211,7 @@ export const importWebFilesWithToast = async (
         r.failed > 0
           ? `✅ ${r.imported} 个导入成功，${r.failed} 个失败`
           : `✅ ${r.imported} 个模型已导入浏览器模型库`,
-      duration: 4000,
+      duration: TOAST_MS.verbose,
       type: r.failed > 0 ? "warn" : "success",
     });
     bus.emit("tree:reload");
@@ -223,7 +222,7 @@ export const importWebFilesWithToast = async (
     bus.emit("toast:show", {
       // 显式化：friendlyError 消费 AppError 结构化错误（ADR-082 续）
       msg: "❌ " + t("import.processError") + ": " + friendlyError(e),
-      duration: 4000,
+      duration: TOAST_MS.verbose,
       type: "error",
     });
     return { imported: 0, failed: files.length };

@@ -23,6 +23,7 @@
 // │  §5  私有工具             → L741   safeDisposeMat                            │
 // └──────────────────────────────────────────────────────────────────────────────┘
 
+import { TOAST_MS } from "../../dom/toast-ms.ts";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
@@ -381,7 +382,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       : undefined,
     unloadRole,
     toast: (msg: string): void => {
-      bus.emit("toast:show", { msg, duration: 3000 });
+      bus.emit("toast:show", { msg, duration: TOAST_MS.normal });
     },
     closeAllOverlays: (): void => {
       menuHandle.dispose();
@@ -822,7 +823,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(safeErrorMessage(e))}</div>`;
     bus.emit("toast:show", {
       msg: "❌ " + friendlyError(e, t("preview.loadFailed")),
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
   }

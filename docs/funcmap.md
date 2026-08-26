@@ -1027,8 +1027,8 @@
 |------|--------|------|
 | `DIR_HANDLERS()` | `frontend/src/core/context-menu-dir-handlers:10` | dir 类 handler 子表 |
 | `FILE_HANDLERS()` | `frontend/src/core/context-menu-file-handlers:13` | file 类 handler 子表 |
-| `MenuCtx()` | `frontend/src/core/context-menu-handlers:74` | — |
-| `HANDLERS()` | `frontend/src/core/context-menu-handlers:77` | 行为 handler 表（instance + batch + merge file/dir） |
+| `MenuCtx()` | `frontend/src/core/context-menu-handlers:73` | — |
+| `HANDLERS()` | `frontend/src/core/context-menu-handlers:76` | 行为 handler 表（instance + batch + merge file/dir） |
 | `refreshUI()` | `frontend/src/core/context-menu-shared:15` | 通知树组件和统计面板刷新 |
 | `toast()` | `frontend/src/core/context-menu-shared:21` | 显示 toast 通知 |
 | `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:26` | 路径安全过滤：禁止逃逸段（. |
@@ -1036,11 +1036,11 @@
 | `registerContextMenus()` | `frontend/src/core/context-menus:77` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
 | `__TEST__resetDiary()` | `frontend/src/core/error-diary:29` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
 | `registerErrorDiary()` | `frontend/src/core/error-diary:51` | 注册 UI 报错落日记功能。 |
-| `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:17` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |
+| `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:18` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |
 | `registerGlobalHandlers()` | `frontend/src/core/handlers/global:12` | 注册所有 core 全局 handler，返回 unsub 函数数组（features/views 层注册由 app-content 编排） |
-| `registerInstanceOps()` | `frontend/src/core/handlers/instance-ops:11` | 注册整合包操作 handler，push 返回的取消订阅函数到 unsubs |
-| `requireMcRoot()` | `frontend/src/core/handlers/require-mcroot:12` | 读取游戏根目录（mcRoot），空时发 warn toast 并返回 null。 |
-| `registerSync()` | `frontend/src/core/handlers/sync:251` | 注册同步 handler，push 返回的取消订阅函数到 unsubs |
+| `registerInstanceOps()` | `frontend/src/core/handlers/instance-ops:12` | 注册整合包操作 handler，push 返回的取消订阅函数到 unsubs |
+| `requireMcRoot()` | `frontend/src/core/handlers/require-mcroot:13` | 读取游戏根目录（mcRoot），空时发 warn toast 并返回 null。 |
+| `registerSync()` | `frontend/src/core/handlers/sync:252` | 注册同步 handler，push 返回的取消订阅函数到 unsubs |
 | `SUPPORTED_LANGS()` | `frontend/src/core/i18n/locale:11` | 支持的语言列表（规划清单） |
 | `LangCode()` | `frontend/src/core/i18n/locale:17` | — |
 | `warnedKeys()` | `frontend/src/core/i18n/locale:31` | 缺失 key 告警节流（每 key 只告警一次；跨模块共享给 t.ts 用，故不带 _ 私有前缀） |
@@ -1092,19 +1092,19 @@
 | `DownloadTask()` | `frontend/src/features/community/download-queue` | — |
 | `DownloadState()` | `frontend/src/features/community/download-queue` | — |
 | `QueueError()` | `frontend/src/features/community/download-queue` | — |
-| `QueueControllerOptions()` | `frontend/src/features/community/download-queue:43` | createDownloadQueue 选项 |
-| `QueueController()` | `frontend/src/features/community/download-queue:52` | 队列控制器 |
-| `DownloadQueue()` | `frontend/src/features/community/download-queue:60` | 旧契约别名（events.ts / download-tasks.ts 仍使用 DownloadQueue 命名） |
-| `createDownloadQueue()` | `frontend/src/features/community/download-queue:325` | 创建一个下载队列 UI 控制器。 |
+| `QueueControllerOptions()` | `frontend/src/features/community/download-queue:44` | createDownloadQueue 选项 |
+| `QueueController()` | `frontend/src/features/community/download-queue:53` | 队列控制器 |
+| `DownloadQueue()` | `frontend/src/features/community/download-queue:61` | 旧契约别名（events.ts / download-tasks.ts 仍使用 DownloadQueue 命名） |
+| `createDownloadQueue()` | `frontend/src/features/community/download-queue:326` | 创建一个下载队列 UI 控制器。 |
 | `DOWNLOAD_CONFIRM_BYTES()` | `frontend/src/features/community/download-tasks:7` | 超过该大小需弹窗确认（含边界值本身直接下载） |
 | `DOWNLOAD_REJECT_BYTES()` | `frontend/src/features/community/download-tasks:9` | 超过该大小直接拒绝（含边界值本身需确认） |
 | `DownloadSizeDecision()` | `frontend/src/features/community/download-tasks:11` | — |
 | `classifyDownloadSize()` | `frontend/src/features/community/download-tasks:14` | 下载大小策略：≤4MB 直接下；4–10MB 需确认；&gt;10MB 拒绝 |
 | `DownloadCandidate()` | `frontend/src/features/community/download-tasks:24` | 下载候选（结构类型，兼容 WorkshopModel） |
 | `buildDownloadTasks()` | `frontend/src/features/community/download-tasks:31` | 选中集 → 下载任务列表（路径统一转正斜杠；未匹配的选中项静默跳过） |
-| `RepoEventsContext()` | `frontend/src/features/community/events:16` | bindRepoEvents 上下文 |
-| `RepoEventsHandle()` | `frontend/src/features/community/events:28` | 绑定返回值 |
-| `bindRepoEvents()` | `frontend/src/features/community/events:339` | 绑定仓库模型页面的所有事件。 |
+| `RepoEventsContext()` | `frontend/src/features/community/events:17` | bindRepoEvents 上下文 |
+| `RepoEventsHandle()` | `frontend/src/features/community/events:29` | 绑定返回值 |
+| `bindRepoEvents()` | `frontend/src/features/community/events:340` | 绑定仓库模型页面的所有事件。 |
 | `WorkshopModel()` | `frontend/src/features/community/render:10` | 工坊模型条目（index.json 结构） |
 | `WorkshopSite()` | `frontend/src/features/community/render:18` | 工坊站点 |
 | `isModelMissing()` | `frontend/src/features/community/render:28` | 判断模型是否缺失（本地不存在） |
@@ -1130,24 +1130,24 @@
 | `CollectedEntry()` | `frontend/src/features/dnd-shared:33` | 收集条目（文件 + 相对路径） |
 | `FolderGroup()` | `frontend/src/features/dnd-shared:39` | 文件夹组：dir 为顶层目录名（可能含多级嵌套，组内文件保留完整 relPath） |
 | `groupCollected()` | `frontend/src/features/dnd-shared:51` | 将收集到的条目分组： - 有目录前缀的条目 → 按「顶层目录」整组（dir = 第一段路径），组内保留完整 relPath（支持多层嵌套） - 无目录前缀的散落文件 → 单文件队列 |
-| `handleTreeDrop()` | `frontend/src/features/import-dnd:35` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
-| `bindTreeDnD()` | `frontend/src/features/import-dnd:151` | 在目标容器上注册仓库页 DnD 事件。 |
+| `handleTreeDrop()` | `frontend/src/features/import-dnd:36` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
+| `bindTreeDnD()` | `frontend/src/features/import-dnd:152` | 在目标容器上注册仓库页 DnD 事件。 |
 | `CollectedEntry()` | `frontend/src/features/import-executor` | — |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
 | `ImportFile()` | `frontend/src/features/import-executor:19` | 带相对路径的 File（文件夹导入时标记 _relPath） |
 | `directImport()` | `frontend/src/features/import-executor:60` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
-| `importFolder()` | `frontend/src/features/import-executor:98` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） rtype：页面上下文类型（当前树根属性，派生自注册表路由配置）——非空走 Im |
-| `executeCollected()` | `frontend/src/features/import-executor:179` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `importWebFilesWithToast()` | `frontend/src/features/import-executor:204` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
+| `importFolder()` | `frontend/src/features/import-executor:97` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） rtype：页面上下文类型（当前树根属性，派生自注册表路由配置）——非空走 Im |
+| `executeCollected()` | `frontend/src/features/import-executor:178` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:203` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `loadOldestModel()` | `frontend/src/features/oldest-models:290` | — |
 | `RecycleHost()` | `frontend/src/features/recycle-bin:23` | — |
 | `isPathInRoot()` | `frontend/src/features/recycle-bin:33` | — |
 | `initRecycleBin()` | `frontend/src/features/recycle-bin:235` | — |
 | `currentRepoType()` | `frontend/src/features/repo-rtype:18` | 读取当前仓库资源类型（时刻值）。 |
 | `useCurrentResourceType()` | `frontend/src/features/repo-rtype:28` | 订阅当前仓库资源类型。 |
-| `UpdateInfo()` | `frontend/src/features/version-updater:13` | 更新信息（CheckUpdate 返回） |
-| `checkUpdateSilent()` | `frontend/src/features/version-updater:169` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
-| `initVersionUpdater()` | `frontend/src/features/version-updater:208` | 手动检查更新（设置页按钮） |
+| `UpdateInfo()` | `frontend/src/features/version-updater:14` | 更新信息（CheckUpdate 返回） |
+| `checkUpdateSilent()` | `frontend/src/features/version-updater:170` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
+| `initVersionUpdater()` | `frontend/src/features/version-updater:209` | 手动检查更新（设置页按钮） |
 
 ## 前端·服务
 
@@ -1362,17 +1362,17 @@
 | `makeZipOverlayPort()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:113` | 创建 ZIP Overlay Port：包装 MmdDataPort， 将 zip 内路径前缀（如 "/repo/miku.zip!/"）路由到内存中的 zip entries。 |
 | `prepareMmdZipInput()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:202` | 构造完整的 zip 包装流程： 检测 zip → 解析 zip → 创建 overlay → 返回 { port, rootPath } 调用方只需： const { port, |
 | `zipFindEntry()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:218` | 从 zip entries 中按名称查找（大小写不敏感，basename 匹配） |
-| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:73` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:92` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:118` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:128` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:174` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:179` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
-| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:199` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:212` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:218` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:223` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:241` | — |
+| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:74` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:93` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:119` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:129` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:175` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:180` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
+| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:200` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:213` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:219` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:224` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:242` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1416,9 +1416,9 @@
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:206` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:209` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
-| `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:30` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
-| `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:90` | 会话内切换模型（复用外壳重建内容层）。 |
-| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:403` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
+| `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:31` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
+| `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:91` | 会话内切换模型（复用外壳重建内容层）。 |
+| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:404` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
 | `Endianness()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/endianness:4` | Endianness utility class for serlization/deserialization |
 | `ConsoleLogger()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/ILogger:6` | A logger that outputs to the console generally, you can use this class as default logger |
 | `MmdDataDeserializer()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/mmdDataDeserializer:5` | DataView wrapper for deserializing MMD data |
@@ -1801,8 +1801,8 @@
 | `rebuildParsedName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:16` | 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.disabled)` - 作者/作品空值跳过；角色缺省回退到「剥禁用尾缀与扩展名后的文件名」； - 扩展 |
 | `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:31` | — |
 | `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:41` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
-| `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:20` | 应用变更载荷 |
-| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:437` | — |
+| `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:21` | 应用变更载荷 |
+| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:438` | — |
 | `trapFocus()` | `frontend/src/utils/dom/dialogs/modal:25` | 焦点陷阱：Tab 键在弹窗内可聚焦元素间循环，防止焦点逃逸到背后页面 |
 | `closeDlg()` | `frontend/src/utils/dom/dialogs/modal:53` | 带退场动画关闭对话框 |
 | `__resetModalStateForTest()` | `frontend/src/utils/dom/dialogs/modal:81` | 测试钩子：重置活动弹窗单例槽位（isolate:false 共享模块图下，兄弟文件残留的 _activeOverlay 会让「无活动弹窗」断言失真；web-store.__rese |
@@ -1828,8 +1828,8 @@
 | `TagSetResult()` | `frontend/src/utils/dom/dialogs/tag-set:6` | — |
 | `MAX_TAG_LENGTH()` | `frontend/src/utils/dom/dialogs/tag-set:12` | 标签最大长度（与原 addTag 一致） |
 | `addTagToSet()` | `frontend/src/utils/dom/dialogs/tag-set:19` | 向标签集合添加一个标签（已 trim）： 空输入 → 原样返回；重复 → error「标签已存在」；超长 → error「最多 20 个字符」； 合法 → 排序后返回新数组。错误文 |
-| `resolveAndroidRepoDir()` | `frontend/src/utils/dom/directory-picker:25` | Android 共享仓库目录解析（双端桥接：授权引导 + 定位公共目录）。 |
-| `pickDirectory()` | `frontend/src/utils/dom/directory-picker:65` | 选择目录：桌面走系统对话框；查看器模式（Android/网页版）走授权检查 + 自动定位公共目录 |
+| `resolveAndroidRepoDir()` | `frontend/src/utils/dom/directory-picker:26` | Android 共享仓库目录解析（双端桥接：授权引导 + 定位公共目录）。 |
+| `pickDirectory()` | `frontend/src/utils/dom/directory-picker:66` | 选择目录：桌面走系统对话框；查看器模式（Android/网页版）走授权检查 + 自动定位公共目录 |
 | `stripDisableSuffix()` | `frontend/src/utils/dom/display:14` | 剥离禁用后缀（.disabled / .ban，大小写不敏感）。 |
 | `stripBanSuffix()` | `frontend/src/utils/dom/display:19` | 剥离禁用后缀（.disabled / .ban，大小写不敏感）。 |
 | `ParsedModelName()` | `frontend/src/utils/dom/display:22` | 解析后的模型文件名字段 |
@@ -1855,7 +1855,7 @@
 | `safeSet()` | `frontend/src/utils/dom/storage:16` | 安全写：存储不可用时静默忽略持久化（不中断调用方） |
 | `safeRemove()` | `frontend/src/utils/dom/storage:25` | 安全删：存储不可用时静默忽略（不中断调用方） |
 | `TOAST_MS()` | `frontend/src/utils/dom/toast-ms:6` | — |
-| `ToastType()` | `frontend/src/utils/dom/toast-ms:22` | toast:show 的 type 取值域（与 ToastPayload.type 对齐） |
+| `ToastType()` | `frontend/src/utils/dom/toast-ms:26` | toast:show 的 type 取值域（与 ToastPayload.type 对齐） |
 | `YSW_TOOLTIP_CSS()` | `frontend/src/utils/dom/tooltip:9` | — |
 | `ensureTooltipStyles()` | `frontend/src/utils/dom/tooltip:17` | 幂等注入 tooltip 全局样式到 head（模式同 ensureFabStyles） |
 | `TooltipOptions()` | `frontend/src/utils/dom/tooltip:101` | — |
@@ -1890,7 +1890,7 @@
 | `LongTaskInfo()` | `frontend/src/utils/main-thread-watch:11` | longtask 最小报告结构（duration 单位 ms） |
 | `startMainThreadWatch()` | `frontend/src/utils/main-thread-watch:24` | 启动主线程长任务观测，返回 stop 函数（disconnect + 清回调）。 |
 | `formatLongTask()` | `frontend/src/utils/main-thread-watch:63` | 便捷格式化：LongTaskInfo → 环形日志消息串。 |
-| `loadView()` | `frontend/src/utils/module-loader:13` | 懒加载 Web Component：统一动态 import + 加载失败 toast 反馈。 |
+| `loadView()` | `frontend/src/utils/module-loader:14` | 懒加载 Web Component：统一动态 import + 加载失败 toast 反馈。 |
 | `RESOURCE_EXTS()` | `frontend/src/utils/resource/extensions:16` | 每种资源类型对应的扩展名（从 resource_types.json 派生，单一事实来源） |
 | `ALL_EXTS()` | `frontend/src/utils/resource/extensions:21` | 所有支持的扩展名列表（去重，用于 UI 提示文案） |
 | `getExts()` | `frontend/src/utils/resource/extensions:36` | 获取某资源类型支持的扩展名 |
@@ -1956,8 +1956,8 @@
 | `contentRepoCSS()` | `frontend/src/views/app-content/content-repo:2` | — |
 | `contentStgCSS()` | `frontend/src/views/app-content/content-stg:7` | — |
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
-| `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:138` | — |
-| `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:231` | — |
+| `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:139` | — |
+| `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:232` | — |
 | `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:189` | 初始化去重配置面板（标签页打开时调用，配置实时保存） 扫描结果不覆盖面板，控件扫描后仍可改；code_review P3） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:537` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
@@ -1965,46 +1965,46 @@
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:125` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
 | `formatSize()` | `frontend/src/views/app-content/diagnostics/health:178` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:206` | 初始化诊断页所有功能 |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:207` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:9` | 转义函数签名（单一事实源 = utils/dom/html.ts 的 esc；调用方以 (s) =&gt; esc(String(s || "")) 包装适配） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:189` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:209` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:33` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
-| `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:73` | — |
-| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:316` | — |
-| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:431` | — |
-| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:512` | — |
+| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:34` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
+| `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:74` | — |
+| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:317` | — |
+| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:432` | — |
+| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:513` | — |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf-trace:18` | 渲染加载剖析区段（取最近一条 trace 渲染甘特图 + 资产清单） |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf` | — |
 | `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:14` | 初始化性能面板（single-bench / gui-flow / perf-log / 加载剖析） |
-| `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
+| `appContentStyle()` | `frontend/src/views/app-content/index:11` | — |
 | `GithubPageCtx()` | `frontend/src/views/app-content/init-github:23` | GitHub 社群页编排上下文——把 initGithubPage 各闭包捕获的共享状态显式注入， 供 githubLoadRepos / githubShowRepo / git |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:281` | 初始化 GitHub 页（纯分派：创建 ctx + 初始化缓存 + 触发 loadRepos） |
-| `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:20` | 初始化诊断页 |
-| `initInstancesPage()` | `frontend/src/views/app-content/init-pages:27` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:287` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:294` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:302` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:306` | — |
+| `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:21` | 初始化诊断页 |
+| `initInstancesPage()` | `frontend/src/views/app-content/init-pages:28` | 初始化实例页 |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:288` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:295` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:303` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:307` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:38` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:171` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:182` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:23` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:30` | — |
-| `initSettings()` | `frontend/src/views/app-content/settings/init:310` | 初始化设置页所有事件绑定 |
+| `initSettings()` | `frontend/src/views/app-content/settings/init:311` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:130` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
-| `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |
-| `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:52` | — |
-| `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:193` | — |
-| `initMcDetect()` | `frontend/src/views/app-content/settings/path-cards:318` | — |
-| `SettingsCfg()` | `frontend/src/views/app-content/settings/store:10` | 设置页当前配置类型（LoadAppConfig 返回值，经 Wails $CancellablePromise 解包） |
-| `cfg()` | `frontend/src/views/app-content/settings/store:13` | 当前配置：initSettings 加载后注入，各模块就地更新字段（saveCfg/检测/主题/链接模式） |
-| `cardRefreshers()` | `frontend/src/views/app-content/settings/store:16` | 所有路径卡片的刷新函数列表（绑定后收集，重排/重置时统一调用） |
-| `isBusy()` | `frontend/src/views/app-content/settings/store:20` | — |
-| `setBusy()` | `frontend/src/views/app-content/settings/store:21` | — |
-| `toastError()` | `frontend/src/views/app-content/settings/store:26` | — |
-| `resetSettingsStore()` | `frontend/src/views/app-content/settings/store:35` | 重置模块级状态（initSettings 开头调用；重复执行时清空上次残留） |
+| `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:25` | — |
+| `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:53` | — |
+| `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:194` | — |
+| `initMcDetect()` | `frontend/src/views/app-content/settings/path-cards:319` | — |
+| `SettingsCfg()` | `frontend/src/views/app-content/settings/store:11` | 设置页当前配置类型（LoadAppConfig 返回值，经 Wails $CancellablePromise 解包） |
+| `cfg()` | `frontend/src/views/app-content/settings/store:14` | 当前配置：initSettings 加载后注入，各模块就地更新字段（saveCfg/检测/主题/链接模式） |
+| `cardRefreshers()` | `frontend/src/views/app-content/settings/store:17` | 所有路径卡片的刷新函数列表（绑定后收集，重排/重置时统一调用） |
+| `isBusy()` | `frontend/src/views/app-content/settings/store:21` | — |
+| `setBusy()` | `frontend/src/views/app-content/settings/store:22` | — |
+| `toastError()` | `frontend/src/views/app-content/settings/store:27` | — |
+| `resetSettingsStore()` | `frontend/src/views/app-content/settings/store:36` | 重置模块级状态（initSettings 开头调用；重复执行时清空上次残留） |
 | `initTheme()` | `frontend/src/views/app-content/settings/theme:24` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
 | `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:12` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
 | `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:52` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
@@ -2048,12 +2048,12 @@
 | `loadFavs()` | `frontend/src/views/app-content/workshop-data:64` | — |
 | `isFaved()` | `frontend/src/views/app-content/workshop-data:76` | — |
 | `toggleFav()` | `frontend/src/views/app-content/workshop-data:80` | — |
-| `openSite()` | `frontend/src/views/app-content/workshop-site-opener:18` | 打开站点（外链/内嵌/窗口） |
-| `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:72` | 绑定站点打开相关事件 |
-| `WorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:19` | 创意工坊页的共享 ref 集合——单一事实来源。 |
-| `createWorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:27` | 创建创意工坊页的共享 ref 对象（单一入口，所有消费者共享同一实例） |
-| `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:39` | 初始化创意工坊 Tab |
-| `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:149` | — |
+| `openSite()` | `frontend/src/views/app-content/workshop-site-opener:19` | 打开站点（外链/内嵌/窗口） |
+| `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:73` | 绑定站点打开相关事件 |
+| `WorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:20` | 创意工坊页的共享 ref 集合——单一事实来源。 |
+| `createWorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:28` | 创建创意工坊页的共享 ref 对象（单一入口，所有消费者共享同一实例） |
+| `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:40` | 初始化创意工坊 Tab |
+| `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:150` | — |
 | `navCSS()` | `frontend/src/views/app-nav/tpl:2` | — |
 | `BoneEntry()` | `frontend/src/views/app-preview/bone-names:5` | 骨骼条目（结构类型，兼容 DecodedYsm.bones 元素） |
 | `buildBoneNamesText()` | `frontend/src/views/app-preview/bone-names:15` | 构建骨骼名导出文本行： 首行 `模型: &lt;path&gt;`、次行 `骨骼总数: &lt;n&gt;`，其后每根骨骼 有方块则 `名称 (n 方)`，结构骨骼（无方块）则 `名称 (结构骨骼,无方) |
@@ -2063,12 +2063,12 @@
 | `collectBlobUrls()` | `frontend/src/views/app-preview/cache:48` | 收集缓存值中全部 blob URL（evict 释放用） |
 | `cacheSet()` | `frontend/src/views/app-preview/cache:65` | — |
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
-| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:27` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
-| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:100` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
-| `showFbxPreview()` | `frontend/src/views/app-preview/detail-3d:130` | 显示 FBX 预览卡（文件名 + FAB 进 3D；FBX 无标准 meta 读取，保持简单形态，ADR-112） |
-| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:160` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
-| `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:190` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
-| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:250` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
+| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:28` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
+| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:101` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
+| `showFbxPreview()` | `frontend/src/views/app-preview/detail-3d:131` | 显示 FBX 预览卡（文件名 + FAB 进 3D；FBX 无标准 meta 读取，保持简单形态，ADR-112） |
+| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:161` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
+| `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:191` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
+| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:251` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
 | `nextDetailGen()` | `frontend/src/views/app-preview/detail:25` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
 | `getDetailGen()` | `frontend/src/views/app-preview/detail:30` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
 | `showModelDetail()` | `frontend/src/views/app-preview/detail:35` | 显示模型详情（YSM 模型） |
@@ -2103,13 +2103,13 @@
 | `appendMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:37` | 同台追加 MMD 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） |
 | `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:42` | 任意新预览派发时调用，作废在途 MMD 加载 |
 | `CameraControlBridge()` | `frontend/src/views/app-preview/mmd-controls` | — |
-| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:25` | — |
-| `fillMmdModelPanel()` | `frontend/src/views/app-preview/mmd-controls:38` | MMD 模型面板：信息卡 + 表情列表（morph 权重 0/1 切换，✓ 高亮当前开启） |
-| `MmdPlayBridge()` | `frontend/src/views/app-preview/mmd-controls:85` | MMD 播放/动作控制桥（mmd-adapter 组装，纯逻辑层状态） |
-| `fillMmdPlayPanel()` | `frontend/src/views/app-preview/mmd-controls:98` | MMD 播放面板：播放/暂停 + 多动作切换 + 空态提示 |
-| `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:166` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
-| `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:182` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
-| `fillMmdShotPanel()` | `frontend/src/views/app-preview/mmd-controls:263` | MMD 截图面板填充（ADR-052 P3：对齐 ysm-controls fillYsmShotPanel 范式）。 |
+| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:26` | — |
+| `fillMmdModelPanel()` | `frontend/src/views/app-preview/mmd-controls:39` | MMD 模型面板：信息卡 + 表情列表（morph 权重 0/1 切换，✓ 高亮当前开启） |
+| `MmdPlayBridge()` | `frontend/src/views/app-preview/mmd-controls:86` | MMD 播放/动作控制桥（mmd-adapter 组装，纯逻辑层状态） |
+| `fillMmdPlayPanel()` | `frontend/src/views/app-preview/mmd-controls:99` | MMD 播放面板：播放/暂停 + 多动作切换 + 空态提示 |
+| `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:167` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
+| `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:183` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
+| `fillMmdShotPanel()` | `frontend/src/views/app-preview/mmd-controls:264` | MMD 截图面板填充（ADR-052 P3：对齐 ysm-controls fillYsmShotPanel 范式）。 |
 | `makeMmdDataPort()` | `frontend/src/views/app-preview/mmd-data-port:11` | 构建一个接入 Go RPC 的 MMD 数据端口；scope 仅用于 AddOpLog 的运行时环打标 （角色预览用 "mmd-preview"，场景预览用 "mmd-scene" |
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:13` | 同类型 MMD 模型候选（委托共享底座 resolveSiblingsByType）；失败返回 []（下拉不渲染） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:12` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
@@ -2121,12 +2121,12 @@
 | `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:50` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
-| `registerReRoute()` | `frontend/src/views/app-preview/preview-library:23` | 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用； 第二参透传 siblings，切换后新会话「当前目录」tab 有候选，P1-2） |
-| `getRegisteredRoutes()` | `frontend/src/views/app-preview/preview-library:31` | 返回已注册的路由类型列表（供测试/CI 验证 _openers 覆盖率，审核 P3） |
-| `OpenModel3DOptions()` | `frontend/src/views/app-preview/preview-library:36` | openModel3DFullscreen 选项（ADR-093 T4：cooperate 统一多模型同台追加入口） |
-| `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:56` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
-| `scanModelsByType()` | `frontend/src/views/app-preview/preview-library:108` | 按资源类型（+可选子类型）扫描候选模型路径（轻量：GetRepoRoot + ScanModelEntriesFiltered， 复用文件树扫描缓存，不逐文件解析）。供 3D 内切 |
-| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:125` | 给 mount3D opts 注入「跨类型换角色」入口 + 按类型懒加载数据源。各 createXxx3D 统一经此接入 |
+| `registerReRoute()` | `frontend/src/views/app-preview/preview-library:24` | 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用； 第二参透传 siblings，切换后新会话「当前目录」tab 有候选，P1-2） |
+| `getRegisteredRoutes()` | `frontend/src/views/app-preview/preview-library:32` | 返回已注册的路由类型列表（供测试/CI 验证 _openers 覆盖率，审核 P3） |
+| `OpenModel3DOptions()` | `frontend/src/views/app-preview/preview-library:37` | openModel3DFullscreen 选项（ADR-093 T4：cooperate 统一多模型同台追加入口） |
+| `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:57` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
+| `scanModelsByType()` | `frontend/src/views/app-preview/preview-library:109` | 按资源类型（+可选子类型）扫描候选模型路径（轻量：GetRepoRoot + ScanModelEntriesFiltered， 复用文件树扫描缓存，不逐文件解析）。供 3D 内切 |
+| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:126` | 给 mount3D opts 注入「跨类型换角色」入口 + 按类型懒加载数据源。各 createXxx3D 统一经此接入 |
 | `createScene3D()` | `frontend/src/views/app-preview/scene-3d:32` | 打开场景 MMD 3D 预览（独立入口，只加载 SceneModel 目录下的 PMX/PMD） |
 | `cleanupScene3D()` | `frontend/src/views/app-preview/scene-3d:37` | 清理场景 3D（WebGL renderer + rAF 循环） |
 | `invalidateScenePreview()` | `frontend/src/views/app-preview/scene-3d:42` | 任意新预览派发时调用，作废在途场景加载 |
@@ -2177,21 +2177,21 @@
 | `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:88` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
 | `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:93` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
 | `CameraControlBridge()` | `frontend/src/views/app-preview/ysm-controls` | — |
-| `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:20` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
-| `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:29` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |
-| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:42` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
-| `fillYsmModelPanel()` | `frontend/src/views/app-preview/ysm-controls:73` | 模型菜单面板：统计 / 纹理 / 骨骼列表 / 骨骼详情 / 多组件切换（fill3DPanel 内容） |
-| `fillYsmShotPanel()` | `frontend/src/views/app-preview/ysm-controls:95` | 截图面板：6 角度保存（原视图菜单截图子区，相机控件已归 core 根菜单 camera 项） |
-| `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:136` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
+| `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:21` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
+| `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:30` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |
+| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:43` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
+| `fillYsmModelPanel()` | `frontend/src/views/app-preview/ysm-controls:74` | 模型菜单面板：统计 / 纹理 / 骨骼列表 / 骨骼详情 / 多组件切换（fill3DPanel 内容） |
+| `fillYsmShotPanel()` | `frontend/src/views/app-preview/ysm-controls:96` | 截图面板：6 角度保存（原视图菜单截图子区，相机控件已归 core 根菜单 camera 项） |
+| `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:137` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
-| `bindCardEvents()` | `frontend/src/views/app-sidebar/events:125` | — |
-| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:187` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
-| `bindFooter()` | `frontend/src/views/app-sidebar/events:230` | — |
-| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:12` | — |
-| `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
-| `loadInstances()` | `frontend/src/views/app-sidebar/loader:36` | 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） 去重只服务「读并发」（多组件同时触发 reload），若变异完成的刷新并入变异前发起 |
-| `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:166` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
+| `bindCardEvents()` | `frontend/src/views/app-sidebar/events:126` | — |
+| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:188` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
+| `bindFooter()` | `frontend/src/views/app-sidebar/events:231` | — |
+| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:13` | — |
+| `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:21` | MMD 变体聚合结果 |
+| `loadInstances()` | `frontend/src/views/app-sidebar/loader:37` | 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） 去重只服务「读并发」（多组件同时触发 reload），若变异完成的刷新并入变异前发起 |
+| `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:167` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
 | `renderVersionCards()` | `frontend/src/views/app-sidebar/render:8` | — |
 | `sidebarCSS()` | `frontend/src/views/app-sidebar/sidebar-css:3` | — |
 | `headerHTML()` | `frontend/src/views/app-sidebar/tpl:7` | — |
@@ -2229,16 +2229,16 @@
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
 | `AuthorInfo()` | `frontend/src/views/app-tree/authors:6` | 作者统计（Go ListModelAuthors 返回） |
 | `loadAuthors()` | `frontend/src/views/app-tree/authors:19` | 从 Go 端加载作者列表 |
-| `bindBusEvents()` | `frontend/src/views/app-tree/bus-handlers:25` | — |
+| `bindBusEvents()` | `frontend/src/views/app-tree/bus-handlers:26` | — |
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
-| `updateSelectCount()` | `frontend/src/views/app-tree/events:390` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:494` | — |
-| `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
-| `AppTree()` | `frontend/src/views/app-tree/index:61` | — |
-| `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |
-| `loadEntries()` | `frontend/src/views/app-tree/loader:67` | 从 Go 后端加载仓库文件列表，返回格式化的 entries 扁平化架构下每个 MMD 子类型为独立顶级类型，直接用 subdir 作为类型 ID 查表 |
+| `updateSelectCount()` | `frontend/src/views/app-tree/events:391` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:495` | — |
+| `appTreeStyle()` | `frontend/src/views/app-tree/index:12` | — |
+| `AppTree()` | `frontend/src/views/app-tree/index:62` | — |
+| `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
+| `loadEntries()` | `frontend/src/views/app-tree/loader:68` | 从 Go 后端加载仓库文件列表，返回格式化的 entries 扁平化架构下每个 MMD 子类型为独立顶级类型，直接用 subdir 作为类型 ID 查表 |
 | `TreeRow()` | `frontend/src/views/app-tree/render:22` | 扁平化行（虚拟滚动数据单元） |
 | `TreeNode()` | `frontend/src/views/app-tree/render:32` | buildTree 嵌套节点（文件夹 = 子节点对象，文件 = { _e: entry }） |
 | `RenderMode()` | `frontend/src/views/app-tree/render:38` | 渲染模式 |
@@ -2255,9 +2255,9 @@
 | `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:27` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:34` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
-| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:355` | — |
-| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:252` | — |
-| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:286` | — |
+| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:356` | — |
+| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:253` | — |
+| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:287` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |

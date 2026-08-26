@@ -11,13 +11,13 @@ describe("TOAST_MS", () => {
       expect(Number.isFinite(v)).toBe(true);
       expect(v > 0).toBe(true);
       expect(v).toBe(Math.floor(v)); // 整数毫秒，无亚毫秒级
-      expect(key).toMatch(/^(quick|success|info|normal|verbose|long)$/);
+      expect(key).toMatch(/^(quick|success|info|normal|verbose|long|persist|sticky)$/);
     }
   });
 
-  it("6 档全部覆盖，无遗漏 / 无多余", () => {
+  it("8 档全部覆盖，无遗漏 / 无多余", () => {
     expect(Object.keys(TOAST_MS).sort()).toEqual(
-      ["info", "long", "normal", "quick", "success", "verbose"],
+      ["info", "long", "normal", "persist", "quick", "sticky", "success", "verbose"],
     );
   });
 
@@ -30,6 +30,8 @@ describe("TOAST_MS", () => {
       ["normal", 3000],
       ["verbose", 4000],
       ["long", 5000],
+      ["persist", 10000],
+      ["sticky", 60000],
     ];
     expect(entries).toEqual(ordered);
   });

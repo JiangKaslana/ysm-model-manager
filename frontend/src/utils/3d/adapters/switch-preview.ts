@@ -6,6 +6,7 @@
 // 改为接受 SwitchContext 的纯函数，消除闭包耦合。
 // 同时抽出重复的「重算包围盒 → 更新 lightCap target」逻辑为独立函数。
 
+import { TOAST_MS } from "../../dom/toast-ms.ts";
 import * as THREE from "three";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -135,7 +136,7 @@ function beginSwitch(ctx: SwitchContext, newPath: string, keep: boolean): boolea
   if (keep && sceneRegistry.count() >= MAX_MODELS) {
     bus.emit("toast:show", {
       msg: `同场景模型已达上限（${MAX_MODELS}），无法继续追加`,
-      duration: 4000,
+      duration: TOAST_MS.verbose,
       type: "warn",
     });
     return false;
@@ -225,7 +226,7 @@ function recoverSwitchFailure(ctx: SwitchContext, keep: boolean, e: unknown): vo
     `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(safeErrorMessage(e))}</div>`;
   bus.emit("toast:show", {
     msg: "❌ " + friendlyError(e, t("preview.loadFailed")),
-    duration: 5000,
+    duration: TOAST_MS.long,
     type: "error",
   });
   ctx.inFlight = false;

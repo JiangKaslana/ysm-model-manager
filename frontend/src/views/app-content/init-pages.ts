@@ -1,4 +1,5 @@
 // ===== 页面初始化函数集合（为 app-content/index.ts 减负，ADR-040）=====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { initDiagnostics } from "./diagnostics/init.ts";
 import { initSettings } from "./settings/init.ts";
@@ -166,7 +167,7 @@ function bindTabs(
           inited[tab] = false;
           bus.emit("toast:show", {
             msg: "❌ " + friendlyError(e, t("common.loadFailed")),
-            duration: 4000,
+            duration: TOAST_MS.verbose,
             type: "error",
           });
         }
@@ -277,7 +278,7 @@ export async function initSettingsPage(host: AppContentHost): Promise<void> {
     await initSettings(host._root);
   } catch (e) {
     console.error("[settings] 初始化失败:", e);
-    bus.emit("toast:show", { msg: "❌ " + friendlyError(e, "设置页初始化失败"), duration: 5000, type: "error" });
+    bus.emit("toast:show", { msg: "❌ " + friendlyError(e, "设置页初始化失败"), duration: TOAST_MS.long, type: "error" });
   }
 }
 

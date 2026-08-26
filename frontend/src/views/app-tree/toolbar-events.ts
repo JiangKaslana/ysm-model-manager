@@ -1,4 +1,5 @@
 // ===== 工具栏事件绑定 =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
@@ -42,7 +43,7 @@ async function atTlShowConfirm(
   if (errMsg) {
     bus.emit("toast:show", {
       msg: "❌ 导入失败: " + errMsg,
-      duration: 4000,
+      duration: TOAST_MS.verbose,
       type: "warn",
     });
     return;
@@ -53,7 +54,7 @@ async function atTlShowConfirm(
   vm._renderTree();
   bus.emit("toast:show", {
     msg: "✅ " + successMsg,
-    duration: 2000,
+    duration: TOAST_MS.success,
     type: "success",
   });
 }
@@ -159,7 +160,7 @@ function atTlBindAdvFilter(ctx: AtTlCtx): void {
     openAdvFilterDialog($, vm).catch((e) => {
       bus.emit("toast:show", {
         msg: "❌ " + friendlyError(e, "高级筛选失败"),
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "error",
       });
     });
@@ -310,7 +311,7 @@ function atTlBindMoreMenu(ctx: AtTlCtx): void {
           if (!filesRoot) {
             bus.emit("toast:show", {
               msg: "请先配置存储路径",
-              duration: 2000,
+              duration: TOAST_MS.success,
               type: "warn",
             });
             return;
@@ -328,13 +329,13 @@ function atTlBindMoreMenu(ctx: AtTlCtx): void {
           }
           bus.emit("toast:show", {
             msg: "✅ index.json 已生成",
-            duration: 3000,
+            duration: TOAST_MS.normal,
             type: "success",
           });
         } catch (e) {
           bus.emit("toast:show", {
             msg: "❌ " + friendlyError(e),
-            duration: 4000,
+            duration: TOAST_MS.verbose,
             type: "error",
           });
         } finally {
@@ -345,7 +346,7 @@ function atTlBindMoreMenu(ctx: AtTlCtx): void {
     })().catch((err) => {
       bus.emit("toast:show", {
         msg: "❌ " + friendlyError(err),
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "error",
       });
     });

@@ -1,4 +1,5 @@
 // ===== 创意工坊 Tab 管理 =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { getSiteIcon } from "../../utils/icon/workshop-icons.ts";
@@ -88,7 +89,7 @@ export function initWorkshopTabs(host: AppContentHost, refs: WorkshopRefs): void
       // loadCommunityData/showSiteView 抛错原逸出为 unhandled rejection
       bus.emit("toast:show", {
         msg: "❌ " + (e as Error)?.message || "加载社区数据失败",
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "error",
       });
     }
@@ -136,7 +137,7 @@ export function initWorkshopTabs(host: AppContentHost, refs: WorkshopRefs): void
       // getApp 失败逸出 unhandled rejection（与 showCreatorsBySite 同出口）
       bus.emit("toast:show", {
         msg: "❌ " + (e as Error)?.message || "加载社区数据失败",
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "error",
       });
     }

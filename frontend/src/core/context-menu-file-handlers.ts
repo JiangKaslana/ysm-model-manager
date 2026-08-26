@@ -15,8 +15,7 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
     try {
       const fileName = (ctx.path || "").split(/[/\\]/).pop() || "";
       if (fileName.toLowerCase() === "ysm.json") {
-        toast(
-          "ysm.json 是模型目录清单，请右键所在文件夹「重命名」（整组操作）",
+        toast("ysm.json 是模型目录清单，请右键所在文件夹「重命名」（整组操作）",
           4000,
           "warn",
         );
@@ -28,7 +27,7 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       await RenameFile(ctx.path || "", newName);
       refreshUI();
     } catch (e) {
-      toast("❌ " + friendlyError(e, "重命名失败"), 4000, "error");
+      toast("❌ " + friendlyError(e, "重命名失败"), TOAST_MS.verbose, "error");
     }
   },
   "file.move": async (ctx) => {
@@ -43,10 +42,10 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       const { folder, dstDir } = resolved;
       const { MoveModelFile } = await getApp();
       await MoveModelFile(ctx.path || "", dstDir);
-      toast(`✅ 已移动到 ${folder}`, 3000);
+      toast(`✅ 已移动到 ${folder}`, TOAST_MS.normal);
       refreshUI();
     } catch (e) {
-      toast("❌ " + friendlyError(e, "移动失败"), 4000, "error");
+      toast("❌ " + friendlyError(e, "移动失败"), TOAST_MS.verbose, "error");
     }
   },
   "file.copy": async (ctx) => {
@@ -61,10 +60,10 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       const { folder, dstDir } = resolved;
       const { CopyModelFile } = await getApp();
       await CopyModelFile(ctx.path || "", dstDir);
-      toast(`✅ 已复制到 ${folder}`, 3000);
+      toast(`✅ 已复制到 ${folder}`, TOAST_MS.normal);
       refreshUI();
     } catch (e) {
-      toast("❌ " + friendlyError(e, "复制失败"), 4000, "error");
+      toast("❌ " + friendlyError(e, "复制失败"), TOAST_MS.verbose, "error");
     }
   },
   "file.push-to-pack": async (ctx) => {
@@ -73,12 +72,12 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       const cfg = await LoadAppConfig();
       const mcRoot = cfg.mcRoot || "";
       if (!mcRoot) {
-        toast("请先配置游戏目录", 2000, "warn");
+        toast("请先配置游戏目录", TOAST_MS.success, "warn");
         return;
       }
       const instances = (await ListVersionInstances(mcRoot)) ?? [];
       if (!instances.length) {
-        toast("未找到任何整合包", 2000, "warn");
+        toast("未找到任何整合包", TOAST_MS.success, "warn");
         return;
       }
       const names = instances.map((i) => i.Name);
@@ -93,20 +92,20 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       if (!match) return;
       try {
         await InstallModelTo(ctx.path || "", match.CustomDir);
-        toast(`✅ 已推送到 ${chosen}`, 2000);
+        toast(`✅ 已推送到 ${chosen}`, TOAST_MS.success);
       } catch (e) {
-        toast("❌ " + friendlyError(e, "推送失败"), 3000, "error");
+        toast("❌ " + friendlyError(e, "推送失败"), TOAST_MS.normal, "error");
       }
     } catch (e) {
-      toast("❌ " + friendlyError(e, "推送失败"), 3000, "error");
+      toast("❌ " + friendlyError(e, "推送失败"), TOAST_MS.normal, "error");
     }
   },
   "file.edit-tags": async (ctx) => {
     try {
       const result = await modalTagEditor(ctx.path || "");
-      if (result) toast(`🏷️ 已保存 ${result.length} 个标签`, 2000);
+      if (result) toast(`🏷️ 已保存 ${result.length} 个标签`, TOAST_MS.success);
     } catch (e) {
-      toast("❌ " + friendlyError(e, "标签编辑失败"), 3000, "error");
+      toast("❌ " + friendlyError(e, "标签编辑失败"), TOAST_MS.normal, "error");
     }
   },
   "file.recycle": async (ctx) => {
@@ -124,10 +123,10 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
         await MoveToRecycle(ctx.path || "");
         refreshUI();
       } catch (e) {
-        toast("❌ " + friendlyError(e, "移入回收站失败"), 3000, "error");
+        toast("❌ " + friendlyError(e, "移入回收站失败"), TOAST_MS.normal, "error");
       }
     } catch (e) {
-      toast("❌ " + friendlyError(e, "移入回收站失败"), 3000, "error");
+      toast("❌ " + friendlyError(e, "移入回收站失败"), TOAST_MS.normal, "error");
     }
   },
   "file.reveal": async (ctx) => {
@@ -135,13 +134,13 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       const { RevealInExplorer } = await getApp();
       await RevealInExplorer(ctx.path || "");
     } catch (e) {
-      toast("❌ " + friendlyError(e, "打开失败"), 3000, "error");
+      toast("❌ " + friendlyError(e, "打开失败"), TOAST_MS.normal, "error");
     }
   },
   "file.copy-path": async (ctx) => {
     try {
       await navigator.clipboard.writeText(ctx.path || "");
-      toast("✅ 路径已复制到剪贴板", 2000);
+      toast("✅ 路径已复制到剪贴板", TOAST_MS.success);
     } catch {
       try {
         const ta = document.createElement("textarea");
@@ -153,12 +152,12 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
         const ok = document.execCommand("copy");
         document.body.removeChild(ta);
         if (!ok) {
-          toast("❌ 复制失败，请手动复制路径", 3000, "error");
+          toast("❌ 复制失败，请手动复制路径", TOAST_MS.normal, "error");
           return;
         }
-        toast("✅ 路径已复制到剪贴板", 2000);
+        toast("✅ 路径已复制到剪贴板", TOAST_MS.success);
       } catch (fallbackErr) {
-        toast("❌ " + friendlyError(fallbackErr, "复制失败"), 3000, "error");
+        toast("❌ " + friendlyError(fallbackErr, "复制失败"), TOAST_MS.normal, "error");
       }
     }
   },

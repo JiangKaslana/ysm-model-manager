@@ -1,4 +1,5 @@
 // ===== 版本更新检查（类型化版 — ADR-014 P3 features）=====
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { esc } from "../utils/dom/html.ts";
@@ -146,7 +147,7 @@ async function promptUpdate(
   if (!statusEl) {
     bus.emit("toast:show", {
       msg: `⬇️ ${t("update.downloading", { version: info.latest })}`,
-      duration: 60000,
+      duration: TOAST_MS.sticky,
       type: "info",
     });
   }
@@ -155,7 +156,7 @@ async function promptUpdate(
   } catch (e) {
     bus.emit("toast:show", {
       msg: `❌ ${t("update.failed")}: ${friendlyError(e)}`,
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
     // 不重新抛出（外层 initVersionUpdater 的 finally 会恢复按钮状态）
@@ -181,7 +182,7 @@ export async function checkUpdateSilent(): Promise<void> {
     if (info?.available) {
       bus.emit("toast:show", {
         msg: `📦 ${t("update.found", { latest: info.latest, current: info.current })}`,
-        duration: 10000,
+        duration: TOAST_MS.persist,
         type: "info",
         click: () => {
           // P3（审核发现）：toast click 回调补 catch 出口——静默路径 modalConfirm 若
@@ -190,7 +191,7 @@ export async function checkUpdateSilent(): Promise<void> {
           promptUpdate(info, null).catch((e) => {
             bus.emit("toast:show", {
               msg: `❌ ${friendlyError(e)}`,
-              duration: 5000,
+              duration: TOAST_MS.long,
               type: "error",
             });
           });
@@ -213,7 +214,7 @@ export function initVersionUpdater(root: Document | ShadowRoot): void {
       if (isViewerMode()) {
         bus.emit("toast:show", {
           msg: t("update.windowsOnly"),
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "info",
         });
         return;
@@ -248,7 +249,7 @@ export function initVersionUpdater(root: Document | ShadowRoot): void {
           bus.emit("toast:show", {
             // null（绑定契约允许）视为不可用；info?.current ?? "" 兜底避免空括号
             msg: `✅ ${t("update.latest", { version: info?.current ?? "" })}`,
-            duration: 3000,
+            duration: TOAST_MS.normal,
             type: "success",
           });
           return;
@@ -257,7 +258,7 @@ export function initVersionUpdater(root: Document | ShadowRoot): void {
       } catch (e) {
         bus.emit("toast:show", {
           msg: `❌ ${friendlyError(e)}`,
-          duration: 5000,
+          duration: TOAST_MS.long,
           type: "error",
         });
       } finally {

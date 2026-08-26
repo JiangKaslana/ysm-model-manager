@@ -1,4 +1,5 @@
 // ===== toolbar-search.ts — 工具栏搜索/筛选/导入逻辑（从 toolbar-events.ts 拆出，ADR-040 P1）=====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { bus } from "../../bus.ts";
@@ -141,7 +142,7 @@ async function dgAfFetchTagPaths(tag: string): Promise<Set<string> | null> {
   } catch (e) {
     bus.emit("toast:show", {
       msg: "❌ 标签查询失败: " + friendlyError(e),
-      duration: 4000,
+      duration: TOAST_MS.verbose,
       type: "error",
     });
     return null;
@@ -160,7 +161,7 @@ async function dgAfSearchModelPaths(
   if (!filesRoot) {
     bus.emit("toast:show", {
       msg: "请先配置仓库目录",
-      duration: 2000,
+      duration: TOAST_MS.success,
       type: "warn",
     });
     return "cancel";
@@ -190,7 +191,7 @@ async function dgAfSearchModelPaths(
     dbg("adv-filter", "search:error", { err: String(e) });
     bus.emit("toast:show", {
       msg: "❌ 高级筛选失败: " + friendlyError(e),
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
     return "error";
@@ -206,7 +207,7 @@ function dgAfWarnWebDegraded(hasNumRange: boolean): void {
   if (resolveWebMode() && hasNumRange && consumeWebSearchDegraded()) {
     bus.emit("toast:show", {
       msg: "⚠️ 网页版统计引擎不可用，骨骼/立方体数值条件已忽略（仅关键词匹配）",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     showStatsBadge("⚠️ Worker 降级 · 数值条件忽略");
@@ -235,13 +236,13 @@ function dgAfToastAndRender(vm: AppTree): void {
   if (size > 0) {
     bus.emit("toast:show", {
       msg: `🔍 找到 ${size} 个匹配`,
-      duration: 1500,
+      duration: TOAST_MS.quick,
       type: "success",
     });
   } else if (vm._filterPaths && size === 0) {
     bus.emit("toast:show", {
       msg: "🔍 无匹配模型（已应用筛选）",
-      duration: 2000,
+      duration: TOAST_MS.success,
       type: "warn",
     });
   }
@@ -306,13 +307,13 @@ export async function pickWebFilesAndImport(
             r.failed > 0
               ? `✅ ${r.imported} 个导入成功，${r.failed} 个失败`
               : `✅ ${r.imported} 个模型已导入浏览器模型库`,
-          duration: 4000,
+          duration: TOAST_MS.verbose,
           type: r.failed > 0 ? "warn" : "success",
         });
       } catch (e) {
         bus.emit("toast:show", {
           msg: "❌ " + friendlyError(e),
-          duration: 4000,
+          duration: TOAST_MS.verbose,
           type: "error",
         });
       }

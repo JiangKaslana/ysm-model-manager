@@ -1,6 +1,7 @@
 // ===== 配置守卫：读 mcRoot + 空守卫 + toast（去重 D-1，2026-08-05）=====
 // 抽自 5 处重复的「const cfg = await LoadAppConfig(); mcRoot = cfg.mcRoot || "";
 //   if (!mcRoot) { bus.emit("toast:show", {...}) }」模板。
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { getApp } from "../../backend/app.ts";
 
@@ -16,7 +17,7 @@ export async function requireMcRoot(): Promise<string | null> {
   if (!mcRoot) {
     bus.emit("toast:show", {
       msg: "请先配置游戏目录",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     return null;

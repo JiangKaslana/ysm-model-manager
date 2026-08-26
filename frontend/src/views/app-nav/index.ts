@@ -1,5 +1,6 @@
 // ===== <app-nav> — 左侧导航菜单（类型化版 — ADR-014 P3 components）=====
 // 事件：nav:changed — 切换页面
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus, type PageName } from "../../bus.ts";
 import { resolveInitialPage, sanitizePage } from "../../core/page-store.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
@@ -98,7 +99,7 @@ function anBindViewerFab(shadowRoot: ShadowRoot, viewerFabClick: () => Promise<v
     const handler = (): void => {
       void viewerFabClick().catch((e) => {
         console.error("[app-nav] 打开 3D 失败:", e);
-        bus.emit("toast:show", { msg: "❌ 打开 3D 失败", duration: 3000, type: "error" });
+        bus.emit("toast:show", { msg: "❌ 打开 3D 失败", duration: TOAST_MS.normal, type: "error" });
       });
     };
     fab.addEventListener("click", handler);

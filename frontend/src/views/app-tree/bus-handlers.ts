@@ -1,4 +1,5 @@
 // ===== app-tree bus 事件处理 =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
@@ -67,7 +68,7 @@ async function atBeHandleDirRename(vm: AppTree, dir: string): Promise<void> {
   } catch (e) {
     bus.emit("toast:show", {
       msg: `❌ ${friendlyError(e)}`,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "error",
     });
   }
@@ -93,7 +94,7 @@ async function atBeHandleDirMkdir(vm: AppTree, dir: string): Promise<void> {
   } catch (e) {
     bus.emit("toast:show", {
       msg: `❌ ${friendlyError(e)}`,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "error",
     });
   }
@@ -138,13 +139,13 @@ async function atBeHandleDirRecycle(vm: AppTree, dir: string): Promise<void> {
       : "";
     bus.emit("toast:show", {
       msg: `♻️ 已回收 ${count} 个文件` + suffix,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "success",
     });
   } catch (e) {
     bus.emit("toast:show", {
       msg: `❌ ${friendlyError(e)}`,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "error",
     });
   }
@@ -161,7 +162,7 @@ async function atBeHandleDirBatchRename(vm: AppTree, dir: string): Promise<void>
     if (!entries || !entries.length) {
       bus.emit("toast:show", {
         msg: "📂 文件夹为空",
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "warn",
       });
       return;
@@ -186,14 +187,14 @@ async function atBeHandleDirBatchRename(vm: AppTree, dir: string): Promise<void>
         bus.emit("stats:refresh");
         bus.emit("toast:show", {
           msg: `✅ ${t("tree.batchRenameDone", { ok, fail: fail || 0 })}`,
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: fail > 0 ? "warn" : "success",
         });
       });
   } catch (e) {
     bus.emit("toast:show", {
       msg: `❌ ${friendlyError(e)}`,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "error",
     });
   }
@@ -223,14 +224,14 @@ async function atBeHandleBatchRename(vm: AppTree, paths: string[]): Promise<void
       bus.emit("stats:refresh");
       bus.emit("toast:show", {
         msg: `✅ ${t("tree.batchRenameDone", { ok, fail: fail || 0 })}`,
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: fail > 0 ? "warn" : "success",
       });
     });
   } catch (e) {
     bus.emit("toast:show", {
       msg: `❌ ${friendlyError(e)}`,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "error",
     });
   }
@@ -263,7 +264,7 @@ async function reload(vm: AppTree): Promise<void> {
     if (atBeGenGuard(vm, gen)) return;
     console.warn("[bus] reload 失败:", err);
     vm._entries = [];
-    bus.emit("toast:show", { msg: "❌ " + friendlyError(err, t("tree.reloadFailed")), duration: 5000, type: "error" });
+    bus.emit("toast:show", { msg: "❌ " + friendlyError(err, t("tree.reloadFailed")), duration: TOAST_MS.long, type: "error" });
   }
   if (atBeGenGuard(vm, gen)) return;
   vm._renderTree();
@@ -277,7 +278,7 @@ async function runBatchToggle(
   if (!can("ToggleEnable")) {
     bus.emit("toast:show", {
       msg: "网页版不支持启用/禁用模型",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     return;
@@ -285,7 +286,7 @@ async function runBatchToggle(
   if (vm._batchBusy || vm._toggleBusy) {
     bus.emit("toast:show", {
       msg: "⏳ 批量操作进行中，请稍候",
-      duration: 1500,
+      duration: TOAST_MS.quick,
       type: "info",
     });
     return;
@@ -320,13 +321,13 @@ async function runBatchToggle(
     }
     bus.emit("toast:show", {
       msg: `${opts.label}: ${ok} ${t("tree.success")}, ${fail} ${t("tree.failed")}`,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: fail > 0 ? "warn" : "success",
     });
   } catch (err) {
     bus.emit("toast:show", {
       msg: `❌ ${friendlyError(err)}`,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "error",
     });
   } finally {

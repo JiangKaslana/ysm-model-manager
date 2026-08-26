@@ -5,6 +5,7 @@
 // 控件全部表驱动渲染，测试遍历 CORE_MENU_ITEMS + 适配器真实注入项断言结构
 // （preview-menu-items.test.ts，对齐 MikuMikuAR 声明式菜单测试范式）。
 
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import * as THREE from "three";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
@@ -112,7 +113,7 @@ export function fillYsmShotPanel(list: HTMLElement, ctx: YsmControlsContext): vo
       console.error("[3D 截图]", e);
       bus.emit("toast:show", {
         msg: "截图保存失败：" + friendlyError(e),
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "error",
       });
     } finally {

@@ -23,10 +23,10 @@ export const DIR_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       const { folder, dstDir } = resolved;
       const { MoveModelFile } = await getApp();
       await MoveModelFile(ctx.dir || "", dstDir);
-      toast(`✅ 已移动文件夹到 ${folder}`, 3000);
+      toast(`✅ 已移动文件夹到 ${folder}`, TOAST_MS.normal);
       refreshUI();
     } catch (e) {
-      toast("❌ " + friendlyError(e, "移动失败"), 4000, "error");
+      toast("❌ " + friendlyError(e, "移动失败"), TOAST_MS.verbose, "error");
     }
   },
   "dir.copy": async (ctx) => {
@@ -41,10 +41,10 @@ export const DIR_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       const { folder, dstDir } = resolved;
       const { CopyModelFile } = await getApp();
       await CopyModelFile(ctx.dir || "", dstDir);
-      toast(`✅ 已复制文件夹到 ${folder}`, 3000);
+      toast(`✅ 已复制文件夹到 ${folder}`, TOAST_MS.normal);
       refreshUI();
     } catch (e) {
-      toast("❌ " + friendlyError(e, "复制失败"), 4000, "error");
+      toast("❌ " + friendlyError(e, "复制失败"), TOAST_MS.verbose, "error");
     }
   },
   "dir.mkdir": (ctx) => bus.emit("dir:mkdir", { dir: ctx.dir || "" }),

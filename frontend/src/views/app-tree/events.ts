@@ -1,4 +1,5 @@
 // ===== 树事件层（事件委托版，兼容虚拟滚动） =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { t } from "../../core/i18n/t.ts";
 import { bus } from "../../bus.ts";
 import { selectState, toggleSelect, selectSingle } from "./data.ts";
@@ -67,7 +68,7 @@ function atTeBindSelCheckboxes(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement)
     if (!can("ToggleEnable")) {
       bus.emit("toast:show", {
         msg: "网页版不支持启用/禁用模型",
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "warn",
       });
       return true;
@@ -75,7 +76,7 @@ function atTeBindSelCheckboxes(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement)
     if (vm._toggleBusy || vm._batchBusy) {
       bus.emit("toast:show", {
         msg: "⏳ 操作进行中，请稍候",
-        duration: 1500,
+        duration: TOAST_MS.quick,
         type: "info",
       });
       return true;
@@ -102,7 +103,7 @@ function atTeBindSelCheckboxes(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement)
           msg:
             "❌ 切换失败: " +
             (fullPath ? fullPath.split(/[/\\]/).pop() : ""),
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "error",
         });
       })
@@ -128,7 +129,7 @@ function atTeOpenAuthor(author: string): void {
       console.warn("[tree] OpenInBrowser 失败:", err);
       bus.emit("toast:show", {
         msg: "❌ 打开浏览器失败",
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "error",
       });
     });
@@ -169,7 +170,7 @@ function atTeClickRowPreview(ctx: AtTeCtx, e: MouseEvent, haPreview: HTMLElement
       } else {
         bus.emit("toast:show", {
           msg: "未解析到作者名",
-          duration: 2000,
+          duration: TOAST_MS.success,
           type: "warn",
         });
       }
@@ -178,7 +179,7 @@ function atTeClickRowPreview(ctx: AtTeCtx, e: MouseEvent, haPreview: HTMLElement
       console.warn("[tree] 加载 display 模块失败:", err);
       bus.emit("toast:show", {
         msg: "❌ 加载解析模块失败",
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "error",
       });
     });
@@ -194,14 +195,14 @@ function atTeClickRowCopy(ctx: AtTeCtx, e: MouseEvent, haCopy: HTMLElement): boo
     .then(() => {
       bus.emit("toast:show", {
         msg: "📋 已复制: " + name,
-        duration: 1500,
+        duration: TOAST_MS.quick,
         type: "info",
       });
     })
     .catch(() => {
       bus.emit("toast:show", {
         msg: "❌ " + t("tree.copyFailed"),
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "error",
       });
     });
@@ -379,7 +380,7 @@ function atTeBindRenameInput(ctx: AtTeCtx): void {
       .catch((err) => {
         bus.emit("toast:show", {
           msg: "❌ " + friendlyError(err, "重命名失败"),
-          duration: 4000,
+          duration: TOAST_MS.verbose,
           type: "error",
         });
       });
@@ -420,7 +421,7 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
   if (vm._batchBusy || vm._toggleBusy) {
     bus.emit("toast:show", {
       msg: "⏳ 操作进行中，请稍候",
-      duration: 1500,
+      duration: TOAST_MS.quick,
       type: "info",
     });
     return;
@@ -428,7 +429,7 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
   if (!can("ToggleEnable")) {
     bus.emit("toast:show", {
       msg: "网页版不支持启用/禁用模型",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     return;
@@ -476,13 +477,13 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
       " 成功, " +
       fail +
       " 失败",
-    duration: 5000,
+    duration: TOAST_MS.long,
     type: fail > 0 ? "warn" : "success",
   });
   } catch (err) {
     bus.emit("toast:show", {
       msg: "❌ " + friendlyError(err, "批量启用/禁用失败"),
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
   } finally {

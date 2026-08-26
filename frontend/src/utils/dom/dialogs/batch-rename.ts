@@ -1,5 +1,6 @@
 // ===== 批量重命名对话框（类型化版 — ADR-014 P3 dialogs 收官）=====
 // 复用 parseModelName 解析
+import { TOAST_MS } from "../toast-ms.ts";
 import { bus } from "../../../bus.ts";
 import { parseModelName, type ParsedModelName } from "../../../utils/dom/display.ts";
 import { stagger } from "../../../utils/animation/stagger.ts";
@@ -93,7 +94,7 @@ function dgBrApplyReplace(items: BatchItem[], findText: string, replaceText: str
         cnt2.dataset.regexErr = "1";
         bus.emit("toast:show", {
           msg: "⚠️ " + t("dialog.regexInvalid"),
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "warn",
         });
       }
@@ -385,7 +386,7 @@ function dgBrBindApplyClick(
     if (!changed.length) {
       bus.emit("toast:show", {
         msg: t("dialog.noFilesToRename"),
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "info",
       });
       return;
@@ -399,7 +400,7 @@ function dgBrBindApplyClick(
     if (dup) {
       bus.emit("toast:show", {
         msg: "❌ " + t("dialog.renameConflict", { name: dup.newName }),
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "error",
       });
       return;
@@ -423,7 +424,7 @@ function dgBrBindApplyClick(
           t("dialog.batchRenameFailed") +
           ": " +
           friendlyError(e),
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "error",
       });
     } finally {

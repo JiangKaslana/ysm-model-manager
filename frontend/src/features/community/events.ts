@@ -1,5 +1,6 @@
 // ===== 创意工坊事件绑定（类型化版 — ADR-014 P3 features）=====
 // 下载队列逻辑已拆到 download-queue.js，本文件只做事件绑定 + 协调。
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { t } from "../../core/i18n/t.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
@@ -139,7 +140,7 @@ function cmReBindDlSelected(ctx: CmReCtx, listeners: ListenerRef[]): void {
       if (queue.isDownloading()) {
         bus.emit("toast:show", {
           msg: "下载进行中，请等待当前任务完成",
-          duration: 2000,
+          duration: TOAST_MS.success,
           type: "info",
         });
         return;
@@ -151,7 +152,7 @@ function cmReBindDlSelected(ctx: CmReCtx, listeners: ListenerRef[]): void {
       } catch (e) {
         bus.emit("toast:show", {
           msg: friendlyError(e, "下载失败"),
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "error",
         });
       }
@@ -220,7 +221,7 @@ async function cmReHandleSingleDownload(
   if (decision === "reject") {
     bus.emit("toast:show", {
       msg: `📏 ${t("workshop.fileTooLarge")}`,
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     return;
@@ -272,7 +273,7 @@ function cmReBindRowClick(ctx: CmReCtx, listeners: ListenerRef[]): void {
           if (queue.isDownloading()) {
             bus.emit("toast:show", {
               msg: t("workshop.downloading"),
-              duration: 2000,
+              duration: TOAST_MS.success,
               type: "info",
             });
             return;
@@ -309,7 +310,7 @@ function cmReBindRowClick(ctx: CmReCtx, listeners: ListenerRef[]): void {
       } catch (e) {
         bus.emit("toast:show", {
           msg: friendlyError(e, "操作失败"),
-          duration: 3000,
+          duration: TOAST_MS.normal,
           type: "error",
         });
       }

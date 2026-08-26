@@ -4,6 +4,7 @@
 // 切换模型归 core 根菜单 roles 项（角色面板内嵌加载入口）；相机归 core camera 项（sharedOnly）。
 // 材质面板 buildMaterialControls 保留复用（纯渲染层，状态经 bridge 下沉 mmd-materials.ts，ADR-072）。
 
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import * as THREE from "three";
 import type { MMD } from "@moeru/three-mmd";
 import { t } from "../../core/i18n/t.ts";
@@ -289,7 +290,7 @@ export function fillMmdShotPanel(
       console.error("[3D 截图]", e);
       bus.emit("toast:show", {
         msg: "截图保存失败：" + friendlyError(e),
-        duration: 4000,
+        duration: TOAST_MS.verbose,
         type: "error",
       });
     } finally {

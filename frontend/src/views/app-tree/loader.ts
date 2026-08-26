@@ -1,4 +1,5 @@
 // ===== Go 数据加载层 =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { t } from "../../core/i18n/t.ts";
 import { RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
 import { getApp } from "../../backend/app.ts";
@@ -29,7 +30,7 @@ function toastLoadError(err: unknown): void {
   _lastErrorToastAt = now;
   bus.emit("toast:show", {
     msg: "❌ " + t("tree.loadFailed") + ": " + friendlyError(err, t("tree.repoLoadFailed")),
-    duration: 5000,
+    duration: TOAST_MS.long,
     type: "error",
   });
 }
@@ -53,7 +54,7 @@ function maybePromptAndroidStorage(): void {
   _lastStoragePromptAt = now;
   bus.emit("toast:show", {
     msg: t("settings.path.needStoragePermission"),
-    duration: 4000,
+    duration: TOAST_MS.verbose,
     type: "warn",
   });
   bridge.requestStoragePermission?.();

@@ -16,6 +16,10 @@ export const TOAST_MS = {
   verbose: 4000,
   /** 长错误 / 部分失败汇总 / 渲染失败 */
   long: 5000,
+  /** 长期通知（如「发现新版本」常驻提示，需多读） */
+  persist: 10000,
+  /** 近常驻（如下载进行中，几乎不被自动关闭） */
+  sticky: 60000,
 } as const;
 
 /** toast:show 的 type 取值域（与 ToastPayload.type 对齐） */

@@ -3,6 +3,7 @@
 // （showModelDetail/showResourcePack/showShaderpack）分离；共享代际 _detailGen 从
 // detail.ts 导出复用，保证跨文件快速切换时在途请求互相作废。
 
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { getApp } from "../../backend/app.ts";
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
@@ -239,7 +240,7 @@ export async function showMorphPreview(
       // P2: morph:apply 零订阅，删发射；保留 toast 反馈
       bus.emit("toast:show", {
         msg: `😊 已发送应用请求：${basename}`,
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "info",
       });
     };
@@ -305,7 +306,7 @@ export async function showStagePreview(
       // P2: stage:load 零订阅，删发射；保留 toast 反馈
       bus.emit("toast:show", {
         msg: `🎤 已发送舞台加载请求：${basename}`,
-        duration: 2000,
+        duration: TOAST_MS.success,
         type: "info",
       });
     };

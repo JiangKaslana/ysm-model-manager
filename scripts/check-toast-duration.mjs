@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+/**
+ * check-toast-duration.mjs — toast 时长单一事实源守护（防回流闸）
+ *
+ * 职责：扫描 frontend/src 生产代码（排除 *.test.ts），捕捉仍写死裸数字的 toast 时长：
+ *   1. bus.emit("toast:show", { ... duration: <digit> ... })
+ *   2. toast(<msg>, <digit>[, <type>]) helper 调用
+ * 任何裸数字均违反 utils/dom/toast-ms.ts 的 TOAST_MS 单一事实源契约（R7）。
+ *
+ * 行为：仅报告，不阻断（退出码恒 0，输出 [WARN]）。
+ *   —— 当前为非阻断观察期：待 rollout 稳定后，可将下方 `process.exit(0)` 翻为
+ *      `process.exit(violations.length ? 1 : 0)` 升级为硬闸，与 check-boolean-naming 等对齐。
+ * 依赖：node:child_process / node:fs / node:path（零依赖，与项目其他 check-*.mjs 一致）
+ */
+import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const SRC = path.join(ROOT, "frontend/src");
+
+const MAP = {
+  1500: "quick", 2000: "success", 2500: "info", 3000: "normal",
+  4000: "verbose", 5000: "long", 10000: "persist", 60000: "sticky",
+};
+
+const reEmit = /bus\.emit\(\s*"toast:show"[\s\S]{0,1200}?duration:\s*(\d+)/g;
+const reHelper = /(?<![\w.$])toast\(\s*([\s\S]+?)\s*,\s*(\d+)(?:\s*,\s*((?:"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|`(?:\\.|[^`])*`|[\w.$]+)))?\)/g;
+
+let files;
+try {
+  files = execSync(`git -C "${ROOT}" ls-files frontend/src`, { encoding: "utf8" })
+    .split("\n").filter(Boolean)
+    .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+    .map((f) => path.join(ROOT, f));
+} catch {
+  console.log("[WARN] check-toast-duration: 无法列举 frontend/src，跳过");
+  process.exit(0);
+}
+
+const violations = [];
+for (const file of files) {
+  const src = readFileSync(file, "utf8");
+  const scan = (re, kind) => {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(src))) {
+      const n = m[1];
+      const key = MAP[n];
+      if (!key) continue; // 不在档位表的裸数字（如未来新增档位前）——跳过，避免误报
+      const line = src.slice(0, m.index).split("\n").length;
+      violations.push({ file: path.relative(ROOT, file), line, n, key, kind });
+    }
+  };
+  scan(reEmit, "toast:show");
+  scan(reHelper, "toast()");
+}
+
+if (violations.length === 0) {
+  console.log("[OK] check-toast-duration: 无 toast 裸时长（全部引用 TOAST_MS 单一事实源）");
+  process.exit(0);
+}
+
+console.log(`[WARN] check-toast-duration: 发现 ${violations.length} 处 toast 裸时长（违反 R7 单一事实源）`);
+for (const v of violations) {
+  console.log(`  ${v.file}:${v.line}  ${v.kind} 裸 duration: ${v.n} → 应改为 TOAST_MS.${v.key}`);
+}
+// 非阻断观察期：退出码恒 0。升级硬闸时改此处。
+process.exit(0);

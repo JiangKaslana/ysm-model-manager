@@ -1,4 +1,5 @@
 // ===== 所有 ES module 组件的统一入口 =====
+import { TOAST_MS } from "./utils/dom/toast-ms.ts";
 import { bus } from "./bus.ts";
 import { register } from "./services/registry.ts";
 import { Window } from "./backend/runtime.ts";
@@ -66,7 +67,7 @@ export { normalizeTheme, applyTheme, initTheme };
     console.warn("[i18n] 初始化失败，界面将缺翻译:", e);
     bus.emit("toast:show", {
       msg: "⚠️ " + friendlyError(e, "语言资源加载失败"),
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
   }
@@ -76,7 +77,7 @@ export { normalizeTheme, applyTheme, initTheme };
     console.warn("[module] app-nav 加载失败:", e);
     bus.emit("toast:show", {
       msg: "❌ " + friendlyError(e, "导航组件加载失败"),
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
   }
@@ -86,7 +87,7 @@ export { normalizeTheme, applyTheme, initTheme };
     console.warn("[theme] 主题初始化失败:", e);
     bus.emit("toast:show", {
       msg: "⚠️ " + friendlyError(e, "主题初始化失败"),
-      duration: 5000,
+      duration: TOAST_MS.long,
       type: "error",
     });
   }
@@ -117,7 +118,7 @@ if (typeof window !== "undefined") {
         applyTheme("system");
         bus.emit("toast:show", {
           msg: `已跟随系统切换至${e.matches ? "深色" : "浅色"}主题`,
-          duration: 2000,
+          duration: TOAST_MS.success,
           type: "info",
         });
       }

@@ -4,6 +4,7 @@
 // · download-queue-progress.ts：99% 卡进度防骗状态机（陷阱 #6 锁定/菊花/completeTimer 收口互斥）
 // · 本文件：createDownloadQueue UI 控制器 + 对外 re-export（测试 / events.ts / download-tasks.ts
 //   均从本文件取符号，契约零改动）
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { t } from "../../core/i18n/t.ts";
 import { currentRepoType } from "../repo-rtype.ts";
@@ -267,7 +268,7 @@ async function cmDqEnqueue(ctx: CmDqCtx, tasks: DownloadTask[]): Promise<void> {
     if (!filesRoot) {
       bus.emit("toast:show", {
         msg: t("workshop.configureRepo"),
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "warn",
       });
       return;
@@ -293,7 +294,7 @@ async function cmDqEnqueue(ctx: CmDqCtx, tasks: DownloadTask[]): Promise<void> {
     notify();
     bus.emit("toast:show", {
       msg: `❌ ${t("workshop.enqueueFailed")}: ` + (safeErrorMessage(e)),
-      duration: 4000,
+      duration: TOAST_MS.verbose,
       type: "error",
     });
     cmDqCleanupProgressUI(ctx);

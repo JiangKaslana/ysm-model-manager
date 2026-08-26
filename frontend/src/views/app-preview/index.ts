@@ -1,4 +1,5 @@
 // ===== <app-preview> 入口 =====
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { bus } from "../../bus.ts";
 import { previewCSS } from "./css.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
@@ -232,7 +233,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
     if (extOf(path) === ".7z" && resolveWebMode()) {
       bus.emit("toast:show", {
         msg: t("preview.web7zUnsupported"),
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "warn",
       });
       showSimplePreview(this, path, this._typeMeta(RESOURCE_TYPES.YSM));
@@ -252,7 +253,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
     if (!rtype) {
       bus.emit("toast:show", {
         msg: t("preview.unrecognizedType"),
-        duration: 3000,
+        duration: TOAST_MS.normal,
         type: "warn",
       });
       showSimplePreview(this, path, { icon: "❓", label: t("preview.unrecognizedType") });

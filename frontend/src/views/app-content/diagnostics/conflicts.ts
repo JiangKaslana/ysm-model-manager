@@ -1,5 +1,6 @@
 // ===== 诊断页：冲突扫描（scanConflicts） =====
 // ADR-040 按职责切文件：原 init.ts 拆分——日志加载（logs.ts）/ 去重（dedup.ts）/ 冲突扫描（本文件）
+import { TOAST_MS } from "../../../utils/dom/toast-ms.ts";
 import { t } from "../../../core/i18n/t.ts";
 import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
@@ -26,7 +27,7 @@ function dgCfWebGate(): boolean {
   if (resolveWebMode()) {
     bus.emit("toast:show", {
       msg: "网页版不支持冲突扫描",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     return true;
@@ -172,7 +173,7 @@ function dgCfSyncWebGate(): boolean {
   if (resolveWebMode()) {
     bus.emit("toast:show", {
       msg: "网页版不支持同步冲突扫描",
-      duration: 3000,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
     return true;
