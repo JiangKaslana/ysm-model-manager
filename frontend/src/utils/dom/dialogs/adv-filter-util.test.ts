@@ -52,19 +52,19 @@ describe("validateAdvFilter", () => {
 
   it("骨骼 min>max → 报错", () => {
     expect(validateAdvFilter({ ...base, minBones: 9, maxBones: 3 })).toBe(
-      "骨骼数：最小值不能大于最大值",
+      "advFilter.minGtMaxBones",
     );
   });
 
   it("立方体 min>max → 报错", () => {
     expect(validateAdvFilter({ ...base, minCubes: 9, maxCubes: 3 })).toBe(
-      "立方体：最小值不能大于最大值",
+      "advFilter.minGtMaxCubes",
     );
   });
 
   it("纹理 min>max → 报错", () => {
     expect(validateAdvFilter({ ...base, minTex: 9, maxTex: 3 })).toBe(
-      "纹理尺寸：最小值不能大于最大值",
+      "advFilter.minGtMaxTex",
     );
   });
 

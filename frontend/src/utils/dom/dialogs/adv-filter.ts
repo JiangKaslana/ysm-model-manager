@@ -155,7 +155,7 @@ function bindAdvFilterEvents(
     const data = getValue();
     const err = validateAdvFilter(data);
     if (err) {
-      errEl.textContent = "⚠️ " + err;
+      errEl.textContent = "⚠️ " + t(err);
       return;
     }
     close(data);
@@ -169,7 +169,7 @@ function bindAdvFilterEvents(
         const data = getValue();
         const err = validateAdvFilter(data);
         if (err) {
-          errEl.textContent = "⚠️ " + err;
+          errEl.textContent = "⚠️ " + t(err);
           return;
         }
         close(data);

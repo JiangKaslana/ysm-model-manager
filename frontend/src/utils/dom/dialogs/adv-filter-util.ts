@@ -26,8 +26,8 @@ export function parseFilterNumber(raw: string): number | null {
 }
 
 /**
- * 校验三组 min/max 范围（仅两端都填数字时比对），返回错误文案或 null。
- * 错误文案与 adv-filter 弹窗展示一致。
+ * 校验三组 min/max 范围（仅两端都填数字时比对），返回错误 i18n key 或 null。
+ * 纯函数层不引入 t()——返回稳定 key，由 UI 层（adv-filter.ts）翻译展示。
  */
 export function validateAdvFilter(data: AdvFilterValue): string | null {
   if (
@@ -35,21 +35,21 @@ export function validateAdvFilter(data: AdvFilterValue): string | null {
     data.maxBones != null &&
     data.minBones > data.maxBones
   ) {
-    return "骨骼数：最小值不能大于最大值";
+    return "advFilter.minGtMaxBones";
   }
   if (
     data.minCubes != null &&
     data.maxCubes != null &&
     data.minCubes > data.maxCubes
   ) {
-    return "立方体：最小值不能大于最大值";
+    return "advFilter.minGtMaxCubes";
   }
   if (
     data.minTex != null &&
     data.maxTex != null &&
     data.minTex > data.maxTex
   ) {
-    return "纹理尺寸：最小值不能大于最大值";
+    return "advFilter.minGtMaxTex";
   }
   return null;
 }
