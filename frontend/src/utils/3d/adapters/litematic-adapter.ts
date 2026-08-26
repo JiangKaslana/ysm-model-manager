@@ -24,23 +24,61 @@ const CHUNK_SIZE = 32; // 空间分块维：每 chunk 持一个 InstancedMesh，
 const DEFAULT_VOXEL_COLOR = "#7F7F7F"; // group 缺色时兜底色
 const FALLBACK_MAX_BLOCKS = 200000; // data.maxBlocks 缺席时的展示上限
 
-/** Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。
- *  voxelCall 由视图壳注入（对齐 ADR-072：适配器 0 backend import），经绑定名取 Go RPC。 */
-export async function buildLitematicScene(
+// ===== 类型提级（闭包共享状态 → 包级接口，避免自由变量）=====
+
+interface MdLiSizeInfo {
+  sizeX: number; sizeY: number; sizeZ: number;
+  centerX: number; centerY: number; centerZ: number;
+  maxDim: number;
+  xChunks: number; yChunks: number; zChunks: number;
+  grid: THREE.GridHelper;
+}
+
+interface MdLiBuiltMeshes {
+  modelGroup: THREE.Group;
+  instancedMeshes: Array<THREE.InstancedMesh>;
+  materials: Array<THREE.MeshLambertMaterial>;
+  groupMeshes: Array<Array<{ mesh: THREE.InstancedMesh; ck: number }>>;
+  boxGeo: THREE.BoxGeometry;
+  grid: THREE.GridHelper;
+}
+
+interface MdLiLayerShell {
+  layerAxis: number;
+  layerMax: number;
+  layerVal: number;
+  layerVal2: number;
+}
+
+interface MdLiLayerControlEls {
+  sep: HTMLElement;
+  axisLabel: HTMLElement;
+  axisSel: HTMLSelectElement;
+  layerMode: HTMLSelectElement;
+  layerSlider: HTMLInputElement;
+  layerInput: HTMLInputElement;
+  layerSlider2: HTMLInputElement;
+  layerInput2: HTMLInputElement;
+}
+
+// ===== 阶段①：入口守卫 + 路径读取 + 数据解析 =====
+
+function mdLiShowLoading(ctx: PreviewBuildCtx): void {
+  ctx.loadingEl.innerHTML =
+    '<div style="font-size:32px">🧊</div><div>' + t("preview.loadingVoxels") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
+}
+
+type MdLiLoadResult =
+  | { ok: true; data: VoxelData }
+  | { ok: false; earlyResult: PreviewScene };
+
+async function mdLiLoadAndParseData(
   ctx: PreviewBuildCtx,
   path: string,
   voxelCall: (path: string) => Promise<string>,
-): Promise<PreviewScene> {
-  const tStart = performance.now();
-  ctx.loadingEl.innerHTML =
-    '<div style="font-size:32px">🧊</div><div>' + t("preview.loadingVoxels") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
-
+): Promise<MdLiLoadResult> {
   const jsonStr = await voxelCall(path);
   const data = JSON.parse(jsonStr) as VoxelData & { error?: string };
-
-  // 失败契约（对齐 Go marshalVoxelData / web readVoxelJson）：{"error": string} 表示
-  // 解析失败（格式不支持/文件损坏），与「真空数据」区分——后者走下方 voxelEmpty。
-  // 错误信息含外部路径/异常文本，用 textContent 插入防注入。
   if (data.error) {
     ctx.loadingEl.innerHTML = "";
     const icon = document.createElement("div");
@@ -50,73 +88,83 @@ export async function buildLitematicScene(
     msg.textContent = data.error;
     msg.style.cssText = "max-width:420px;word-break:break-all;text-align:center;opacity:0.85";
     ctx.loadingEl.append(icon, msg);
-    return { dispose() {} };
+    return { ok: false, earlyResult: { dispose() {} } };
   }
-
   if (!data || !data.groups || !data.groups.length) {
     ctx.loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.voxelEmpty")}</div>`;
-    return { dispose() {} };
+    return { ok: false, earlyResult: { dispose() {} } };
   }
+  return { ok: true, data };
+}
 
+// ===== 阶段②：相机 + GridHelper 设置 =====
+
+function mdLiSetupCameraAndGrid(ctx: PreviewBuildCtx, data: VoxelData): MdLiSizeInfo {
   const sizeX = data.size[0] || 10;
   const sizeY = data.size[1] || 10;
   const sizeZ = data.size[2] || 10;
-
-  const centerX = sizeX / 2,
-    centerY = sizeY / 2,
-    centerZ = sizeZ / 2;
+  const centerX = sizeX / 2;
+  const centerY = sizeY / 2;
+  const centerZ = sizeZ / 2;
   const maxDim = Math.max(sizeX, sizeY, sizeZ, 10);
-
   ctx.camera!.position.set(centerX + maxDim * 1.5, centerY + maxDim, centerZ + maxDim * 1.5);
   ctx.camera!.lookAt(centerX, centerY, centerZ);
-
   ctx.controls!.target.set(centerX, centerY, centerZ);
   ctx.controls!.minDistance = 1;
   ctx.controls!.maxDistance = maxDim * 8;
   ctx.controls!.update();
-
-
   const gridSize = Math.ceil(maxDim / 10) * 10;
   const grid = new THREE.GridHelper(gridSize, Math.min(gridSize, 50), 0x6666aa, 0x444488);
   grid.position.set(centerX, 0, centerZ);
   ctx.scene!.add(grid);
+  return {
+    sizeX, sizeY, sizeZ,
+    centerX, centerY, centerZ,
+    maxDim,
+    xChunks: Math.ceil(sizeX / CHUNK_SIZE),
+    yChunks: Math.ceil(sizeY / CHUNK_SIZE),
+    zChunks: Math.ceil(sizeZ / CHUNK_SIZE),
+    grid,
+  };
+}
 
-  // 常值哨兵陷阱（#17）：体素原点 [0,0,0] 是合法坐标，不可用 `|| 0` 把"缺失/undefined"
-  // 当作 0——那样缺字段的位置会被静默地聚到原点生成幽灵方块。此处显式校验每条 position
-  // 的三维坐标为有限数，非法条目整条丢弃。0 坐标照常保留。
-  const CHUNK = CHUNK_SIZE;
-  const xChunks = Math.ceil(sizeX / CHUNK);
-  const yChunks = Math.ceil(sizeY / CHUNK);
-  const zChunks = Math.ceil(sizeZ / CHUNK);
+// ===== 阶段③：voxel 构建 + 材质纹理映射 =====
 
+/** 常值哨兵陷阱（#17）：[0,0,0] 是合法坐标，不可 `|| 0` 兜底。非法条目整条丢弃。 */
+function mdLiIsValidPos(p: number[]): boolean {
+  return Array.isArray(p) && p.length >= 3 && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2]);
+}
+
+/** blockState→texture atlas 映射（当前：group.color 兜底；命名预留后续 atlas 扩展） */
+function mdLiResolveBlockTexture(groupColor: string | undefined): THREE.MeshLambertMaterial {
+  return new THREE.MeshLambertMaterial({ color: groupColor || DEFAULT_VOXEL_COLOR });
+}
+
+/** 三维 voxel 核心：按 group→chunk 分块，每 chunk 独立 InstancedMesh（GPU 友好） */
+function mdLiBuildBlockMesh(
+  ctx: PreviewBuildCtx,
+  data: VoxelData,
+  si: MdLiSizeInfo,
+): MdLiBuiltMeshes {
   const boxGeo = new THREE.BoxGeometry(1, 1, 1);
   const modelGroup = new THREE.Group();
   ctx.scene!.add(modelGroup);
   registerModelRoot(modelGroup);
-  const instancedMeshes: Array<import("three").InstancedMesh> = [];
-  const materials: Array<import("three").MeshLambertMaterial> = [];
-  // P2 修复（审核反推）：分层渲染需按 (group, chunk) 寻址——instancedMeshes 是拍平数组，
-  // 空 group 会使索引漂移、多 chunk 组的其余 chunk 网格永远收不到分层过滤（且 mesh.count
-  // 可写超 chunk 容量触发 GPU 越界读）。groupMeshes 与 data.groups 平行：空 group 占空数组
-  // 保持对齐，chunk 网格携带自身 chunk key 供 applyLayer 精确过滤。
-  const groupMeshes: Array<Array<{ mesh: import("three").InstancedMesh; ck: number }>> = [];
-  /** 坐标变换口径（陷阱 #11）：voxel 网格坐标 = 世界坐标（boxGeo 为单位立方、pivot 在原点），
-   *  无 voxel offset / cube pivot 偏移。build 与 applyLayer 共用此 helper，杜绝两处口径漂移。 */
-  const isValidPos = (p: number[]): boolean =>
-    Array.isArray(p) && p.length >= 3 && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2]);
+  const instancedMeshes: Array<THREE.InstancedMesh> = [];
+  const materials: Array<THREE.MeshLambertMaterial> = [];
+  const groupMeshes: Array<Array<{ mesh: THREE.InstancedMesh; ck: number }>> = [];
   for (const group of data.groups) {
-    const gMeshes: Array<{ mesh: import("three").InstancedMesh; ck: number }> = [];
-    groupMeshes.push(gMeshes); // 空 group 也占位（对齐 rawGroups 索引）
+    const gMeshes: Array<{ mesh: THREE.InstancedMesh; ck: number }> = [];
+    groupMeshes.push(gMeshes);
     if (!group.positions || !group.positions.length) continue;
-    // 按空间分块：同色方块分散到各 chunk，每个 chunk 独立 InstancedMesh
     const chunkMap = new Map<number, number[][]>();
     for (let i = 0; i < group.positions.length; i++) {
       const p = group.positions[i];
-      if (!isValidPos(p)) continue; // 非法条目丢弃，不聚到原点造幻方
-      const cx = Math.floor(p[0] / CHUNK);
-      const cy = Math.floor(p[1] / CHUNK);
-      const cz = Math.floor(p[2] / CHUNK);
-      const ck = cx + cy * xChunks + cz * xChunks * yChunks;
+      if (!mdLiIsValidPos(p)) continue;
+      const cx = Math.floor(p[0] / CHUNK_SIZE);
+      const cy = Math.floor(p[1] / CHUNK_SIZE);
+      const cz = Math.floor(p[2] / CHUNK_SIZE);
+      const ck = cx + cy * si.xChunks + cz * si.xChunks * si.yChunks;
       let arr = chunkMap.get(ck);
       if (!arr) {
         arr = [];
@@ -124,7 +172,7 @@ export async function buildLitematicScene(
       }
       arr.push(p);
     }
-    const mat = new THREE.MeshLambertMaterial({ color: group.color || DEFAULT_VOXEL_COLOR });
+    const mat = mdLiResolveBlockTexture(group.color);
     materials.push(mat);
     const dummy = new THREE.Object3D();
     for (const [ck, chunkPositions] of chunkMap) {
@@ -141,33 +189,102 @@ export async function buildLitematicScene(
       gMeshes.push({ mesh, ck });
     }
   }
+  return { modelGroup, instancedMeshes, materials, groupMeshes, boxGeo, grid: si.grid };
+}
 
-  ctx.loadingEl.remove(); // 体素网格构建完成，移除占位（旧 litematic-3d.ts:208 同款）
+// ===== 阶段④：层面板装配 + applyLayer 过滤 =====
 
-  // 加载剖析：perf 面板甘特图消费
-  try {
-    const blockCount = data.groups?.reduce((s, g) => s + (g.positions?.length ?? 0), 0) ?? 0;
-    recordLoadTrace({
-      ts: Date.now(),
-      format: "litematic",
-      path,
-      stages: [{ name: "读取+构建", ms: Math.round(performance.now() - tStart), status: "ok" }],
-      assets: { files: 1, textures: 0, materials: data.groups?.length ?? 0, animations: 0 },
-      ok: true,
-    });
-  } catch { /* perf trace 失败不影响渲染 */ }
+function mdLiChunkKey(p: number[], si: MdLiSizeInfo): number {
+  const cx = Math.floor(p[0] / CHUNK_SIZE);
+  const cy = Math.floor(p[1] / CHUNK_SIZE);
+  const cz = Math.floor(p[2] / CHUNK_SIZE);
+  return cx + cy * si.xChunks + cz * si.xChunks * si.yChunks;
+}
 
-  // 分层渲染逻辑（UI 元素经 litematicMenuItems 注入 ⚙️ 根菜单分层面板，ADR-076 v2 Phase 3）
+function mdLiApplyLayer(
+  shell: MdLiLayerShell,
+  si: MdLiSizeInfo,
+  rawGroups: VoxelData["groups"],
+  groupMeshes: MdLiBuiltMeshes["groupMeshes"],
+  mode: string,
+): void {
+  const dummy = new THREE.Object3D();
+  const target = shell.layerVal - 1;
+  const lo = shell.layerVal - 1;
+  const hi = shell.layerVal2 > shell.layerVal ? shell.layerVal2 : shell.layerVal;
+  for (let g = 0; g < rawGroups.length; g++) {
+    const positions = rawGroups[g].positions;
+    const meshes = groupMeshes[g] ?? [];
+    for (const { mesh, ck } of meshes) {
+      let count = 0;
+      for (let i = 0; i < positions.length; i++) {
+        const p = positions[i];
+        if (!mdLiIsValidPos(p)) continue;
+        if (mdLiChunkKey(p, si) !== ck) continue;
+        if (mode === "single" && p[shell.layerAxis] !== target) continue;
+        if (mode !== "all" && mode !== "single" && !(p[shell.layerAxis] >= lo && p[shell.layerAxis] < hi)) continue;
+        dummy.position.set(p[0], p[1], p[2]);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(count, dummy.matrix);
+        count++;
+      }
+      mesh.count = count;
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+}
+
+function mdLiSetupRange(
+  shell: MdLiLayerShell,
+  si: MdLiSizeInfo,
+  els: MdLiLayerControlEls,
+): void {
+  shell.layerMax = [si.sizeX, si.sizeY, si.sizeZ][shell.layerAxis];
+  els.layerSlider.max = String(shell.layerMax);
+  els.layerInput.max = String(shell.layerMax);
+  els.layerSlider2.max = String(shell.layerMax);
+  els.layerInput2.max = String(shell.layerMax);
+}
+
+function mdLiUpdateLayerUI(
+  shell: MdLiLayerShell,
+  si: MdLiSizeInfo,
+  rawGroups: VoxelData["groups"],
+  groupMeshes: MdLiBuiltMeshes["groupMeshes"],
+  els: MdLiLayerControlEls,
+): void {
+  const m = els.layerMode.value;
+  els.layerSlider.style.display = m === "all" ? "none" : "";
+  els.layerInput.style.display = m === "all" ? "none" : "";
+  els.layerSlider2.style.display = m === "range" ? "" : "none";
+  els.layerInput2.style.display = m === "range" ? "" : "none";
+  mdLiApplyLayer(shell, si, rawGroups, groupMeshes, m);
+}
+
+function mdLiClampLayerInput(input: HTMLInputElement, slider: HTMLInputElement, layerMax: number): number {
+  const n = Number(input.value);
+  const v = Number.isFinite(n) ? Math.max(1, Math.min(layerMax, n)) : layerMax;
+  input.value = String(v);
+  slider.value = String(v);
+  return v;
+}
+
+function mdLiBuildLayerControls(
+  ctx: PreviewBuildCtx,
+  data: VoxelData,
+  si: MdLiSizeInfo,
+  groupMeshes: MdLiBuiltMeshes["groupMeshes"],
+): PreviewMenuNode[] {
   const rawGroups = data.groups;
-  let layerAxis = 1; // 默认 Y 轴: positions[p][1] = y
-  let layerMax = Math.max(sizeX, sizeY, sizeZ, 1);
-  let layerVal = layerMax;
-  let layerVal2 = layerMax;
+  const shell: MdLiLayerShell = {
+    layerAxis: 1,
+    layerMax: Math.max(si.sizeX, si.sizeY, si.sizeZ, 1),
+    layerVal: 0,
+    layerVal2: 0,
+  };
 
-  // 分层控件 DOM（创建于 build，通过 litematicMenuItems 注入根菜单面板）
   const sep = document.createElement("span");
   sep.style.cssText = "width:1px;height:16px;background:rgba(255,255,255,0.15);margin:0 4px";
-
   const axisLabel = document.createElement("span");
   axisLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
   axisLabel.textContent = t("preview.sliceAxis") + ":";
@@ -179,7 +296,6 @@ export async function buildLitematicScene(
     o.textContent = a;
     axisSel.appendChild(o);
   });
-
   const layerMode = document.createElement("select");
   layerMode.style.cssText = "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
   [{ v: "all", t: "全部" }, { v: "single", t: "单层" }, { v: "range", t: "范围" }].forEach((m) => {
@@ -188,188 +304,136 @@ export async function buildLitematicScene(
     o.textContent = m.t;
     layerMode.appendChild(o);
   });
-
   const layerSlider = document.createElement("input");
-  layerSlider.type = "range";
-  layerSlider.min = "1";
-  layerSlider.max = "100";
-  layerSlider.value = "100";
+  layerSlider.type = "range"; layerSlider.min = "1"; layerSlider.max = "100"; layerSlider.value = "100";
   layerSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff);display:none";
-
   const layerInput = document.createElement("input");
-  layerInput.type = "number";
-  layerInput.min = "1";
-  layerInput.max = "100";
-  layerInput.value = "100";
+  layerInput.type = "number"; layerInput.min = "1"; layerInput.max = "100"; layerInput.value = "100";
   layerInput.style.cssText = "width:42px;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);font-family:inherit;text-align:center;display:none";
-
   const layerSlider2 = document.createElement("input");
-  layerSlider2.type = "range";
-  layerSlider2.min = "1";
-  layerSlider2.max = "100";
-  layerSlider2.value = "100";
+  layerSlider2.type = "range"; layerSlider2.min = "1"; layerSlider2.max = "100"; layerSlider2.value = "100";
   layerSlider2.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff);display:none";
-
   const layerInput2 = document.createElement("input");
-  layerInput2.type = "number";
-  layerInput2.min = "1";
-  layerInput2.max = "100";
-  layerInput2.value = "100";
+  layerInput2.type = "number"; layerInput2.min = "1"; layerInput2.max = "100"; layerInput2.value = "100";
   layerInput2.style.cssText = "width:42px;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);font-family:inherit;text-align:center;display:none";
 
-  function setupRange(): void {
-    layerMax = [sizeX, sizeY, sizeZ][layerAxis];
-    layerSlider.max = String(layerMax);
-    layerInput.max = String(layerMax);
-    layerSlider2.max = String(layerMax);
-    layerInput2.max = String(layerMax);
-  }
-
-  function updateLayerUI(): void {
-    const m = layerMode.value;
-    layerSlider.style.display = m === "all" ? "none" : "";
-    layerInput.style.display = m === "all" ? "none" : "";
-    layerSlider2.style.display = m === "range" ? "" : "none";
-    layerInput2.style.display = m === "range" ? "" : "none";
-    applyLayer();
-  }
+  const els: MdLiLayerControlEls = { sep, axisLabel, axisSel, layerMode, layerSlider, layerInput, layerSlider2, layerInput2 };
 
   axisSel.onchange = (): void => {
-    layerAxis = { X: 0, Y: 1, Z: 2 }[axisSel.value] ?? 1;
-    setupRange();
-    layerSlider.value = String(layerMax);
-    layerInput.value = String(layerMax);
-    layerSlider2.value = String(layerMax);
-    layerInput2.value = String(layerMax);
-    layerVal = layerMax;
-    layerVal2 = layerMax;
-    applyLayer();
+    shell.layerAxis = { X: 0, Y: 1, Z: 2 }[axisSel.value] ?? 1;
+    mdLiSetupRange(shell, si, els);
+    layerSlider.value = String(shell.layerMax);
+    layerInput.value = String(shell.layerMax);
+    layerSlider2.value = String(shell.layerMax);
+    layerInput2.value = String(shell.layerMax);
+    shell.layerVal = shell.layerMax;
+    shell.layerVal2 = shell.layerMax;
+    mdLiApplyLayer(shell, si, rawGroups, groupMeshes, layerMode.value);
   };
-
   layerSlider.oninput = (): void => {
     layerInput.value = layerSlider.value;
-    layerVal = Number(layerSlider.value);
-    applyLayer();
+    shell.layerVal = Number(layerSlider.value);
+    mdLiApplyLayer(shell, si, rawGroups, groupMeshes, layerMode.value);
   };
   layerInput.onchange = (): void => {
-    // 修复：`Number(v) || layerMax` 会把合法输入 0 误判为"缺失"跳到上限——
-    // 与 Math.max(1,…) 的下限意图矛盾。0 应钳到 1，仅 NaN/空输入回落 layerMax。
-    const n = Number(layerInput.value);
-    const v = Number.isFinite(n) ? Math.max(1, Math.min(layerMax, n)) : layerMax;
-    layerInput.value = String(v);
-    layerSlider.value = String(v);
-    layerVal = v;
-    applyLayer();
+    const v = mdLiClampLayerInput(layerInput, layerSlider, shell.layerMax);
+    shell.layerVal = v;
+    mdLiApplyLayer(shell, si, rawGroups, groupMeshes, layerMode.value);
   };
   layerSlider2.oninput = (): void => {
     layerInput2.value = layerSlider2.value;
-    layerVal2 = Number(layerSlider2.value);
-    applyLayer();
+    shell.layerVal2 = Number(layerSlider2.value);
+    mdLiApplyLayer(shell, si, rawGroups, groupMeshes, layerMode.value);
   };
   layerInput2.onchange = (): void => {
-    // 同 layerInput：0 是合法输入应钳到 1，仅 NaN/空输入回落 layerMax
-    const n = Number(layerInput2.value);
-    const v = Number.isFinite(n) ? Math.max(1, Math.min(layerMax, n)) : layerMax;
-    layerInput2.value = String(v);
-    layerSlider2.value = String(v);
-    layerVal2 = v;
-    applyLayer();
+    const v = mdLiClampLayerInput(layerInput2, layerSlider2, shell.layerMax);
+    shell.layerVal2 = v;
+    mdLiApplyLayer(shell, si, rawGroups, groupMeshes, layerMode.value);
   };
-
-  function applyLayer(): void {
-    const dummy = new THREE.Object3D();
-    const m = layerMode.value;
-    const target = layerVal - 1;
-    const lo = layerVal - 1;
-    const hi = layerVal2 > layerVal ? layerVal2 : layerVal; // P4：lo>hi 时钳到空区而不是翻转
-    for (let g = 0; g < rawGroups.length; g++) {
-      const positions = rawGroups[g].positions;
-      const meshes = groupMeshes[g] ?? [];
-      // 每个 (group, chunk) 网格独立过滤：只写本 chunk 的位置，
-      // count 不会超该 chunk 网格容量（32³），杜绝 GPU 越界读。
-      for (const { mesh, ck } of meshes) {
-        let count = 0;
-        for (let i = 0; i < positions.length; i++) {
-          const p = positions[i];
-          // 坐标变换口径与 build 一致（陷阱 #11/#17）：非法条目丢弃、0 坐标保留
-          if (!isValidPos(p)) continue;
-          const cx = Math.floor(p[0] / CHUNK);
-          const cy = Math.floor(p[1] / CHUNK);
-          const cz = Math.floor(p[2] / CHUNK);
-          if (cx + cy * xChunks + cz * xChunks * yChunks !== ck) continue;
-          if (m === "single" && p[layerAxis] !== target) continue;
-          if (m !== "all" && m !== "single" && !(p[layerAxis] >= lo && p[layerAxis] < hi)) continue;
-          dummy.position.set(p[0], p[1], p[2]);
-          dummy.updateMatrix();
-          mesh.setMatrixAt(count, dummy.matrix);
-          count++;
-        }
-        mesh.count = count;
-        mesh.instanceMatrix.needsUpdate = true;
-      }
-    }
-  }
-
   layerMode.onchange = (): void => {
-    updateLayerUI();
+    mdLiUpdateLayerUI(shell, si, rawGroups, groupMeshes, els);
   };
 
-  setupRange();
-  layerSlider.value = String(layerMax);
-  layerInput.value = String(layerMax);
-  layerSlider2.value = String(layerMax);
-  layerInput2.value = String(layerMax);
-  // 修复：layerVal/layerVal2 必须在 setupRange 后同步到当前轴的 layerMax——
-  // 否则非立方体模型（如 size=[16,8,16] 默认 Y 轴 layerMax=8）初始 layerVal 仍是
-  // 三轴最大值 16，切到单层模式 target=15 > sizeY，整屏空白而滑块却显示 8。
-  layerVal = layerMax;
-  layerVal2 = layerMax;
+  mdLiSetupRange(shell, si, els);
+  layerSlider.value = String(shell.layerMax);
+  layerInput.value = String(shell.layerMax);
+  layerSlider2.value = String(shell.layerMax);
+  layerInput2.value = String(shell.layerMax);
+  shell.layerVal = shell.layerMax;
+  shell.layerVal2 = shell.layerMax;
 
-  if (data.truncated) {
-    const w = document.createElement("div");
-    w.style.cssText = "padding:6px 12px;background:rgba(207,83,0,0.3);color:#ffa64d;font-size:12px;text-align:center;flex-shrink:0";
-    const max = data.maxBlocks || FALLBACK_MAX_BLOCKS;
-    w.textContent = "⚠️ " + t("preview.blockLimit", { max: max.toLocaleString() });
-    ctx.overlay.insertBefore(w, ctx.overlay.children[1]);
-  }
+  return litematicMenuItems(els);
+}
 
-  // 分层控件 → 声明式根菜单注入（ADR-076 v2 Phase 3：从 topBar 收编进 ⚙️ 根菜单）
-  // DOM 元素创建与事件绑定不变，改为经 render 回调挂入菜单面板而非 topBar
-  const sliceItems = litematicMenuItems({
-    axisSel,
-    layerMode,
-    layerSlider,
-    layerInput,
-    layerSlider2,
-    layerInput2,
-    sep,
-    axisLabel,
-  });
+// ===== 辅助：perf trace + truncated 警告 =====
+
+function mdLiRecordPerfTrace(path: string, tStart: number, data: VoxelData): void {
+  try {
+    const blockCount = data.groups?.reduce((s, g) => s + (g.positions?.length ?? 0), 0) ?? 0;
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "litematic",
+      path,
+      stages: [{ name: "读取+构建", ms: Math.round(performance.now() - tStart), status: "ok" }],
+      assets: { files: 1, textures: 0, materials: data.groups?.length ?? 0, animations: 0 },
+      ok: true,
+    });
+  } catch { /* perf trace 失败不影响渲染 */ }
+}
+
+function mdLiShowTruncatedWarning(ctx: PreviewBuildCtx, data: VoxelData): void {
+  if (!data.truncated) return;
+  const w = document.createElement("div");
+  w.style.cssText = "padding:6px 12px;background:rgba(207,83,0,0.3);color:#ffa64d;font-size:12px;text-align:center;flex-shrink:0";
+  const max = data.maxBlocks || FALLBACK_MAX_BLOCKS;
+  w.textContent = "⚠️ " + t("preview.blockLimit", { max: max.toLocaleString() });
+  ctx.overlay.insertBefore(w, ctx.overlay.children[1]);
+}
+
+// ===== 阶段⑤：PreviewScene 句柄装配 =====
+
+function mdLiBuildResult(
+  ctx: PreviewBuildCtx,
+  built: MdLiBuiltMeshes,
+  menuItems: PreviewMenuNode[],
+): PreviewScene {
   return {
-    // ADR-093：声明式分层切片控件 → 经角色详情面板可达（roleDetailView 按 dockGroup:"model" 过滤 entry.menuItems）
-    // 与 ysm/mmd/vrm 对称：built.menuItems 喂角色详情，不再经 setAdapterItems 平铺 dock 根（避免旧菜单冗余行）
-    menuItems: sliceItems,
+    menuItems,
     dispose(): void {
-      unregisterModelRoot(modelGroup);
-      instancedMeshes.forEach((m) => {
-        try {
-          m.dispose();
-        } catch (_) {}
-      });
-      materials.forEach((m) => {
-        try {
-          m.dispose();
-        } catch (_) {}
-      });
-      boxGeo.dispose();
-      try {
-        grid.dispose();
-      } catch (_) {}
+      unregisterModelRoot(built.modelGroup);
+      built.instancedMeshes.forEach((m) => { try { m.dispose(); } catch (_) {} });
+      built.materials.forEach((m) => { try { m.dispose(); } catch (_) {} });
+      built.boxGeo.dispose();
+      try { built.grid.dispose(); } catch (_) {}
     },
-    // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/mmd/vrm 呑约对称）
-    screenshot: () =>
-      Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
+    screenshot: () => Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
   };
+}
+
+/** Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。
+ *  voxelCall 由视图壳注入（对齐 ADR-072：适配器 0 backend import），经绑定名取 Go RPC。 */
+export async function buildLitematicScene(
+  ctx: PreviewBuildCtx,
+  path: string,
+  voxelCall: (path: string) => Promise<string>,
+): Promise<PreviewScene> {
+  const tStart = performance.now();
+  mdLiShowLoading(ctx);
+
+  const loadRes = await mdLiLoadAndParseData(ctx, path, voxelCall);
+  if (!loadRes.ok) return loadRes.earlyResult;
+  const { data } = loadRes;
+
+  const si = mdLiSetupCameraAndGrid(ctx, data);
+  const built = mdLiBuildBlockMesh(ctx, data, si);
+
+  ctx.loadingEl.remove();
+  mdLiRecordPerfTrace(path, tStart, data);
+
+  const sliceItems = mdLiBuildLayerControls(ctx, data, si, built.groupMeshes);
+  mdLiShowTruncatedWarning(ctx, data);
+
+  return mdLiBuildResult(ctx, built, sliceItems);
 }
 
 // ===== litematic 菜单项（ADR-076 v2 Phase 3：分层控件收编进 ⚙️ 根菜单）=====
