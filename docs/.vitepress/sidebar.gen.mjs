@@ -1303,6 +1303,10 @@ export const autoSidebar = [
       {
         "text": "YSM Model Manager — 全量审核仲裁报告",
         "link": "/audit/full-audit-arbitration"
+      },
+      {
+        "text": "YSM Model Manager — 第二轮审核仲裁报告",
+        "link": "/audit/round2-audit-arbitration"
       }
     ]
   },
@@ -1338,6 +1342,10 @@ export const autoSidebar = [
           {
             "text": "Bus 事件契约守卫",
             "link": "/knowledge/event-graph-guard"
+          },
+          {
+            "text": "前端测试基建审计",
+            "link": "/knowledge/frontend_test_audit"
           },
           {
             "text": "全局事件处理 global-handlers",
