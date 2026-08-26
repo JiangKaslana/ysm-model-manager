@@ -15,7 +15,7 @@ export interface LocalCreator extends WorkshopCreator {
 }
 
 /** 绑定 LocalAuthor（合并来源） */
-interface LocalAuthorLike {
+export interface LocalAuthorLike {
   name?: string;
   desc?: string;
   type?: string;
@@ -70,36 +70,32 @@ export function clearAllCommunityCache(): void {
 }
 
 /**
- * 加载站点 + 创作者数据（纯数据，不碰 DOM）
- * 自动合并本地仓库提取的作者
+ * 加载站点 + 创作者数据（纯数据，不碰 DOM）——首屏快路径。
+ * 只拉配置类数据（sites/creators/authors 统计），**不含磁盘扫描的本地作者**：
+ * 扫描曾坐在 Promise.all 里阻塞整个 tab 栏渲染（大库逐文件 SHA256 陪绑，秒级~分钟级），
+ * 现拆为 loadLocalAuthors() 后台补充 + mergeLocalAuthorsInto() 合并，
+ * 调用方在首屏渲染完成后异步 enrich 即可。
+ * 网页版（ADR-049 桥接增强 Batch 2）：DefaultWorkshopSites/LoadWorkshopCreators 已由
+ * browser-adapter 桥接（bundled JSON + localStorage 覆盖），与桌面共用同一条加载路径；
+ * ListModelAuthors 属桌面专属、网页版未桥接，.catch(() => []) 降级为空
+ * （与文件内既有 P2/P4 防御风格一致，避免单点 unbridged binding 拖垮整链）。
  */
 export async function loadCommunityData(): Promise<CommunityData> {
   const App = await getApp();
-  // 网页版（ADR-049 桥接增强 Batch 2）：DefaultWorkshopSites/LoadWorkshopCreators 已由
-  // browser-adapter 桥接（bundled JSON + localStorage 覆盖），与桌面共用同一条加载路径，
-  // 桥接真正生效（不再走 GitHub 拉取旁路）。作者扫描（ListModelAuthors/ScanLocalAuthors）
-  // 仍属桌面专属、网页版未桥接，各自 .catch(() => []) 降级为空，不影响站点/创作者透传
-  // （与文件内既有 P2/P4 防御风格一致，避免单点 unbridged binding 拖垮整链）。
   let sites: WorkshopSite[] = [];
   let creators: WorkshopCreator[] = [];
   let authors: unknown[] = [];
-  let localAuthors: LocalAuthorLike[] = [];
   let failed = false;
   try {
     const results = await Promise.all([
       App.DefaultWorkshopSites(),
       App.LoadWorkshopCreators(),
-      // 作者列表：从已有 ModelEntry 统计，无 IO，直接调用
+      // 作者列表：Go 侧轻量遍历（ScanEntriesLite），只看文件名不算哈希
       App.ListModelAuthors().catch(() => []),
-      // 本地作者扫描：磁盘 IO 密集，加 withCached 5min TTL 缓存
-      withCached(SCAN_AUTHORS_KEY, SCAN_AUTHORS_TTL_MS, () =>
-        App.ScanLocalAuthors(),
-      ).catch(() => []),
     ]);
     sites = results[0] || [];
     creators = results[1] || [];
     authors = results[2] || [];
-    localAuthors = results[3] || [];
   } catch (e) {
     // 显式化（ADR-082 续）：不再只 console.warn 静默——failed 标记让调用方
     // 区分「加载失败」（提示重试）与「真无数据」（显示空态），避免页面空白无感知
@@ -107,32 +103,7 @@ export async function loadCommunityData(): Promise<CommunityData> {
     console.warn("[community] 社区数据加载失败:", e);
   }
 
-  // 合并本地作者到创作者列表
   const merged = (creators || []) as LocalCreator[];
-  const existingNames = new Set(merged.map((c) => c.name));
-  const localAuthorsList: LocalAuthorLike[] = localAuthors || [];
-  if (localAuthorsList.length) {
-    for (const la of localAuthorsList) {
-      if (la && la.name && existingNames.has(la.name)) {
-        const found = merged.find((c) => c.name === la.name);
-        // P4 修复：按分号分段比较 type，避免子串误判（"bilibili" 包含 "bili" 时丢类型）
-        if (found && la.type) {
-          const hasType = (found.type || "").split(";").some((t) => t.trim() === la.type);
-          if (!hasType) {
-            found.type = found.type ? found.type + ";" + la.type : la.type;
-          }
-        }
-        if (found) found._fromLocal = true;
-      } else if (la && la.name) {
-        merged.push({
-          name: la.name,
-          desc: la.desc || t("community.fromLocal"),
-          type: la.type || "",
-          _fromLocal: true,
-        });
-      }
-    }
-  }
 
   // 自动拉取社区索引（静默，后台执行）——R3-P0 后网页版已桥接
   // 自动合并（网络拉取失败静默，保存到 localStorage）
@@ -144,6 +115,55 @@ export async function loadCommunityData(): Promise<CommunityData> {
     authors: authors || [],
     failed,
   };
+}
+
+/**
+ * 本地作者扫描（后台补充路径）：withCached STALE——过期先返旧值再后台刷新，
+ * 不阻塞调用方；冷缓存时才真等扫描（Go 侧已轻量化为纯目录枚举）。
+ * 失败降级空数组（与快路径 .catch 防御风格一致）。
+ */
+export async function loadLocalAuthors(): Promise<LocalAuthorLike[]> {
+  const App = await getApp();
+  // 绑定签名允许 null（无数据）——与快路径 `results[i] || []` 同口径归一
+  const authors = await withCached(
+    SCAN_AUTHORS_KEY,
+    SCAN_AUTHORS_TTL_MS,
+    () => App.ScanLocalAuthors(),
+    "STALE",
+  ).catch(() => []);
+  return authors || [];
+}
+
+/**
+ * 把本地扫描提取的作者合并进创作者列表（原地合并，返回同一引用）。
+ * 幂等：重复调用不重复追加（同名去重 + type 分段精确比较防子串误判）。
+ */
+export function mergeLocalAuthorsInto(
+  creators: LocalCreator[],
+  localAuthors: LocalAuthorLike[],
+): LocalCreator[] {
+  const existingNames = new Set(creators.map((c) => c.name));
+  for (const la of localAuthors || []) {
+    if (la && la.name && existingNames.has(la.name)) {
+      const found = creators.find((c) => c.name === la.name);
+      // P4 修复：按分号分段比较 type，避免子串误判（"bilibili" 包含 "bili" 时丢类型）
+      if (found && la.type) {
+        const hasType = (found.type || "").split(";").some((t) => t.trim() === la.type);
+        if (!hasType) {
+          found.type = found.type ? found.type + ";" + la.type : la.type;
+        }
+      }
+      if (found) found._fromLocal = true;
+    } else if (la && la.name) {
+      creators.push({
+        name: la.name,
+        desc: la.desc || t("community.fromLocal"),
+        type: la.type || "",
+        _fromLocal: true,
+      });
+    }
+  }
+  return creators;
 }
 
 /** 后台静默拉取社区索引并合并（withCached 6h TTL） */

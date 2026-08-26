@@ -3,7 +3,7 @@ import { bus } from "../../bus.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { getSiteIcon } from "../../utils/icon/workshop-icons.ts";
 import { esc as escUtil } from "../../utils/dom/html.ts";
-import { loadCommunityData, type LocalCreator, type CommunityData } from "./community-data.ts";
+import { loadCommunityData, loadLocalAuthors, mergeLocalAuthorsInto, type LocalCreator, type CommunityData } from "./community-data.ts";
 import type { WorkshopSite } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 import type { RepoAuthorLike } from "./site-view.ts";
 import type { AppContentHost } from "./init-workshop.ts";
@@ -41,6 +41,28 @@ export function initWorkshopTabs(host: AppContentHost, refs: WorkshopRefs): void
   const searchResults = root.getElementById("ws-search-results") as HTMLElement | null;
   const creatorView = root.getElementById("ws-creator-view") as HTMLElement | null;
 
+  // 本地扫描作者的后台补充：首屏渲染不依赖磁盘扫描（曾阻塞 tab 栏秒级~分钟级），
+  // 扫描完成后再合并进 allCreatorsRef 并重渲染当前站点视图。
+  // enrichPending 在途去重（防双渲染）；完成后置 null，下次数据替换（切 tab 重拉）可再补充；
+  // 合并前重读 refs.allCreatorsRef.v——在途期间用户切 tab 换了新数组也能补到最新数据上
+  let enrichPending: Promise<void> | null = null;
+  const maybeEnrich = (): void => {
+    if (enrichPending) return;
+    enrichPending = (async () => {
+      try {
+        const localAuthors = await loadLocalAuthors();
+        if (localAuthors.length) {
+          refs.allCreatorsRef.v = mergeLocalAuthorsInto(refs.allCreatorsRef.v, localAuthors);
+          _showSiteView(host._currentSite);
+        }
+      } catch {
+        // 补充失败不影响首屏（首屏已可用），静默降级
+      } finally {
+        enrichPending = null;
+      }
+    })();
+  };
+
   // B站/爱发电 tab 点击 → 在右侧显示对应站点的创作者（不打开网站）
   // data 可选：定时器首次加载复用同一份数据，避免进页双重 loadCommunityData
   const showCreatorsBySite = async (siteType: string, data?: CommunityData): Promise<void> => {
@@ -59,6 +81,8 @@ export function initWorkshopTabs(host: AppContentHost, refs: WorkshopRefs): void
         .forEach((t) => t.classList.remove("active"));
       root.querySelector(`[data-tab="${siteType}"]`)?.classList.add("active");
       _showSiteView(host._currentSite);
+      // 首屏已渲染，后台补充本地扫描作者（STALE 缓存，通常立即返回旧值）
+      maybeEnrich();
     } catch (e) {
       // P2 修复（审核）：async handler 最外层 catch 出口（ADR-044 ①）——
       // loadCommunityData/showSiteView 抛错原逸出为 unhandled rejection

@@ -34,8 +34,11 @@ vi.mock("../../utils/debug/debug.ts", () => ({
 
 import {
   loadCommunityData,
+  loadLocalAuthors,
+  mergeLocalAuthorsInto,
   forceRefreshCommunityMerge,
   forceRefreshScanAuthors,
+  type LocalCreator,
 } from "./community-data.ts";
 
 beforeEach(() => {
@@ -55,27 +58,44 @@ afterEach(() => {
 });
 
 describe("loadCommunityData", () => {
+  it("首屏快路径不等本地扫描：ScanLocalAuthors 挂起也立即返回", async () => {
+    mocks.ScanLocalAuthors.mockReturnValue(new Promise(() => {})); // 永不 resolve
+    const data = await loadCommunityData(); // 若仍 await 扫描则本行超时挂死
+    expect(data.sites).toEqual([{ id: "bilibili" }]);
+    expect(data.creators).toEqual([]);
+  });
+
   it("本地作者 type 与现有 type 分段去重（子串不误判）", async () => {
-    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "A", type: "bilibili" }]);
     mocks.ScanLocalAuthors.mockResolvedValue([{ name: "A", type: "bili" }]);
-    const data = await loadCommunityData();
-    const a = data.creators.find((c) => c.name === "A");
+    const localAuthors = await loadLocalAuthors();
+    const merged = mergeLocalAuthorsInto(
+      [{ name: "A", type: "bilibili" }] as LocalCreator[],
+      localAuthors,
+    );
+    const a = merged.find((c) => c.name === "A");
     expect(a?.type).toBe("bilibili;bili");
     expect(a?._fromLocal).toBe(true);
   });
 
-  it("已存在的 type 不重复追加", async () => {
-    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "A", type: "bilibili;x" }]);
-    mocks.ScanLocalAuthors.mockResolvedValue([{ name: "A", type: "x" }]);
-    const data = await loadCommunityData();
-    const a = data.creators.find((c) => c.name === "A");
-    expect(a?.type).toBe("bilibili;x");
+  it("ScanLocalAuthors 失败 -> loadLocalAuthors 降级为空不抛", async () => {
+    mocks.ScanLocalAuthors.mockRejectedValue(new Error("scan boom"));
+    await expect(loadLocalAuthors()).resolves.toEqual([]);
   });
 
-  it("本地独有作者追加为 _fromLocal 条目", async () => {
-    mocks.ScanLocalAuthors.mockResolvedValue([{ name: "新作者", desc: "本地描述" }]);
-    const data = await loadCommunityData();
-    const c = data.creators.find((x) => x.name === "新作者");
+  it("已存在的 type 不重复追加", () => {
+    const merged = mergeLocalAuthorsInto(
+      [{ name: "A", type: "bilibili;x" }] as LocalCreator[],
+      [{ name: "A", type: "x" }],
+    );
+    expect(merged.find((c) => c.name === "A")?.type).toBe("bilibili;x");
+  });
+
+  it("本地独有作者追加为 _fromLocal 条目", () => {
+    const merged = mergeLocalAuthorsInto(
+      [],
+      [{ name: "新作者", desc: "本地描述" }],
+    );
+    const c = merged.find((x) => x.name === "新作者");
     expect(c?._fromLocal).toBe(true);
     expect(c?.desc).toBe("本地描述");
   });

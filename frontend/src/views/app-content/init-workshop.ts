@@ -18,7 +18,7 @@ import { showRepoModels } from "../../features/community/show-repo-models.ts";
 import { loadBrowseMode, saveBrowseMode, createBrowseModeRef, type BrowseMode } from "./workshop-browse-mode.ts";
 import { initWorkshopTabs, setShowSiteView, createWorkshopRefs } from "./workshop-tabs.ts";
 import { openSite, bindSiteEvents } from "./workshop-site-opener.ts";
-import { loadCommunityData, type LocalCreator } from "./community-data.ts";
+import type { LocalCreator } from "./community-data.ts";
 import { extractAvatars } from "./workshop-avatar.ts";
 import { t } from "../../core/i18n/t.ts";
 import type { WorkshopModel } from "../../features/community/render.ts";
