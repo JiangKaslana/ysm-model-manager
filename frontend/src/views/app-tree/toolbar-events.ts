@@ -116,18 +116,6 @@ function atTlBindRepoSwitch(ctx: AtTlCtx): void {
   });
 }
 
-function atTlBindNewFolder(_ctx: AtTlCtx): void {
-}
-
-function atTlBindDeleteSel(_ctx: AtTlCtx): void {
-}
-
-function atTlBindRenameSel(_ctx: AtTlCtx): void {
-}
-
-function atTlBindScan(_ctx: AtTlCtx): void {
-}
-
 function atTlBindSortToggle(ctx: AtTlCtx): void {
   const { vm, $ } = ctx;
   $("sort")?.addEventListener("change", () => {
@@ -282,9 +270,6 @@ async function atTlHandleImportDir(ctx: AtTlCtx): Promise<void> {
   );
 }
 
-function atTlBindImport(ctx: AtTlCtx): void {
-}
-
 function atTlBindMoreMenu(ctx: AtTlCtx): void {
   const { vm, $ } = ctx;
   const menuMore = $("menu-more");
@@ -373,16 +358,11 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
 
   atTlBindSelectAll(ctx);
   atTlBindRepoSwitch(ctx);
-  atTlBindNewFolder(ctx);
-  atTlBindDeleteSel(ctx);
-  atTlBindRenameSel(ctx);
-  atTlBindScan(ctx);
   atTlBindSortToggle(ctx);
   atTlBindViewMode(ctx);
   atTlBindSearch(ctx);
   atTlBindAdvFilter(ctx);
   atTlBindAuthorMenu(ctx);
   atTlBindBatchMenu(ctx);
-  atTlBindImport(ctx);
   atTlBindMoreMenu(ctx);
 }

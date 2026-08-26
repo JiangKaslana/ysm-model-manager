@@ -40,27 +40,10 @@ function atTeStartRename(ctx: AtTeCtx, path: string): void {
   const inp = document.createElement("input");
   inp.type = "text";
   inp.className = "rename-inp";
-  inp.value = nmEl.textContent?.replace(/^\S+\s/, "") || "";
+  inp.value = path.split(/[/\\]/).pop() || "";
   nmEl.replaceWith(inp);
   inp.focus();
   inp.select();
-  const save = () => {
-    const newName = inp.value.trim();
-    if (!newName) {
-      ctx.vm._renderTree();
-      return;
-    }
-    (bus as any).emit("file:rename", { path, newName });
-  };
-  inp.addEventListener("keydown", (ke) => {
-    if (ke.key === "Enter") {
-      ke.preventDefault();
-      save();
-    } else if (ke.key === "Escape") {
-      ctx.vm._renderTree();
-    }
-  });
-  inp.addEventListener("blur", save);
 }
 
 function atTeGetRtype(vm: AppTree): string {
@@ -396,23 +379,6 @@ function atTeBindRenameInput(ctx: AtTeCtx): void {
   });
 }
 
-// ===== 事件段 7：搜索框过滤 =====
-function atTeBindSearchFilter(ctx: AtTeCtx): void {
-  const { vm } = ctx;
-  const srch = vm._root.getElementById("srch") as HTMLInputElement | null;
-  if (!srch) return;
-  let debounceTimer: number | null = null;
-  srch.addEventListener("input", () => {
-    if (ctx.disposed) return;
-    vm._search = srch.value || "";
-    if (debounceTimer) window.clearTimeout(debounceTimer);
-    debounceTimer = window.setTimeout(() => {
-      if (ctx.disposed) return;
-      vm._renderTree();
-    }, 150);
-  });
-}
-
 // ===== 导出：更新底部选中统计 =====
 export function updateSelectCount(root: ShadowRoot): void {
   const stat = root?.getElementById("ftr-stat");
@@ -525,7 +491,6 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
   atTeBindRowDoubleClick(ctx);
   atTeBindContextMenu(ctx);
   atTeBindRenameInput(ctx);
-  atTeBindSearchFilter(ctx);
 
   container.addEventListener("click", (e: MouseEvent) => {
     const target = e.target as HTMLElement | null;
