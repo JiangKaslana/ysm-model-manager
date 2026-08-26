@@ -83,7 +83,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-tree/toolbar-events.ts` | 224 |
+| `frontend/src/views/app-tree/toolbar-events.ts` | 212 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -102,7 +102,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-tree/toolbar-events.ts` | 223 |
+| `frontend/src/views/app-tree/toolbar-events.ts` | 211 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -137,9 +137,9 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sidebar/events.ts` | 126 |
-| `frontend/src/views/app-tree/events.ts` | 320 |
-| `frontend/src/views/app-tree/events.ts` | 344 |
-| `frontend/src/views/app-tree/events.ts` | 355 |
+| `frontend/src/views/app-tree/events.ts` | 303 |
+| `frontend/src/views/app-tree/events.ts` | 327 |
+| `frontend/src/views/app-tree/events.ts` | 338 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -264,8 +264,8 @@
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 346 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 227 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 295 |
-| `frontend/src/views/app-tree/events.ts` | 175 |
-| `frontend/src/views/app-tree/events.ts` | 286 |
+| `frontend/src/views/app-tree/events.ts` | 158 |
+| `frontend/src/views/app-tree/events.ts` | 269 |
 | `frontend/src/views/app-tree/index.ts` | 406 |
 
 **订阅方（on）：**
@@ -389,7 +389,7 @@
 | `frontend/src/views/app-tree/bus-handlers.ts` | 145 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 196 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 233 |
-| `frontend/src/views/app-tree/events.ts` | 135 |
+| `frontend/src/views/app-tree/events.ts` | 118 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -424,8 +424,8 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 328 |
-| `frontend/src/views/app-tree/events.ts` | 133 |
-| `frontend/src/views/app-tree/events.ts` | 494 |
+| `frontend/src/views/app-tree/events.ts` | 116 |
+| `frontend/src/views/app-tree/events.ts` | 460 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -614,18 +614,18 @@
 | `frontend/src/views/app-tree/bus-handlers.ts` | 296 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 331 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 337 |
-| `frontend/src/views/app-tree/events.ts` | 106 |
-| `frontend/src/views/app-tree/events.ts` | 114 |
-| `frontend/src/views/app-tree/events.ts` | 139 |
-| `frontend/src/views/app-tree/events.ts` | 199 |
-| `frontend/src/views/app-tree/events.ts` | 206 |
+| `frontend/src/views/app-tree/events.ts` | 89 |
+| `frontend/src/views/app-tree/events.ts` | 97 |
+| `frontend/src/views/app-tree/events.ts` | 122 |
+| `frontend/src/views/app-tree/events.ts` | 182 |
+| `frontend/src/views/app-tree/events.ts` | 189 |
+| `frontend/src/views/app-tree/events.ts` | 197 |
 | `frontend/src/views/app-tree/events.ts` | 214 |
-| `frontend/src/views/app-tree/events.ts` | 231 |
-| `frontend/src/views/app-tree/events.ts` | 238 |
-| `frontend/src/views/app-tree/events.ts` | 448 |
-| `frontend/src/views/app-tree/events.ts` | 456 |
-| `frontend/src/views/app-tree/events.ts` | 497 |
-| `frontend/src/views/app-tree/events.ts` | 510 |
+| `frontend/src/views/app-tree/events.ts` | 221 |
+| `frontend/src/views/app-tree/events.ts` | 414 |
+| `frontend/src/views/app-tree/events.ts` | 422 |
+| `frontend/src/views/app-tree/events.ts` | 463 |
+| `frontend/src/views/app-tree/events.ts` | 476 |
 | `frontend/src/views/app-tree/index.ts` | 199 |
 | `frontend/src/views/app-tree/index.ts` | 342 |
 | `frontend/src/views/app-tree/index.ts` | 350 |
@@ -635,11 +635,11 @@
 | `frontend/src/views/app-tree/loader.ts` | 54 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 43 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 54 |
-| `frontend/src/views/app-tree/toolbar-events.ts` | 172 |
-| `frontend/src/views/app-tree/toolbar-events.ts` | 326 |
-| `frontend/src/views/app-tree/toolbar-events.ts` | 344 |
-| `frontend/src/views/app-tree/toolbar-events.ts` | 350 |
-| `frontend/src/views/app-tree/toolbar-events.ts` | 361 |
+| `frontend/src/views/app-tree/toolbar-events.ts` | 160 |
+| `frontend/src/views/app-tree/toolbar-events.ts` | 311 |
+| `frontend/src/views/app-tree/toolbar-events.ts` | 329 |
+| `frontend/src/views/app-tree/toolbar-events.ts` | 335 |
+| `frontend/src/views/app-tree/toolbar-events.ts` | 346 |
 | `frontend/src/views/app-tree/toolbar-search.ts` | 122 |
 | `frontend/src/views/app-tree/toolbar-search.ts` | 144 |
 | `frontend/src/views/app-tree/toolbar-search.ts` | 178 |

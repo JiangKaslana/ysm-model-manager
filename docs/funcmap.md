@@ -2227,8 +2227,8 @@
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
-| `updateSelectCount()` | `frontend/src/views/app-tree/events:417` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:521` | — |
+| `updateSelectCount()` | `frontend/src/views/app-tree/events:383` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:487` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:61` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |
@@ -2249,7 +2249,7 @@
 | `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:27` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:34` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
-| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:370` | — |
+| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:355` | — |
 | `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:42` | — |
 | `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:236` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
