@@ -10,7 +10,7 @@ import { bus } from "../../bus.ts";
 import { getApp } from "../../backend/app.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { esc } from "../../utils/dom/html.ts";
-import { Events } from "@wailsio/runtime";
+import { Events } from "../../backend/runtime.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { fillSearch } from "./community-data.ts";
 import { renderSiteView, type RenderSiteViewCtx, type RepoAuthorLike } from "./site-view.ts";

@@ -28,6 +28,7 @@ vi.mock("@wailsio/runtime", () => ({
       };
     },
   },
+  Window: { Show: vi.fn(), Hide: vi.fn(), SetTitle: vi.fn(), OpenDevTools: vi.fn(), Reload: vi.fn() },
 }));
 
 vi.mock("../../utils/dom/dialogs/modal.ts", () => ({

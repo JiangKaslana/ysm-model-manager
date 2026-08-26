@@ -78,8 +78,8 @@ use_when:
 ## 本仓专项合规面
 
 - **ADR-116**：RESOURCE_TYPES 无旁路定义，前端不重算归类，全合规。
-- **Wails 桥**：全部经 getApp()/bindings，零 window.go 直调；core/handlers/android-events.ts 直依赖 @wailsio/runtime Events 是唯一越层点（有注释解释 P1-1 教训）。
-- **core 层 DOM 渗透**：context-menu-handlers clipboard/execCommand、locale.ts documentElement.lang 应下沉 view/utils。
+- **Wails 桥**：全部经 getApp()/bindings，零 window.go 直调；`@wailsio/runtime`（Events/Window）直依赖已全量迁移到 `backend/runtime.ts` 桥（ADR-049 Phase 1 收尾：桌面走真 runtime、网页版走 no-op 桩），零业务模块直 import（2026-08-26 收口，原 android-events 越层点已消除）。
+- **core 层 DOM 渗透**：context-menu-handlers clipboard/execCommand 属 DOM 直触（保留观察）；`locale.ts` 的 `documentElement.lang` 经核属 i18n 核心职责（见 i18n.md:37 同步 `<html lang>`），非债，不下沉。
 
 ## i18n 缺口（硬编码中文未走 t()）
 

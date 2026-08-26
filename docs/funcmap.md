@@ -956,8 +956,8 @@
 | `readDeclaredBackend()` | `frontend/src/backend/platform:13` | 读取入口 HTML 声明的适配器身份（'go' | 'browser'），未声明返回 undefined |
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
-| `Events()` | `frontend/src/backend/runtime:24` | — |
-| `Window()` | `frontend/src/backend/runtime:29` | — |
+| `Events()` | `frontend/src/backend/runtime:21` | — |
+| `Window()` | `frontend/src/backend/runtime:25` | — |
 | `AppBindings()` | `frontend/src/backend/types:6` | Wails v3 生成的 App 绑定模块形状（bindings 目录下 app.ts） |
 | `mapColor()` | `frontend/src/backend/voxel-colors:92` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
 | `resolveBlockName()` | `frontend/src/backend/voxel-colors:107` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |

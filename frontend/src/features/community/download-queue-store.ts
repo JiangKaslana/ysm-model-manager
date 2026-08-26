@@ -17,7 +17,7 @@ import { t } from "../../core/i18n/t.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../backend/app.ts";
 import { resolveWebMode } from "../../backend/platform.ts";
-import { Events } from "@wailsio/runtime";
+import { Events } from "../../backend/runtime.ts";
 
 // ============================================================
 //  模块顶层 — 持久状态与事件注册（脚本加载时执行一次）

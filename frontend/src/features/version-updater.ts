@@ -7,7 +7,7 @@ import { friendlyError } from "../utils/dom/errors.ts";
 import { safeGet, safeSet } from "../utils/dom/storage.ts";
 import { getAndroidBridge, isViewerMode } from "../utils/dom/android-bridge.ts";
 import { getApp } from "../backend/app.ts";
-import { Events, Window } from "@wailsio/runtime";
+import { Events, Window } from "../backend/runtime.ts";
 
 /** 更新信息（CheckUpdate 返回） */
 export interface UpdateInfo {

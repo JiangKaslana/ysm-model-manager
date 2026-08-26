@@ -10,6 +10,7 @@ import { esc } from "../../utils/dom/html.ts";
 
 vi.mock("@wailsio/runtime", () => ({
   Events: { On: vi.fn().mockReturnValue(() => {}) },
+  Window: { Show: vi.fn(), Hide: vi.fn(), SetTitle: vi.fn(), OpenDevTools: vi.fn(), Reload: vi.fn() },
 }));
 
 vi.mock("../../backend/app.ts", () => ({

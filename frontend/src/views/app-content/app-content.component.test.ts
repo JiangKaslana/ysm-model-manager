@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // On 返回 vi.fn() 供断言 unsub 被调用（config-loaded 生命周期 P1 回归）
 vi.mock("@wailsio/runtime", () => ({
   Events: { On: vi.fn().mockReturnValue(vi.fn()) },
+  Window: { Show: vi.fn(), Hide: vi.fn(), SetTitle: vi.fn(), OpenDevTools: vi.fn(), Reload: vi.fn() },
 }));
 
 // getApp 全绑定 mock（组件多处从 getApp() 解构绑定，缺导出会 "not a function"）

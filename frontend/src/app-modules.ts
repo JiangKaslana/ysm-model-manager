@@ -1,7 +1,7 @@
 // ===== 所有 ES module 组件的统一入口 =====
 import { bus } from "./bus.ts";
 import { register } from "./services/registry.ts";
-import { Window } from "@wailsio/runtime";
+import { Window } from "./backend/runtime.ts";
 import { getApp } from "./backend/app.ts";
 import { registerErrorDiary } from "./core/error-diary.ts";
 import { registerCoiServiceWorker } from "./backend/coi-sw.ts";

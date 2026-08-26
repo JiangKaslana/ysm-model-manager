@@ -44,7 +44,7 @@ const {
 vi.mock("../../backend/platform.ts", () => ({
   resolveWebMode: resolveWebModeMock,
 }));
-vi.mock("@wailsio/runtime", () => ({ Events: { On: onMock } }));
+vi.mock("@wailsio/runtime", () => ({ Events: { On: onMock }, Window: { Show: vi.fn(), Hide: vi.fn(), SetTitle: vi.fn(), OpenDevTools: vi.fn(), Reload: vi.fn() } }));
 vi.mock("../../../bindings/ysm-model-manager/internal/app/app.js", () => ({
   EnqueueDownloads: enqueueMock,
   QueueStatus: statusMock,
