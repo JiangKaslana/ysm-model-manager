@@ -1,19 +1,400 @@
 #!/usr/bin/env node
 /**
- * 代码行数统计与文件健康度分析。
- * 由 scripts/line-counter.py 迁移（2026-08-03），逻辑逐点保真（含原 package_lines 按文件计数行为）。
- * line-counter.mjs — line-counter 工具脚本
- * 设计意图：line-counter 工具脚本
- * 依赖：node:fs / node:path / 本地模块
+ * line-counter.mjs — 代码行数统计与文件健康度分析（文件级 + 函数级双粒度）。
+ *
+ * 设计意图：
+ *   1. 默认模式（文件级）：由 line-counter.py 迁移（2026-08-03），逻辑逐点保真
+ *      （含原 package_lines 按文件计数行为），总览 Go/前端分布 + 大文件预警 (>700 行)。
+ *   2. --funcs 模式（函数级，2026-08-26 新增）：精确识别单函数行数并三档分级，
+ *      用于 ADR-040 红线日常巡检、重构前候选定位、PR 肥膘自动标注。
+ *      前端 TS/JS + Go 双栈覆盖；括号匹配定边界 + 新顶层声明护栏截断；
+ *      生成文件、测试文件、node_modules 自动豁免。
+ *
+ * 依赖：node:fs / node:path / node:url / scripts/_lib/scan-files.mjs（零外部依赖）。
+ *
  * 用法：
- *   node scripts/line-counter.mjs                 # 默认行为
- * 退出码：0（无 process.exit 调用）
+ *   node scripts/line-counter.mjs                                    # 默认：文件级总览（不变）
+ *   node scripts/line-counter.mjs --funcs                            # 新增：函数级三档统计（frontend/src + go/）
+ *   node scripts/line-counter.mjs --funcs --scope frontend/src/utils # 新增：限定扫描目录
+ *   node scripts/line-counter.mjs --funcs --threshold 80             # 新增：自定义黄档阈值（橙=2x / 红=3x）
+ *   node scripts/line-counter.mjs --funcs --json                     # 新增：JSON（子代理/CI 消费）
+ *
+ * 退出码：0（无论有无命中；情报型工具，不阻断）。ERROR 级异常时 process.exit 1。
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { getRoot, relPosix } from './_lib/scan-files.mjs';
+import { fileURLToPath } from 'node:url';
+import { walk, readText, getRoot, relPosix } from './_lib/scan-files.mjs';
 
 const ROOT = getRoot();
+
+// ─── 参数解析（手写，避免引入外部依赖；保持与其他 check-* 脚本同款极简风格）──
+function parseArgs(argv) {
+  const out = {
+    funcs: false,
+    json: false,
+    scope: null,          // 字符串或 null；相对路径 → 以 ROOT 为基准解析
+    threshold: 30,        // 默认 🟨 >30，🟧 = 2×threshold，🟥 = 3×threshold
+    _positional: [],
+  };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--funcs') out.funcs = true;
+    else if (a === '--json') out.json = true;
+    else if (a === '--scope' && argv[i + 1]) { out.scope = argv[++i]; }
+    else if (a === '--threshold' && argv[i + 1]) {
+      const n = parseInt(argv[++i], 10);
+      if (!Number.isFinite(n) || n < 1) { console.error(`[line-counter] --threshold 需正整数，收到 ${argv[i]}，用默认 30`); }
+      else out.threshold = n;
+    }
+    else if (!a.startsWith('-')) out._positional.push(a);
+    else console.warn(`[line-counter] 忽略未知参数 "${a}"`);
+  }
+  return out;
+}
+
+// ─── 生成/测试文件豁免（复用现有 isGeneratedFile，新增测试文件判定）──
+const GENERATED_FILE_RE = /\.gen\.(mjs|js|ts|go)$/;
+const GENERATED_MARKER_RE = /\/\/\s*=====\s*自动生成|\/\*\s*自动生成|<!--\s*自动生成/;
+const TEST_FILE_RE = /\.(test|spec)\.[jt]s$/;
+const TEST_DIR_NAME = '__tests__';
+
+function isGeneratedFile(f) {
+  if (GENERATED_FILE_RE.test(f)) return true;
+  try {
+    const head = readText(f).slice(0, 200);
+    return GENERATED_MARKER_RE.test(head);
+  } catch { return false; }
+}
+
+function isTestFile(f) {
+  const name = path.basename(f);
+  if (TEST_FILE_RE.test(name)) return true;       // TS: *.test.ts / *.spec.ts / *.test.js
+  if (name.endsWith('_test.go')) return true;    // Go: *_test.go
+  const parts = f.split(path.sep);
+  return parts.includes(TEST_DIR_NAME) || parts.includes('node_modules');
+}
+
+// ─── TS/JS 函数声明识别（顶层 + 包级；类方法用缩进护栏）──
+// 形态：
+//   export async function foo(      -> 标准函数
+//   function foo(                   -> 私有函数
+//   export const foo =              -> 箭头函数（= 后 -> 或 {）
+//   const foo =                     -> 私有箭头
+//   export class Foo {              -> 类（类体内部方法后续用缩进+括号匹配）
+//   class Foo {
+//   export default <名>             -> 不处理（default 匿名实现直接看父声明）
+//
+// 匹配产物：{name, startLine(0-based), indent, kind:'func'|'arrow'|'class'|'method'}
+const TS_FUNC_DECL_RE = /^(?<indent>[ \t]*)(?:export\s+)?(?:declare\s+)?(?:async\s+)?(?<kind>function|class)\s+(?<name>[A-Za-z0-9_$]+)\s*(?:<[^>]*>)?\s*\(/;
+const TS_ARROW_DECL_RE = /^(?<indent>[ \t]*)(?:export\s+)?(?:declare\s+)?(?:const|let|var)\s+(?<name>[A-Za-z0-9_$]+)\s*(?::\s*[^=]+?)?\s*=\s*(?:async\s+)?(?:\([^)]*\)|[A-Za-z0-9_$]+)\s*=>\s*\{/;
+const TS_CLASS_METHOD_RE = /^(?<indent>[ \t]*)(?:(?:public|private|protected|static|readonly|async)\s+)*(?<name>[A-Za-z0-9_$]+)\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?::\s*[^{]+?)?\s*\{/;
+const TS_INTERFACE_TYPE_RE = /^(?<indent>[ \t]*)(?:export\s+)?(?:interface|type|enum)\s+(?<name>[A-Za-z0-9_$]+)\s*(?:<[^>]*>)?\s*(?:extends\s+[^{]+?|implements\s+[^{]+?)?\s*\{/;
+
+// ─── Go 函数声明识别 ──
+// 形态：
+//   func foo(
+//   func (r *Receiver) foo(
+const GO_FUNC_RE = /^(?<indent>[ \t]*)func\s+(?:\((?<recv>[^)]*)\)\s+)?(?<name>[A-Za-z0-9_]+)\s*(?:\[[^\]]*\])?\s*\(/;
+
+// ─── 括号匹配：找到起始行之后，深度归零的结束行 ──
+// 策略：
+//   1. 先找声明行后（含本行）第一个未被 '//' / 字符串 / 反引号模板 注释掉的 '{'，记深度=1
+//   2. 逐字符推进，深度==0 即返回（endLine 为 0-based 闭区间；行数 = endLine - startLine + 1）
+//   3. 护栏：扫描过程中，如遇到「同级别或更少缩进」的新顶层声明（TS_FUNC_DECL_RE / GO_FUNC_RE）且深度<=1，
+//      则说明已经进入下一个函数，直接在那之前截断（避免 class/interface 尾括号被"吞"到下一个声明里）
+//   4. 字符串/注释转义的简化处理：不追求 100% 精确（比如反引号内嵌变量模板），够用即可——
+//      即使误判也是"少算几行"方向，不会导致"虚高假阳性"（那是红线方向更危险）
+
+function findFunctionEnd(lines, startLine, isGo) {
+  const n = lines.length;
+  // 1) 找到第一个 { 的位置
+  let braceLine = -1, braceCol = -1;
+  let inSingle = false, inDouble = false, inBacktick = false, inLineComment = false;
+  outer:
+  for (let li = startLine; li < n; li++) {
+    const line = lines[li];
+    inLineComment = false;
+    for (let ci = 0; ci < line.length; ci++) {
+      const c = line[ci];
+      const next = line[ci + 1];
+      if (inLineComment) break;
+      if (inSingle) {
+        if (c === '\\') { ci++; continue; }
+        if (c === "'") inSingle = false;
+        continue;
+      }
+      if (inDouble) {
+        if (c === '\\') { ci++; continue; }
+        if (c === '"') inDouble = false;
+        continue;
+      }
+      if (inBacktick) {
+        if (c === '`') inBacktick = false;
+        continue;
+      }
+      if (c === '/' && next === '/') { inLineComment = true; break; }
+      if (c === '/' && next === '*') {
+        ci++;
+        // 扫到 */
+        let found = false;
+        for (let nj = ci + 1; nj < line.length - 1; nj++) {
+          if (line[nj] === '*' && line[nj + 1] === '/') { ci = nj + 1; found = true; break; }
+        }
+        if (!found) {
+          // 跨多行块注释：跳到下一个 */
+          li++;
+          for (; li < n; li++) {
+            const nl = lines[li];
+            const idx = nl.indexOf('*/');
+            if (idx >= 0) { ci = idx + 1; break; }
+          }
+          if (li >= n) break outer;
+        }
+        continue;
+      }
+      if (c === "'" && !isGo) { inSingle = true; continue; }
+      if (c === '"') { inDouble = true; continue; }
+      if (c === '`' && !isGo) { inBacktick = true; continue; }
+      if (c === '{') { braceLine = li; braceCol = ci; break outer; }
+    }
+  }
+  if (braceLine < 0) return null; // 没有函数体（抽象/声明），跳过
+
+  let depth = 1;
+  inSingle = false; inDouble = false; inBacktick = false; inLineComment = false;
+  // 从 { 的下一个字符继续
+  for (let li = braceLine; li < n; li++) {
+    const line = lines[li];
+    let ci = (li === braceLine) ? braceCol + 1 : 0;
+    inLineComment = false;
+    for (; ci < line.length; ci++) {
+      const c = line[ci];
+      if (inLineComment) break;
+      if (inSingle) { if (c === '\\') { ci++; continue; } if (c === "'") inSingle = false; continue; }
+      if (inDouble) { if (c === '\\') { ci++; continue; } if (c === '"') inDouble = false; continue; }
+      if (inBacktick) { if (c === '`') inBacktick = false; continue; }
+      if (c === '/' && line[ci + 1] === '/') { inLineComment = true; break; }
+      if (c === '/' && line[ci + 1] === '*') {
+        ci++;
+        let found = false;
+        for (let nj = ci + 1; nj < line.length - 1; nj++) {
+          if (line[nj] === '*' && line[nj + 1] === '/') { ci = nj + 1; found = true; break; }
+        }
+        if (!found) {
+          li++;
+          for (; li < n; li++) {
+            const nl = lines[li];
+            const idx = nl.indexOf('*/');
+            if (idx >= 0) { ci = idx + 1; break; }
+          }
+          if (li >= n) return { endLine: n - 1, truncated: false };
+        }
+        continue;
+      }
+      if (c === "'" && !isGo) inSingle = true;
+      else if (c === '"') inDouble = true;
+      else if (c === '`' && !isGo) inBacktick = true;
+      else if (c === '{') depth++;
+      else if (c === '}') {
+        depth--;
+        if (depth === 0) return { endLine: li, truncated: false };
+      }
+    }
+
+    // ── 护栏：下一行若出现「缩进 <= 当前声明行缩进」的新顶层声明，无条件截断 ──
+    // 理由：Go 顶层 func 不能嵌套另一个顶层 func；TS 顶层 function/class/const/interface/type
+    // 也不能出现在另一个顶层 function 的 body 里（嵌套只能在块级作用域，缩进更深）。
+    // 因此即使当前 depth>1（说明当前函数体内有未闭合的字符串/注释/字面量，是括号匹配的
+    // 保守性失败），遇到这种新声明也必须硬截断，否则会把后面 N 个函数都吞进前一个函数体内，
+    // 造成"行数虚高假阳性"（红线方向，比漏算更危险）。
+    if (li + 1 < n) {
+      const nextLine = lines[li + 1];
+      const hitTs = !isGo && (TS_FUNC_DECL_RE.test(nextLine) || TS_ARROW_DECL_RE.test(nextLine) || TS_INTERFACE_TYPE_RE.test(nextLine));
+      const hitGo = isGo && GO_FUNC_RE.test(nextLine);
+      if (hitTs || hitGo) {
+        // 用正则抓下一行的声明缩进，比当前函数声明行起始缩进 <= 才算跨块
+        const nextM = nextLine.match(/^(?<sp>[ \t]*)\S/);
+        const nextIndent = nextM ? nextM.groups.sp.length : Infinity;
+        // 找当前声明行缩进（缓存下来更高效，但调用链改造大，省点：从 lines[startLine] 重取）
+        const startM = lines[startLine].match(/^(?<sp>[ \t]*)\S/);
+        const startIndent = startM ? startM.groups.sp.length : 0;
+        if (nextIndent <= startIndent) {
+          return { endLine: li, truncated: true };
+        }
+      }
+    }
+  }
+  return { endLine: n - 1, truncated: true };
+}
+
+// ─── 单文件函数提取 ──
+function extractFunctions(file) {
+  const isGo = file.endsWith('.go');
+  let text;
+  try { text = readText(file); } catch (e) {
+    console.warn(`[line-counter] 跳过 ${relPosix(file)}: ${e.message}`);
+    return [];
+  }
+  const lines = text.split('\n');
+  const out = [];
+  // 类上下文：进入 class 后缩进基线 = 类声明缩进 + 1（类内方法才抓）
+  let classIndentBaseline = null; // null = 不在类体内；数字 = 进入类时的声明行缩进空格数
+
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+
+    if (isGo) {
+      const m = line.match(GO_FUNC_RE);
+      if (!m) continue;
+      const name = m.groups.recv
+        ? `${m.groups.recv.trim().replace(/^[\*\(\s]+|\s+.*$/g, '').split(/\s+/)[0] || ''}.${m.groups.name}`
+        : m.groups.name;
+      const end = findFunctionEnd(lines, li, true);
+      if (!end) continue;
+      const count = end.endLine - li + 1;
+      out.push({ name, startLine: li + 1, lines: count, truncated: end.truncated });
+    } else {
+      // TS/JS：先试顶层声明
+      const mFunc = line.match(TS_FUNC_DECL_RE);
+      const mArrow = line.match(TS_ARROW_DECL_RE);
+      const mIface = line.match(TS_INTERFACE_TYPE_RE);
+      if (mFunc || mArrow || mIface) {
+        const m = mFunc || mArrow || mIface;
+        const name = m.groups.name;
+        const kind = mFunc ? (m.groups.kind === 'class' ? 'class' : 'func') : (mArrow ? 'arrow' : (m.groups && m.groups[0] && m.groups[0].startsWith('interface') ? 'interface' : (mIface ? 'type' : 'func')));
+        const indent = m.groups.indent.length;
+        // class / interface / type / enum 也算"块状声明"，一起统计（用户要知道大类型定义）
+        const end = findFunctionEnd(lines, li, false);
+        if (!end) continue;
+        const count = end.endLine - li + 1;
+        out.push({ name, kind, startLine: li + 1, lines: count, truncated: end.truncated });
+        // 进入 class：记录基线缩进（类内方法需 >= indent+2）
+        if (kind === 'class') classIndentBaseline = indent;
+        continue;
+      }
+
+      // 否则，类内方法判定
+      if (classIndentBaseline !== null) {
+        const mm = line.match(TS_CLASS_METHOD_RE);
+        if (mm) {
+          const indent = mm.groups.indent.length;
+          if (indent > classIndentBaseline) {
+            const name = mm.groups.name;
+            if (/^(if|for|while|switch|catch)$/.test(name)) continue; // 控制流关键字误匹配
+            const end = findFunctionEnd(lines, li, false);
+            if (!end) continue;
+            const count = end.endLine - li + 1;
+            out.push({ name, kind: 'method', startLine: li + 1, lines: count, truncated: end.truncated });
+            continue;
+          } else if (indent === classIndentBaseline) {
+            // 类体结束（同级再出现声明，通常是 class 的关闭 } 之后）
+            classIndentBaseline = null;
+          }
+        }
+      }
+    }
+  }
+  return out;
+}
+
+// ─── 三档分级 ──
+function tierOf(lines, yellow) {
+  const orange = yellow * 2;
+  const red = yellow * 3;
+  if (lines > red) return { key: 'red',    label: '🟥', threshold: red };
+  if (lines > orange) return { key: 'orange', label: '🟧', threshold: orange };
+  if (lines > yellow) return { key: 'yellow', label: '🟨', threshold: yellow };
+  return null;
+}
+
+// ─── --funcs 主入口 ──
+function runFuncsMode(args) {
+  const yellow = args.threshold;
+  const orange = yellow * 2;
+  const red = yellow * 3;
+
+  // 收集目标文件
+  const roots = [];
+  if (args.scope) {
+    const abs = path.isAbsolute(args.scope) ? args.scope : path.join(ROOT, args.scope);
+    roots.push(abs);
+  } else {
+    roots.push(path.join(ROOT, 'frontend', 'src'), path.join(ROOT, 'go'));
+  }
+
+  const items = []; // { file, rel, name, kind?, startLine, lines, tier, truncated }
+  const stats = { totalFiles: 0, totalFuncs: 0, red: 0, orange: 0, yellow: 0, skippedGenerated: 0, skippedTest: 0 };
+
+  for (const root of roots) {
+    if (!fs.existsSync(root)) { console.warn(`[line-counter] --funcs 目录不存在：${relPosix(root) || root}`); continue; }
+    // 按根内实际文件扩展名自适配（不猜"这个目录是前端还是Go"）：
+    // frontend/src/utils 不会有 .go，go/ysm 不会有 .ts/.js；两者通吃无歧义
+    const exts = ['.ts', '.js', '.go'];
+    const files = walk(root, { exts, skipTest: false }).filter((f) => {
+      if (isTestFile(f)) { stats.skippedTest++; return false; }
+      if (isGeneratedFile(f)) { stats.skippedGenerated++; return false; }
+      return true;
+    });
+    stats.totalFiles += files.length;
+    for (const f of files) {
+      const funcs = extractFunctions(f);
+      stats.totalFuncs += funcs.length;
+      for (const fn of funcs) {
+        const t = tierOf(fn.lines, yellow);
+        if (!t) continue;
+        if (t.key === 'red') stats.red++;
+        else if (t.key === 'orange') stats.orange++;
+        else stats.yellow++;
+        items.push({
+          file: relPosix(f),
+          name: fn.name,
+          kind: fn.kind || (f.endsWith('.go') ? 'func' : 'func'),
+          startLine: fn.startLine,
+          lines: fn.lines,
+          tier: t.key,
+          truncated: !!fn.truncated,
+        });
+      }
+    }
+  }
+
+  // 排序：红→橙→黄，同档按行数降序
+  const TIER_ORDER = { red: 0, orange: 1, yellow: 2 };
+  items.sort((a, b) => (TIER_ORDER[a.tier] - TIER_ORDER[b.tier]) || (b.lines - a.lines));
+
+  if (args.json) {
+    const summary = {
+      scannedFiles: stats.totalFiles,
+      scannedFuncs: stats.totalFuncs,
+      thresholds: { yellow, orange, red },
+      counts: { red: stats.red, orange: stats.orange, yellow: stats.yellow, total: stats.red + stats.orange + stats.yellow },
+      skipped: { generated: stats.skippedGenerated, test: stats.skippedTest },
+    };
+    const payload = { ok: true, mode: 'funcs', _summary: summary, items };
+    process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+  } else {
+    console.log(`=== 函数级肥膘扫描（阈值 🟨>${yellow} / 🟧>${orange} / 🟥>${red}）===`);
+    console.log(`扫描文件 ${stats.totalFiles} 个，函数 ${stats.totalFuncs} 个；豁免：生成=${stats.skippedGenerated}，测试=${stats.skippedTest}`);
+    console.log(`命中：🟥 ${stats.red} · 🟧 ${stats.orange} · 🟨 ${stats.yellow} · 合计 ${stats.red + stats.orange + stats.yellow}`);
+    if (items.length === 0) {
+      console.log('（干净，无命中）');
+      return;
+    }
+    console.log('');
+    let curTier = null;
+    for (const it of items) {
+      if (curTier !== it.tier) {
+        curTier = it.tier;
+        const label = curTier === 'red' ? '🟥 RED' : (curTier === 'orange' ? '🟧 ORANGE' : '🟨 YELLOW');
+        console.log(`── ${label} ──`);
+      }
+      const tag = it.truncated ? ' [护栏截断]' : '';
+      const kindTag = it.kind && it.kind !== 'func' ? ` <${it.kind}>` : '';
+      console.log(`  ${it.tier === 'red' ? '🟥' : it.tier === 'orange' ? '🟧' : '🟨'} ${it.file}:${it.startLine}  ${it.name}${kindTag}  ${it.lines} 行${tag}`);
+    }
+  }
+}
 
 function walkFiles(dir, patterns, skip = () => false) {
   const list = Array.isArray(patterns) ? patterns : [patterns];
@@ -52,7 +433,7 @@ function countLines(paths) {
       try {
         const st = fs.statSync(f);
         if (st.size > 0) {
-          total += pyLineCount(fs.readFileSync(f, 'utf-8'));
+          total += pyLineCount(readText(f));
         }
       } catch (e) {
         console.warn(`[line-counter] 跳过 ${relPosix(f)}: ${e.message}`);
@@ -62,18 +443,8 @@ function countLines(paths) {
   return total;
 }
 
-// 生成文件豁免名单（文件头含「自动生成」标记或位于 .gen.* 路径）。
-// 这些文件是脚本产物（JSON 数据 / 绑定代码），非手写逻辑，不计入大文件预警。
-const GENERATED_FILE_RE = /\.gen\.(mjs|js|ts|go)$/;
-const GENERATED_MARKER_RE = /\/\/\s*=====\s*自动生成|\/\*\s*自动生成|<!--\s*自动生成/;
-
-function isGeneratedFile(f) {
-  if (GENERATED_FILE_RE.test(f)) return true;
-  try {
-    const head = fs.readFileSync(f, 'utf-8').slice(0, 200);
-    return GENERATED_MARKER_RE.test(head);
-  } catch { return false; }
-}
+// 注意：GENERATED_FILE_RE / GENERATED_MARKER_RE / isGeneratedFile 已在文件前半段
+// 与 --funcs 模式共享定义（单一声明源，消除双端漂移）。
 
 function oversizedFiles(paths, threshold = 700) {
   /** 找出超过 threshold 行的文件（生成文件豁免）。 */
@@ -85,7 +456,7 @@ function oversizedFiles(paths, threshold = 700) {
       if (name.endsWith('.min.js') || parts.includes('node_modules')) continue;
       if (isGeneratedFile(f)) continue; // 生成文件豁免（sidebar.gen.mjs 等 JSON 数据）
       try {
-        const lines = pyLineCount(fs.readFileSync(f, 'utf-8'));
+        const lines = pyLineCount(readText(f));
         if (lines > threshold) result.push([lines, f, lines > 1000]);
       } catch { /* ignore */ }
     }
@@ -109,6 +480,25 @@ function packageLines(base, pattern) {
 }
 
 function main() {
+  const args = parseArgs(process.argv.slice(2));
+
+  // ── --funcs 模式：函数级三档分级 ──
+  if (args.funcs) {
+    try {
+      runFuncsMode(args);
+    } catch (e) {
+      if (args.json) {
+        process.stdout.write(JSON.stringify({ ok: false, mode: 'funcs', error: e && e.message, stack: e && e.stack }, null, 2) + '\n');
+      } else {
+        console.error(`[line-counter] --funcs 执行失败: ${e && e.message}`);
+        if (e && e.stack) console.error(e.stack);
+      }
+      process.exit(1);
+    }
+    return;
+  }
+
+  // ── 默认模式：文件级总览 ──
   const goDirs = [path.join(ROOT, 'go'), path.join(ROOT, 'internal'), path.join(ROOT, 'cmd')];
   const jsDir = path.join(ROOT, 'frontend', 'src');
   const cssDir = path.join(ROOT, 'frontend', 'css');
@@ -124,7 +514,7 @@ function main() {
     const f = path.join(ROOT, n);
     // P3（code_review）：与 countLines 同款 try/catch——单文件读取失败不再毁整脚本
     try {
-      goLines += pyLineCount(fs.readFileSync(f, 'utf-8'));
+      goLines += pyLineCount(readText(f));
     } catch (e) {
       console.warn(`[line-counter] 跳过 ${relPosix(f)}: ${e.message}`);
     }
