@@ -713,7 +713,7 @@ describe("browserAdapter — 作者扫描/仓库索引（ADR-049 Batch 3：基�
 
   it("ScanLocalAuthors 提取 [作者] 并带 type 标签（来自本地仓库）", async () => {
     await importWebFiles([new File([enc.encode("Y")], "[王五]角色.ysm")], "ysm");
-    const creators = (await browserAdapter.ScanLocalAuthors()) as Array<{ name: string; type: string; desc: string }>;
+    const creators = (await browserAdapter.ScanLocalAuthors("")) as Array<{ name: string; type: string; desc: string }>;
     expect(creators).toHaveLength(1);
     expect(creators[0].name).toBe("王五");
     expect(creators[0].type).toBe("ysm");
@@ -733,7 +733,7 @@ describe("browserAdapter — 作者扫描/仓库索引（ADR-049 Batch 3：基�
 
   it("空库时 ListModelAuthors/ScanLocalAuthors 返回 []（非 null，不抛错）", async () => {
     expect(await browserAdapter.ListModelAuthors()).toEqual([]);
-    expect(await browserAdapter.ScanLocalAuthors()).toEqual([]);
+    expect(await browserAdapter.ScanLocalAuthors("")).toEqual([]);
   });
 });
 
@@ -792,7 +792,7 @@ describe("browserAdapter — 桥接增强边界/异常分支补全（审核补�
   it("ScanLocalAuthors 跨类型同作者 → type 用 ; 合并（来自本地仓库）", async () => {
     await importWebFiles([new File([enc3.encode("Y")], "[王五]A.ysm")], "ysm");
     await importWebFiles([new File([enc3.encode("Y")], "[王五]B.ysm")], "litematic");
-    const creators = (await browserAdapter.ScanLocalAuthors()) as Array<{ name: string; type: string }>;
+    const creators = (await browserAdapter.ScanLocalAuthors("")) as Array<{ name: string; type: string }>;
     expect(creators).toHaveLength(1);
     expect(creators[0].name).toBe("王五");
     expect(creators[0].type).toContain("ysm");
