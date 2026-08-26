@@ -96,54 +96,100 @@ function makeRayState(): {
   return s;
 }
 
-/**
- * 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。
- * path 驱动：loader(path) → model → preloadModel → buildYsmObject 挂 ctx.scene。
- */
-export async function buildYsmScene(
-  ctx: PreviewBuildCtx,
-  path: string,
-  opts: YsmAdapterOptions,
-): Promise<PreviewScene> {
-  if (!ctx.scene || !ctx.camera || !ctx.controls || !ctx.renderer) {
-    throw new Error("YSM shared 模式需要核心提供 scene/camera/controls/renderer");
-  }
+/** 类型提级：buildYsmScene 多阶段共享基础上下文（包级非导出） */
+interface MdYsSceneCtx {
+  ctx: PreviewBuildCtx;
+  path: string;
+  opts: YsmAdapterOptions;
+  tStart: number;
+  tLoadStart: number;
+  tLoadEnd: number;
+  tPreloadStart: number;
+  tPreloadEnd: number;
+  tBuildStart: number;
+  tBuildEnd: number;
+}
 
-  const tStart = performance.now();
-  // 数据层：path → model（skeleton 注入的预览面板加载链）
-  const tLoadStart = performance.now();
-  const model = await opts.loader(path);
-  const tLoadEnd = performance.now();
-  if (!model) throw new Error("模型数据加载失败: " + path);
+/** 阶段①产物：数据加载 + 场景图构建核心 */
+interface MdYsBuildCore {
+  model: BedrockGeometry;
+  texIdx: number;
+  texArr: (THREE.Texture | null)[];
+  spec: Spec3D;
+  componentTexMap: Map<string, (THREE.Texture | null)[]>;
+  obj: YsmObjectHandle;
+}
 
-  const texIdx = opts.texIdx ?? 0;
-  const tPreloadStart = performance.now();
-  const { texArr, spec, componentTexMap } = await opts.preload(model);
-  const tPreloadEnd = performance.now();
+/** 阶段②产物：相机 + 骨骼拾取系统 */
+interface MdYsCameraBones {
+  initCamPos: THREE.Vector3;
+  initCamTarget: THREE.Vector3;
+  rayState: ReturnType<typeof makeRayState>;
+  nameMap: Map<string, string>;
+  parentMap: Map<string, string | null>;
+  childrenMap: Map<string, string[]>;
+  rayCleanup: () => void;
+  boneMaps: BoneMaps;
+  content: YsmContentHandle;
+}
 
-  // 内容层：spec → 场景图（§5.7 shared 化，renderModel3D 同款 buildYsmObject）
-  const tBuildStart = performance.now();
+/** 阶段③产物：骨骼面板 + 动画/感知系统 */
+interface MdYsPanelAnim {
+  bonePanelRef: YsmBonePanelRef;
+  boneTree: BoneTree;
+  animPlayer: YsmAnimPlayer | null;
+  animBridge: MmdPlayBridge | null;
+  semanticBones: import("../semantic-bones.ts").SemanticBoneMap | null;
+  breath: ReturnType<typeof createBreathController> | null;
+}
+
+/** 阶段④产物：菜单 + 调试模式 */
+interface MdYsMenuDebug {
+  controlsCtx: YsmControlsContext;
+  perceptionState: PerceptionState;
+  menuItems: PreviewMenuNode[];
+  debugState: { debugMode: "normal" | "pivot" | "bone"; debugGroup: THREE.Group | null };
+  onFKeyDown: (e: KeyboardEvent) => void;
+}
+
+/** 阶段①：头部数据加载 + buildYsmObject 挂场景 */
+async function mdYsLoadAndBuild(sc: MdYsSceneCtx): Promise<MdYsBuildCore> {
+  const model = await sc.opts.loader(sc.path);
+  sc.tLoadEnd = performance.now();
+  if (!model) throw new Error("模型数据加载失败: " + sc.path);
+
+  const texIdx = sc.opts.texIdx ?? 0;
+  sc.tPreloadStart = performance.now();
+  const { texArr, spec, componentTexMap } = await sc.opts.preload(model);
+  sc.tPreloadEnd = performance.now();
+
+  sc.tBuildStart = performance.now();
   const obj: YsmObjectHandle = buildYsmObject(spec as Spec3D, texArr, componentTexMap, texIdx);
-  const tBuildEnd = performance.now();
-  ctx.scene.add(obj.rootGroup);
+  sc.tBuildEnd = performance.now();
+  sc.ctx.scene!.add(obj.rootGroup);
   registerModelRoot(obj.rootGroup);
 
-  // 相机取景 + 记录初始位置（resetCamera 恢复）
-  fitCameraToScene(obj.rootGroup, ctx.camera, ctx.controls);
-  const initCamPos = ctx.camera.position.clone();
-  const initCamTarget = ctx.controls.target.clone();
+  return { model, texIdx, texArr, spec: spec as Spec3D, componentTexMap, obj };
+}
 
-  // 骨骼射线拾取（YSM 特色）：绑定核心 renderer.domElement
+/** 阶段②：相机取景 + 骨骼拾取系统 + content 句柄 */
+function mdYsSetupCameraAndBones(sc: MdYsSceneCtx, core: MdYsBuildCore): MdYsCameraBones {
+  const { ctx, opts } = sc;
+  const { obj, spec } = core;
+
+  fitCameraToScene(obj.rootGroup, ctx.camera!, ctx.controls!);
+  const initCamPos = ctx.camera!.position.clone();
+  const initCamTarget = ctx.controls!.target.clone();
+
   const rayState = makeRayState();
-  const { nameMap, parentMap, childrenMap } = buildBoneHierarchy(spec as Spec3D);
-  // ADR-093 T5：多模型会话中后续模型不注册自身监听，交统一拾取器接管（防重复 + 菜单错位）
+  const { nameMap, parentMap, childrenMap } = buildBoneHierarchy(spec);
   const multiMode = sceneRegistry.count() >= 1;
   const rayCleanup = multiMode
     ? () => {}
     : registerBoneRaycast(
-        ctx.renderer,
-        ctx.camera,
-        ctx.scene,
+        ctx.renderer!,
+        ctx.camera!,
+        ctx.scene!,
         obj.boneGroupMap,
         nameMap,
         parentMap,
@@ -152,7 +198,6 @@ export async function buildYsmScene(
       );
   const boneMaps: BoneMaps = { boneGroupMap: obj.boneGroupMap, nameMap, parentMap, childrenMap };
 
-  // 内容句柄（fill3DPanel / 底部导航消费；相机操作走核心 cameraControls）
   const content: YsmContentHandle = {
     showModelGroup: (i: number) => obj.showModelGroup(i),
     getModelGroupCount: () => obj.getModelGroupCount(),
@@ -165,110 +210,108 @@ export async function buildYsmScene(
   rayState.onBoneSelectCallback = (info: BoneSelectInfo) => {
     content.onBoneSelect?.(info);
   };
-
-  // 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，详情框更新 + 滚动高亮
-  // 填充函数由视图层经 opts.panels 注入（解除 utils→views 分层违规 R1）
   opts.panels?.attachBoneSelect?.(content, (id: string) => ctx.menu.openPanel(id));
 
-  // ADR-077: 骨骼面板接入（通用版 makeBonePanelRenderer）
-  // 从 spec.bones 构建 BoneNode[] → buildBoneTree → 喂入通用面板渲染器
+  return { initCamPos, initCamTarget, rayState, nameMap, parentMap, childrenMap, rayCleanup, boneMaps, content };
+}
+
+/** 子辅助：磁盘扫描 .animation.json / .animation_controllers.json（阶段③内提纯） */
+async function mdYsScanAnimFiles(
+  sc: MdYsSceneCtx,
+): Promise<{ clips: Array<{ label: string; clip: AnimationClip }>; controllers: AnimationController[] }> {
+  const { opts, path } = sc;
+  const allClips: Array<{ label: string; clip: AnimationClip }> = [];
+  const allControllers: AnimationController[] = [];
+  if (!opts.listAllFilePaths || !opts.readTextFile) return { clips: allClips, controllers: allControllers };
+
+  const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
+  const files = (await opts.listAllFilePaths(dirPath)) || [];
+  const animFiles = files.filter((f) => f.toLowerCase().endsWith(".animation.json"));
+  const controllerFiles = files.filter((f) => f.toLowerCase().endsWith(".animation_controllers.json"));
+
+  for (const animFile of animFiles) {
+    try {
+      const b64 = await opts.readTextFile(animFile);
+      if (!b64) continue;
+      const text = new TextDecoder("utf-8").decode(b64ToBytes(b64));
+      const { clips } = parseBedrockAnimationJSON(text);
+      if (clips.length > 0) {
+        const fileBase = animFile.split(/[/\\]/).pop()!.replace(/\.animation\.json$/i, "");
+        const fileLabels = ysmAnimClipLabels(fileBase, clips);
+        for (let ci = 0; ci < clips.length; ci++) {
+          allClips.push({ label: fileLabels[ci], clip: clips[ci] });
+        }
+      }
+    } catch { /* 单个文件解析失败跳过 */ }
+  }
+
+  for (const ctrlFile of controllerFiles) {
+    try {
+      const b64 = await opts.readTextFile(ctrlFile);
+      if (!b64) continue;
+      const text = new TextDecoder("utf-8").decode(b64ToBytes(b64));
+      const { controllers } = parseAnimationControllerJSON(text);
+      if (controllers.length > 0) allControllers.push(...controllers);
+    } catch { /* 单个控制器文件解析失败跳过 */ }
+  }
+  return { clips: allClips, controllers: allControllers };
+}
+
+/** 阶段③：骨骼面板树 + 动画/感知系统（ADR-100 L1+L2+L3） */
+async function mdYsBuildBonePanelAndAnim(
+  sc: MdYsSceneCtx,
+  core: MdYsBuildCore,
+): Promise<MdYsPanelAnim> {
+  const { ctx, opts } = sc;
+  const { obj, spec, model } = core;
+
   const bonePanelRef: YsmBonePanelRef = { current: null };
-  const specBones = (spec as Spec3D).models?.flatMap((m) => m.bones ?? []) ?? [];
+  const specBones = spec.models?.flatMap((m) => m.bones ?? []) ?? [];
   const boneNodes: BoneNode[] = specBones.map((b) => ({
     id: b.id,
     name: b.name,
     parentId: b.parentId ?? null,
-    // ysm 有 boneGroupMap（boneId → Group），必须传 object——
-    // 否则骨骼面板显隐（toggleBoneVisible）/坐标（getBonePosition）/拾取联动
-    // （pickBone objectToId）全部 no-op，面板退化成纯列表。
     object: obj.boneGroupMap.get(b.id),
   }));
   const boneTree = buildBoneTree(boneNodes);
-
-  // 成功路径：移除核心 loadingEl（错误/空数据由核心保留并提示）
   ctx.loadingEl.remove();
 
-  // ---- YSM 骨骼动画（ADR-100 L1+L2+L3）：内嵌 clips 优先，磁盘扫描兜底 ----
-  // ADR-Bedrock 通用化：generic 模式跳过动画/语义骨骼/呼吸（女仆等通用 Bedrock 模型）
   const isGenericMode = opts.mode === "generic";
   let animPlayer: YsmAnimPlayer | null = null;
   let animBridge: MmdPlayBridge | null = null;
   let semanticBones: import("../semantic-bones.ts").SemanticBoneMap | null = null;
   let breath: ReturnType<typeof createBreathController> | null = null;
+
   if (!isGenericMode) {
     try {
-      const specBones = (spec as Spec3D).models?.flatMap((m) => m.bones ?? []) ?? [];
-      // 语义骨骼映射（L2）
-      semanticBones = ysmSemanticBoneMap(specBones);
-      // 呼吸控制器（L2，动画播放时暂停）
+      const sb = spec.models?.flatMap((m) => m.bones ?? []) ?? [];
+      semanticBones = ysmSemanticBoneMap(sb);
       breath = createBreathController();
 
       const allClips: Array<{ label: string; clip: AnimationClip }> = [];
       const allControllers: AnimationController[] = [];
       const embedded = model._animClips ?? [];
       if (embedded.length > 0) {
-        // 内嵌动画优先：WASM/Go 解码已解析的 clips——单文件 .ysm 的主来源
-        // （旧口径只扫磁盘，单文件模型磁盘没有 .animation.json → 动作面板空列表）
         embedded.forEach((clip, i) => {
           allClips.push({ label: clip.name || `Clip ${i + 1}`, clip });
         });
-      } else if (opts.listAllFilePaths && opts.readTextFile) {
-        // 磁盘兜底：无内嵌动画时扫同目录 .animation.json 和 .animation_controllers.json
-        const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
-        const files = (await opts.listAllFilePaths(dirPath)) || [];
-        const animFiles = files.filter((f) => f.toLowerCase().endsWith(".animation.json"));
-        const controllerFiles = files.filter((f) => f.toLowerCase().endsWith(".animation_controllers.json"));
-
-        // 加载动画文件
-        for (const animFile of animFiles) {
-          try {
-            const b64 = await opts.readTextFile(animFile);
-            if (!b64) continue;
-            // UTF-8 正确解码（旧 atob 直转会让中文 clip 名乱码）
-            const text = new TextDecoder("utf-8").decode(b64ToBytes(b64));
-            const { clips } = parseBedrockAnimationJSON(text);
-            if (clips.length > 0) {
-              // L3 全 clip 列表：同一 .animation.json 内多 clip 全部收录
-              // （旧口径只取 clips[0]，多动作定义被静默丢弃——ADR-100 已知遗留）
-              const fileBase = animFile.split(/[/\\]/).pop()!.replace(/\.animation\.json$/i, "");
-              const fileLabels = ysmAnimClipLabels(fileBase, clips);
-              for (let ci = 0; ci < clips.length; ci++) {
-                allClips.push({ label: fileLabels[ci], clip: clips[ci] });
-              }
-            }
-          } catch { /* 单个文件解析失败跳过 */ }
-        }
-
-        // 加载动画控制器文件（wine_fox 等模型的状态机驱动）
-        for (const ctrlFile of controllerFiles) {
-          try {
-            const b64 = await opts.readTextFile(ctrlFile);
-            if (!b64) continue;
-            const text = new TextDecoder("utf-8").decode(b64ToBytes(b64));
-            const { controllers } = parseAnimationControllerJSON(text);
-            if (controllers.length > 0) {
-              // 存储第一个控制器（wine_fox 通常只有一个 player.post_main）
-              allControllers.push(...controllers);
-            }
-          } catch { /* 单个控制器文件解析失败跳过 */ }
-        }
+      } else {
+        const scanned = await mdYsScanAnimFiles(sc);
+        allClips.push(...scanned.clips);
+        allControllers.push(...scanned.controllers);
       }
       if (allClips.length > 0) {
-        // 构建 boneByName：spec.bones[].name → 骨骼 Group（boneGroupMap 值为 Group 层级节点）
         const boneByName = new Map<string, THREE.Object3D>();
-        for (const sb of specBones) {
-          const group = obj.boneGroupMap.get(sb.id);
-          if (group) boneByName.set(sb.name, group);
+        for (const sbi of sb) {
+          const group = obj.boneGroupMap.get(sbi.id);
+          if (group) boneByName.set(sbi.name, group);
         }
         const hierarchy: import("../../animation/animation.ts").BoneHierarchyNode[] =
-          specBones.map((b) => ({ name: b.name, parent: b.parentId ?? undefined }));
+          sb.map((b) => ({ name: b.name, parent: b.parentId ?? undefined }));
         const labels = allClips.map((c) => c.label);
         const clips = allClips.map((c) => c.clip);
         animPlayer = createYsmAnimPlayer(boneByName, clips, hierarchy, labels);
-        // 设置动画控制器（wine_fox 等模型的状态机驱动）
-        if (allControllers.length > 0) {
-          animPlayer.setController(allControllers[0]);
-        }
+        if (allControllers.length > 0) animPlayer.setController(allControllers[0]);
         animBridge = {
           clips: allClips.map((c) => ({ label: c.label })),
           isPlaying: () => animPlayer?.isPlaying() ?? false,
@@ -282,28 +325,36 @@ export async function buildYsmScene(
       /* 动画扫描失败 → 静默降级，不影响模型渲染 */
     }
   }
+  return { bonePanelRef, boneTree, animPlayer, animBridge, semanticBones, breath };
+}
 
-  // ---- 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼 ----
-  // 适配器只声明结构与 render，core 拥有外壳；e2e 经 data-testid="preview-<id>" 遍历。
-  // 菜单表提取为可导出 ysmMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
+/** 阶段④：声明式根菜单 + F 键调试模式 + perf trace 记录 */
+function mdYsBuildMenuAndDebug(
+  sc: MdYsSceneCtx,
+  core: MdYsBuildCore,
+  cam: MdYsCameraBones,
+  anim: MdYsPanelAnim,
+): MdYsMenuDebug {
+  const { ctx, opts } = sc;
+  const { model, texIdx, texArr, spec, obj } = core;
+  const { content } = cam;
+  const { bonePanelRef, boneTree, animBridge } = anim;
+
   const controlsCtx: YsmControlsContext = {
     model,
     texIdx: opts.texIdx ?? 0,
     texArr,
-    spec: spec as Spec3D,
+    spec,
     handle: content,
     cameraControls: ctx.cameraControls,
     onTextureChange: opts.onTextureChange,
-    // ADR-052 P3：截图走共享 renderer（通用化手段，替代死代码 screenshotPreview）
     screenshot: () =>
-      Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
+      Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene!, ctx.camera!)),
   };
-  // 感知层状态：YSM 只有呼吸模块
   const perceptionState: PerceptionState = { breath: true, gaze: false, blink: false, lipSync: false, autoDance: false };
   const perceptionCaps: PerceptionCapability[] = [
     { id: "breath", labelKey: "preview.perceptionBreath", fallback: "呼吸" },
   ];
-
   const menuItems = ysmMenuItems({
     controlsCtx,
     panels: opts.panels,
@@ -318,21 +369,13 @@ export async function buildYsmScene(
     fillPlayPanel: opts.fillPlayPanel,
     perception: { state: perceptionState, caps: perceptionCaps },
   });
-  // dock 🧍 平铺 + 角色详情归口统一走 built.menuItems（mount 层统一 feed/注册，对齐 litematic 范本），
-  // 不再在此直调 ctx.menu.setAdapterItems，避免双 feed 导致 dock 重复三连。
 
-  // ---- F 键调试模式（旧 renderModel3D 功能，shared 模式接入）----
-  // 三态循环：normal（无调试）→ pivot（pivot 线 + 标签）→ bone（骨骼连接线）→ normal
-  // rebuildDebug 复用旧 renderModel3D 的相同逻辑（pivot 线 + 骨骼连接 + Sprite 标签）。
-  // 状态持有：debugMode 记录当前模式，debugGroup 持有当前调试叠加层（供下次重建前 dispose）。
   const debugState = {
     debugMode: "normal" as "normal" | "pivot" | "bone",
     debugGroup: null as THREE.Group | null,
   };
-  // F 键切换 debug 模式（绑定 renderer.domElement，与旧单例 renderModel3D 行为一致）
   const onFKeyDown = (e: KeyboardEvent): void => {
     if (e.key !== "f" && e.key !== "F") return;
-    // 忽略 Shift/Ctrl/Alt 修饰（仅裸 F）
     if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
     e.preventDefault();
     e.stopPropagation();
@@ -340,42 +383,51 @@ export async function buildYsmScene(
     const currentIdx = modes.indexOf(debugState.debugMode);
     const nextMode = modes[(currentIdx + 1) % modes.length];
     debugState.debugMode = nextMode;
-    rebuildDebug(
-      ctx.scene as THREE.Scene,
-      obj.rootGroup,
-      obj.boneGroupMap,
-      spec as Spec3D,
-      debugState,
-    );
+    rebuildDebug(ctx.scene as THREE.Scene, obj.rootGroup, obj.boneGroupMap, spec, debugState);
   };
   ctx.renderer!.domElement.addEventListener("keydown", onFKeyDown);
 
-  // 加载剖析：perf 面板甘特图消费（读取+解析+纹理由 preloadModel 上报；本层补 build 段）
   try {
-    const specTyped = spec as Spec3D;
-    const allBones = specTyped.models?.flatMap(m => m.bones ?? []) ?? [];
+    const allBones = spec.models?.flatMap((m) => m.bones ?? []) ?? [];
     const texCount = texArr.filter(Boolean).length;
     recordLoadTrace({
       ts: Date.now(),
       format: "ysm",
-      path,
+      path: sc.path,
       stages: [
-        { name: "读取", ms: Math.round(tLoadStart - tStart), status: "ok" },
-        { name: "解析", ms: Math.round(tLoadEnd - tLoadStart), status: "ok" },
-        { name: "纹理加载", ms: Math.round(tPreloadEnd - tPreloadStart), status: "ok" },
-        { name: "build", ms: Math.round(tBuildEnd - tBuildStart), status: "ok" },
+        { name: "读取", ms: Math.round(sc.tLoadStart - sc.tStart), status: "ok" },
+        { name: "解析", ms: Math.round(sc.tLoadEnd - sc.tLoadStart), status: "ok" },
+        { name: "纹理加载", ms: Math.round(sc.tPreloadEnd - sc.tPreloadStart), status: "ok" },
+        { name: "build", ms: Math.round(sc.tBuildEnd - sc.tBuildStart), status: "ok" },
       ],
       assets: {
         files: 1,
         textures: texCount,
         bones: allBones.length,
         cubes: (model as { cubeCount?: number }).cubeCount ?? 0,
-        materials: specTyped.models?.length ?? 0,
+        materials: spec.models?.length ?? 0,
         animations: 0,
       },
       ok: true,
     });
   } catch { /* perf trace 失败不影响渲染 */ }
+
+  return { controlsCtx, perceptionState, menuItems, debugState, onFKeyDown };
+}
+
+/** 阶段⑤：组装 PreviewScene 返回句柄（dispose/reset/update 等） */
+function mdYsMakeSceneHandle(
+  sc: MdYsSceneCtx,
+  core: MdYsBuildCore,
+  cam: MdYsCameraBones,
+  anim: MdYsPanelAnim,
+  menu: MdYsMenuDebug,
+): PreviewScene {
+  const { ctx } = sc;
+  const { obj } = core;
+  const { initCamPos, initCamTarget, rayCleanup, boneMaps } = cam;
+  const { bonePanelRef, animPlayer, semanticBones, breath } = anim;
+  const { menuItems, debugState, onFKeyDown, perceptionState } = menu;
 
   return {
     dispose(): void {
@@ -383,7 +435,6 @@ export async function buildYsmScene(
       bonePanelRef.current?.();
       unregisterModelRoot(obj.rootGroup);
       obj.removeFromScene(ctx.scene as THREE.Scene);
-      // F 键调试模式清理：移除事件监听 + 释放调试叠加层
       ctx.renderer!.domElement.removeEventListener("keydown", onFKeyDown);
       if (debugState.debugGroup) {
         disposeDebugGroup(debugState.debugGroup);
@@ -400,23 +451,51 @@ export async function buildYsmScene(
     setRotationMode: (orbit: boolean) => ctx.cameraControls?.setOrbit(orbit),
     setSpeed: (n: number) => ctx.cameraControls?.setSpeed(n),
     showModelGroup: (i: number) => obj.showModelGroup(i),
-    // ADR-052 P3：截图走共享 renderer（通用化手段，替代死代码 screenshotPreview）
     screenshot: () =>
-      Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
-    // onBoneSelect 由 attachYsmBoneSelect 接线（content.onBoneSelect），不暴露给 core
-    // ADR-093 T5：回填骨骼映射 + 菜单项，供注册表 dispatch（多模型拾取归属 + 换菜单）
+      Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene!, ctx.camera!)),
     boneMaps,
     menuItems,
     onBonePick: (id: string) => ctx.menu.openPanel(id),
-    // ADR-100：动画驱动（perFrame 钩子，core rAF 每帧调用）+ L2 感知层
     update: (dt: number): void => {
       animPlayer?.apply(dt);
-      // 动画播放时暂停感知层（与 VRM VRMA 口径一致）
       if (semanticBones && !animPlayer?.isAnimActive() && perceptionState.breath) {
         breath?.apply(dt, semanticBones);
       }
     },
   };
+}
+
+/**
+ * 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。
+ * path 驱动：loader(path) → model → preloadModel → buildYsmObject 挂 ctx.scene。
+ */
+export async function buildYsmScene(
+  ctx: PreviewBuildCtx,
+  path: string,
+  opts: YsmAdapterOptions,
+): Promise<PreviewScene> {
+  if (!ctx.scene || !ctx.camera || !ctx.controls || !ctx.renderer) {
+    throw new Error("YSM shared 模式需要核心提供 scene/camera/controls/renderer");
+  }
+
+  const now = () => performance.now();
+  const sc: MdYsSceneCtx = {
+    ctx, path, opts,
+    tStart: now(),
+    tLoadStart: now(),
+    tLoadEnd: 0,
+    tPreloadStart: 0,
+    tPreloadEnd: 0,
+    tBuildStart: 0,
+    tBuildEnd: 0,
+  };
+  sc.tLoadStart = sc.tStart;
+
+  const core = await mdYsLoadAndBuild(sc);
+  const cam = mdYsSetupCameraAndBones(sc, core);
+  const anim = await mdYsBuildBonePanelAndAnim(sc, core);
+  const menu = mdYsBuildMenuAndDebug(sc, core, cam, anim);
+  return mdYsMakeSceneHandle(sc, core, cam, anim, menu);
 }
 
 /** 工厂：构造统一 PreviewAdapter（shared 模式） */
