@@ -1,8 +1,9 @@
 // ===== FBX 3D 预览（ADR-112：独立 FBX 预览地基）====
-// 内容层在 fbx-adapter.ts；本文件仅作兼容薄包装，保留 createFbx3D /
-// cleanupFbx3D / invalidateFbxPreview 公开符号，index.ts 分发对齐 vrm-3d.ts 模式。
+// 内容层在 fbx-adapter.ts；本文件仅作兼容薄包装，导出 createFbx3D。
+// 清理/作废不设独立派发：mount-preview-core 的共享 cleanupPreview/invalidatePreview
+// 由 index.ts 经 vrm/mmd 等 cleanup 派发全量覆盖 _handles，FBX 复用同一单例即可。
 
-import { mount3D, cleanupPreview, invalidatePreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
+import { mount3D, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { buildFbxScene, type FbxDataPort } from "../../utils/3d/adapters/fbx-adapter.ts";
 import { getApp } from "../../backend/app.ts";
 import { withPreviewExtras, registerReRoute } from "./preview-library.ts";
@@ -39,14 +40,4 @@ const fbxAdapter: PreviewAdapter = {
 /** 打开 FBX 3D 预览（独立资产：模型 + 内嵌动画）；siblings 透传同类型候选（ADR-066 §5.6） */
 export async function createFbx3D(path: string, opts?: Mount3DOptions): Promise<void> {
   await mount3D(fbxAdapter, path, withPreviewExtras(opts ?? {}));
-}
-
-/** 清理 FBX 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 */
-function cleanupFbx3D(): void {
-  cleanupPreview();
-}
-
-/** 任意新预览派发时调用，作废在途 FBX 加载 */
-function invalidateFbxPreview(): void {
-  invalidatePreview();
 }

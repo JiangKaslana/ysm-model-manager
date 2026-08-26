@@ -39,6 +39,11 @@ const COMMUNITY_MERGE_KEY = "community-merge";
 const SCAN_AUTHORS_TTL_MS = 5 * 60 * 1000; // 5 分钟
 const SCAN_AUTHORS_KEY = "scan-authors";
 
+// ListModelAuthors 短 TTL：对齐原 Go scanCache 30s——重复工坊加载（tab 点击/页进入）
+// 不再全量重扫大库（ScanEntriesLite 无 Go 侧缓存，scanner.go 注释：调用方自行决定复用策略）
+const SCAN_LITE_AUTHORS_TTL_MS = 30 * 1000; // 30 秒
+const SCAN_LITE_AUTHORS_KEY = "ListModelAuthors";
+
 // 站点索引 TTL：站点配置变更很少，30 分钟足够
 const SITES_FETCH_TTL_MS = 30 * 60 * 1000; // 30 分钟
 const SITES_FETCH_KEY = "community-sites";
@@ -90,8 +95,9 @@ export async function loadCommunityData(): Promise<CommunityData> {
     const results = await Promise.all([
       App.DefaultWorkshopSites(),
       App.LoadWorkshopCreators(),
-      // 作者列表：Go 侧轻量遍历（ScanEntriesLite），只看文件名不算哈希
-      App.ListModelAuthors().catch(() => []),
+      // 作者列表：Go 侧轻量遍历（ScanEntriesLite），只看文件名不算哈希；
+      // withCached 30s 短 TTL——重复工坊加载不重走全库枚举（与 authors.ts 共享同 key）
+      withCached(SCAN_LITE_AUTHORS_KEY, SCAN_LITE_AUTHORS_TTL_MS, () => App.ListModelAuthors()).catch(() => []),
     ]);
     sites = results[0] || [];
     creators = results[1] || [];
