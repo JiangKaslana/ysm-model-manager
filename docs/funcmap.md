@@ -45,11 +45,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 34 |
 | frontend/ui | 18 | 64 |
-| 前端·工具 | 161 | 637 |
+| 前端·工具 | 162 | 638 |
 | frontend/views | 114 | 332 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **482** | **2042** |
+| **合计** | **483** | **2043** |
 
 ## Go·头像
 
@@ -1779,6 +1779,7 @@
 | `registerAndroidBackHandler()` | `frontend/src/utils/dom/android-bridge:40` | 注册安卓返回键处理器，返回取消函数（供调用方在自身销毁/关闭时注销）。 |
 | `emitAndroidBack()` | `frontend/src/utils/dom/android-bridge:53` | 系统返回键的前端触发入口：依次从栈顶触发已注册处理器。 |
 | `can()` | `frontend/src/utils/dom/capabilities:30` | 当前平台是否可用指定 binding（web 查 adapter 实现；桌面恒 true；Android 查黑名单） |
+| `copyText()` | `frontend/src/utils/dom/clipboard:6` | 复制纯文本到剪贴板：优先 Clipboard API（需要安全上下文），降级隐藏 textarea + execCommand |
 | `refreshAdoptedStyleSheets()` | `frontend/src/utils/dom/css-hmr:13` | 热刷指定自定义元素的 Shadow DOM 样式表。 |
 | `btnBaseCSS()` | `frontend/src/utils/dom/css:1` | — |
 | `focusVisibleCSS()` | `frontend/src/utils/dom/css:32` | Shadow DOM 通用 focus-visible 规则（所有 button/input/select/textarea） |
@@ -1893,7 +1894,7 @@
 | `ResourceTypeVariant()` | `frontend/src/utils/resource/schema:23` | 预览变体（variants：.pmx→mmd / .vrm→vrm / .pmd→mmd 等适配器路由） |
 | `ResourceType()` | `frontend/src/utils/resource/schema:29` | 资源类型（前端消费视图，resource_types.json 字段子集 — 单一事实来源） |
 | `allResourceTypes()` | `frontend/src/utils/resource/schema:55` | 全部资源类型条目（types.ts / extensions.ts 共同消费，单一来源） |
-| `shortLabelOf()` | `frontend/src/utils/resource/short-label:26` | 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） |
+| `shortLabelOf()` | `frontend/src/utils/resource/short-label:24` | 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） |
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:28` | 资源类型显示标签（内部 ID → 中文名） |
 | `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:47` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |

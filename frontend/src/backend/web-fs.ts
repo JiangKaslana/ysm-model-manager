@@ -451,6 +451,8 @@ async function deleteWebModel(type: string, name: string): Promise<void> {
 }
 
 // --- 重命名模型目录（dir + file + 标记整组 rekey）---
+// 校验（目标已存在 / 源缺失）后复用 rekeyWebModelGroup 原语完成整组 rekey，
+// 消除与 moveOrCopy 重复的内联 rekey 循环（dir + 全部 file + ban/tags，两阶段事务性）。
 async function renameWebDir(oldPath: string, newName: string): Promise<void> {
   const di = parseWebModelDir(oldPath);
   if (!di) throw new Error(t("webFs.renameInvalidPath", { path: oldPath }));
@@ -460,44 +462,15 @@ async function renameWebDir(oldPath: string, newName: string): Promise<void> {
   // P-A 多段 name：重命名只替换末段，保留父路径（分类1/狐狸 → 分类1/大猫）
   const parent = name.includes("/") ? name.slice(0, name.lastIndexOf("/") + 1) : "";
   const newNameFull = parent + finalName;
-  const oldDirKey = dirKey(type, name);
-  const newDirKey = dirKey(type, newNameFull);
   // 目标已存在（含重命名为同名）：对齐桌面「目标已存在」拒绝，防静默覆盖合并两模型数据
-  if ((await idbGet("files", newDirKey)) !== undefined) {
+  if ((await idbGet("files", dirKey(type, newNameFull))) !== undefined) {
     throw new Error(t("webFs.renameTargetExists", { path: `${WEB_ROOT}/${type}/${newNameFull}` }));
   }
   // 旧模型必须存在（对齐桌面 os.Rename 源不存在报错，拒绝静默 no-op）
-  const exists = await idbGet("files", oldDirKey);
-  if (!exists) throw new Error(t("webFs.renameModelMissing", { path: oldPath }));
-  const dv = await idbGet("files", oldDirKey);
-  if (dv !== undefined) {
-    // 同步更新 dir 条目的 name 字段：scanWebModels 用 meta.name 推导文件查找前缀，
-    // 若沿用旧名会在重命名后的 file:<type>/<newName>/ 下扫不到模型（列表变空）
-    await idbSet("files", newDirKey, { ...(dv as Record<string, unknown>), name: newNameFull });
-    await idbDel("files", oldDirKey);
+  if ((await idbGet("files", dirKey(type, name))) === undefined) {
+    throw new Error(t("webFs.renameModelMissing", { path: oldPath }));
   }
-  const fks = await idbKeys("files", `file:${type}/${name}/`);
-  for (const k of fks) {
-    const rel = k.slice(`file:${type}/${name}/`.length);
-    const val = await idbGet("files", k);
-    if (val !== undefined) {
-      await idbSet("files", fileKey(type, newNameFull, rel), val);
-      await idbDel("files", k);
-    }
-  }
-  // 标记 rekey（best-effort）：ban:/web/<type>/<name>/<rel> → 新名
-  for (const prefix of ["ban:", "tags:"]) {
-    const scanPrefix = `${prefix}/web/${type}/${name}/`;
-    const keys = await idbKeys("config", scanPrefix);
-    for (const k of keys) {
-      const suffix = k.slice(scanPrefix.length); // 含原 rel（含前导斜杠），拼接新路径即正确
-      const val = await idbGet("config", k);
-      if (val !== undefined) {
-        await idbSet("config", `${prefix}/web/${type}/${newNameFull}/${suffix}`, val);
-        await idbDel("config", k);
-      }
-    }
-  }
+  await rekeyWebModelGroup(type, name, newNameFull, true);
 }
 
 // --- 重命名单个文件（模型组内某文件 rekey，保留 .ban 后缀语义由调用方负责）---
@@ -523,13 +496,11 @@ async function renameWebFile(oldPath: string, newName: string): Promise<void> {
     throw new Error(t("webFs.renameTargetExists", { path: `${WEB_ROOT}/${type}/${name}/${finalName}` }));
   }
   // 旧文件必须存在（对齐桌面 RenameFile 源不存在报错，拒绝静默 no-op）
-  const exists = await idbGet("files", oldKey);
-  if (!exists) throw new Error(t("webFs.renameModelMissing", { path: oldPath }));
+  // 单次读取兼作「存在校验 + rekey 取值」，消除同 key 双读
   const val = await idbGet("files", oldKey);
-  if (val !== undefined) {
-    await idbSet("files", newKey, val);
-    await idbDel("files", oldKey);
-  }
+  if (val === undefined) throw new Error(t("webFs.renameModelMissing", { path: oldPath }));
+  await idbSet("files", newKey, val);
+  await idbDel("files", oldKey);
   // 移动按全路径 key 的 ban/tags 标记
   const newPath = oldPath.replace(/\/[^/]+$/, `/${finalName}`);
   for (const prefix of ["ban:", "tags:"]) {

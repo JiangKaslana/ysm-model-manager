@@ -316,8 +316,10 @@ export async function importWebFiles(
       }
       imported++;
       failed += result.fileFails;
-    } catch {
-      // P2/P3 护栏：回滚 writtenKeys 中「本次新建」的条目，保留旧数据不被误删
+    } catch (e) {
+      // P2/P3 护栏：回滚 writtenKeys 中「本次新建」的条目，保留旧数据不被误删。
+      // 不静默吞错：记录真实原因（quota 超限 / IDB 异常等）供诊断，失败计数照常累加
+      console.error(`[web-fs-import] 组「${stem}」写入失败:`, e);
       await rollbackWrittenKeys(writtenKeys);
       failed += group.length;
     }
