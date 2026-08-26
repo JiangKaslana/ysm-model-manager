@@ -6,6 +6,7 @@
 // 渐进增强：SW 注册失败/不支持 → 静默降级（无跨源隔离，单线程 WASM 兜底，功能不残）。
 import { resolveWebMode } from "./platform.ts";
 import { safeGet, safeSet } from "../utils/dom/storage.ts";
+import { dbg } from "../utils/debug/debug.ts";
 
 /** 防 reload 循环标记（首次注册解锁需 reload 一次；标记存在则不再 reload） */
 const COI_RELOAD_KEY = "ysm:coi-reload";
@@ -32,10 +33,12 @@ export function registerCoiServiceWorker(): void {
           location.reload();
         }
       })
-      .catch(() => {
+      .catch((e) => {
         // 注册失败（不支持/隐私模式）→ 降级：无跨源隔离，单线程 WASM 兜底
+        dbg("coi-sw", "SW 注册失败:", e);
       });
-  } catch {
-    // 任何异常静默（SW 是渐进增强，失败不影响主功能）
+  } catch (e) {
+    // 任何异常静默（SW 是渐进增强，失败不影响主功能）；留痕便于 GitHub Pages 排障
+    dbg("coi-sw", "SW 注册异常:", e);
   }
 }

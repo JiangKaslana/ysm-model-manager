@@ -928,8 +928,8 @@
 | `getStatsPoolSize()` | `frontend/src/backend/browser-adapter` | — |
 | `prefetchStatsWorker()` | `frontend/src/backend/browser-adapter` | — |
 | `browserAdapter()` | `frontend/src/backend/browser-adapter:70` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
-| `isCrossOriginIsolated()` | `frontend/src/backend/coi-sw:14` | 当前是否已跨源隔离（SW 补头后 crossOriginIsolated=true；供多线程 WASM 分支） |
-| `registerCoiServiceWorker()` | `frontend/src/backend/coi-sw:19` | 注册 COI SW（网页版）：首次注册后 reload 一次让浏览器重新导航经 SW（解锁跨源隔离） |
+| `isCrossOriginIsolated()` | `frontend/src/backend/coi-sw:15` | 当前是否已跨源隔离（SW 补头后 crossOriginIsolated=true；供多线程 WASM 分支） |
+| `registerCoiServiceWorker()` | `frontend/src/backend/coi-sw:20` | 注册 COI SW（网页版）：首次注册后 reload 一次让浏览器重新导航经 SW（解锁跨源隔离） |
 | `ZipEntryMeta()` | `frontend/src/backend/extract:33` | ZIP 中央目录条目元数据（pre-parse 产物） |
 | `ExtractResult()` | `frontend/src/backend/extract:49` | extractZip 返回值 |
 | `ZipType()` | `frontend/src/backend/extract:58` | detectZipType 返回值 |
