@@ -42,7 +42,7 @@ invariant_anchors:
 
 `moveEx` 是 `Move`/`MoveEx` 的共同内核，落盘顺序：
 
-1. `paths.IsInside(rootDir, src)` 越权校验 → `os.Lstat` 判链接类型（符号链接/硬链接直接 `os.Remove`）
+1. `paths.IsInsideResolved(rootDir, src)` 越权校验（解析 symlink 防逃逸，BUG-1）→ `os.Lstat` 判链接类型（符号链接/硬链接直接 `os.Remove`）
 2. 按相对路径在 `.recycle` 下构造 `dst`，重名自动加 `(1)`/`(2)`…；每次构造后复查 `dst` 仍在 `.recycle` 内（防越权）；`os.Stat` 返回的非 "不存在" 错误（权限等）直接报错，不静默跳过冲突检测
 3. `tm.renameForMove(src, dst)` 成功即返回 `recycled`
 4. rename 失败时 **`fsutil.IsCrossDeviceErr(err)` 判定**：不是跨设备（权限/占用等）→ 直接返回错误，**不做复制**（避免大模型无谓全量复制，也避免「副本已入站、源未删」的重试堆积）
