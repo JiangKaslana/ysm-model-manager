@@ -1390,6 +1390,10 @@ export const autoSidebar = [
         "collapsed": true,
         "items": [
           {
+            "text": "分类路由与回归护栏",
+            "link": "/knowledge/classify-routing"
+          },
+          {
             "text": "CLI 质量摸排 Checklist",
             "link": "/knowledge/cli_quality_audit"
           },
