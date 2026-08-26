@@ -7,18 +7,9 @@ export {
   getAllByTestId,
 } from "./query-by-testid.ts";
 
-export {
-  fireEvent,
-  fireClick,
-  fireFocus,
-  fireBlur,
-  fireKeyDown,
-  fireInput,
-  fireDrop,
-  fireDrag,
-} from "./events.ts";
-
-export { renderComponent } from "./render.ts";
+// fireEvent / fireClick 等 + renderComponent 不经 barrel：
+// 消费方（各测试文件）直接从 ./events.ts / ./render.ts 导入，
+// barrel re-export 无消费方（2026-08-26 deadcode-baseline 清理移除）。
 
 /**
  * 测试自愈工具：菜单表单一事实来源场景下的自适应断言。

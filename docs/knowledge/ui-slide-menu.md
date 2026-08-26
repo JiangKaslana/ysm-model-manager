@@ -59,7 +59,7 @@ invariant_anchors:
 
 - 消费方：`mount-preview-core.ts` 的环境面板（🌍 时间/云量/IBL/地面开关）通过 `createSlideMenu` 构建
 - 消费方：`mmd-controls.ts` 的 `cardContainer` 与 `addFieldRow`（来自 `ui-helpers` barrel re-export）
-- 🥉 行组件 barrel（`ui-helpers.ts` re-export，2026-08-23 清理后共 14 值 + 3 type）：`slideRow` / `addToggleRow` / `toggleRow` / `addSliderRow` / `addFieldRow` / `initControl` / `createHeaderToggle` / `addColorSliderRow` / `addModeSlider` / `addVector3SliderRow` / `cardContainer` / `withLoadingIndicator` / `createSlideMenu`（已删除的 `sliderRow`/`addDangerRow`/`addInfoGrid`/`addWatchDirRow` 等旧条目见 [ui_components](./ui_components.md)）
+- 🥉 行组件 barrel（`ui-helpers.ts` re-export，2026-08-26 二次清理后仅 3 值）：`cardContainer` / `addFieldRow` / `createSlideMenu`；其余行组件（`slideRow`/`addToggleRow`/`initControl` 等）直接从各自源模块 import（历史清理记录见 [ui_components](./ui_components.md)）
 - **不消费**：MikuMikuAR 的 `ui-resource-panel` / `ui-fullscreen-overlay` / `ui-virtual-grid` 未纳入本批
 
 ## 不变量

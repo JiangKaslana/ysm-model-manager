@@ -46,13 +46,13 @@ invariant_anchors:
 | 样式 | `ui-components-styles.ts` | `uiComponentsCss` → `CSSStyleSheet`（供 Shadow 组件 `adoptedStyleSheets` 消费）+ `installUiComponentsStyles()`（light-DOM 注入，幂等，仅一次） |
 | 常量 | `ui-constants.ts` | 组件尺寸/间距常量 |
 | 类型 | `ui-types.ts` | 共享 TypeScript 类型（`ControlOptions`） |
-| 工具 | `ui-helpers.ts` | barrel re-export（14 值 + 3 type，2026-08-23 清理后） |
+| 工具 | `ui-helpers.ts` | barrel re-export（3 值：cardContainer/addFieldRow/createSlideMenu，2026-08-26 清理后） |
 | 控制注册 | `control-registry.ts` | 控件自更新注册表（可选接入外部响应式系统，默认 no-op） |
 | 契约 | `dom-contract.ts` | role/class 契约单源（禁手写字符串） |
 
 ## 对外 API / 入口
 
-- **barrel**：`import { ... } from "../ui/ui-helpers.ts"` — 统一 re-export 主要 helper（`slideRow` / `addToggleRow` / `toggleRow` / `addSliderRow` / `addFieldRow` / `initControl` / `createHeaderToggle` / `addColorSliderRow` / `addModeSlider` / `addVector3SliderRow` / `cardContainer` / `withLoadingIndicator` / `createSlideMenu` + type `ControlOptions` / `SlideMenuHandle` / `SlideMenuView`）
+- **barrel**：`import { ... } from "../ui/ui-helpers.ts"` — 仅 re-export 当前有消费方的 3 值（`cardContainer` / `addFieldRow` / `createSlideMenu`）；其余 helper（`slideRow` / `addToggleRow` / `toggleRow` / `addSliderRow` / `initControl` / `createHeaderToggle` / `addColorSliderRow` / `addModeSlider` / `addVector3SliderRow` / `withLoadingIndicator` 及各 type）一律**直接从源模块 import**（2026-08-26 移除无消费方 re-export）
 - **非 barrel**：`addCollapsible`（`ui-collapsible.ts`）、`installUiComponentsStyles`（`ui-components-styles.ts`）、`addPresetChip` 等按需直接 import
 - **不注册自定义元素**：本库无 `customElements.define`，消费方自行挂载返回值；不依赖 app-modules 装配（旧卡「经 app-modules.ts 统一注册为 Web Components」描述失真已修正）
 
