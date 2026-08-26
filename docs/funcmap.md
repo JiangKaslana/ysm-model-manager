@@ -28,7 +28,7 @@
 | Go·回收站 | 2 | 19 |
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 5 | 10 |
-| go/scanner | 1 | 11 |
+| go/scanner | 1 | 12 |
 | Go·同步 | 9 | 38 |
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
@@ -41,15 +41,15 @@
 | 前端·根 (app-modules/bus) | 4 | 18 |
 | frontend/backend | 21 | 108 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 17 | 83 |
+| 前端·特性 | 17 | 84 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 34 |
 | frontend/ui | 18 | 64 |
 | 前端·工具 | 159 | 632 |
-| frontend/views | 114 | 328 |
+| frontend/views | 114 | 331 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **480** | **2035** |
+| **合计** | **480** | **2040** |
 
 ## Go·头像
 
@@ -422,10 +422,11 @@
 | `InvalidatePath()` | `go/scanner/scanner:191` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
 | `ScanEntries()` | `go/scanner/scanner:223` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
 | `ScanEntriesWithHit()` | `go/scanner/scanner:230` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:457` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:497` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:527` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:608` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ComputeFileHash()` | `go/scanner/scanner:461` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ScanEntriesLite()` | `go/scanner/scanner:484` | ScanEntriesLite 轻量目录遍历（作者提取专用）：与 ScanEntries 同一套过滤口径 （recycle/.github/禁用后缀目录跳过、扩展名白名单、.jso |
+| `ListModelAuthors()` | `go/scanner/scanner:527` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:557` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:639` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -777,17 +778,17 @@
 | `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:346` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
 | `App.ScanModelEntriesFiltered()` | `internal/app/app_scan:399` | ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions 注 |
 | `App.ClearScanCache()` | `internal/app/app_scan:449` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
-| `App.ListModelAuthors()` | `internal/app/app_scan:455` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
-| `App.GenerateRepoIndex()` | `internal/app/app_scan:464` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
-| `App.ScanLocalAuthors()` | `internal/app/app_scan:472` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
-| `App.ListVersionInstances()` | `internal/app/app_scan:481` | — |
-| `App.GetGlobalCustomDir()` | `internal/app/app_scan:485` | — |
-| `App.ListFileNames()` | `internal/app/app_scan:491` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:508` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:517` | — |
-| `App.OpenFolder()` | `internal/app/app_scan:609` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:645` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
-| `progressReader.Read()` | `internal/app/app_scan:679` | — |
+| `App.ListModelAuthors()` | `internal/app/app_scan:456` | ListModelAuthors 统计 [作者] 前缀（轻量遍历：只看文件名，不读元数据不算哈希， 不占全量扫描缓存——原走 ScanEntries 会陪绑 SHA256，大库下拖 |
+| `App.GenerateRepoIndex()` | `internal/app/app_scan:465` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
+| `App.ScanLocalAuthors()` | `internal/app/app_scan:473` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
+| `App.ListVersionInstances()` | `internal/app/app_scan:482` | — |
+| `App.GetGlobalCustomDir()` | `internal/app/app_scan:486` | — |
+| `App.ListFileNames()` | `internal/app/app_scan:492` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:509` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:518` | — |
+| `App.OpenFolder()` | `internal/app/app_scan:610` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:646` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
+| `progressReader.Read()` | `internal/app/app_scan:680` | — |
 | `App.DetectConflicts()` | `internal/app/app_sync:15` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
 | `App.ResolveConflicts()` | `internal/app/app_sync:59` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |
@@ -981,7 +982,7 @@
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:55` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 | `base64ToBytes()` | `frontend/src/backend/web-common:66` | base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:88` | — |
-| `webCommunityBindings()` | `frontend/src/backend/web-community:236` | — |
+| `webCommunityBindings()` | `frontend/src/backend/web-community:247` | — |
 | `FsaAuthState()` | `frontend/src/backend/web-fs-auth:29` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
 | `getFsaAuthState()` | `frontend/src/backend/web-fs-auth:61` | 查询根目录授权状态（不触发权限弹窗） |
 | `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs-auth:83` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
@@ -1067,7 +1068,8 @@
 |------|--------|------|
 | `showProgress()` | `frontend/src/features/community/data:9` | 创建进度条 UI（插入到 searchResults 容器） |
 | `FetchModelsResult()` | `frontend/src/features/community/data:42` | 抓取结果 |
-| `tryFetchModels()` | `frontend/src/features/community/data:55` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
+| `isRecyclePath()` | `frontend/src/features/community/data:56` | 判断仓库相对路径是否含回收站目录段 `.recycle`（大小写不敏感，对齐 Go fsutil.IsRecycleDir， EqualFold 语义：.RECYCLE/.Recy |
+| `tryFetchModels()` | `frontend/src/features/community/data:70` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
 | `ProgressGuardHooks()` | `frontend/src/features/community/download-queue-progress:16` | createProgressGuard 依赖注入（controller 提供查找与收口回调） |
 | `ProgressGuard()` | `frontend/src/features/community/download-queue-progress:24` | 进度条守卫控制器 |
 | `createProgressGuard()` | `frontend/src/features/community/download-queue-progress:267` | — |
@@ -1922,18 +1924,21 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `LocalCreator()` | `frontend/src/views/app-content/community-data:9` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
+| `LocalAuthorLike()` | `frontend/src/views/app-content/community-data:18` | 绑定 LocalAuthor（合并来源） |
 | `CommunityData()` | `frontend/src/views/app-content/community-data:25` | 站点 + 创作者 + 作者 数据包 |
 | `forceRefreshCommunityMerge()` | `frontend/src/views/app-content/community-data:47` | 供测试强制刷新缓存 |
 | `forceRefreshScanAuthors()` | `frontend/src/views/app-content/community-data:52` | 供测试清除扫描缓存 |
 | `forceRefreshCommunitySites()` | `frontend/src/views/app-content/community-data:57` | 清除站点索引缓存 |
 | `clearAllCommunityCache()` | `frontend/src/views/app-content/community-data:65` | 统一失效入口：数据变更时一次性清除所有社区相关缓存 供导入/同步/下载完成后调用，替代分散的 invalidateCache 调用 |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:76` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:197` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:251` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:280` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:317` | 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:352` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:373` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:83` | 加载站点 + 创作者数据（纯数据，不碰 DOM）——首屏快路径。 |
+| `loadLocalAuthors()` | `frontend/src/views/app-content/community-data:125` | 本地作者扫描（后台补充路径）：withCached STALE——过期先返旧值再后台刷新， 不阻塞调用方；冷缓存时才真等扫描（Go 侧已轻量化为纯目录枚举）。 |
+| `mergeLocalAuthorsInto()` | `frontend/src/views/app-content/community-data:141` | 把本地扫描提取的作者合并进创作者列表（原地合并，返回同一引用）。 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:217` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:271` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:300` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:337` | 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:372` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:393` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:14` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:4` | — |
@@ -2037,7 +2042,7 @@
 | `WorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:19` | 创意工坊页的共享 ref 集合——单一事实来源。 |
 | `createWorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:27` | 创建创意工坊页的共享 ref 对象（单一入口，所有消费者共享同一实例） |
 | `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:39` | 初始化创意工坊 Tab |
-| `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:125` | — |
+| `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:149` | — |
 | `navCSS()` | `frontend/src/views/app-nav/tpl:2` | — |
 | `BoneEntry()` | `frontend/src/views/app-preview/bone-names:5` | 骨骼条目（结构类型，兼容 DecodedYsm.bones 元素） |
 | `buildBoneNamesText()` | `frontend/src/views/app-preview/bone-names:15` | 构建骨骼名导出文本行： 首行 `模型: &lt;path&gt;`、次行 `骨骼总数: &lt;n&gt;`，其后每根骨骼 有方块则 `名称 (n 方)`，结构骨骼（无方块）则 `名称 (结构骨骼,无方) |

@@ -206,27 +206,38 @@ async function scanWebLocalAuthors(): Promise<WorkshopCreator[]> {
   return result;
 }
 
+/** 相对路径是否含回收站目录段 .recycle（大小写不敏感，对齐 Go fsutil.IsRecycleDir） */
+function isRecycleRel(rel: string): boolean {
+  return rel.split("/").some((seg) => seg && seg.toLowerCase() === ".recycle");
+}
+
 /** GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） */
 async function generateWebRepoIndex(repoPath: string): Promise<string> {
   const entries = repoPath && repoPath.startsWith(WEB_ROOT)
     ? await scanWebModels(repoPath)
     : await collectAllWebEntries();
-  const list = entries.map((e) => {
-    let rel = e.Path;
-    if (repoPath && e.Path.startsWith(repoPath)) {
-      rel = e.Path.slice(repoPath.length).replace(/^[/\\]/, "");
-    } else if (e.Path.startsWith(WEB_ROOT)) {
-      rel = e.Path.slice(WEB_ROOT.length).replace(/^[/\\]/, "");
-    }
-    // 对齐 go/scanner/scanner.go indexEntry json tag：小写 name/path/size + hash,omitempty
-    const entry: { name: string; path: string; size: number; hash?: string } = {
-      name: e.Name,
-      path: rel.replace(/\\/g, "/"),
-      size: e.Size,
-    };
-    if (e.Hash) entry.hash = e.Hash;
-    return entry;
-  });
+  // 过滤 .recycle 段：回收站目录下的"已删/待清理"条目不进 index（对齐 Go 桌面 scanner 的 IsRecycleDir 跳过）
+  const list = entries
+    .map((e) => {
+      let rel = e.Path;
+      if (repoPath && e.Path.startsWith(repoPath)) {
+        rel = e.Path.slice(repoPath.length).replace(/^[/\\]/, "");
+      } else if (e.Path.startsWith(WEB_ROOT)) {
+        rel = e.Path.slice(WEB_ROOT.length).replace(/^[/\\]/, "");
+      }
+      return { e, rel: rel.replace(/\\/g, "/") };
+    })
+    .filter(({ rel }) => !isRecycleRel(rel))
+    .map(({ e, rel }) => {
+      // 对齐 go/scanner/scanner.go indexEntry json tag：小写 name/path/size + hash,omitempty
+      const entry: { name: string; path: string; size: number; hash?: string } = {
+        name: e.Name,
+        path: rel,
+        size: e.Size,
+      };
+      if (e.Hash) entry.hash = e.Hash;
+      return entry;
+    });
   return JSON.stringify(list, null, 2);
 }
 

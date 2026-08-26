@@ -47,6 +47,21 @@ export interface FetchModelsResult {
 type MirrorStrategy = "" | "jsdelivr" | "githubapi";
 
 /**
+ * 判断仓库相对路径是否含回收站目录段 `.recycle`（大小写不敏感，对齐 Go fsutil.IsRecycleDir，
+ * EqualFold 语义：.RECYCLE/.Recycle 同样认定）。
+ * 仓库 index.json 可能把 `.recycle/…` 下已删/待清理文件也索引进列表——加载端须过滤，
+ * 否则文件出现在创意工坊下载列表；且 Go 下载器会 stripRecycleSegments 剥掉该段，
+ * 剥后仅剩文件名者落到仓库根（观感即"下载平铺到根目录"）。
+ */
+export function isRecyclePath(relPath: string): boolean {
+  const segs = relPath.split(/[/\\]/);
+  for (let i = 0; i < segs.length; i++) {
+    if (segs[i] && segs[i].toLowerCase() === ".recycle") return true;
+  }
+  return false;
+}
+
+/**
  * 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应）
  * @param repo "owner/repo"
  * @param mirror 镜像策略 ("", "jsdelivr", "githubapi")
@@ -207,7 +222,13 @@ export async function tryFetchModels(
     const result = await Promise.any([p1, p2, p3]);
     controllers.forEach((c) => c.abort());
     if (onProgress) onProgress(100, "✅ 加载完成");
-    return result;
+    // 过滤回收站条目：.recycle 段下的"已删/待清理"文件不进下载列表（防下载剥段平铺根 + 语义上本就不该下载）
+    return {
+      models: (result.models as Array<{ path?: unknown }>).filter(
+        (m) => !isRecyclePath(typeof m?.path === "string" ? m.path : ""),
+      ),
+      source: result.source,
+    };
   } catch (aggErr) {
     // 如果提前退出抛出的明确错误，直接透传
     if (_earlyExitReason) throw new Error(_earlyExitReason);

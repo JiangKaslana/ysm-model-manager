@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { TextDecoder as NodeTextDecoder } from "node:util";
-import { showProgress, tryFetchModels } from "./data.ts";
+import { showProgress, tryFetchModels, isRecyclePath } from "./data.ts";
 
 if (typeof globalThis.TextDecoder === "undefined")
   globalThis.TextDecoder = NodeTextDecoder as typeof TextDecoder;
@@ -218,5 +218,39 @@ describe("tryFetchModels 失败路径（全部源失败时的根因诊断）", (
     const assertion = expect(promise).rejects.toThrow("NoIndex");
     await vi.advanceTimersByTimeAsync(4500);
     await assertion;
+  });
+});
+
+describe("isRecyclePath", () => {
+  it("回收站目录段 .recycle 命中（任意层级/大小写不敏感）", () => {
+    expect(isRecyclePath(".recycle/a.ysm")).toBe(true);
+    expect(isRecyclePath(".recycle/[作者]/a.ysm")).toBe(true);
+    expect(isRecyclePath("作者/.RECYCLE/a.ysm")).toBe(true); // EqualFold 对齐 Go
+    expect(isRecyclePath("作者/a.ysm")).toBe(false); // 普通子目录不误伤
+    expect(isRecyclePath("a.ysm")).toBe(false);
+    expect(isRecyclePath("")).toBe(false);
+  });
+});
+
+describe("tryFetchModels — 过滤回收站条目", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("index 含 .recycle 段条目 → 从返回 models 中剔除；普通子目录保留", async () => {
+    vi.useFakeTimers();
+    const models = [
+      { name: "回收文件", path: ".recycle/[作者]/a.ysm" },
+      { name: "回收根文件", path: ".recycle/[作者]b.ysm" },
+      { name: "正常子目录", path: "[作者]【galgame】/c.ysm" },
+      { name: "根文件", path: "d.ysm" },
+    ];
+    mockFetch(() => Promise.resolve(okJson(models)));
+    const result = await tryFetchModels("owner/repo", "");
+    expect(result.models).toEqual([
+      { name: "正常子目录", path: "[作者]【galgame】/c.ysm" },
+      { name: "根文件", path: "d.ysm" },
+    ]);
   });
 });

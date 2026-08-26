@@ -567,8 +567,8 @@
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 138 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 149 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 155 |
-| `frontend/src/views/app-content/workshop-tabs.ts` | 59 |
-| `frontend/src/views/app-content/workshop-tabs.ts` | 107 |
+| `frontend/src/views/app-content/workshop-tabs.ts` | 83 |
+| `frontend/src/views/app-content/workshop-tabs.ts` | 131 |
 | `frontend/src/views/app-nav/index.ts` | 100 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 241 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 307 |
