@@ -15,10 +15,9 @@ import { DIR_HANDLERS } from "./context-menu-dir-handlers.ts";
 // context-menu-shared.ts，破除 handlers ↔ {file,dir}-handlers 循环依赖
 import { refreshUI, toast, isUnsafeFolderName, resolveDstDir } from "./context-menu-shared.ts";
 import { TOAST_MS } from "../utils/dom/toast-ms.ts";
+import { copyText } from "../utils/dom/clipboard.ts";
 
-/**
- * batch.move / batch.copy 共用模板。
- */
+/** batch.move / batch.copy 共用模板。 */
 let _batchBusy = false;
 
 async function runBatchFileOp(
@@ -175,31 +174,15 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
     }
   },
   "batch.copy-paths": async (ctx) => {
-    try {
-      await navigator.clipboard.writeText(ctx.paths.join("\n"));
-      toast(`✅ 已复制 ${ctx.paths.length} 个路径`, 2000);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = ctx.paths.join("\n");
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      let copied = false;
-      try {
-        copied = document.execCommand("copy");
-      } catch {
-        copied = false;
-      }
-      document.body.removeChild(ta);
-      toast(
-        copied
-          ? `✅ 已复制 ${ctx.paths.length} 个路径`
-          : `❌ 复制失败，请手动复制`,
-        copied ? 2000 : 3000,
-        copied ? undefined : "error",
-      );
-    }
+    // DOM 操作下沉 utils/dom（core 层不直接操作 document/navigator.clipboard）
+    const ok = await copyText(ctx.paths.join("\n"));
+    toast(
+      ok
+        ? t("ctx.copyPathsOk", { n: ctx.paths.length })
+        : t("ctx.copyPathsFail"),
+      ok ? 2000 : 3000,
+      ok ? undefined : "error",
+    );
   },
   "batch.export-list": (ctx) => {
     const names = ctx.paths

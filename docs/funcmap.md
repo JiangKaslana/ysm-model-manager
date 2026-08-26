@@ -1025,8 +1025,8 @@
 |------|--------|------|
 | `DIR_HANDLERS()` | `frontend/src/core/context-menu-dir-handlers:10` | dir 类 handler 子表 |
 | `FILE_HANDLERS()` | `frontend/src/core/context-menu-file-handlers:13` | file 类 handler 子表 |
-| `MenuCtx()` | `frontend/src/core/context-menu-handlers:75` | — |
-| `HANDLERS()` | `frontend/src/core/context-menu-handlers:78` | 行为 handler 表（instance + batch + merge file/dir） |
+| `MenuCtx()` | `frontend/src/core/context-menu-handlers:74` | — |
+| `HANDLERS()` | `frontend/src/core/context-menu-handlers:77` | 行为 handler 表（instance + batch + merge file/dir） |
 | `refreshUI()` | `frontend/src/core/context-menu-shared:15` | 通知树组件和统计面板刷新 |
 | `toast()` | `frontend/src/core/context-menu-shared:21` | 显示 toast 通知 |
 | `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:26` | 路径安全过滤：禁止逃逸段（. |
@@ -1038,7 +1038,7 @@
 | `registerGlobalHandlers()` | `frontend/src/core/handlers/global:12` | 注册所有 core 全局 handler，返回 unsub 函数数组（features/views 层注册由 app-content 编排） |
 | `registerInstanceOps()` | `frontend/src/core/handlers/instance-ops:11` | 注册整合包操作 handler，push 返回的取消订阅函数到 unsubs |
 | `requireMcRoot()` | `frontend/src/core/handlers/require-mcroot:12` | 读取游戏根目录（mcRoot），空时发 warn toast 并返回 null。 |
-| `registerSync()` | `frontend/src/core/handlers/sync:250` | 注册同步 handler，push 返回的取消订阅函数到 unsubs |
+| `registerSync()` | `frontend/src/core/handlers/sync:251` | 注册同步 handler，push 返回的取消订阅函数到 unsubs |
 | `SUPPORTED_LANGS()` | `frontend/src/core/i18n/locale:11` | 支持的语言列表（规划清单） |
 | `LangCode()` | `frontend/src/core/i18n/locale:17` | — |
 | `warnedKeys()` | `frontend/src/core/i18n/locale:31` | 缺失 key 告警节流（每 key 只告警一次；跨模块共享给 t.ts 用，故不带 _ 私有前缀） |
@@ -1785,7 +1785,7 @@
 | `focusVisibleCSS()` | `frontend/src/utils/dom/css:32` | Shadow DOM 通用 focus-visible 规则（所有 button/input/select/textarea） |
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter-util:6` | 筛选条件 |
 | `parseFilterNumber()` | `frontend/src/utils/dom/dialogs/adv-filter-util:21` | 解析范围输入框数字：空 / 非数字 / 负数 → null（null 表示不限制）。 |
-| `validateAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter-util:32` | 校验三组 min/max 范围（仅两端都填数字时比对），返回错误文案或 null。 |
+| `validateAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter-util:32` | 校验三组 min/max 范围（仅两端都填数字时比对），返回错误 i18n key 或 null。 |
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter` | — |
 | `AdvFilterResult()` | `frontend/src/utils/dom/dialogs/adv-filter:19` | — |
 | `modalAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter:181` | — |

@@ -57,6 +57,9 @@ export const en: Record<string, string> = {
   "dialog.expand": "Expand",
   "dialog.collapse": "Collapse",
   "dialog.advFilter": "Advanced Filter",
+  "advFilter.minGtMaxBones": "Bones: min cannot exceed max",
+  "advFilter.minGtMaxCubes": "Cubes: min cannot exceed max",
+  "advFilter.minGtMaxTex": "Texture size: min cannot exceed max",
   "dialog.keyword": "Keyword (model name)",
   "dialog.matchAll": "Leave empty to match all",
   "dialog.bones": "Bone Count",
@@ -589,6 +592,22 @@ export const en: Record<string, string> = {
   // P0 fix: context menu rtype guard toast (i18n compliance)
   "ctx.emptyRtype": "❌ Pack missing type info, right-click ops disabled",
   "ctx.missingPath": "❌ Pack directory not found",
+  "ctx.copyPathsOk": "✅ Copied {n} paths",
+  "ctx.copyPathsFail": "❌ Copy failed, please copy manually",
+
+  // sync handlers (core/handlers/sync.ts)
+  "sync.configureResourceTypeDir": "Configure the resource-type directory first",
+  "sync.configureDir": "Configure directories first",
+  "sync.noPacks": "No modpacks found",
+  "sync.missingRtype": "sync:download:missing missing rtype param",
+  "sync.downloadDone": "📥 {name}: imported {ok} ok, {fail} failed",
+  "sync.downloadAllDone": "📥 Import complete: {ok} ok, {fail} failed",
+  "sync.disableN": "Disabled {n} item(s)",
+  "sync.enableN": "Enabled {n} item(s)",
+  "sync.alreadySync": "Already in sync, no changes",
+  "sync.doneToast": "✅ Sync complete: {parts}",
+  "sync.busySkip": "Sync in progress, skipped this time",
+  "sync.failedToast": "Sync failed: {msg}",
 
   // ── Diagnostics Operation Types ──
   "diagnostics.logsCleared": "Logs cleared",

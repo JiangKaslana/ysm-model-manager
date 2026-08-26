@@ -58,6 +58,9 @@ export const ja: Record<string, string> = {
   "dialog.expand": "展開",
   "dialog.collapse": "折りたたむ",
   "dialog.advFilter": "詳細フィルター",
+  "advFilter.minGtMaxBones": "ボーン数：最小値が最大値を超えています",
+  "advFilter.minGtMaxCubes": "キューブ：最小値が最大値を超えています",
+  "advFilter.minGtMaxTex": "テクスチャサイズ：最小値が最大値を超えています",
   "dialog.keyword": "キーワード（モデル名）",
   "dialog.matchAll": "空欄のままならすべてに一致",
   "dialog.bones": "ボーン数",
@@ -590,6 +593,22 @@ export const ja: Record<string, string> = {
   // P0 修正: 右クリックメニュー rtype ガード トースト（i18n 準拠）
   "ctx.emptyRtype": "❌ パックにタイプ情報がありません、右クリック操作は無効です",
   "ctx.missingPath": "❌ パックディレクトリが見つかりません",
+  "ctx.copyPathsOk": "✅ {n} 個のパスをコピーしました",
+  "ctx.copyPathsFail": "❌ コピーに失敗、手動でコピーしてください",
+
+  // sync ハンドラ（core/handlers/sync.ts）
+  "sync.configureResourceTypeDir": "リソースタイプのディレクトリを先に設定してください",
+  "sync.configureDir": "ディレクトリを先に設定してください",
+  "sync.noPacks": "統合パックが見つかりません",
+  "sync.missingRtype": "sync:download:missing rtype パラメータがありません",
+  "sync.downloadDone": "📥 {name}: 正常 {ok}、失敗 {fail}",
+  "sync.downloadAllDone": "📥 全部インポート完了: 正常 {ok}、失敗 {fail}",
+  "sync.disableN": "無効化 {n} 項",
+  "sync.enableN": "有効化 {n} 項",
+  "sync.alreadySync": "状態は既に一致、変更不要",
+  "sync.doneToast": "✅ 同期完了：{parts}",
+  "sync.busySkip": "同期中、今回はスキップ",
+  "sync.failedToast": "同期失敗: {msg}",
 
   // ── Diagnostics Operation Types ──
   "diagnostics.logsCleared": "ログをクリアしました",

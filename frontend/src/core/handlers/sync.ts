@@ -5,6 +5,7 @@ import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../backend/app.ts";
 import { requireMcRoot } from "./require-mcroot.ts";
+import { t } from "../../core/i18n/t.ts";
 
 /** sync:download:missing 事件载荷（镜像 bus.ts BusEvents 契约） */
 interface SyncDownloadPayload {
@@ -84,8 +85,8 @@ async function runDownloadMissing(
   bus.emit("stats:refresh");
   bus.emit("toast:show", {
     msg: instanceName
-      ? `📥 ${instanceName}: 导入 ${totalOk} 成功, ${totalFail} 失败`
-      : `📥 全部导入完成: ${totalOk} 成功, ${totalFail} 失败`,
+      ? t("sync.downloadDone", { name: instanceName, ok: totalOk, fail: totalFail })
+      : t("sync.downloadAllDone", { ok: totalOk, fail: totalFail }),
     duration: 4000,
     type: totalFail > 0 ? "warn" : "success",
   });
@@ -162,7 +163,7 @@ async function runSyncToggleStatus(): Promise<void> {
   const instances = (await ListVersionInstances(mcRoot)) ?? [];
   if (!instances?.length) {
     bus.emit("toast:show", {
-      msg: "没有找到整合包",
+      msg: t("sync.noPacks"),
       duration: 2000,
       type: "info",
     });
@@ -192,11 +193,11 @@ async function runSyncToggleStatus(): Promise<void> {
     `禁用 ${totalDisable} 启用 ${totalEnable}${errors.length ? ` | 错误: ${errors.join("; ")}` : ""}`,
   );
   const parts: string[] = [];
-  if (totalDisable > 0) parts.push(`禁用 ${totalDisable} 项`);
-  if (totalEnable > 0) parts.push(`启用 ${totalEnable} 项`);
-  if (!parts.length) parts.push("状态已一致，无需更改");
+  if (totalDisable > 0) parts.push(t("sync.disableN", { n: totalDisable }));
+  if (totalEnable > 0) parts.push(t("sync.enableN", { n: totalEnable }));
+  if (!parts.length) parts.push(t("sync.alreadySync"));
   bus.emit("toast:show", {
-    msg: `✅ 同步完成：${parts.join("，")}`,
+    msg: t("sync.doneToast", { parts: parts.join("，") }),
     duration: 4000,
     // P3（审核发现）：有错误但存在成功项时旧逻辑仍报 success，与 AddImportLog 的
     // "failed" 自相矛盾（同一操作对用户 ✅、对日志 ✗）——统一按 errors 判定
@@ -211,7 +212,7 @@ async function handleSyncToggleStatus(flag: SyncBusyFlag): Promise<void> {
     // P2（审核发现）：与 download 分支对齐——busy 命中不再静默吞事件，
     // 发 toast 让调用方（app-tree 批量/单文件）感知被跳过，避免 UI 乐观更新后无反馈
     bus.emit("toast:show", {
-      msg: "同步进行中，已跳过本次",
+      msg: t("sync.busySkip"),
       duration: 2000,
       type: "info",
     });
@@ -236,7 +237,7 @@ async function handleSyncToggleStatus(flag: SyncBusyFlag): Promise<void> {
       dbg("sync", "AddImportLog(sync-status 失败) 写入失败:", logErr);
     }
     bus.emit("toast:show", {
-      msg: `同步失败: ${friendlyError(err)}`,
+      msg: t("sync.failedToast", { msg: friendlyError(err) }),
       duration: 8000,
       type: "error",
     });

@@ -81,7 +81,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/context-menu-handlers.ts` | 122 |
+| `frontend/src/core/context-menu-handlers.ts` | 121 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -156,7 +156,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/context-menu-handlers.ts` | 115 |
+| `frontend/src/core/context-menu-handlers.ts` | 114 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -168,7 +168,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/context-menu-handlers.ts` | 105 |
+| `frontend/src/core/context-menu-handlers.ts` | 104 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -306,8 +306,8 @@
 | `frontend/src/core/context-menu-shared.ts` | 17 |
 | `frontend/src/core/handlers/android-events.ts` | 65 |
 | `frontend/src/core/handlers/instance-ops.ts` | 157 |
-| `frontend/src/core/handlers/sync.ts` | 84 |
-| `frontend/src/core/handlers/sync.ts` | 205 |
+| `frontend/src/core/handlers/sync.ts` | 85 |
+| `frontend/src/core/handlers/sync.ts` | 206 |
 | `frontend/src/features/community/download-queue.ts` | 110 |
 | `frontend/src/features/import-executor.ts` | 33 |
 | `frontend/src/features/import-executor.ts` | 219 |
@@ -336,8 +336,8 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/handlers/sync.ts` | 104 |
-| `frontend/src/core/handlers/sync.ts` | 131 |
+| `frontend/src/core/handlers/sync.ts` | 105 |
+| `frontend/src/core/handlers/sync.ts` | 132 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -355,7 +355,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/handlers/sync.ts` | 258 |
+| `frontend/src/core/handlers/sync.ts` | 259 |
 
 ### `sync:toggle:status`
 
@@ -369,7 +369,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/handlers/sync.ts` | 264 |
+| `frontend/src/core/handlers/sync.ts` | 265 |
 
 ### `toast:show`
 
@@ -398,15 +398,15 @@
 | `frontend/src/core/handlers/instance-ops.ts` | 164 |
 | `frontend/src/core/handlers/instance-ops.ts` | 171 |
 | `frontend/src/core/handlers/require-mcroot.ts` | 17 |
-| `frontend/src/core/handlers/sync.ts` | 39 |
-| `frontend/src/core/handlers/sync.ts` | 85 |
-| `frontend/src/core/handlers/sync.ts` | 114 |
-| `frontend/src/core/handlers/sync.ts` | 124 |
-| `frontend/src/core/handlers/sync.ts` | 155 |
-| `frontend/src/core/handlers/sync.ts` | 164 |
-| `frontend/src/core/handlers/sync.ts` | 198 |
-| `frontend/src/core/handlers/sync.ts` | 213 |
-| `frontend/src/core/handlers/sync.ts` | 238 |
+| `frontend/src/core/handlers/sync.ts` | 40 |
+| `frontend/src/core/handlers/sync.ts` | 86 |
+| `frontend/src/core/handlers/sync.ts` | 115 |
+| `frontend/src/core/handlers/sync.ts` | 125 |
+| `frontend/src/core/handlers/sync.ts` | 156 |
+| `frontend/src/core/handlers/sync.ts` | 165 |
+| `frontend/src/core/handlers/sync.ts` | 199 |
+| `frontend/src/core/handlers/sync.ts` | 214 |
+| `frontend/src/core/handlers/sync.ts` | 239 |
 | `frontend/src/features/community/download-queue.ts` | 268 |
 | `frontend/src/features/community/download-queue.ts` | 294 |
 | `frontend/src/features/community/events.ts` | 125 |
@@ -593,8 +593,8 @@
 |------|----|
 | `frontend/src/core/context-menu-shared.ts` | 16 |
 | `frontend/src/core/handlers/android-events.ts` | 64 |
-| `frontend/src/core/handlers/sync.ts` | 132 |
-| `frontend/src/core/handlers/sync.ts` | 245 |
+| `frontend/src/core/handlers/sync.ts` | 133 |
+| `frontend/src/core/handlers/sync.ts` | 246 |
 | `frontend/src/features/community/download-queue.ts` | 109 |
 | `frontend/src/features/import-executor.ts` | 34 |
 | `frontend/src/features/import-executor.ts` | 218 |
