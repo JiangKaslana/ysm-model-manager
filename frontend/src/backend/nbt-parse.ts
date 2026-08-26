@@ -139,17 +139,83 @@ class NbtReader {
     return { type, name };
   }
 
+  private readByteArray(): number[] {
+    const n = this.i32();
+    if (n < 0 || n > this.data.length - this.off) throw new Error("nbt byteArray 长度异常");
+    return Array.from(this.take(n));
+  }
+
+  private readList(elemType: number, depth: number): unknown[] {
+    const n = this.i32();
+    if (n < 0) throw new Error("nbt list 长度异常");
+    const remaining = this.data.length - this.off;
+    const elemMin = minPayloadBytes(elemType);
+    if (elemMin > 0 && n > remaining / elemMin) {
+      throw new Error(`nbt list 长度异常: 声明 ${n} 元素（最小 ${elemMin}B/个），剩余 ${remaining} 字节`);
+    }
+    if (elemMin === 0 && n > remaining) {
+      throw new Error(`nbt list 长度异常: 声明 ${n} 元素，剩余 ${remaining} 字节`);
+    }
+    const out: unknown[] = [];
+    for (let i = 0; i < n; i++) out.push(this.payload(elemType, depth + 1));
+    return out;
+  }
+
+  private readCompound(depth: number): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (;;) {
+      const childType = this.u8();
+      if (childType === TAG_END) break;
+      const key = this.utf8(this.u16());
+      out[key] = this.payload(childType, depth + 1);
+    }
+    return out;
+  }
+
+  private readIntArray(): number[] {
+    const n = this.i32();
+    if (n < 0 || n > Math.floor((this.data.length - this.off) / 4)) throw new Error("nbt intArray 长度异常");
+    const b = this.take(n * 4);
+    const out: number[] = new Array(n);
+    for (let i = 0; i < n; i++) {
+      out[i] = ((b[i * 4] << 24) | (b[i * 4 + 1] << 16) | (b[i * 4 + 2] << 8) | b[i * 4 + 3]) | 0;
+    }
+    return out;
+  }
+
+  private readLongArray(): unknown[] {
+    const n = this.i32();
+    if (n < 0 || n > Math.floor((this.data.length - this.off) / 8)) throw new Error("nbt longArray 长度异常");
+    const b = this.take(n * 8);
+    if (this.longsExact) {
+      const out: bigint[] = new Array(n);
+      for (let i = 0; i < n; i++) {
+        let v = 0n;
+        for (let j = 0; j < 8; j++) v = (v << 8n) | BigInt(b[i * 8 + j]);
+        out[i] = v;
+      }
+      return out;
+    }
+    const out: number[] = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const hi = ((b[i * 8] << 24) | (b[i * 8 + 1] << 16) | (b[i * 8 + 2] << 8) | b[i * 8 + 3]) | 0;
+      const lo = ((b[i * 8 + 4] << 24) | (b[i * 8 + 5] << 16) | (b[i * 8 + 6] << 8) | b[i * 8 + 7]) >>> 0;
+      out[i] = hi * 0x100000000 + lo;
+    }
+    return out;
+  }
+
   /** 解析一个 payload（无名字；list 元素与 compound 子 payload 共用） */
   payload(type: number, depth: number): unknown {
     if (depth > MAX_NBT_DEPTH) throw new Error("nbt 嵌套过深");
     switch (type) {
       case TAG_BYTE: {
         const b = this.u8();
-        return (b << 24) >> 24; // 有符号 8 位（对齐 Go int8 → getInt）
+        return (b << 24) >> 24;
       }
       case TAG_SHORT: {
         const b = this.take(2);
-        return (((b[0] << 8) | b[1]) << 16) >> 16; // 有符号 16 位
+        return (((b[0] << 8) | b[1]) << 16) >> 16;
       }
       case TAG_INT:
         return this.i32();
@@ -159,73 +225,20 @@ class NbtReader {
         return this.f32();
       case TAG_DOUBLE:
         return this.f64();
-      case TAG_BYTE_ARRAY: {
-        const n = this.i32();
-        if (n < 0 || n > this.data.length - this.off) throw new Error("nbt byteArray 长度异常");
-        return Array.from(this.take(n));
-      }
+      case TAG_BYTE_ARRAY:
+        return this.readByteArray();
       case TAG_STRING:
         return this.utf8(this.u16());
       case TAG_LIST: {
         const elemType = this.u8();
-        const n = this.i32();
-        if (n < 0) throw new Error("nbt list 长度异常");
-        // 对齐 Go charge(n*16) 预算：定长元素按最小字节数校验，
-        // 变长元素（compound/list）按剩余字节数兜底（防 2^31-1 声明 OOM）
-        const remaining = this.data.length - this.off;
-        const elemMin = minPayloadBytes(elemType);
-        if (elemMin > 0 && n > remaining / elemMin) {
-          throw new Error(`nbt list 长度异常: 声明 ${n} 元素（最小 ${elemMin}B/个），剩余 ${remaining} 字节`);
-        }
-        if (elemMin === 0 && n > remaining) {
-          throw new Error(`nbt list 长度异常: 声明 ${n} 元素，剩余 ${remaining} 字节`);
-        }
-        const out: unknown[] = [];
-        for (let i = 0; i < n; i++) out.push(this.payload(elemType, depth + 1));
-        return out;
+        return this.readList(elemType, depth);
       }
-      case TAG_COMPOUND: {
-        const out: Record<string, unknown> = {};
-        for (;;) {
-          const childType = this.u8();
-          if (childType === TAG_END) break;
-          const key = this.utf8(this.u16());
-          out[key] = this.payload(childType, depth + 1);
-        }
-        return out;
-      }
-      case TAG_INT_ARRAY: {
-        const n = this.i32();
-        if (n < 0 || n > Math.floor((this.data.length - this.off) / 4)) throw new Error("nbt intArray 长度异常");
-        const b = this.take(n * 4);
-        const out: number[] = new Array(n);
-        for (let i = 0; i < n; i++) {
-          out[i] = ((b[i * 4] << 24) | (b[i * 4 + 1] << 16) | (b[i * 4 + 2] << 8) | b[i * 4 + 3]) | 0;
-        }
-        return out;
-      }
-      case TAG_LONG_ARRAY: {
-        const n = this.i32();
-        if (n < 0 || n > Math.floor((this.data.length - this.off) / 8)) throw new Error("nbt longArray 长度异常");
-        const b = this.take(n * 8);
-        if (this.longsExact) {
-          // 精确 64 位：每 8 字节大端拼成 bigint（voxel 位解码口径，见类注释）
-          const out: bigint[] = new Array(n);
-          for (let i = 0; i < n; i++) {
-            let v = 0n;
-            for (let j = 0; j < 8; j++) v = (v << 8n) | BigInt(b[i * 8 + j]);
-            out[i] = v;
-          }
-          return out;
-        }
-        const out: number[] = new Array(n);
-        for (let i = 0; i < n; i++) {
-          const hi = ((b[i * 8] << 24) | (b[i * 8 + 1] << 16) | (b[i * 8 + 2] << 8) | b[i * 8 + 3]) | 0;
-          const lo = ((b[i * 8 + 4] << 24) | (b[i * 8 + 5] << 16) | (b[i * 8 + 6] << 8) | b[i * 8 + 7]) >>> 0;
-          out[i] = hi * 0x100000000 + lo;
-        }
-        return out;
-      }
+      case TAG_COMPOUND:
+        return this.readCompound(depth);
+      case TAG_INT_ARRAY:
+        return this.readIntArray();
+      case TAG_LONG_ARRAY:
+        return this.readLongArray();
       default:
         throw new Error(`未知 NBT 标签类型 ${type}`);
     }
