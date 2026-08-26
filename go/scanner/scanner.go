@@ -279,7 +279,7 @@ retry:
 	// 用户无法区分「目录真空」与「目录不可读」（失败结果被当成功缓存）
 	walkFailed := false
 	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
-		entry, walkRet, rootFailed := processScanDirEntry(p, d, err, dir)
+		entry, walkRet, rootFailed := processScanDirEntry(p, d, err, dir, true)
 		if rootFailed {
 			walkFailed = true
 			return nil
@@ -367,7 +367,9 @@ func tryRustScan(dir string, gen, keyVersion uint64, startTime time.Time, fl *sc
 //   - rootFailed：仅当 walk 根目录本身出错时返回 true，用于调用方标记 walkFailed
 //
 // 本函数是原 WalkDir 闭包内近 80 行逻辑的提纯升格，输入纯参数、无副作用（除错误回调和哈希）。
-func processScanDirEntry(p string, d os.DirEntry, err error, dir string) (entry *types.ModelEntry, walkRet error, rootFailed bool) {
+// wantMeta=false（作者提取等只看文件名的场景）时跳过 d.Info() 与哈希计算——
+// 纯目录枚举，Size/ModTime/Hash 恒零值。
+func processScanDirEntry(p string, d os.DirEntry, err error, dir string, wantMeta bool) (entry *types.ModelEntry, walkRet error, rootFailed bool) {
 	if err != nil {
 		// 统一走错误回调（GUI 下 stdout 不可见，薄壳注入后进环形日志面板 ADR-082）
 		emitScanError("[scanner] walk error: %s: %v", p, err)
@@ -412,28 +414,30 @@ func processScanDirEntry(p string, d os.DirEntry, err error, dir string) (entry 
 			return nil, nil, false
 		}
 	}
-	info, err := d.Info()
-	if err != nil {
-		// d.Info 失败跳过该文件——原实现 log 后仍以 Size=0/ModTime=0 混入，造成
-		// 前端展示大小 0 的幽灵文件，同步哈希基于错误元数据；跳过比假条目更诚实。
-		emitScanError("[scanner] 获取文件信息失败 %s: %v，跳过该文件", p, err)
-		return nil, nil, false
-	}
 	name := filepath.Base(p)
 	if types.IsYsmEntryJSON(name) {
 		name = filepath.Base(filepath.Dir(p))
 	}
 	e := types.ModelEntry{Name: name, Path: p, Ext: originalExt}
-	e.Size = info.Size()
-	e.ModTime = info.ModTime().UnixMilli()
-	// 计算 SHA256 供同步系统使用（GetInstanceStatus 依赖哈希匹配）
-	// 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢）
-	// 蓝图文件（.nbt/.schematic/.litematic）通常较小，计入哈希以支持同步对比
-	if types.ShouldHashExt(originalExt) {
-		e.Hash = ComputeFileHash(p)
-		// 哈希失败留痕——静默置空会让同步把该文件当「无哈希」跳过（用户不知为何不同步）
-		if e.Hash == "" {
-			emitScanError("[scanner] 哈希计算失败/跳过 %s（读错误或超 %d 字节上限）", p, types.MaxImportSize)
+	if wantMeta {
+		info, err := d.Info()
+		if err != nil {
+			// d.Info 失败跳过该文件——原实现 log 后仍以 Size=0/ModTime=0 混入，造成
+			// 前端展示大小 0 的幽灵文件，同步哈希基于错误元数据；跳过比假条目更诚实。
+			emitScanError("[scanner] 获取文件信息失败 %s: %v，跳过该文件", p, err)
+			return nil, nil, false
+		}
+		e.Size = info.Size()
+		e.ModTime = info.ModTime().UnixMilli()
+		// 计算 SHA256 供同步系统使用（GetInstanceStatus 依赖哈希匹配）
+		// 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢）
+		// 蓝图文件（.nbt/.schematic/.litematic）通常较小，计入哈希以支持同步对比
+		if types.ShouldHashExt(originalExt) {
+			e.Hash = ComputeFileHash(p)
+			// 哈希失败留痕——静默置空会让同步把该文件当「无哈希」跳过（用户不知为何不同步）
+			if e.Hash == "" {
+				emitScanError("[scanner] 哈希计算失败/跳过 %s（读错误或超 %d 字节上限）", p, types.MaxImportSize)
+			}
 		}
 	}
 	return &e, nil, false
@@ -469,6 +473,32 @@ func ComputeFileHash(path string) string {
 }
 
 // ========== 作者提取 ==========
+
+// ScanEntriesLite 轻量目录遍历（作者提取专用）：与 ScanEntries 同一套过滤口径
+// （recycle/.github/禁用后缀目录跳过、扩展名白名单、.json 仅放行 ysm.json、
+// 文件级禁用恢复扩展名），但不读文件信息（Size/ModTime/Hash 恒零值）、
+// 不读不写共享 scanCache——无哈希条目一旦入缓存，同步系统 GetInstanceStatus
+// 会把对应文件当「哈希为空」静默跳过；作者提取只消费 Name/Path，
+// 跳过逐文件 open+hash 后冷扫成本降为纯目录枚举（大库首屏关键路径优化）。
+// 不设独立缓存：调用方（前端 withCached / CLI 单次调用）自行决定复用策略。
+func ScanEntriesLite(dir string) []types.ModelEntry {
+	dir = normalizeScanKey(dir)
+	if dir == "" {
+		return []types.ModelEntry{}
+	}
+	entries := []types.ModelEntry{}
+	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		entry, walkRet, _ := processScanDirEntry(p, d, err, dir, false)
+		if walkRet != nil {
+			return walkRet
+		}
+		if entry != nil {
+			entries = append(entries, *entry)
+		}
+		return nil
+	})
+	return entries
+}
 
 // stripDisableSuffix 剥离 .disabled/.ban 禁用后缀（口径与 ScanEntries 一致，三处共用防漂移）
 // 委托 types.StripDisableSuffix（单一事实来源）。
@@ -537,7 +567,8 @@ func ScanLocalAuthors(roots map[string]string) []types.WorkshopCreator {
 		if root == "" {
 			continue
 		}
-		entries := ScanEntries(root)
+		// 轻量遍历：作者提取只看文件名，跳过 Info+哈希（大库冷扫主瓶颈，见 ScanEntriesLite）
+		entries := ScanEntriesLite(root)
 		for _, e := range entries {
 			author := extractAuthor(e.Name)
 			if author == "" {

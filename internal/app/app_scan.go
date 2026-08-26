@@ -451,12 +451,13 @@ func (a *App) ClearScanCache() {
 	containerTypeCache.Clear() // code review P3：容器指纹随扫描缓存一起失效（下载/导入后）
 }
 
-// ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘）
+// ListModelAuthors 统计 [作者] 前缀（轻量遍历：只看文件名，不读元数据不算哈希，
+// 不占全量扫描缓存——原走 ScanEntries 会陪绑 SHA256，大库下拖慢首屏）
 func (a *App) ListModelAuthors() []types.AuthorInfo {
 	if a.ysmRoot() == "" {
 		return nil
 	}
-	entries := a.scanModelEntries(a.ysmRoot())
+	entries := scanner.ScanEntriesLite(a.ysmRoot())
 	return scanner.ListModelAuthors(entries)
 }
 
