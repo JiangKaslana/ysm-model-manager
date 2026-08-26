@@ -432,10 +432,12 @@ export function GetInstanceStatus(mcRoot: string, repoDir: string, rtype: string
 /**
  * GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表）
  * subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDirGrouping 类型有效——路径限定。
+ * rtype 可选，指定资源类型 ID（如 ysm/maid-model），非空时只遍历该类型，避免全类型扫描
+ * 触发 walk error 刷屏；空时保持现状（全类型遍历）。
  * GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/instance，此处仅注入依赖）
  */
-export function GetInstanceSyncStatus(instanceName: string, subtype: string): $CancellablePromise<string> {
-    return $Call.ByID(839308247, instanceName, subtype);
+export function GetInstanceSyncStatus(instanceName: string, subtype: string, rtype: string): $CancellablePromise<string> {
+    return $Call.ByID(839308247, instanceName, subtype, rtype);
 }
 
 export function GetLinkMode(): $CancellablePromise<string> {
@@ -702,7 +704,8 @@ export function ListFileNames(dir: string): $CancellablePromise<string[] | null>
 }
 
 /**
- * ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘）
+ * ListModelAuthors 统计 [作者] 前缀（轻量遍历：只看文件名，不读元数据不算哈希，
+ * 不占全量扫描缓存——原走 ScanEntries 会陪绑 SHA256，大库下拖慢首屏）
  */
 export function ListModelAuthors(): $CancellablePromise<types$0.AuthorInfo[] | null> {
     return $Call.ByID(2783678748);
@@ -771,6 +774,11 @@ export function NavigatePlazaWindow(url: string, direct: boolean): $CancellableP
     return $Call.ByID(424032226, url, direct);
 }
 
+/**
+ * ========== 打开文件夹 ==========
+ * OpenFolder 在宿主文件管理器中打开目录（explorer/open/xdg-open 平台分支）。
+ * 与 RevealInExplorer 同源坑：explorer 是 GUI 程序，CREATE_NO_WINDOW 干扰单实例 DDE 转发。
+ */
 export function OpenFolder(dir: string): $CancellablePromise<void> {
     return $Call.ByID(4260431887, dir);
 }

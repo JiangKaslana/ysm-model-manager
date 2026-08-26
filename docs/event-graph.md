@@ -12,7 +12,6 @@
 - `config:updated` — emit×4
 - `morph:apply` — emit×1
 - `stage:load` — emit×1
-- `package:selected` — emit×2
 
 ### 鬼订阅（有 on/once 但从未被 emit）
 
@@ -43,7 +42,7 @@
 | `model:select` | 8 | 1 | 0 | 0 | ✅ |
 | `morph:apply` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `nav:changed` | 7 | 3 | 0 | 0 | ✅ |
-| `package:selected` | 2 | 0 | 0 | 0 | 🔇 孤儿发射 |
+| `package:selected` | 2 | 1 | 0 | 0 | ✅ |
 | `repo:rtype-changed` | 3 | 6 | 0 | 0 | ✅ |
 | `repo:search-creator` | 2 | 1 | 0 | 0 | ✅ |
 | `repo:subdir-changed` | 1 | 1 | 0 | 0 | ✅ |
@@ -307,6 +306,11 @@
 |------|----|
 | `frontend/src/views/app-sidebar/events.ts` | 88 |
 | `frontend/src/views/app-sidebar/events.ts` | 187 |
+
+**订阅方（on）：**
+| 文件 | 行 |
+|------|----|
+| `frontend/src/views/app-content/init-pages.ts` | 32 |
 
 ### `repo:rtype-changed`
 

@@ -43,7 +43,7 @@ export async function loadData(self: SyncStoreSelf): Promise<void> {
   const gen = self._gen;
   try {
     const { GetInstanceSyncStatus } = await getApp();
-    const json = await GetInstanceSyncStatus(self._instance, self._subtype || "");
+    const json = await GetInstanceSyncStatus(self._instance, self._subtype || "", self._selectedType || "");
     if (gen !== self._gen) return;
     self._allItems = (JSON.parse(json) as SyncItem[]) || [];
   } catch {

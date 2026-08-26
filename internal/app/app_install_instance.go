@@ -494,8 +494,10 @@ func (a *App) PushSingleResourceToInstance(rtype, instanceName, filePath string)
 
 // GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表）
 // subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDirGrouping 类型有效——路径限定。
+// rtype 可选，指定资源类型 ID（如 ysm/maid-model），非空时只遍历该类型，避免全类型扫描
+// 触发 walk error 刷屏；空时保持现状（全类型遍历）。
 // GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/instance，此处仅注入依赖）
-func (a *App) GetInstanceSyncStatus(instanceName string, subtype string) string {
+func (a *App) GetInstanceSyncStatus(instanceName string, subtype string, rtype string) string {
 	cfg := a.LoadAppConfig()
 	if cfg.McRoot == "" {
 		return "[]"
@@ -519,6 +521,18 @@ func (a *App) GetInstanceSyncStatus(instanceName string, subtype string) string 
 				}
 			}
 		}
+	}
+
+	// rtype 路径限定：非空时只保留该类型，避免扫不存在的其他类型目录
+	if rtype != "" {
+		filtered := registry.ResourceTypes[:0]
+		for _, rt := range registry.ResourceTypes {
+			if rt.ID == rtype {
+				filtered = append(filtered, rt)
+				break
+			}
+		}
+		registry.ResourceTypes = filtered
 	}
 
 	// 找整合包目录

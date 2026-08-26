@@ -296,7 +296,7 @@
 |------|--------|------|
 | `RegisterInvalidationHook()` | `go/instance/instance:44` | RegisterInvalidationHook 把同步结果缓存挂到 scanner 失效钩子上。 |
 | `InvalidateSyncItemsCache()` | `go/instance/instance:52` | InvalidateSyncItemsCache 清空全部整合包同步结果缓存。 |
-| `BuildSyncItems()` | `go/instance/instance:325` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
+| `BuildSyncItems()` | `go/instance/instance:320` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
 | `ResourceTypeInfo()` | `go/instance/instance:21` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
 
 ## go/internal
