@@ -189,9 +189,9 @@ container.innerHTML = `<div style="color:var(--muted);font-size:11px;margin-bott
 
 ### 🔴 P1（必须修复）
 
-| # | 文件 | 问题 | 修复 |
-|---|------|------|------|
-| 1 | `views/app-tree/events.ts:68,390` | 两个 bus 事件（`tree:drop-files`、`file:rename`）零订阅，属死代码 + `(bus as any)` 类型漏洞 | 删除两处 `(bus as any).emit()` 调用；如需保留功能，在 `bus.ts` 注册事件类型后去 `as any` |
+| # | 文件 | 问题 | 修复 | 状态 |
+|---|------|------|------|------|
+| 1 | `views/app-tree/events.ts:68,390` | 两个 bus 事件（`tree:drop-files`、`file:rename`）零订阅，属死代码 + `(bus as any)` 类型漏洞 | `f47fc3c9` 已修复：删除 `atTeBindDragDrop` 整段（与 `bindTreeDnD` 重复）；`file:rename` 改为直接调 `RenameFile` 保留双击改名 UX | ✅ 已合并 main |
 
 ### 🟠 P2（建议修复）
 
@@ -231,4 +231,5 @@ container.innerHTML = `<div style="color:var(--muted);font-size:11px;margin-bott
 
 ---
 
-**仲裁结论：项目前端代码整体质量优秀，仅 1 个 P1（幽灵路径死代码需清理）需要修复，3 个 P2 建议修复，15 个 P3 记录备查。无阻断性问题。**
+**仲裁结论：项目前端代码整体质量优秀。**
+P1 已通过 `f47fc3c9` 修复（删除死代码 + 补全 rename 订阅）。3 个 P2 建议修复，15 个 P3 记录备查。无阻断性问题。
