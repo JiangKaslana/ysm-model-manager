@@ -746,6 +746,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-122：MdMmBuildCtx 三档重构与 tier3 Builder 化否决",
+        "link": "/adr/ADR-122-mdmmbuildctx-tier3-builder"
+      },
+      {
         "text": "ADR-121：Shadow DOM 样式隔离铁律",
         "link": "/adr/ADR-121-shadow-dom"
       },
