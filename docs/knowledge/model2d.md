@@ -16,7 +16,7 @@ use_when:
   - 鼠标拾取
   - 线框图
 invariant_anchors:
-  - frontend/src/utils/3d/model2d.ts|Number.isNaN(cosA)
+  - frontend/src/utils/3d/model2d.ts|const cosA = Math.cos(angle)
 ---
 
 # 2D 预览渲染 model2d

@@ -187,7 +187,7 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/index.ts` | 112 |
-| `frontend/src/views/app-nav/index.ts` | 151 |
+| `frontend/src/views/app-nav/index.ts` | 152 |
 
 ### `menu:show`
 
@@ -229,8 +229,8 @@
 | `frontend/src/views/app-content/index.ts` | 106 |
 | `frontend/src/views/app-content/index.ts` | 178 |
 | `frontend/src/views/app-content/site/events.ts` | 201 |
-| `frontend/src/views/app-nav/index.ts` | 20 |
-| `frontend/src/views/app-nav/index.ts` | 161 |
+| `frontend/src/views/app-nav/index.ts` | 21 |
+| `frontend/src/views/app-nav/index.ts` | 162 |
 | `frontend/src/views/app-sidebar/events.ts` | 236 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 115 |
 
@@ -239,7 +239,7 @@
 |------|----|
 | `frontend/src/core/page-store.ts` | 63 |
 | `frontend/src/views/app-content/index.ts` | 97 |
-| `frontend/src/views/app-nav/index.ts` | 137 |
+| `frontend/src/views/app-nav/index.ts` | 138 |
 
 ### `package:selected`
 
@@ -261,7 +261,7 @@
 |------|----|
 | `frontend/src/views/app-content/settings/init.ts` | 274 |
 | `frontend/src/views/app-content/settings/init.ts` | 296 |
-| `frontend/src/views/app-nav/index.ts` | 81 |
+| `frontend/src/views/app-nav/index.ts` | 82 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -269,8 +269,8 @@
 | `frontend/src/features/repo-rtype.ts` | 33 |
 | `frontend/src/views/app-content/init-pages.ts` | 78 |
 | `frontend/src/views/app-content/init-pages.ts` | 254 |
-| `frontend/src/views/app-nav/index.ts` | 153 |
-| `frontend/src/views/app-sidebar/index.ts` | 399 |
+| `frontend/src/views/app-nav/index.ts` | 154 |
+| `frontend/src/views/app-sidebar/index.ts` | 428 |
 | `frontend/src/views/app-sync-manager/index.ts` | 172 |
 
 ### `repo:search-creator`
@@ -291,7 +291,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-nav/index.ts` | 82 |
+| `frontend/src/views/app-nav/index.ts` | 83 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -317,7 +317,7 @@
 | `frontend/src/views/app-content/settings/init.ts` | 140 |
 | `frontend/src/views/app-content/settings/path-cards.ts` | 77 |
 | `frontend/src/views/app-content/settings/path-cards.ts` | 352 |
-| `frontend/src/views/app-sidebar/index.ts` | 288 |
+| `frontend/src/views/app-sidebar/index.ts` | 318 |
 | `frontend/src/views/app-sync-manager/index.ts` | 218 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 66 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 135 |
@@ -328,7 +328,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/index.ts` | 391 |
+| `frontend/src/views/app-sidebar/index.ts` | 420 |
 | `frontend/src/views/app-sync-manager/index.ts` | 152 |
 
 ### `sync:download:done`
@@ -342,15 +342,15 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/index.ts` | 196 |
-| `frontend/src/views/app-sidebar/index.ts` | 223 |
+| `frontend/src/views/app-sidebar/index.ts` | 194 |
+| `frontend/src/views/app-sidebar/index.ts` | 215 |
 
 ### `sync:download:missing`
 
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/index.ts` | 215 |
+| `frontend/src/views/app-sidebar/index.ts` | 208 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -502,7 +502,7 @@
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 161 |
 | `frontend/src/views/app-content/workshop-tabs.ts` | 89 |
 | `frontend/src/views/app-content/workshop-tabs.ts` | 137 |
-| `frontend/src/views/app-nav/index.ts` | 100 |
+| `frontend/src/views/app-nav/index.ts` | 101 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 240 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 306 |
 | `frontend/src/views/app-preview/index.ts` | 233 |
@@ -515,13 +515,13 @@
 | `frontend/src/views/app-sidebar/events.ts` | 108 |
 | `frontend/src/views/app-sidebar/events.ts` | 217 |
 | `frontend/src/views/app-sidebar/index.ts` | 149 |
-| `frontend/src/views/app-sidebar/index.ts` | 241 |
-| `frontend/src/views/app-sidebar/index.ts` | 243 |
-| `frontend/src/views/app-sidebar/index.ts` | 246 |
-| `frontend/src/views/app-sidebar/index.ts` | 282 |
-| `frontend/src/views/app-sidebar/index.ts` | 284 |
-| `frontend/src/views/app-sidebar/index.ts` | 286 |
-| `frontend/src/views/app-sidebar/index.ts` | 291 |
+| `frontend/src/views/app-sidebar/index.ts` | 263 |
+| `frontend/src/views/app-sidebar/index.ts` | 265 |
+| `frontend/src/views/app-sidebar/index.ts` | 268 |
+| `frontend/src/views/app-sidebar/index.ts` | 312 |
+| `frontend/src/views/app-sidebar/index.ts` | 314 |
+| `frontend/src/views/app-sidebar/index.ts` | 316 |
+| `frontend/src/views/app-sidebar/index.ts` | 321 |
 | `frontend/src/views/app-sidebar/loader.ts` | 151 |
 | `frontend/src/views/app-sync-manager/index.ts` | 149 |
 | `frontend/src/views/app-sync-manager/network.ts` | 47 |
@@ -601,7 +601,7 @@
 | `frontend/src/features/recycle-bin.ts` | 108 |
 | `frontend/src/features/recycle-bin.ts` | 168 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 420 |
-| `frontend/src/views/app-sidebar/index.ts` | 289 |
+| `frontend/src/views/app-sidebar/index.ts` | 319 |
 
 **订阅方（on）：**
 | 文件 | 行 |

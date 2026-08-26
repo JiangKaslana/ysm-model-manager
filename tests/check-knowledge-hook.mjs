@@ -62,7 +62,9 @@ check('--quiet 仅吐 card stem', () => {
     { encoding: 'utf8' },
   );
   const lines = out.split('\n').map((s) => s.trim()).filter(Boolean).sort();
-  assert.deepStrictEqual(lines, ['go-avatar', 'resource-registry']);
+  // frontend_repo_audit（tier: architecture，source_files: frontend/src/）整包审计卡
+  // 也命中 registry.ts——--affected 输出随仓库卡集扩展，新增覆盖此路径的卡时同步此处
+  assert.deepStrictEqual(lines, ['frontend_repo_audit', 'go-avatar', 'resource-registry']);
 });
 
 check('--quiet 无命中输出空', () => {
