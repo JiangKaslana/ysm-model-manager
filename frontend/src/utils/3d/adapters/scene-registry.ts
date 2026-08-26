@@ -117,7 +117,11 @@ class SceneRegistry {
    * roots 由调用方经 scene.children 差量捕获传入；boneMaps/menuItems 可选。
    */
   register(input: RegisterInput): string {
-    mdSrDedupByExplicitKey(this.byAuthor, this.byName, input);
+    const existing = mdSrDedupByExplicitKey(this.byAuthor, this.byName, input);
+    if (existing) {
+      this.activeId = existing;
+      return existing;
+    }
     const id = `m${++this.seq}`;
     const entry = mdSrBuildEntryFromInput(id, input);
     mdSrIndexIntoMaps(this.entries, this.byAuthor, this.byName, entry);
