@@ -19,19 +19,21 @@ export function openSite(
   host: AppContentHost,
   site: WorkshopSite,
   browseMode: BrowseMode,
-  external = false,
+  targetUrl = "",
 ): void {
   if (!site) return;
+  // targetUrl 传入时优先打开目标（搜索带词链接）；缺省回退站点首页
+  const url = targetUrl || site.url;
   if (browseMode === "embed") {
-    openEmbedded(host, site);
+    openEmbedded(host, site, url);
   } else if (browseMode === "window") {
     // 窗口模式直连（独立 WebView2 窗口，非 iframe，无需反代绕 X-Frame-Options）
     getApp().then(({ NavigatePlazaWindow }) =>
-      NavigatePlazaWindow(site.url, true),
+      NavigatePlazaWindow(url, true),
     ).catch(() => {});
   } else {
     getApp().then(({ OpenInBrowser }) =>
-      OpenInBrowser(site.url),
+      OpenInBrowser(url),
     ).catch(() => {});
   }
 }
@@ -42,6 +44,7 @@ export function openSite(
 function openEmbedded(
   host: AppContentHost,
   site: WorkshopSite,
+  url: string,
 ): void {
   const root = host._root;
   const browserEl = root.getElementById("ws-browser") as HTMLElement | null;
@@ -49,12 +52,12 @@ function openEmbedded(
   const urlEl = root.getElementById("ws-url") as HTMLElement | null;
   const blockedEl = root.getElementById("ws-blocked") as HTMLElement | null;
 
-  if (urlEl) urlEl.textContent = site.url;
+  if (urlEl) urlEl.textContent = url;
   if (blockedEl) blockedEl.style.display = "none";
   if (browserEl) browserEl.style.display = "flex";
   if (iframe) {
     iframe.style.display = "";
-    iframe.src = site.url;
+    iframe.src = url;
     // 加载超时兜底：15s 未完成加载 → 提示「此站点不允许内嵌浏览」+ 外链打开
     const wsLoadTimer = window.setTimeout(() => {
       if (blockedEl) blockedEl.style.display = "flex";

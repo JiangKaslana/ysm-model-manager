@@ -81,7 +81,8 @@ export function initWorkshopPage(host: AppContentHost): void {
     // 清理旧站点视图的监听器，防止切页时事件泄漏
     runPrevSiteViewCleanup();
     const openUrl = (url: string): void => {
-      openSite(host, site, browseMode);
+      // 透传目标 URL：搜索按钮拼好的带词链接（fillSearch）需真正打开，不能丢弃只开首页
+      openSite(host, site, browseMode, url);
     };
     const ctx: RenderSiteViewCtx = {
       esc: (s) => esc(String(s || "")),

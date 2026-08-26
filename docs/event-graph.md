@@ -69,7 +69,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-content/init-workshop.ts` | 133 |
+| `frontend/src/views/app-content/init-workshop.ts` | 134 |
 
 ### `batch:disable`
 
@@ -561,12 +561,12 @@
 | `frontend/src/views/app-content/site/edit.ts` | 245 |
 | `frontend/src/views/app-content/site/events.ts` | 146 |
 | `frontend/src/views/app-content/site/events.ts` | 274 |
-| `frontend/src/views/app-content/workshop-site-opener.ts` | 108 |
-| `frontend/src/views/app-content/workshop-site-opener.ts` | 118 |
-| `frontend/src/views/app-content/workshop-site-opener.ts` | 124 |
-| `frontend/src/views/app-content/workshop-site-opener.ts` | 136 |
-| `frontend/src/views/app-content/workshop-site-opener.ts` | 147 |
-| `frontend/src/views/app-content/workshop-site-opener.ts` | 153 |
+| `frontend/src/views/app-content/workshop-site-opener.ts` | 111 |
+| `frontend/src/views/app-content/workshop-site-opener.ts` | 121 |
+| `frontend/src/views/app-content/workshop-site-opener.ts` | 127 |
+| `frontend/src/views/app-content/workshop-site-opener.ts` | 139 |
+| `frontend/src/views/app-content/workshop-site-opener.ts` | 150 |
+| `frontend/src/views/app-content/workshop-site-opener.ts` | 156 |
 | `frontend/src/views/app-content/workshop-tabs.ts` | 59 |
 | `frontend/src/views/app-content/workshop-tabs.ts` | 107 |
 | `frontend/src/views/app-nav/index.ts` | 100 |

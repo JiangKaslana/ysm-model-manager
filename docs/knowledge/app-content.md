@@ -81,6 +81,7 @@ invariant_anchors:
 - `site/types.ts` / `site/render.ts` / `site/events.ts` / `site/edit.ts` / `site/drag.ts` — 站点视图拆分：状态类型 `SiteViewState` / `CleanupFn`、`createCrCard` + `buildSiteHtml` 渲染、`bindBrowseEvents` 浏览交互、`bindEditEvents` 编辑模式（AbortController signal 贯穿 7 个 eeBind* 全部监听，cleanup 真实解绑幂等）、`bindDragEvents` 卡片拖拽排序；各 bind 均返回 `CleanupFn`
 - `workshop-data.ts` — 工坊纯数据工具：`getCreatorIdentity` / `getTagFromRole` / `parseDescTags` / 收藏 `loadFavs` / `isFaved` / `toggleFav`（localStorage `ysm-fav-creators`，写入函数 `saveFavs` 为模块内私有）
 - `workshop-icons.ts` — SVG 图标表 `ICONS` 与 `getSiteIcon` / `getTagIconFromRole`
+- `workshop-site-opener.ts` — 站点打开器：`openSite(host, site, browseMode, targetUrl)` 按模式走 `openEmbedded`（iframe）/ `NavigatePlazaWindow` / `OpenInBrowser`，`targetUrl` 缺省回退 `site.url`；site-view 的 `ctx.openUrl` 把搜索链路 `fillSearch` 拼好的带词链接**透传**给 `openSite`（曾丢弃入参只开首页 → 全站搜索退化为只开网站，P1 修复）
 
 ## 对外 API / 入口
 
@@ -108,6 +109,7 @@ invariant_anchors:
 - `_render()` 内页面 init 分发整体包 try/catch：init 抛错不中断调用方，转 `console.error` + `toast:show` 反馈用户而非静默
 - 样式走 `adoptedStyleSheets` + CSS 变量，无硬编码颜色；`innerHTML` 拼接统一过 `_esc` / `esc`
 - 页面级临时缓存（`_workshopCache` / `_githubCache`）与 `_workshopTimer` 定时器在 `disconnectedCallback` 清空
+- 站点搜索带词链接必须**真传**到底层打开调用：`ctx.openUrl(url)` → `openSite(host, site, mode, url)` 的 `url` 不得丢弃，否则站点视图预设 / 卡片作者搜索 / 详情浮层全部退化为只开网站首页（实际触发时与 `searchUrl` 数据是否齐全无关，P1 修复锁定于 `workshop-site-opener.test.ts`）
 
 ## 相关
 

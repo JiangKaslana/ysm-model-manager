@@ -17,7 +17,7 @@
 | `config/` | 运行阈值配置共享单持有点（ADR-091 D12：atomic 存 provider，取代 4 包各自 configFunc） 〔源码 1: config.go · 测试 1〕 |
 | `container/` | 统一容器桥接层（zip/7z/目录 Entry-Reader 抽象，ADR-068） 〔源码 1: container.go · 测试 2〕 |
 | `dedup/` | 文件去重检测（纯函数，不绑回收站/UI） 〔源码 2: dedup.go strategy.go · 测试 5〕 |
-| `download/` | 纯下载逻辑（不依赖 Wails runtime） 〔源码 1: download.go · 测试 6〕 |
+| `download/` | 纯下载逻辑（不依赖 Wails runtime） 〔源码 1: download.go · 测试 7〕 |
 | `executil/` | 外部进程工具（HideWindow 平台双实现，收敛自三处副本） 〔源码 2: hidewindow_other.go hidewindow_windows.go · 测试 3〕 |
 | `fileops/` | 文件操作 + 预览提取 + 包信息（ADR-003 P3 下沉） 〔源码 4: fileops.go fileops_enable.go fileops_preview.go folder_import.go · 测试 10〕 |
 | `fsutil/` | 目录遍历工具（WalkDir 集中管理） 〔源码 10: bom.go copy.go crossdevice_other.go crossdevice_windows.go format.go hardlink_other.go hardlink_w… · 测试 9〕 |

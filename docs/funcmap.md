@@ -2004,8 +2004,8 @@
 | `getLastModelPath()` | `frontend/src/views/app-content/init-pages:286` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:38` | 初始化创意工坊页（编排入口） |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:164` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
-| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:175` | app-content 组件接口（供 workshop/github 初始化函数访问） |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:165` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
+| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:176` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:23` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:30` | — |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:310` | 初始化设置页所有事件绑定 |
@@ -2064,7 +2064,7 @@
 | `isFaved()` | `frontend/src/views/app-content/workshop-data:76` | — |
 | `toggleFav()` | `frontend/src/views/app-content/workshop-data:80` | — |
 | `openSite()` | `frontend/src/views/app-content/workshop-site-opener:18` | 打开站点（外链/内嵌/窗口） |
-| `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:69` | 绑定站点打开相关事件 |
+| `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:72` | 绑定站点打开相关事件 |
 | `WorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:19` | 创意工坊页的共享 ref 集合——单一事实来源。 |
 | `createWorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:27` | 创建创意工坊页的共享 ref 对象（单一入口，所有消费者共享同一实例） |
 | `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:39` | 初始化创意工坊 Tab |
