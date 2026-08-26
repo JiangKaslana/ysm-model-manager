@@ -9,6 +9,8 @@ import { resolveWebMode } from "../backend/platform.ts";
 import { MAX_IMPORT_BYTES } from "../backend/browser-adapter.ts";
 import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
+import { dbg } from "../utils/debug/debug.ts";
+import { logError } from "../utils/core/log.ts";
 import { executeCollected, importWebFilesWithToast } from "./import-executor.ts";
 import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
 import { isImportableFile } from "./dnd-shared.ts";
@@ -37,8 +39,7 @@ export async function handleTreeDrop(
   rtype = "",
 ): Promise<void> {
   e.preventDefault();
-  // eslint-disable-next-line no-console
-  console.log("[dnd] handleTreeDrop called", { busy: isBusy(), targetTag: (e.target as HTMLElement)?.tagName });
+  dbg("dnd", "handleTreeDrop called", { busy: isBusy(), targetTag: (e.target as HTMLElement)?.tagName });
   if (isEditable(e.target)) return;
 
   if (isBusy()) {
@@ -191,8 +192,7 @@ export function bindTreeDnD(container: HTMLElement, rtype: string | (() => strin
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     if (hintEl && !_dropBusy) hintEl.style.display = "flex";
-    // eslint-disable-next-line no-console
-    console.log("[dnd] dragover OK", { types: [...(e.dataTransfer.types || [])], target: (e.target as HTMLElement)?.tagName, isEditable: isEditable(e.target) });
+    dbg("dnd", "dragover OK", { types: [...(e.dataTransfer.types || [])], target: (e.target as HTMLElement)?.tagName, isEditable: isEditable(e.target) });
   };
 
   const onDragLeave = (e: DragEvent): void => {
@@ -203,8 +203,7 @@ export function bindTreeDnD(container: HTMLElement, rtype: string | (() => strin
 
   const onDrop = (e: DragEvent): void => {
     if (!isInTree(e)) return;
-    // eslint-disable-next-line no-console
-    console.log("[dnd] drop fired", {
+    dbg("dnd", "drop fired", {
       files: e.dataTransfer?.files?.length ?? 0,
       items: e.dataTransfer?.items?.length ?? 0,
       types: e.dataTransfer?.types ? [...e.dataTransfer.types] : [],
@@ -213,7 +212,7 @@ export function bindTreeDnD(container: HTMLElement, rtype: string | (() => strin
     if (hintEl) hintEl.style.display = "none";
     const rt = typeof rtype === "function" ? rtype() : rtype;
     void handleTreeDrop(e, isBusy, setBusy, rt).catch((err) => {
-      console.error("[tree-dnd] 拖放处理失败:", err);
+      logError("tree-dnd", "拖放处理失败", err);
       bus.emit("toast:show", {
         // 显式化：friendlyError 展示 Go 结构化错误（ADR-082 续），
         // 未归类 Code 透传 Reason/Suggestion 并剥离内部路径
@@ -227,8 +226,7 @@ export function bindTreeDnD(container: HTMLElement, rtype: string | (() => strin
   document.addEventListener("dragover", onDragOver);
   document.addEventListener("dragleave", onDragLeave);
   document.addEventListener("drop", onDrop);
-  // eslint-disable-next-line no-console
-  console.log("[dnd] bound listeners to document");
+  dbg("dnd", "bound listeners to document");
   return () => {
     document.removeEventListener("dragover", onDragOver);
     document.removeEventListener("dragleave", onDragLeave);

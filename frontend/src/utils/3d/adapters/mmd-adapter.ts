@@ -37,6 +37,7 @@ import { mmdBonesToBoneNodes } from "../mmd-bones.ts"; // ADR-077: pmx.bones 索
 import { buildBoneTree, type BoneTree } from "../bone-tools.ts";
 import { mmdSemanticBoneMap } from "../semantic-bones.ts";
 import { mmdSemanticMorphMap } from "../semantic-morphs.ts";
+import { dbg } from "../../debug/debug.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
 import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
 import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
@@ -898,7 +899,7 @@ function mdMmStage6Result(
       if (renderer) {
         const memBefore = (renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
         if (memBefore) {
-          console.log(`[gpu-leak] mmd dispose before: geometries=${memBefore.geometries} textures=${memBefore.textures}`);
+          dbg("gpu-leak", `mmd dispose before: geometries=${memBefore.geometries} textures=${memBefore.textures}`);
         }
       }
       try {
@@ -925,7 +926,7 @@ function mdMmStage6Result(
       if (renderer) {
         const memAfter = (renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
         if (memAfter) {
-          console.log(`[gpu-leak] mmd dispose after: geometries=${memAfter.geometries} textures=${memAfter.textures}`);
+          dbg("gpu-leak", `mmd dispose after: geometries=${memAfter.geometries} textures=${memAfter.textures}`);
         }
       }
     },
