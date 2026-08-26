@@ -104,7 +104,13 @@ export function makeBonePanelRenderer(tree: BoneTree | null): RenderVrmBonePanel
       const field = (k: string, v: string): void => {
         const r = document.createElement("div");
         r.style.cssText = "margin-bottom:4px";
-        r.innerHTML = `<span style="color:rgba(255,255,255,0.4)">${k}</span>: ${v}`;
+        // k/v 经 textContent 注入（innerHTML 拼接会把骨骼名/路径中的
+        // <>& 当 HTML 解析——注入/破版风险），span 样式保留
+        const span = document.createElement("span");
+        span.style.color = "rgba(255,255,255,0.4)";
+        span.textContent = k;
+        r.appendChild(span);
+        r.appendChild(document.createTextNode(": " + v));
         detailCol.appendChild(r);
       };
       field("名称", d.name);

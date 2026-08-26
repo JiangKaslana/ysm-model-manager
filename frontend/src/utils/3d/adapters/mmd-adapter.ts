@@ -176,7 +176,12 @@ export interface MmdPanelHooks {
   buildMaterialControls: (container: HTMLElement, bridge: MaterialControlBridge) => void;
 }
 
-interface MdMmBuildCtx {
+// ===== MdMmBuildCtx 按域分组的接口组合（声明层收敛，访问路径 c.xxx 不变）=====
+// 原 60 字段扁平巨型接口按生命周期域拆分——每个域接口语义自洽，
+// 组合后行为与 `interface MdMmBuildCtx { ...60 字段... }` 完全等价。
+
+/** 输入/路径域：构建入口参数与解析出的模型字节/路径 */
+interface MdMmIoState {
   ctx: PreviewBuildCtx;
   path: string;
   port: MmdDataPort;
@@ -188,16 +193,28 @@ interface MdMmBuildCtx {
   modelB64: string | null;
   bytes: Uint8Array;
   modelBase: string;
-  usePmxWorker: boolean;
-  pmxParser: PmxParser | null;
-  pmxParsePromise: Promise<import("./mmd-pmx-parser.worker.ts").PmxParseResponse> | null;
   dirPath: string;
-  texMap: Map<string, string>;
-  _traceFiles: number;
-  _traceGpuMb: number;
   blobUrls: string[];
   vmdPaths: string[];
   vpdPaths: string[];
+}
+
+/** 解析域：PMX/PMD 解析器实例与解析产物 */
+interface MdMmParseState {
+  usePmxWorker: boolean;
+  pmxParser: PmxParser | null;
+  pmxParsePromise: Promise<import("./mmd-pmx-parser.worker.ts").PmxParseResponse> | null;
+  mmd: Awaited<ReturnType<MMDLoader["loadAsync"]>> | null;
+  workerBuilt: PmxBuildResult | null;
+  workerParseOk: boolean;
+  pmxParsedData: import("./mmd-pmx-parser.worker.ts").PmxParseResponse | null;
+  mesh: THREE.SkinnedMesh;
+  workerMode: boolean;
+}
+
+/** 纹理/解码域：纹理映射、blob URL 生命周期与缓存哈希 */
+interface MdMmTextureState {
+  texMap: Map<string, string>;
   texKtx2Map: Map<string, string>;
   texHashMap: Map<string, string>;
   decodeTasks: Array<{ relPath: string; bytes: ArrayBuffer; mimeType: string }>;
@@ -205,20 +222,11 @@ interface MdMmBuildCtx {
   modelBlobUrl: string;
   blobUrlToRel: Map<string, string>;
   blobUrlToHash: Map<string, string>;
-  manager: THREE.LoadingManager;
-  tStart: number;
-  textureLoadedAt: number;
-  tParseStart: number;
-  tParseEnd: number;
-  tBuildEnd: number;
-  mmd: Awaited<ReturnType<MMDLoader["loadAsync"]>> | null;
-  workerBuilt: PmxBuildResult | null;
-  workerParseOk: boolean;
-  pmxParsedData: import("./mmd-pmx-parser.worker.ts").PmxParseResponse | null;
-  mesh: THREE.SkinnedMesh;
-  workerMode: boolean;
-  buildSucceeded: boolean;
   cachedHashes: Set<string> | null;
+}
+
+/** 动画/相机域：播放状态 + 相机轨道 */
+interface MdMmAnimState {
   mixer: THREE.AnimationMixer;
   clips: Array<{ label: string; clip: THREE.AnimationClip }>;
   customAnimPath: string | null;
@@ -232,12 +240,38 @@ interface MdMmBuildCtx {
   cameraMixer: THREE.AnimationMixer | null;
   cameraAction: THREE.AnimationAction | null;
   firstCameraClip: THREE.AnimationClip | null;
+}
+
+/** 骨骼/感知域：骨骼面板依赖与感知层状态 */
+interface MdMmPerceptionState {
   bonePanelRef: { current: (() => void) | null };
   boneTree: BoneTree | null;
   perceptionState: PerceptionState;
   perceptionCaps: PerceptionCapability[];
+}
+
+/** 生命周期/计时域：构建流程计时与跟踪 */
+interface MdMmTraceState {
+  manager: THREE.LoadingManager;
+  tStart: number;
+  textureLoadedAt: number;
+  tParseStart: number;
+  tParseEnd: number;
+  tBuildEnd: number;
+  _traceFiles: number;
+  _traceGpuMb: number;
+  buildSucceeded: boolean;
   stopLongTaskWatch: () => void;
 }
+
+/** 构建上下文：6 个域接口组合（60 字段） */
+interface MdMmBuildCtx
+  extends MdMmIoState,
+    MdMmParseState,
+    MdMmTextureState,
+    MdMmAnimState,
+    MdMmPerceptionState,
+    MdMmTraceState {}
 
 function mdMmDetectFormat(c: MdMmBuildCtx): "pmx" | "pmd" {
   const ext = c.modelBase.split(".").pop()?.toLowerCase();
@@ -547,7 +581,12 @@ async function mdMmParsePmdStage(c: MdMmBuildCtx): Promise<void> {
       `bones=${c.mmd?.pmx?.bones?.length ?? 0} mats=${c.mmd?.pmx?.materials?.length ?? 0} morphs=${c.mmd?.pmx?.morphs?.length ?? 0}`,
     );
     c.tParseEnd = performance.now();
-    c.mesh = c.mmd!.mesh;
+    // 结构化守卫替代 !：loadAsync 成功返回后 mmd 必非空，但仍显式校验
+    // （parse 失败已在上方 throw，走到此处即成功路径）
+    if (!c.mmd) {
+      throw new Error("MMD parse 返回空结果");
+    }
+    c.mesh = c.mmd.mesh;
     c.pmxParser?.dispose();
   }
   if (c.decodedTexturesPromise) {
@@ -577,12 +616,23 @@ async function mdMmParsePmdStage(c: MdMmBuildCtx): Promise<void> {
 
 async function mdMmStage3SceneMesh(c: MdMmBuildCtx): Promise<void> {
   c.buildSucceeded = false;
-  c.ctx.scene!.add(c.mesh);
+  // 结构化守卫替代 !：scene 可选（self 模式适配器自驱 renderer 时为 undefined）
+  const scene = c.ctx.scene;
+  if (!scene) {
+    await mmdDiag(c.effectivePort, "mesh-debug", c.effectivePath, "warn", "共享 scene 不可用，跳过挂载");
+    return;
+  }
+  scene.add(c.mesh);
   registerModelRoot(c.mesh);
   {
     const geo = c.mesh.geometry;
     geo.computeBoundingBox();
-    const bb = geo.boundingBox!;
+    // computeBoundingBox 后 boundingBox 必非空；显式守卫替代 !
+    const bb = geo.boundingBox;
+    if (!bb) {
+      await mmdDiag(c.effectivePort, "mesh-debug", c.effectivePath, "warn", "几何 boundingBox 计算失败");
+      return;
+    }
     const posAttr = geo.getAttribute("position") as THREE.BufferAttribute | undefined;
     const idx = geo.index;
     const allMats = Array.isArray(c.mesh.material) ? c.mesh.material : c.mesh.material ? [c.mesh.material] : [];
@@ -644,8 +694,10 @@ async function mdMmStage3SceneMesh(c: MdMmBuildCtx): Promise<void> {
     }
   }
   if (c.blobUrlToHash.size > 0 && c.effectivePort.getCachedTexture) {
-    const toEncode = c.cachedHashes
-      ? new Map([...c.blobUrlToHash].filter(([, h]) => !c.cachedHashes!.has(h)))
+    // 局部 const 收窄替代 !：filter 闭包内 TS 不保持 c.cachedHashes 的收窄
+    const cachedHashes = c.cachedHashes;
+    const toEncode = cachedHashes
+      ? new Map([...c.blobUrlToHash].filter(([, h]) => !cachedHashes.has(h)))
       : c.blobUrlToHash;
     if (toEncode.size > 0) {
       scheduleBackgroundEncoding(toEncode, c.port);
@@ -728,14 +780,22 @@ async function mdMmStage4Anim(c: MdMmBuildCtx): Promise<void> {
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  c.ctx.camera!.near = 0.05;
-  c.ctx.camera!.far = maxDim * 50;
-  c.ctx.camera!.position.set(center.x, center.y + size.y * 0.1, center.z + maxDim * 1.6);
-  c.ctx.camera!.updateProjectionMatrix();
-  c.ctx.controls!.target.copy(center);
-  c.ctx.controls!.minDistance = maxDim * 0.1;
-  c.ctx.controls!.maxDistance = maxDim * 12;
-  c.ctx.controls!.update();
+  // 结构化守卫替代 !：camera/controls 可选（self 模式适配器自驱时为 undefined），
+  // 缺失时跳过相机适配（MMD shared 模式正常均存在）
+  const camera = c.ctx.camera;
+  const controls = c.ctx.controls;
+  if (camera) {
+    camera.near = 0.05;
+    camera.far = maxDim * 50;
+    camera.position.set(center.x, center.y + size.y * 0.1, center.z + maxDim * 1.6);
+    camera.updateProjectionMatrix();
+  }
+  if (controls) {
+    controls.target.copy(center);
+    controls.minDistance = maxDim * 0.1;
+    controls.maxDistance = maxDim * 12;
+    controls.update();
+  }
 }
 
 function mdMmStage5Menu(c: MdMmBuildCtx): {
@@ -866,26 +926,31 @@ function mdMmStage6Result(
       c.mmd?.updateWithMixer(dt, c.mixer, { ik: true, grant: true });
       if (semanticBones) {
         if ((!c.action || c.action.paused) && c.perceptionState.breath) breath.apply(dt, semanticBones);
-        if (c.perceptionState.gaze) gaze.apply(dt, semanticBones, c.ctx.camera!.position);
+        // camera 可选（self 模式 undefined）：缺失时 gaze 无法取观察点 → 跳过
+        if (c.perceptionState.gaze && c.ctx.camera) gaze.apply(dt, semanticBones, c.ctx.camera.position);
       }
       const blinkEntry = semanticMorphs.blink;
       if (blinkEntry && c.mesh.morphTargetDictionary && c.mesh.morphTargetInfluences && (!c.action || c.action.paused) && c.perceptionState.blink) {
         const idx = c.mesh.morphTargetDictionary[blinkEntry.name];
         if (idx !== undefined) {
-          blink.apply(dt, (weight: number) => { c.mesh.morphTargetInfluences![idx] = weight; });
+          // 局部 const 收窄替代 !：回调闭包内 TS 不保持 c.mesh.morphTargetInfluences 的收窄
+          const influences = c.mesh.morphTargetInfluences;
+          blink.apply(dt, (weight: number) => { influences![idx] = weight; });
         }
       }
       if (lipIndices && (!c.action || c.action.paused) && c.perceptionState.lipSync) {
         lipSyncTime += dt;
         const breathPhase = Math.sin(lipSyncTime / 2.5 * Math.PI * 2);
         const openAmp = Math.max(0, breathPhase) * 0.4;
+        // lipSync 分支缺 morphTargetInfluences 前置守卫——回调闭包内一并校验，替代 !
+        const influences = c.mesh.morphTargetInfluences;
         lipSync.applyMulti(dt, { lipOpen: openAmp }, (morphId, weight) => {
           const idx = morphId === "lipOpen" ? lipIndices.open
             : morphId === "lipClose" ? lipIndices.close
             : morphId === "lipPucker" ? lipIndices.pucker
             : morphId === "lipSmile" ? lipIndices.smile
             : undefined;
-          if (idx !== undefined) c.mesh.morphTargetInfluences![idx] = weight;
+          if (idx !== undefined && influences) influences[idx] = weight;
         });
       }
       const isIdle = !c.action || c.action.paused;
@@ -1138,6 +1203,8 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuNode[] {
     renderCustom:(list) => o.panels?.fillPlayPanel?.(list, o.play),
   });
   if (o.bonePanel) {
+    // 局部 const 收窄替代 !：renderCustom 闭包内 TS 不保持 o.bonePanel 的收窄
+    const bp = o.bonePanel;
     items.push({
       id: "bones",
       icon: "🦴",
@@ -1148,19 +1215,27 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuNode[] {
       legacyTestId: "mmd-bones-entry",
       renderCustom:(list) => {
         // 通用骨骼面板：渲染进根菜单面板；重入时先清理旧 renderer
-        if (o.bonePanel!.cleanupRef.current) {
-          o.bonePanel!.cleanupRef.current();
-          o.bonePanel!.cleanupRef.current = null;
+        if (bp.cleanupRef.current) {
+          bp.cleanupRef.current();
+          bp.cleanupRef.current = null;
         }
-        o.bonePanel!.cleanupRef.current = makeBonePanelRenderer(o.bonePanel!.tree)(list, {
-          viewContainer: o.bonePanel!.viewContainer!,
-          camera: o.bonePanel!.camera!,
-          scene: o.bonePanel!.scene!,
+        // viewContainer/camera/scene 允许 null/undefined（面板未展开时未填充）——
+        // 渲染前显式校验，替代内部 ! 断言
+        const vc = bp.viewContainer;
+        const cam = bp.camera;
+        const scn = bp.scene;
+        if (!vc || !cam || !scn) return;
+        bp.cleanupRef.current = makeBonePanelRenderer(bp.tree)(list, {
+          viewContainer: vc,
+          camera: cam,
+          scene: scn,
         });
       },
     });
   }
   if (o.perception) {
+    // 局部 const 收窄替代 !：renderCustom 闭包内 TS 不保持 o.perception 的收窄
+    const pc = o.perception;
     items.push({
       id: "perception",
       icon: "👁️",
@@ -1168,7 +1243,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuNode[] {
       fallback: "感知",
       kind: "panel",
       dockGroup: "motion",
-      renderCustom:(list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
+      renderCustom:(list) => buildPerceptionControls(list, pc.state, pc.caps),
     });
   }
   return items;
