@@ -891,7 +891,7 @@
 | `normalizeTheme()` | `frontend/src/app-modules` | — |
 | `applyTheme()` | `frontend/src/app-modules` | — |
 | `initTheme()` | `frontend/src/app-modules` | — |
-| `bus()` | `frontend/src/bus:196` | 默认实例（组件直接使用） |
+| `bus()` | `frontend/src/bus:198` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
@@ -899,8 +899,8 @@
 | `ModelSelectPayload()` | `frontend/src/bus:42` | — |
 | `CtxShowPayload()` | `frontend/src/bus:47` | — |
 | `BusEvents()` | `frontend/src/bus:66` | — |
-| `BusEventName()` | `frontend/src/bus:108` | — |
-| `Bus()` | `frontend/src/bus:133` | — |
+| `BusEventName()` | `frontend/src/bus:110` | — |
+| `Bus()` | `frontend/src/bus:135` | — |
 | `revealMainWindow()` | `frontend/src/startup-reveal:2` | Wait until the DOM has been upgraded and painted before exposing the native window. |
 | `normalizeTheme()` | `frontend/src/theme-core:17` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
 | `applyTheme()` | `frontend/src/theme-core:21` | — |
@@ -1025,8 +1025,8 @@
 |------|--------|------|
 | `DIR_HANDLERS()` | `frontend/src/core/context-menu-dir-handlers:10` | dir 类 handler 子表 |
 | `FILE_HANDLERS()` | `frontend/src/core/context-menu-file-handlers:13` | file 类 handler 子表 |
-| `MenuCtx()` | `frontend/src/core/context-menu-handlers:74` | — |
-| `HANDLERS()` | `frontend/src/core/context-menu-handlers:77` | 行为 handler 表（instance + batch + merge file/dir） |
+| `MenuCtx()` | `frontend/src/core/context-menu-handlers:75` | — |
+| `HANDLERS()` | `frontend/src/core/context-menu-handlers:78` | 行为 handler 表（instance + batch + merge file/dir） |
 | `refreshUI()` | `frontend/src/core/context-menu-shared:15` | 通知树组件和统计面板刷新 |
 | `toast()` | `frontend/src/core/context-menu-shared:21` | 显示 toast 通知 |
 | `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:26` | 路径安全过滤：禁止逃逸段（. |

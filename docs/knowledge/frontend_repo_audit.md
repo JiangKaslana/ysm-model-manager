@@ -1,0 +1,101 @@
+---
+kind: frontend_repo_audit
+name: 前端 TS 整包审计
+tier: architecture
+category: ui
+source_files:
+  - frontend/src/
+use_when:
+  - 代码审核
+  - 代码审查
+  - 审计
+  - 前端质量
+  - 技术债
+  - 重构排期
+  - XSS
+  - innerHTML
+---
+
+# 前端 TS 整包审计
+
+## 概览
+
+2026-08-26 按 `.trae/skills/ts-package-review/SKILL.md` 对 `frontend/src/` 全量只读评审（七个子代理并行，排除 vendor）。前置：type-consistency 全一致、binding-check 188/188、check-redlines 仅 Warn 级、typecheck 全绿。总规模 ~66k LOC（源码），加权总分 **4.1/5**。与 Go 侧 `cli_quality_audit`（八轮沉淀）对应的前端版。
+
+## 分目录评分
+
+| 目录 | 分 | 规模 | 一句话结论 |
+|------|----|------|-----------|
+| utils/3d/adapters | 4.2 | 11.0k | PreviewAdapter 统一接口+端口注入；最大债 = MdMmBuildCtx 巨型可变上下文 |
+| utils/3d 其余 | 4.2 | 12.8k | caps 注册表+感知层解耦优秀；model2d.ts 650 行待拆 |
+| backend | 4.5 | 10.1k | ZIP bomb 三重防护、idb FIFO 双上限；web-fs 三函数可抽 idbRekeyGroup |
+| core | 4.0 | 4.0k | menu-defs 声明式唯一事实源；DOM 渗透 core 层是主要问题 |
+| views/app-content | 3.4 | 9.3k | 全仓最低分：perf-cli.ts God Object + dedup.ts 模块级全局竞态隐患 |
+| views/app-tree | 4.0 | 3.1k | data/loader/render 分层干净 |
+| views/app-preview | 4.0 | 6.1k | 三套代际守卫严谨；makeScenePort 与 mmd-3d 重复应抽公共 port |
+| views 其余(nav/sidebar/sync-mgr/toast/context-menu) | 4~5 | 3.0k | app-toast 满分；共性=innerHTML 静态值 esc 口径不一 |
+| utils(除 3d) | 4.0 | 6.3k | esc()/hl() 管线精良；含唯一运行时 bug（short-label.ts） |
+| ui | 4.0 | 2.9k | ui-rows.ts 822 行接近红线 |
+| features | 4.0 | 3.8k | import-executor/download-queue 三层防御严谨；version-updater 无 AbortController |
+| services / wasm / test-utils | 5.0 | 1.3k | 满分区：registry 极简、WASM malloc/free 配对规范 |
+| workers | 4.0 | 0.4k | stats-core 纯函数与 Go 同口径 |
+| web-spike | 3.0 | 0.08k | ADR-049 Phase 0 spike，正式实现已落地，**废弃候选** |
+
+## 真 bug / 高优先级
+
+1. **`utils/resource/short-label.ts:21-22`**：引用 `RESOURCE_TYPES.MOD_MODEL` / `VANILLA_ASSETS`，但 types.ts 中不存在 → computed key 成字面量 `"undefined"` 死代码。修法：补常量或删行。
+2. **`utils/3d/perception/autodance.ts:157`**：`targetRot.multiply(restQuat)` 乘序疑似反了（期望 `restQuat * offset`），可能是静默 bug，需可视化验证。
+3. **`utils/3d/adapters/vrm-bone-ui.ts:107`**：`field()` 内 k/v 未 `esc()`（骨骼名来自模型文件，理论 XSS）。
+
+## 架构债 TOP5
+
+1. mmd-adapter.ts `MdMmBuildCtx` 30+ 可变字段全闭包共享（L179-240）
+2. app-content/perf-cli.ts 534L God Object（趋势图+single-bench+诊断面板三合一）
+3. app-content/dedup.ts 596L 模块级全局 `_dedupBusy/_dedupStrategy` 竞态隐患
+4. model2d.ts 650L（拆 core/render/hit 三件）、ui-rows.ts 822L（按 row 类型拆）
+5. detail-3d.ts 多个 300-350L show 函数
+
+## 共性抽象机会（横向收敛）
+
+- 四个 Worker 同构 id+timeout+pending Map → `createWorkerBridge<Req,Resp>()` 工厂（省 ~150 行）
+- app-preview/app-sidebar/app-sync-manager 三套 generation 守卫实现各异 → 抽 `GenerationGuard`
+- scene-3d makeScenePort 与 mmd-3d 六 binding `as unknown as Record` 绕类型重复 → 抽公共 port（bindings 类型不全的临时方案，生成类型完善后回收）
+- backend web-fs rename/rekey/moveOrCopy 三函数「读→写新→删旧」→ `idbRekeyGroup` 原语
+- sidebar push/pull IIFE 超时守卫 → `withEventTimeout(bus, event, token, ms)`
+- 事件清理三种模式共存（removeEventListener / cloneNode replaceWith hack / addDisposableListener）→ 收敛到显式 removeEventListener
+
+## 治理红线复核结论（check-redlines 11 条 Warn 判定）
+
+| 项 | 判定 |
+|----|------|
+| R5 perf-cli/perf-trace 硬编码颜色 | 豁免（诊断面板） |
+| R7 with-cached DEFAULT_NS="ysm" | 合理（缓存命名空间≠资源类型） |
+| R7 load-trace format 联合类型 / ysm-adapter format:"ysm" | 合理（trace 格式标识≠资源归类） |
+| R8 conflicts.ts:401 | 安全（rowsHtml 已全 esc()） |
+| R8 oldest-models.ts:296/301/304 | 安全（拼接均为 t() i18n 常量，无用户数据） |
+| W1 fbx-parser.worker.ts:38 `[\\/]` | 误报（有意双分隔符正则） |
+
+## 本仓专项合规面
+
+- **ADR-116**：RESOURCE_TYPES 无旁路定义，前端不重算归类，全合规。
+- **Wails 桥**：全部经 getApp()/bindings，零 window.go 直调；core/handlers/android-events.ts 直依赖 @wailsio/runtime Events 是唯一越层点（有注释解释 P1-1 教训）。
+- **core 层 DOM 渗透**：context-menu-handlers clipboard/execCommand、locale.ts documentElement.lang 应下沉 view/utils。
+
+## i18n 缺口（硬编码中文未走 t()）
+
+core/handlers/sync.ts:87、utils/dom/dialogs/adv-filter-util.ts:38-53、features/recycle-bin.ts:124-127。
+
+## 测试缺口
+
+perception 6 控制器无独立测试；caps dispose 未测；dedup/conflicts 无单测；model2d/parse-java-model/stats-core 边界未覆盖。
+
+## 不变量
+
+- 凡进 innerHTML 的变量一律 esc()——含静态注册表值（app-nav gid/label、sidebar data-sync-type 当前未包，低危但口径应统一）。
+- 模块级 let 可变全局需有 reset 路径或注释豁免理由。
+- catch 后静默仅允许在 binding 装配层；其余层至少 warn 留痕。
+
+## 相关
+
+- [cli_quality_audit](cli_quality_audit.md)：Go 侧对应审计卡
+- [3d-patterns](3d-patterns.md)、[backend_web](backend_web.md)

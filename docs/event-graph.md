@@ -84,7 +84,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/context-menu-handlers.ts` | 109 |
+| `frontend/src/core/context-menu-handlers.ts` | 122 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -168,7 +168,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/context-menu-handlers.ts` | 103 |
+| `frontend/src/core/context-menu-handlers.ts` | 115 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -180,7 +180,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/core/context-menu-handlers.ts` | 98 |
+| `frontend/src/core/context-menu-handlers.ts` | 105 |
 
 **订阅方（on）：**
 | 文件 | 行 |
