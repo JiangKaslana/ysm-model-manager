@@ -293,15 +293,15 @@ export async function loadOldestModel(container: HTMLElement, esc: (s: string) =
   const S = '<div style="padding:12px;';
   async function render(): Promise<void> {
     const gen = guard.next();
-    container.innerHTML = S + 'color:var(--muted);font-size:var(--fs-base)">⏳ ' + t("oldest.scanning") + '</div>';
+    container.innerHTML = `<div style="padding:12px;color:var(--muted);font-size:var(--fs-base)">⏳ ${t("oldest.scanning")}</div>`;
     try {
       const { ScanModelEntriesWithLabel, GetRepoRoot } = await getApp();
       const filesRoot = await GetRepoRoot(getCurrentType());
       if (guard.stale(gen)) return;
-      if (!filesRoot) { container.innerHTML = S + 'color:var(--status-error);font-size:var(--fs-base)">' + t("oldest.configTypeDir") + '</div>'; return; }
+      if (!filesRoot) { container.innerHTML = `<div style="padding:12px;color:var(--status-error);font-size:var(--fs-base)">${t("oldest.configTypeDir")}</div>`; return; }
       const entries: ModelEntry[] = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[getCurrentType()] ?? RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
       if (guard.stale(gen)) return;
-      if (!entries || !entries.length) { container.innerHTML = S + 'color:var(--muted);font-size:var(--fs-base)">' + t("oldest.repoEmpty") + '</div>'; return; }
+      if (!entries || !entries.length) { container.innerHTML = `<div style="padding:12px;color:var(--muted);font-size:var(--fs-base)">${t("oldest.repoEmpty")}</div>`; return; }
       const stats = computeRepoStats(entries);
       const heatmapHtml = buildHeatmapHtml(entries, esc);
       const sorted4 = [...entries].filter((e) => Number.isFinite(e.ModTime) && e.ModTime > 0).sort((a, b) => a.ModTime - b.ModTime).slice(0, OLDEST_CARD_COUNT);
