@@ -4,7 +4,7 @@ name: Pointer Events 统一交互（触屏 + 桌面）
 tier: architecture
 category: core
 source_files:
-  - frontend/src/utils/3d/camera-control.ts
+  - frontend/src/utils/3d/adapters/input-and-animation.ts
   - frontend/src/utils/3d/model2d.ts
   - frontend/src/views/app-preview/zoom.ts
   - frontend/src/views/app-preview/skeleton.ts
@@ -33,7 +33,8 @@ use_when:
   - mouseenter
   - 全窗预览
 invariant_anchors:
-  - frontend/src/utils/3d/camera-control.ts|setPointerCapture
+setPointerCapture
+  - frontend/src/utils/3d/adapters/input-and-animation.ts|setPointerCapture
 ---
 
 # Pointer Events 统一交互（触屏 + 桌面）
@@ -44,7 +45,7 @@ ADR-047 核心立项 A：全前端拖拽/缩放/旋转/hover 交互从 mouse 事
 
 ## 核心职责
 
-- **拖拽旋转**（3D/2D 预览）：`pointerdown`（左键 `button===0`）起手 + `setPointerCapture(pointerId)` 捕获，`pointermove` 旋转，`pointerup` 释放捕获——camera-control.ts（3D free 模式，ADR-040 拆分后独立文件）、litematic-3d.ts、zoom.ts、skeleton.ts（model3d.ts 已不含 pointer 逻辑）
+- **拖拽旋转**（3D/2D 预览）：`pointerdown`（左键 `button===0`）起手 + `setPointerCapture(pointerId)` 捕获，`pointermove` 旋转，`pointerup` 释放捕获——input-and-animation.ts（3D 适配层，ADR-040 神桶拆分产物）、litematic-3d.ts、zoom.ts、skeleton.ts（model3d.ts 已不含 pointer 逻辑）
 - **面板 resize**：`pointerdown` 起手 + document 级 `pointermove/up`——app-content/index.ts（预览宽度）、skeleton.ts（3D 面板宽度）
 - **2D hover**（骨骼名高亮）：`pointermove` + `pointerleave`——model2d.ts
 - **菜单 hover**：`pointerenter/pointerleave`（替代 `mouseenter/mouseleave`）——settings/init.ts（扫描 tooltip）、skeleton.ts（截图菜单）、toolbar-events.ts（作者菜单）

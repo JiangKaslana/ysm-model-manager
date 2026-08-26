@@ -1,38 +1,86 @@
 #!/usr/bin/env node
 /**
  * event-graph.mjs — Bus 事件契约守护者。
- * 从 bus.ts 的 BusEvents 接口提取权威事件清单，扫描 frontend/src/ 和 index.html，
- * 报告未声明事件 / 孤儿发射 / 鬼订阅 / 跨行调用。
- * 用法：node scripts/event-graph.mjs [--check] [--json] [--strict]
+ * 从 bus.ts 的 BusEvents 接口提取权威事件清单，扫描 frontend/src/ 和 frontend/*.html，
+ * 报告未声明事件 / 孤儿发射 / 鬼订阅 / **emit 缺参**（非 void 事件未传 payload）/
+ * **void 多传** / **VOID_EVENTS 清单漂移**。
+ *
+ * 2026-08-29 加固（「未传参」审计）：
+ *   - 调用点正则支持可选链（window.bus?.emit）——此前 `?.` 使整行失明，
+ *     实证漂移：index.html 内联 emit("nav:change") 全项目无监听却长期漏检；
+ *   - 新增 emit 实参检查：缺参（missing_payload）/void 多传（void_with_payload）
+ *     在 --strict 下与未声明事件同为硬错误；
+ *   - 新增 VOID_EVENTS 清单 vs BusEvents `: void` 标记双向漂移检测
+ *     （运行时缺参告警靠这份清单，漂移 = 告警失明）。
+ *
+ * 用法：node scripts/event-graph.mjs [--check] [--json] [--strict] [--root <dir>]
+ *   --root 仅供测试 fixture 覆盖仓库根（默认取真实仓库根）。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { getRoot, relPosix } from './_lib/scan-files.mjs';
 
-const ROOT = getRoot();
-const SRC_DIR = path.join(ROOT, 'frontend', 'src');
-const INDEX_HTML = path.join(ROOT, 'frontend', 'index.html');
-const BUS_TS = path.join(SRC_DIR, 'bus.ts');
-const OUT = path.join(ROOT, 'docs', 'event-graph.md');
-const ARGS = new Set(process.argv.slice(2));
+const argv = process.argv.slice(2);
+const ARGS = new Set(argv);
 const CHECK = ARGS.has('--check');
 const JSON_OUT = ARGS.has('--json');
 const STRICT = ARGS.has('--strict');
+/** 测试 fixture 根覆盖（不影响生产默认路径） */
+const EFF_ROOT = (() => {
+  const i = argv.indexOf('--root');
+  return i >= 0 ? path.resolve(argv[i + 1]) : getRoot();
+})();
+const SRC_DIR = path.join(EFF_ROOT, 'frontend', 'src');
+const FE_DIR = path.join(EFF_ROOT, 'frontend');
+const HTML_FILES = fs.existsSync(FE_DIR)
+  ? fs.readdirSync(FE_DIR).filter((f) => f.endsWith('.html')).map((f) => path.join(FE_DIR, f))
+  : [];
+const BUS_TS = path.join(SRC_DIR, 'bus.ts');
+const OUT = path.join(EFF_ROOT, 'docs', 'event-graph.md');
 
-function readBusEvents() {
+/* ---------------- bus.ts 契约解析 ---------------- */
+
+/**
+ * 解析 BusEvents 接口 + VOID_EVENTS 清单。
+ * 返回 { names:Set, voidDeclarations:Set, voidListed:string[] }。
+ * 类型可能是跨行对象字面量（如 import:history-changed），按顶层分号切语句解析。
+ */
+function readBusContract() {
   const text = fs.readFileSync(BUS_TS, 'utf-8');
-  const events = new Set();
-  const re = /"([^"]+)"\s*:/g;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    const ev = m[1];
-    const lineStart = text.lastIndexOf('\n', m.index) + 1;
-    const line = text.slice(lineStart, text.indexOf('\n', m.index)).trim();
-    if (line.startsWith('//') || line.startsWith('*') || line.startsWith('-')) continue;
-    events.add(ev);
+  const ifaceAt = text.indexOf('interface BusEvents');
+  if (ifaceAt === -1) { console.error('❌ bus.ts 中未找到 interface BusEvents'); process.exit(1); }
+  const braceOpen = text.indexOf('{', ifaceAt);
+  let depth = 0, end = -1;
+  for (let i = braceOpen; i < text.length; i++) {
+    if (text[i] === '{') depth++;
+    else if (text[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
   }
-  return events;
+  const body = text.slice(braceOpen + 1, end);
+  const names = new Set();
+  const voidDeclarations = new Set();
+  let cur = '', d = 0;
+  const flush = () => {
+    const st = cur; cur = '';
+    const m = st.match(/\s*"([^"]+)"\s*:\s*([\s\S]*)/);
+    if (!m) return;
+    names.add(m[1]);
+    if (/^void\b/.test(m[2].trim())) voidDeclarations.add(m[1]);
+  };
+  for (const ch of body) {
+    if (ch === '{' || ch === '[' || ch === '(') d++;
+    else if (ch === '}' || ch === ']' || ch === ')') { if (d === 0) break; d--; }
+    if (ch === ';' && d === 0) { flush(); continue; }
+    cur += ch;
+  }
+  flush();
+  // VOID_EVENTS 字面量清单（运行时 isVoidEvent 的权威来源，必须与 : void 标记同步）
+  const listAt = text.indexOf('VOID_EVENTS');
+  const listBody = listAt === -1 ? '' : text.slice(listAt, text.indexOf(']', listAt) + 1);
+  const voidListed = [...listBody.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  return { names, voidDeclarations, voidListed };
 }
+
+/* ---------------- 源码扫描 ---------------- */
 
 function stripNoise(text) {
   return text
@@ -57,61 +105,139 @@ function collectSrcFiles() {
   return files;
 }
 
-function scanFiles(files, includeHtml) {
+/** 方法调用点：接收者后允许可选链（bus.emit / window.bus?.emit 均可命中） */
+const CALL_LINE_RE = /(?:^|[^A-Za-z0-9_$])([A-Za-z_$][\w$]*)\s*\??\.\s*(emit|on|once|off)\s*\(\s*['"]([^'"]+)['"]/g;
+const CALL_TAIL_RE = /\.((?:emit|on|once|off)\s*\(\s*)$/;
+const CALL_PARENT_RE = /([A-Za-z_$][\w$]*)\s*\??\.\s*(emit|on|once|off)$/;
+
+/** bus 接收者的 emit 全局扫描（实参契约只对 bus 有定义；自定义 emitter 不误伤） */
+const BUS_EMIT_RE = /\bbus\s*\??\.\s*emit\s*\(/g;
+
+/** 从左括号下一字符起提取平衡实参段；字符串内容不参与配对。返回段数组或 null */
+function extractArgs(src, openParen) {
+  let d = 0, i = openParen + 1;
+  const n = src.length;
+  let cur = '';
+  const parts = [];
+  while (i < n) {
+    const c = src[i];
+    if (c === "'" || c === '"' || c === '`') {
+      const q = c;
+      cur += c; i++;
+      while (i < n && src[i] !== q) {
+        if (src[i] === '\\') { cur += src[i] + (src[i + 1] ?? ''); i += 2; continue; }
+        cur += src[i]; i++;
+      }
+      cur += q; i++;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') d++;
+    else if (c === ')' || c === ']' || c === '}') {
+      if (d === 0 && c === ')') { parts.push(cur); return parts; }
+      d--;
+    }
+    if (c === ',' && d === 0) { parts.push(cur); cur = ''; i++; continue; }
+    cur += c; i++;
+  }
+  return null; // 括号不平衡（跨模板拼接等），交由编译期兜底
+}
+
+function scanFiles(files, includeHtml, contract, arityIssues) {
   const eventMap = new Map();
   function add(event, method, file, line) {
     if (!eventMap.has(event)) eventMap.set(event, { emit: [], on: [], once: [], off: [] });
     eventMap.get(event)[method].push({ file, line });
   }
+  /** 顶层非空段计数 */
+  const argcOf = (args) => args.map((s) => s.trim()).filter(Boolean).length;
   function scanFile(filePath, rel) {
     const text = stripNoise(fs.readFileSync(filePath, 'utf-8'));
     const lines = text.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const lineRe = /(?:^|[^A-Za-z0-9_$])([A-Za-z_$][\w$]*)\.(emit|on|once|off)\s*\(\s*['"]([^'"]+)['"]/g;
       let m;
+      const lineRe = new RegExp(CALL_LINE_RE.source, 'g');
       while ((m = lineRe.exec(line)) !== null) add(m[3], m[2], rel, i + 1);
-      if (/\.((?:emit|on|once|off)\s*\(\s*)$/.test(line.trimEnd())) {
+      if (CALL_TAIL_RE.test(line.trimEnd())) {
         if (i + 1 < lines.length) {
           const next = lines[i + 1].trimStart();
           const crossM = next.match(/^(['"])([^'"]+)\1/);
           if (crossM) {
-            const parentM = line.match(/([A-Za-z_$][\w$]*)\.(emit|on|once|off)$/);
+            const parentM = line.match(CALL_PARENT_RE);
             if (parentM) add(crossM[2], parentM[2], rel, i + 1);
           }
         }
       }
     }
+    // emit 实参契约（仅 bus 接收者；偏移法支持跨行调用）
+    let e;
+    const emitRe = new RegExp(BUS_EMIT_RE.source, 'g');
+    while ((e = emitRe.exec(text)) !== null) {
+      const openParen = e.index + e[0].length - 1;
+      const args = extractArgs(text, openParen);
+      if (!args) continue;
+      const nameM = (args[0] ?? '').trim().match(/^["'`]([^"'`]*)["'`]$/);
+      if (!nameM) continue; // 非字面量事件名：类型表已约束，不在此重复
+      const event = nameM[1];
+      if (!contract.names.has(event)) continue; // 未声明事件归 undeclared 管
+      const isVoid = contract.voidDeclarations.has(event);
+      const argc = argcOf(args); // argc 含事件名实参：typed 合法 ≥2；void 合法 ==1
+      const line = text.slice(0, e.index).split('\n').length;
+      if (!isVoid && argc < 2) arityIssues.push({ type: 'missing_payload', event, file: rel, line });
+      else if (isVoid && argc > 1) arityIssues.push({ type: 'void_with_payload', event, file: rel, line });
+    }
   }
   for (const f of files) scanFile(f, relPosix(f));
-  if (includeHtml && fs.existsSync(INDEX_HTML)) scanFile(INDEX_HTML, relPosix(INDEX_HTML));
+  if (includeHtml) for (const f of HTML_FILES) scanFile(f, relPosix(f));
   return { eventMap };
 }
 
-function checkContract(eventMap, declaredEvents) {
+function checkContract(eventMap, contract, arityIssues) {
   const undeclared = [], orphans = [], ghosts = [];
   for (const [ev, d] of eventMap) {
-    if (!declaredEvents.has(ev) && !undeclared.includes(ev)) undeclared.push(ev);
+    if (!contract.names.has(ev) && !undeclared.includes(ev)) undeclared.push(ev);
     if (d.emit.length > 0 && d.on.length === 0 && d.once.length === 0 && !orphans.includes(ev)) orphans.push(ev);
     if ((d.on.length > 0 || d.once.length > 0) && d.emit.length === 0 && !ghosts.includes(ev)) ghosts.push(ev);
   }
-  return { undeclared, orphans, ghosts };
+  // VOID_EVENTS 清单双向漂移（漏登记 → 运行时缺参告警失明；误登记 → 对非 void 放行缺参）
+  const voidDrift = [];
+  for (const ev of contract.voidDeclarations)
+    if (!contract.voidListed.includes(ev)) voidDrift.push({ event: ev, detail: 'BusEvents 标记 void 但未登记进 VOID_EVENTS' });
+  for (const ev of contract.voidListed)
+    if (!contract.voidDeclarations.has(ev)) voidDrift.push({ event: ev, detail: 'VOID_EVENTS 登记了非 void 事件' });
+  return { undeclared, orphans, ghosts, arityIssues, voidDrift };
 }
+
+/* ---------------- 报告渲染 ---------------- */
 
 function renderMarkdown(eventMap, anomalies) {
   const out = [];
   out.push('# Bus 事件契约报告');
   out.push('');
   out.push('> **自动生成** — 由 `scripts/event-graph.mjs` 生成。');
-  out.push('> 基于 `frontend/src/bus.ts` 的 `BusEvents` 接口校验所有调用方。');
+  out.push('> 基于 `frontend/src/bus.ts` 的 `BusEvents` 接口校验所有调用方（含 html 内联、可选链调用）。');
   out.push('');
-  if (anomalies.undeclared.length || anomalies.orphans.length || anomalies.ghosts.length) {
-    out.push('## \u26a0\ufe0f 异常摘要');
+  const hasHard = anomalies.undeclared.length || anomalies.arityIssues.length || anomalies.voidDrift.length;
+  const hasSoft = anomalies.orphans.length || anomalies.ghosts.length;
+  if (hasHard || hasSoft) {
+    out.push('## ⚠️ 异常摘要');
     out.push('');
     if (anomalies.undeclared.length) {
       out.push('### 未声明事件（不在 BusEvents 中，可能是 typo 或漏声明）');
       out.push('');
       for (const ev of anomalies.undeclared) { const d = eventMap.get(ev); out.push(`- \`${ev}\` — emit×${d.emit.length} on×${d.on.length}`); }
+      out.push('');
+    }
+    if (anomalies.arityIssues.length) {
+      out.push('### emit 实参违约（硬错误）');
+      out.push('');
+      for (const a of anomalies.arityIssues) out.push(`- \`${a.event}\` ${a.type} — \`${a.file}:${a.line}\``);
+      out.push('');
+    }
+    if (anomalies.voidDrift.length) {
+      out.push('### VOID_EVENTS 清单漂移（硬错误）');
+      out.push('');
+      for (const v of anomalies.voidDrift) out.push(`- \`${v.event}\` — ${v.detail}`);
       out.push('');
     }
     if (anomalies.orphans.length) {
@@ -127,9 +253,9 @@ function renderMarkdown(eventMap, anomalies) {
       out.push('');
     }
   } else {
-    out.push('## \u2705 无异常');
+    out.push('## ✅ 无异常');
     out.push('');
-    out.push("所有调用均在 BusEvents 契约内，无孤儿发射 / 鬼订阅 / 未声明事件。");
+    out.push("所有调用均在 BusEvents 契约内，无孤儿发射 / 鬼订阅 / 未声明事件 / 缺参。");
     out.push('');
   }
   const events = [...eventMap.keys()].sort();
@@ -139,10 +265,11 @@ function renderMarkdown(eventMap, anomalies) {
   out.push('|------|--------|--------|-----------|--------|------|');
   for (const ev of events) {
     const d = eventMap.get(ev);
-    let status = "\u2705";
-    if (anomalies.undeclared.includes(ev)) status = "\u26a0\ufe0f 未声明";
-    else if (d.emit.length > 0 && d.on.length === 0 && d.once.length === 0) status = "\ud83d\udd07 孤儿发射";
-    else if (d.emit.length === 0 && (d.on.length > 0 || d.once.length > 0)) status = "\ud83d\udc7b 鬼订阅";
+    let status = "✅";
+    if (anomalies.undeclared.includes(ev)) status = "⚠️ 未声明";
+    else if (anomalies.arityIssues.some((a) => a.event === ev)) status = "⛔ 实参违约";
+    else if (d.emit.length > 0 && d.on.length === 0 && d.once.length === 0) status = "🔇 孤儿发射";
+    else if (d.emit.length === 0 && (d.on.length > 0 || d.once.length > 0)) status = "👻 鬼订阅";
     out.push(`| \`${ev}\` | ${d.emit.length} | ${d.on.length} | ${d.once.length} | ${d.off.length} | ${status} |`);
   }
   out.push('');
@@ -173,68 +300,96 @@ function renderJSON(eventMap, anomalies) {
     };
   }
   return JSON.stringify({
-    _summary: { events: events.length, undeclared: anomalies.undeclared, orphans: anomalies.orphans, ghosts: anomalies.ghosts },
+    _summary: {
+      events: events.length,
+      undeclared: anomalies.undeclared,
+      orphans: anomalies.orphans,
+      ghosts: anomalies.ghosts,
+      arityIssues: anomalies.arityIssues,
+      voidDrift: anomalies.voidDrift,
+    },
     events: data,
   }, null, 2);
 }
 
 function printAnomalyReport(anomalies) {
-  if (!anomalies.undeclared.length && !anomalies.orphans.length && !anomalies.ghosts.length) {
-    console.warn("[event-graph] \u2705 无异常");
+  if (!anomalies.undeclared.length && !anomalies.orphans.length && !anomalies.ghosts.length
+    && !anomalies.arityIssues.length && !anomalies.voidDrift.length) {
+    console.warn("[event-graph] ✅ 无异常");
     return;
   }
   console.warn('');
-  console.warn('\u2550'.repeat(37));
+  console.warn('═'.repeat(37));
   console.warn(' Bus 事件契约检查报告');
-  console.warn('\u2550'.repeat(37));
+  console.warn('═'.repeat(37));
   if (anomalies.undeclared.length) {
-    console.warn('\u26a0\ufe0f  未声明事件（需审查是否 typo 或漏声明）：');
+    console.warn('⚠️  未声明事件（需审查是否 typo 或漏声明）：');
     for (const ev of anomalies.undeclared) console.warn(`   ${ev}`);
   }
+  if (anomalies.arityIssues.length) {
+    console.warn('⛔ emit 实参违约：');
+    for (const a of anomalies.arityIssues) console.warn(`   ${a.type} ${a.event} @ ${a.file}:${a.line}`);
+  }
+  if (anomalies.voidDrift.length) {
+    console.warn('⛔ VOID_EVENTS 清单漂移：');
+    for (const v of anomalies.voidDrift) console.warn(`   ${v.event} — ${v.detail}`);
+  }
   if (anomalies.orphans.length) {
-    console.warn('\ud83d\udd07 孤儿发射（emit 无 on/once）：');
+    console.warn('🔇 孤儿发射（emit 无 on/once）：');
     for (const ev of anomalies.orphans) console.warn(`   ${ev}`);
   }
   if (anomalies.ghosts.length) {
-    console.warn('\ud83d\udc7b 鬼订阅（on/once 无 emit）：');
+    console.warn('👻 鬼订阅（on/once 无 emit）：');
     for (const ev of anomalies.ghosts) console.warn(`   ${ev}`);
   }
-  console.warn('\u2550'.repeat(37));
-  console.warn("说明：未声明事件是硬错误（建议修复）；孤儿/鬼订阅可能是有意设计，仅作记录。--strict 会把未声明事件升级为 exit(1)。");
+  console.warn('─'.repeat(37));
+  console.warn("说明：未声明/实参违约/清单漂移是硬错误；孤儿/鬼订阅可能是有意设计，仅作记录。");
 }
 
+/* ---------------- 主流程 ---------------- */
+
 function main() {
-  if (!fs.existsSync(BUS_TS)) { console.error('\u274c frontend/src/bus.ts 不存在'); process.exit(1); }
-  if (!fs.existsSync(SRC_DIR)) { console.error('\u274c frontend/src 不存在'); process.exit(1); }
-  const declaredEvents = readBusEvents();
-  console.warn(`[event-graph] BusEvents 权威清单：${declaredEvents.size} 个事件`);
+  if (!fs.existsSync(BUS_TS)) { console.error('❌ frontend/src/bus.ts 不存在'); process.exit(1); }
+  if (!fs.existsSync(SRC_DIR)) { console.error('❌ frontend/src 不存在'); process.exit(1); }
+  const contract = readBusContract();
+  console.warn(`[event-graph] BusEvents 权威清单：${contract.names.size} 个事件`);
   const files = collectSrcFiles();
   console.warn(`[event-graph] 扫描源码文件：${files.length} 个`);
-  const { eventMap } = scanFiles(files, true);
+  const arityIssues = [];
+  const { eventMap } = scanFiles(files, true, contract, arityIssues);
   console.warn(`[event-graph] 扫描到事件：${eventMap.size} 个`);
-  const anomalies = checkContract(eventMap, declaredEvents);
-  console.warn(`[event-graph] 异常：未声明 ${anomalies.undeclared.length}，孤儿发射 ${anomalies.orphans.length}，鬼订阅 ${anomalies.ghosts.length}`);
-  if (STRICT && anomalies.undeclared.length > 0) {
+  const anomalies = checkContract(eventMap, contract, arityIssues);
+  console.warn(`[event-graph] 异常：未声明 ${anomalies.undeclared.length}，实参违约 ${anomalies.arityIssues.length}，清单漂移 ${anomalies.voidDrift.length}，孤儿发射 ${anomalies.orphans.length}，鬼订阅 ${anomalies.ghosts.length}`);
+  const hardFailures = anomalies.undeclared.length + anomalies.arityIssues.length + anomalies.voidDrift.length;
+  // JSON 先行：机器消费方（doctor/CI/测试）无论成败都拿得到结构化报告
+  if (JSON_OUT) {
+    console.log(renderJSON(eventMap, anomalies));
+    if (STRICT && hardFailures > 0) process.exit(1);
+    return;
+  }
+  if (STRICT && hardFailures > 0) {
     console.error('');
-    console.error('\u274c --strict 下发现未声明事件，阻断退出：');
-    for (const ev of anomalies.undeclared) console.error(`  ${ev}`);
+    console.error('❌ --strict 下发现硬错误，阻断退出：');
+    for (const ev of anomalies.undeclared) console.error(`  未声明事件 ${ev}`);
+    for (const a of anomalies.arityIssues) console.error(`  ${a.type} ${a.event} @ ${a.file}:${a.line}`);
+    for (const v of anomalies.voidDrift) console.error(`  清单漂移 ${v.event} — ${v.detail}`);
     process.exit(1);
   }
-  if (JSON_OUT) { console.log(renderJSON(eventMap, anomalies)); return; }
   if (CHECK) {
     const existing = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf-8') : '';
     const md = renderMarkdown(eventMap, anomalies);
     if (existing !== md) {
-      console.error('\u274c docs/event-graph.md 过期，运行 `node scripts/event-graph.mjs` 刷新。');
+      console.error('❌ docs/event-graph.md 过期，运行 `node scripts/event-graph.mjs` 刷新。');
       printAnomalyReport(anomalies);
       process.exit(1);
     }
-    console.log('\u2705 docs/event-graph.md 最新。');
+    console.log('✅ docs/event-graph.md 最新。');
     printAnomalyReport(anomalies);
     return;
   }
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, renderMarkdown(eventMap, anomalies), 'utf-8');
-  console.log(`\ud83d\udce6 已写入 ${OUT}（${eventMap.size} 个事件）`);
+  console.log(`📥 已写入 ${OUT}（${eventMap.size} 个事件）`);
   printAnomalyReport(anomalies);
 }
 main();

@@ -206,6 +206,9 @@ const FRONTEND_STATIC_TOOLS = [
   { tool: 'auto-import.mjs', args: ['--strict'] },
   { tool: 'i18n-check.mjs', args: ['--strict'] },
   'i18n-ui-check.mjs',
+  // Bus 事件契约硬闸（2026-08-29）：可选链盲区修复后升级——未声明/emit 缺参/
+  // VOID_EVENTS 清单漂移在 --strict 下阻断；孤儿/鬼订阅仅记录不阻断
+  { tool: 'event-graph.mjs', args: ['--strict'] },
 ];
 
 /** push 模式按变更域补挂的 Go 静态工具 */
