@@ -504,7 +504,7 @@
 | `frontend/src/features/version-updater.ts` | 248 |
 | `frontend/src/features/version-updater.ts` | 258 |
 | `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 384 |
-| `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 848 |
+| `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 823 |
 | `frontend/src/utils/3d/adapters/switch-preview.ts` | 135 |
 | `frontend/src/utils/3d/adapters/switch-preview.ts` | 225 |
 | `frontend/src/utils/dom/dialogs/batch-rename.ts` | 101 |
