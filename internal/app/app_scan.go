@@ -234,7 +234,7 @@ func (a *App) SearchAllModels(allRoots map[string]string, keyword string, minBon
 	sort.Strings(rtypes)
 	for _, rtype := range rtypes {
 		root := allRoots[rtype]
-		entries := a.ScanModelEntries(root)
+		entries := a.scanModelEntries(root)
 		for _, e := range entries {
 			all = append(all, typedEntry{entry: e, rtype: rtype})
 		}
