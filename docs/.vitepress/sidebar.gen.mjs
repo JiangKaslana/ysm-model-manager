@@ -1295,6 +1295,10 @@ export const autoSidebar = [
       {
         "text": "YSM 模型管理器 — 代码质量审计报告",
         "link": "/audit/audit-report-2026-08-06"
+      },
+      {
+        "text": "YSM Model Manager — Backend 层审核报告",
+        "link": "/audit/backend-audit-report"
       }
     ]
   },
