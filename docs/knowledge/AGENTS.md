@@ -24,6 +24,7 @@ source_files:                # 必须真实存在于磁盘；仓库相对 POSIX 
 use_when:                    # 用户自然语言关键词
   - 事件
   - 事件总线
+affected: false              # 可选，仅接受 false：快照/报告型卡（如整包审计）退出 --affected 匹配——source_files 只服务覆盖率统计，不随单次文件变更提示复核
 perf:                        # 可选，性能画像标签（受控词表 = scripts/_lib/knowledge-cards.mjs PERF_TAGS）
   - cpu-bound                # 词表：cpu-bound|io-bound|gpu-bound|concurrent|single-thread|memory-heavy
 ---

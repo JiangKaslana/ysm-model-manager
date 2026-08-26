@@ -3,6 +3,7 @@ kind: frontend_repo_audit
 name: 前端 TS 整包审计
 tier: architecture
 category: ui
+affected: false            # 整包审计快照卡：source_files 只服务覆盖率统计，不随单次文件变更提示复核
 source_files:
   - frontend/src/
 use_when:

@@ -22,6 +22,7 @@
  *   node scripts/check-knowledge-drift.mjs --json           # JSON（CI 用，doctor --docs 调用）
  *   node scripts/check-knowledge-drift.mjs --affected <f>…  # 主动：源码变更即列出受影响知识卡（治未病）
  *     # 常与 git 联动：git diff --name-only | xargs -I{} node scripts/check-knowledge-drift.mjs --affected {}
+ *     # 卡 frontmatter 声明 affected: false（快照/报告型卡）→ 不参与匹配，source_files 只服务覆盖率统计
  *
  * 退出码：发现 ERROR → 1；否则 0（WARN 不阻断；--affected 恒为 0）。
  * 设计意图：知识卡漂移检查（与代码现实比对）+ 源码变更主动防御。
@@ -358,11 +359,14 @@ function runAffected(changed) {
   }
   if (!fs.existsSync(KC_DIR)) process.exit(0);
   // 建立 卡片 → source_files 索引
+  // affected: false（快照/报告型卡，如整包审计）→ 退出 affected 匹配：
+  // 其 source_files 只服务覆盖率统计，不随单次文件变更提示复核
   const index = [];
   for (const cf of fs.readdirSync(KC_DIR).filter((f) => f.endsWith('.md') && !/^(readme|agents)\.md$/i.test(f))) {
     const text = fs.readFileSync(path.join(KC_DIR, cf), 'utf8');
     const fm = parseFrontmatter(text);
     if (!fm) continue;
+    if (getScalar(fm, 'affected') === 'false') continue;
     const sources = parseSourceFiles(fm).map((s) => toPosix(s));
     if (sources.length) index.push({ card: cf.replace(/\.md$/, ''), sources });
   }
