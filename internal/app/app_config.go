@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/sync"
 	"ysm-model-manager/go/types"
 	"ysm-model-manager/go/updater"
@@ -88,7 +89,9 @@ func migrateLegacyConfig() {
 			println("[migrate] 迁移目录创建失败:", err.Error())
 			return
 		}
-		if err := os.WriteFile(newPath, data, 0o644); err != nil {
+		// 原子写入（ADR-109 §4，与 saveConfig 同口径）：裸 os.WriteFile 中途崩溃会留下
+		// 截断 JSON，上方「新位置已存在即跳过」守卫会让损坏配置永久阻断重迁移
+		if err := fsutil.WriteFileAtomic(newPath, data); err != nil {
 			println("[migrate] 迁移写盘失败:", err.Error())
 			return
 		}
