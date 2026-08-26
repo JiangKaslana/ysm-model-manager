@@ -244,6 +244,7 @@ async function main() {
   let plan;
   let domainSummary = '';
   let byDomain = {};
+  let files = []; // 本次变更文件集（--files / push 模式填充；--all / --docs 保持为空）
 
   if (allMode) {
     // —— 全量模式：所有域 + 静态工具（等价 doctor 默认全量）——
@@ -260,7 +261,7 @@ async function main() {
   } else if (filesMode) {
     // —— 文件驱动模式（commit-with-check 调用）：按 staged files 真按域裁剪 ——
     const filesRaw = process.argv[filesIdx + 1] || '';
-    const files = filesRaw ? filesRaw.split('\n').filter(Boolean) : [];
+    files = filesRaw ? filesRaw.split('\n').filter(Boolean) : [];
     if (!files.length) {
       console.log('用法: node scripts/pre-push-gate.mjs --files "<file1>\\n<file2>..." [--dry-run]');
       return 2;
@@ -313,7 +314,7 @@ async function main() {
       console.log(`${B.SKIP} 无有效推送 ref（均为删除/空 oid），跳过`);
       return 0;
     }
-    const files = [...fileSet];
+    files = [...fileSet];
     plan = planFromFiles(files);
     for (const f of files) (byDomain[classify(f)] = byDomain[classify(f)] || []).push(f);
 
@@ -522,7 +523,7 @@ async function main() {
     // check-redlines——仅「变更文件内」的违规计入新增阻断，仓库内其他文件既有债务
     // 不干扰当前提交（否则只改 Go/文档会被未提交 frontend 存量新增红线卡住）。
     // --all / --docs 模式 files 为空、不传 --files → 全库基线比对，向后兼容。
-    const filesArg = filesMode || (!allMode && !docsMode && files?.length)
+    const filesArg = (filesMode || (!allMode && !docsMode)) && files.length
       ? ` --files ${shq(files.join('\n'))}`
       : '';
     const rl = sh(`node scripts/check-redlines.mjs --json --baseline${filesArg}`);
