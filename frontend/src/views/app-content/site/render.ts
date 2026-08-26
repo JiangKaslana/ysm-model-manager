@@ -124,232 +124,267 @@ export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement 
   return card;
 }
 
+/** 搜索词分区：模式切换按钮 + 预设搜索按钮。无 preset 时返回空串（由主函数按条件跳过）。 */
+function buildSiteSearchSection(ctx: BuildSiteHtmlCtx): string {
+  const { esc, site, browseMode } = ctx;
+  return (
+    '<div class="cr-section">' +
+    '<span class="cr-section-title-lg">' + t("content.webSearchTerms") + "</span>" +
+    '<span class="cr-section-sub">(' +
+    site.presetSearches!.length +
+    ")</span>" +
+    '<span class="cr-section-fill"></span>' +
+    '<button id="cr-mode-toggle" class="cr-mode-switch">' +
+    '<span class="cr-mode-opt cr-mode-ext' + (browseMode.v === 'external' ? ' active' : '') + '" data-mode="external" title="' + t("content.modeExternal") + '">' + t("content.modeExternal") + "</span>" +
+    '<span class="cr-mode-opt cr-mode-emb' + (browseMode.v === 'embed' ? ' active' : '') + '" data-mode="embed" title="' + t("content.modeEmbed") + '">' + t("content.modeEmbed") + "</span>" +
+    '<span class="cr-mode-opt cr-mode-win' + (browseMode.v === 'window' ? ' active' : '') + '" data-mode="window" title="' + t("content.modeWindow") + '">' + t("content.modeWindow") + "</span>" +
+    "</button>" +
+    "</div>" +
+    '<div class="cr-preset-area">' +
+    site.presetSearches!
+      .map(
+        (ps, i) =>
+          '<button class="cr-preset-btn" style="animation-delay:' + stagger(i, 25, 300) + 'ms" data-q="' +
+          esc(ps.q || ps.label) +
+          '">' +
+          esc(ps.label) +
+          "</button>",
+      )
+      .join("") +
+    "</div>"
+  );
+}
+
+/** 收藏置顶排序（就地修改 ctx.creators 共享数组，副作用原样保留）。 */
+function sortCreatorsFavedFirst(
+  creators: LocalCreatorLike[],
+  authorCountMap: Record<string, number>,
+): void {
+  const faved = loadFavs();
+  creators.sort((a, b) => {
+    const af = faved.includes(a.name) ? 1 : 0;
+    const bf = faved.includes(b.name) ? 1 : 0;
+    if (af !== bf) return bf - af;
+    return (authorCountMap[b.name] || 0) - (authorCountMap[a.name] || 0);
+  });
+}
+
+/** 分类标签过滤按钮行：固定 全部/creator/official + 动态角色标签。 */
+function buildSiteTagFilterRow(ctx: BuildSiteHtmlCtx): string {
+  const { esc, creators, activeTag } = ctx;
+  const tagSet = new Set<string>();
+  creators.forEach((cr) => {
+    const tag = getTagFromRole(cr.role);
+    if (tag) tagSet.add(tag);
+  });
+  const tags = [...tagSet];
+  return (
+    '<div class="cr-tag-filter-row">' +
+      '<button class="cr-tag-filter-btn' + (activeTag ? '' : ' active') + '" style="animation-delay:0ms" data-tag="">' + t("content.filterAll") + "</button>" +
+      '<button class="cr-tag-filter-btn' + (activeTag === 'creator' ? ' active' : '') + '" style="animation-delay:30ms" data-tag="creator">' + t("content.filterCreator") + "</button>" +
+      '<button class="cr-tag-filter-btn' + (activeTag === 'official' ? ' active' : '') + '" style="animation-delay:60ms" data-tag="official">' + t("content.filterOfficial") + "</button>" +
+      tags
+        .filter((tag) => tag !== "creator" && tag !== "official")
+        .map(
+          (tag, i) =>
+            '<button class="cr-tag-filter-btn' + (activeTag === tag ? ' active' : '') + '" style="animation-delay:' + stagger(i + 3, 30, 300) + 'ms" data-tag="' +
+            esc(tag) +
+            '">' +
+            getTagIconFromRole(tag) +
+            " <span>" +
+            esc(tag) +
+            "</span>" +
+            "</button>",
+        )
+        .join("") +
+      "</div>"
+  );
+}
+
+/** 创作者浏览区：标题栏 + 收藏置顶 + 标签行 + grid / 空态。 */
+function buildSiteBrowseSection(ctx: BuildSiteHtmlCtx): string {
+  const { esc, creators, authorCountMap } = ctx;
+  const parts: string[] = [];
+  // 标题栏始终显示，确保「更新配置」按钮可点击
+  parts.push(
+    '<div class="cr-section cr-section-wrap">' +
+    '<span class="cr-section-title-lg">' + t("content.activeCreators") + "</span>" +
+    '<span class="cr-section-sub" id="ws-cr-count">(' +
+    creators.length +
+    ")</span>" +
+    '<input type="text" id="ws-cr-search" class="cr-search-input" placeholder="' + t("content.searchCreatorPlaceholder") + '" value="' + esc(ctx.searchKw) + '">' +
+    '<span class="cr-section-fill"></span>' +
+    '<button class="cr-fetch-btn" title="' + t("content.fetchConfigTitle") + '">' + t("content.fetchConfig") + "</button>" +
+    (ctx.viewerMode ? "" : '<button class="cr-edit-btn">' + t("content.edit") + "</button>") +
+    "</div>",
+  );
+  if (creators.length) {
+    // 收藏置顶
+    sortCreatorsFavedFirst(creators, authorCountMap);
+    parts.push(buildSiteTagFilterRow(ctx));
+    parts.push(
+      '<div class="cr-creator-grid" id="cr-creator-grid"></div>',
+    );
+  } else {
+    parts.push(
+      '<div class="cr-empty-site">' + t("content.emptyCreators") +
+      '<br><br><button class="cr-local-btn" data-local-empty>' + t("content.browseLocalModels") + "</button></div>",
+    );
+  }
+  return parts.join("");
+}
+
+/** 搜索词编辑卡列表 + 新增区（空 preset 也渲染，让用户能新增）。 */
+function buildSitePresetEditCards(ctx: BuildSiteHtmlCtx): string {
+  const { esc, site } = ctx;
+  let html =
+    '<div class="cr-section">' +
+    '<span class="cr-section-title-lg">' + t("content.searchTerms") + "</span>" +
+    "</div>";
+  (site.presetSearches || []).forEach((ps, idx) => {
+    html +=
+      '<div class="cr-edit-card" draggable="false" data-edit="preset" data-edit-idx="' +
+        idx +
+        '">' +
+        '<div class="cr-edit-card-head">' +
+        '<span class="cr-drag-handle">⠿</span>' +
+        '<span class="cr-preset-icon">🔍</span>' +
+        '<input data-idx="' +
+        idx +
+        '" data-fld="label" value="' +
+        esc(ps.label) +
+        '" class="cr-input cr-input-name" placeholder="' + t("content.searchKeywordPlaceholder") + '">' +
+        '<button data-idx="' +
+        idx +
+        '" class="cr-btn-icon cr-order-up" title="' + t("content.moveUp") + '">↑</button>' +
+        '<button data-idx="' +
+        idx +
+        '" class="cr-btn-icon cr-order-down" title="' + t("content.moveDown") + '">↓</button>' +
+        '<button data-idx="' +
+        idx +
+        '" class="cr-btn-icon cr-del-preset" title="' + t("content.delete") + '">🗑️</button>' +
+        "</div>" +
+        "</div>";
+  });
+  html +=
+    '<div class="cr-add-area">' +
+      '<button class="cr-add-preset">' + t("content.addSearchTerm") + "</button>" +
+      "</div>";
+  return html;
+}
+
+/** 创作者编辑区：保存/取消/dropzone + 各创作者编辑卡 + 新增区。 */
+function buildSiteCreatorEditCards(ctx: BuildSiteHtmlCtx): string {
+  const { esc, creators, allSites } = ctx;
+  let html =
+    '<div class="cr-section">' +
+    '<span class="cr-section-title-lg">' + t("content.editCreators") + "</span>" +
+    '<span class="cr-section-fill"></span>' +
+    '<button class="cr-save-btn cr-action-btn-accent">' + t("content.save") + "</button>" +
+    '<button class="cr-cancel-btn">' + t("common.cancel") + "</button>" +
+    "</div>" +
+    '<div class="cr-drop-zone" id="cr-drop-zone">' +
+      '<span class="cr-drop-icon">📥</span>' +
+      '<span class="cr-drop-text">' + t("content.dropZoneHint") + "</span>" +
+    "</div>";
+  creators.forEach((cr, idx) => {
+    const roleEmoji = getTagIconFromRole(cr.role);
+    html +=
+      '<div class="cr-edit-card" draggable="false" data-edit-idx="' +
+        idx +
+        '">' +
+        '<div class="cr-edit-card-head">' +
+        '<span class="cr-drag-handle">⠿</span>' +
+        '<span class="cr-edit-card-avatar">' +
+        roleEmoji +
+        "</span>" +
+        '<input data-idx="' +
+        idx +
+        '" data-fld="name" value="' +
+        esc(cr.name) +
+        '" class="cr-input cr-input-name" placeholder="' + t("content.namePlaceholder") + '">' +
+        '<button data-idx="' +
+        idx +
+        '" class="cr-btn-icon cr-del" title="' + t("content.delete") + '">🗑️</button>' +
+        "</div>" +
+        '<div class="cr-edit-card-body">' +
+        '<div class="cr-edit-card-row">' +
+        '<span class="cr-edit-label">' + t("content.labelDesc") + "</span>" +
+        '<input data-idx="' +
+        idx +
+        '" data-fld="desc" value="' +
+        esc(cr.desc) +
+        '" class="cr-input cr-input-desc" placeholder="' + t("content.descPlaceholder") + '">' +
+        "</div>" +
+        '<div class="cr-edit-card-row">' +
+        '<span class="cr-edit-label">' + t("content.labelPlatform") + "</span>" +
+        '<select data-idx="' +
+        idx +
+        '" data-fld="type" class="cr-input-type" multiple title="' + t("content.multiSelectHint") + '">' +
+        (allSites || [])
+          .map(
+            (s) =>
+              '<option value="' +
+              esc(s.id) +
+              '"' +
+              (cr.type && cr.type.split(";").includes(s.id)
+                ? " selected"
+                : "") +
+              ">" +
+              esc(s.label) +
+              "</option>",
+          )
+          .join("") +
+        '</select><select data-idx="' +
+        idx +
+        '" data-fld="role" class="cr-input-role">' +
+        '<option value="creator"' +
+        (cr.role === "creator" ? " selected" : "") +
+        ">" + t("content.roleCreator") + "</option>" +
+        '<option value="official"' +
+        (cr.role === "official" ? " selected" : "") +
+        ">" + t("content.roleOfficial") + "</option>" +
+        '<option value="vup"' +
+        (cr.role === "vup" ? " selected" : "") +
+        ">VUP</option>" +
+        '<option value="oc"' +
+        (cr.role === "oc" ? " selected" : "") +
+        ">OC</option>" +
+        '<option value="repo"' +
+        (cr.role === "repo" ? " selected" : "") +
+        ">" + t("content.roleRepo") + "</option>" +
+        "</select>" +
+        "</div>" +
+        "</div>" +
+        "</div>";
+  });
+  html +=
+    '<div class="cr-add-area">' +
+      '<button class="cr-add">' + t("content.addCreator") + "</button>" +
+      "</div>";
+  return html;
+}
+
 /**
  * 构建站点视图 HTML 字符串（纯函数，不碰 DOM）。
  * 返回 parts.join("") 的完整 HTML，由主入口负责写入 searchResults.innerHTML。
+ * 按分区委托给 buildSiteSearchSection / buildSiteBrowseSection / buildSiteEditSection。
  */
 export function buildSiteHtml(ctx: BuildSiteHtmlCtx): string {
-  const { esc, site, creators, allSites, wsEditModeRef, authorCountMap } = ctx;
   const parts: string[] = [];
   parts.push('<div class="cr-scroll">');
 
   // 搜索词分区
-  if (site.presetSearches && site.presetSearches.length) {
-    parts.push(
-      '<div class="cr-section">' +
-      '<span class="cr-section-title-lg">' + t("content.webSearchTerms") + "</span>" +
-      '<span class="cr-section-sub">(' +
-      site.presetSearches.length +
-      ")</span>" +
-      '<span class="cr-section-fill"></span>' +
-      '<button id="cr-mode-toggle" class="cr-mode-switch">' +
-      '<span class="cr-mode-opt cr-mode-ext' + (ctx.browseMode.v === 'external' ? ' active' : '') + '" data-mode="external" title="' + t("content.modeExternal") + '">' + t("content.modeExternal") + "</span>" +
-      '<span class="cr-mode-opt cr-mode-emb' + (ctx.browseMode.v === 'embed' ? ' active' : '') + '" data-mode="embed" title="' + t("content.modeEmbed") + '">' + t("content.modeEmbed") + "</span>" +
-      '<span class="cr-mode-opt cr-mode-win' + (ctx.browseMode.v === 'window' ? ' active' : '') + '" data-mode="window" title="' + t("content.modeWindow") + '">' + t("content.modeWindow") + "</span>" +
-      "</button>" +
-      "</div>" +
-      '<div class="cr-preset-area">' +
-      site.presetSearches
-        .map(
-          (ps, i) =>
-            '<button class="cr-preset-btn" style="animation-delay:' + stagger(i, 25, 300) + 'ms" data-q="' +
-            esc(ps.q || ps.label) +
-            '">' +
-            esc(ps.label) +
-            "</button>",
-        )
-        .join("") +
-        "</div>",
-    );
+  if (ctx.site.presetSearches && ctx.site.presetSearches.length) {
+    parts.push(buildSiteSearchSection(ctx));
   }
 
-  // 创作者列表 — 标题栏始终显示，确保「更新配置」按钮可点击
-  if (!wsEditModeRef.v) {
+  // 创作者分区：浏览态（标题栏始终显示）或编辑态
+  if (!ctx.wsEditModeRef.v) {
+    parts.push(buildSiteBrowseSection(ctx));
+  } else {
     parts.push(
-      '<div class="cr-section cr-section-wrap">' +
-      '<span class="cr-section-title-lg">' + t("content.activeCreators") + "</span>" +
-      '<span class="cr-section-sub" id="ws-cr-count">(' +
-      creators.length +
-      ")</span>" +
-      '<input type="text" id="ws-cr-search" class="cr-search-input" placeholder="' + t("content.searchCreatorPlaceholder") + '" value="' + esc(ctx.searchKw) + '">' +
-      '<span class="cr-section-fill"></span>' +
-      '<button class="cr-fetch-btn" title="' + t("content.fetchConfigTitle") + '">' + t("content.fetchConfig") + "</button>" +
-      (ctx.viewerMode ? "" : '<button class="cr-edit-btn">' + t("content.edit") + "</button>") +
-      "</div>",
-    );
-    if (creators.length) {
-      // 收藏置顶
-      const faved = loadFavs();
-      creators.sort((a, b) => {
-        const af = faved.includes(a.name) ? 1 : 0;
-        const bf = faved.includes(b.name) ? 1 : 0;
-        if (af !== bf) return bf - af;
-        return (authorCountMap[b.name] || 0) - (authorCountMap[a.name] || 0);
-      });
-      // 收集所有标签
-      const tagSet = new Set<string>();
-      creators.forEach((cr) => {
-        const tag = getTagFromRole(cr.role);
-        if (tag) tagSet.add(tag);
-      });
-      const tags = [...tagSet];
-      parts.push(
-        '<div class="cr-tag-filter-row">' +
-          '<button class="cr-tag-filter-btn' + (ctx.activeTag ? '' : ' active') + '" style="animation-delay:0ms" data-tag="">' + t("content.filterAll") + "</button>" +
-          '<button class="cr-tag-filter-btn' + (ctx.activeTag === 'creator' ? ' active' : '') + '" style="animation-delay:30ms" data-tag="creator">' + t("content.filterCreator") + "</button>" +
-          '<button class="cr-tag-filter-btn' + (ctx.activeTag === 'official' ? ' active' : '') + '" style="animation-delay:60ms" data-tag="official">' + t("content.filterOfficial") + "</button>" +
-          tags
-            .filter((tag) => tag !== "creator" && tag !== "official")
-            .map(
-              (tag, i) =>
-                '<button class="cr-tag-filter-btn' + (ctx.activeTag === tag ? ' active' : '') + '" style="animation-delay:' + stagger(i + 3, 30, 300) + 'ms" data-tag="' +
-                esc(tag) +
-                '">' +
-                getTagIconFromRole(tag) +
-                " <span>" +
-                esc(tag) +
-                "</span>" +
-                "</button>",
-            )
-            .join("") +
-          "</div>",
-      );
-      parts.push(
-        '<div class="cr-creator-grid" id="cr-creator-grid"></div>',
-      );
-    } else {
-      parts.push(
-        '<div class="cr-empty-site">' + t("content.emptyCreators") +
-        '<br><br><button class="cr-local-btn" data-local-empty>' + t("content.browseLocalModels") + "</button></div>",
-      );
-    }
-  } else if (wsEditModeRef.v) {
-    // 🔍 搜索词编辑（即使为空也渲染，让用户能新增）
-    parts.push(
-      '<div class="cr-section">' +
-      '<span class="cr-section-title-lg">' + t("content.searchTerms") + "</span>" +
-      "</div>",
-    );
-    (site.presetSearches || []).forEach((ps, idx) => {
-      parts.push(
-        '<div class="cr-edit-card" draggable="false" data-edit="preset" data-edit-idx="' +
-          idx +
-          '">' +
-          '<div class="cr-edit-card-head">' +
-          '<span class="cr-drag-handle">⠿</span>' +
-          '<span class="cr-preset-icon">🔍</span>' +
-          '<input data-idx="' +
-          idx +
-          '" data-fld="label" value="' +
-          esc(ps.label) +
-          '" class="cr-input cr-input-name" placeholder="' + t("content.searchKeywordPlaceholder") + '">' +
-          '<button data-idx="' +
-          idx +
-          '" class="cr-btn-icon cr-order-up" title="' + t("content.moveUp") + '">↑</button>' +
-          '<button data-idx="' +
-          idx +
-          '" class="cr-btn-icon cr-order-down" title="' + t("content.moveDown") + '">↓</button>' +
-          '<button data-idx="' +
-          idx +
-          '" class="cr-btn-icon cr-del-preset" title="' + t("content.delete") + '">🗑️</button>' +
-          "</div>" +
-          "</div>",
-      );
-    });
-    parts.push(
-      '<div class="cr-add-area">' +
-        '<button class="cr-add-preset">' + t("content.addSearchTerm") + "</button>" +
-        "</div>",
-    );
-    // ✏️ 创作者编辑
-    parts.push(
-      '<div class="cr-section">' +
-      '<span class="cr-section-title-lg">' + t("content.editCreators") + "</span>" +
-      '<span class="cr-section-fill"></span>' +
-      '<button class="cr-save-btn cr-action-btn-accent">' + t("content.save") + "</button>" +
-      '<button class="cr-cancel-btn">' + t("common.cancel") + "</button>" +
-      "</div>" +
-      '<div class="cr-drop-zone" id="cr-drop-zone">' +
-        '<span class="cr-drop-icon">📥</span>' +
-        '<span class="cr-drop-text">' + t("content.dropZoneHint") + "</span>" +
-      "</div>",
-    );
-    creators.forEach((cr, idx) => {
-      const roleEmoji = getTagIconFromRole(cr.role);
-      parts.push(
-        '<div class="cr-edit-card" draggable="false" data-edit-idx="' +
-          idx +
-          '">' +
-          '<div class="cr-edit-card-head">' +
-          '<span class="cr-drag-handle">⠿</span>' +
-          '<span class="cr-edit-card-avatar">' +
-          roleEmoji +
-          "</span>" +
-          '<input data-idx="' +
-          idx +
-          '" data-fld="name" value="' +
-          esc(cr.name) +
-          '" class="cr-input cr-input-name" placeholder="' + t("content.namePlaceholder") + '">' +
-          '<button data-idx="' +
-          idx +
-          '" class="cr-btn-icon cr-del" title="' + t("content.delete") + '">🗑️</button>' +
-          "</div>" +
-          '<div class="cr-edit-card-body">' +
-          '<div class="cr-edit-card-row">' +
-          '<span class="cr-edit-label">' + t("content.labelDesc") + "</span>" +
-          '<input data-idx="' +
-          idx +
-          '" data-fld="desc" value="' +
-          esc(cr.desc) +
-          '" class="cr-input cr-input-desc" placeholder="' + t("content.descPlaceholder") + '">' +
-          "</div>" +
-          '<div class="cr-edit-card-row">' +
-          '<span class="cr-edit-label">' + t("content.labelPlatform") + "</span>" +
-          '<select data-idx="' +
-          idx +
-          '" data-fld="type" class="cr-input-type" multiple title="' + t("content.multiSelectHint") + '">' +
-          (allSites || [])
-            .map(
-              (s) =>
-                '<option value="' +
-                esc(s.id) +
-                '"' +
-                (cr.type && cr.type.split(";").includes(s.id)
-                  ? " selected"
-                  : "") +
-                ">" +
-                esc(s.label) +
-                "</option>",
-            )
-            .join("") +
-          '</select><select data-idx="' +
-          idx +
-          '" data-fld="role" class="cr-input-role">' +
-          '<option value="creator"' +
-          (cr.role === "creator" ? " selected" : "") +
-          ">" + t("content.roleCreator") + "</option>" +
-          '<option value="official"' +
-          (cr.role === "official" ? " selected" : "") +
-          ">" + t("content.roleOfficial") + "</option>" +
-          '<option value="vup"' +
-          (cr.role === "vup" ? " selected" : "") +
-          ">VUP</option>" +
-          '<option value="oc"' +
-          (cr.role === "oc" ? " selected" : "") +
-          ">OC</option>" +
-          '<option value="repo"' +
-          (cr.role === "repo" ? " selected" : "") +
-          ">" + t("content.roleRepo") + "</option>" +
-          "</select>" +
-          "</div>" +
-          "</div>" +
-          "</div>",
-      );
-    });
-    parts.push(
-      '<div class="cr-add-area">' +
-        '<button class="cr-add">' + t("content.addCreator") + "</button>" +
-        "</div>",
+      buildSitePresetEditCards(ctx) + buildSiteCreatorEditCards(ctx),
     );
   }
 
