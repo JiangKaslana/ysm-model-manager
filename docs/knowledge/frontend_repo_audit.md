@@ -80,7 +80,7 @@ use_when:
 
 - **ADR-116**：RESOURCE_TYPES 无旁路定义，前端不重算归类，全合规。
 - **Wails 桥**：全部经 getApp()/bindings，零 window.go 直调；`@wailsio/runtime`（Events/Window）直依赖已全量迁移到 `backend/runtime.ts` 桥（ADR-049 Phase 1 收尾：桌面走真 runtime、网页版走 no-op 桩），零业务模块直 import（2026-08-26 收口，原 android-events 越层点已消除）。
-- **core 层 DOM 渗透**：context-menu-handlers clipboard/execCommand 属 DOM 直触（保留观察）；`locale.ts` 的 `documentElement.lang` 经核属 i18n 核心职责（见 i18n.md:37 同步 `<html lang>`），非债，不下沉。
+- **core 层 DOM 渗透**（清单已收口，共 2 项）：① `context-menu-handlers` clipboard/execCommand —— DOM 直触，**保留观察**（非债、与 i18n 无关）；② `locale.ts:116` `document.documentElement.lang` —— 经核属 **i18n 核心职责**（见 i18n.md:37 同步 `<html lang>`），**by-design 非债、不下沉**；core/i18n 内仅此一处 DOM 直触，渗透清单已闭环。
 
 ## i18n 缺口（硬编码中文未走 t()）
 
