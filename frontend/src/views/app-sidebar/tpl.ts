@@ -46,9 +46,9 @@ const SYNC_TYPE_MENU: ReadonlyArray<{ id: string; icon: string; labelKey?: strin
 function typeMenuItemsHTML(): string {
   const render = (id: string, text: string): string =>
     '<div class="dd-item" data-testid="sidebar-sync-type" data-sync-type="' +
-    id +
+    esc(id) +
     '" style="padding:4px 8px;cursor:pointer;border-radius:4px;color:var(--txt)">' +
-    text +
+    esc(text) +
     "</div>";
   let html = render("all", "📦 " + t("sidebar.allTypes"));
   // 从 ALL_RESOURCE_TYPES（注册表单一事实来源）驱动生成：

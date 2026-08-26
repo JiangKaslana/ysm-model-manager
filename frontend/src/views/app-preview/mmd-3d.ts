@@ -3,64 +3,13 @@
 // invalidateMmdPreview 公开符号，index.ts 分发对齐 vrm-3d.ts 模式。
 
 import { mount3D, cleanupPreview, invalidatePreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
-import { buildMmdScene, type MmdDataPort, type MmdPanelHooks } from "../../utils/3d/adapters/mmd-adapter.ts";
-import { getApp } from "../../backend/app.ts";
+import { buildMmdScene, type MmdPanelHooks } from "../../utils/3d/adapters/mmd-adapter.ts";
+import { makeMmdDataPort } from "./mmd-data-port.ts";
 import { fillMmdModelPanel, fillMmdPlayPanel, fillMmdShotPanel, buildMaterialControls } from "./mmd-controls.ts";
 import { registerReRoute, withPreviewExtras, openModel3DFullscreen } from "./preview-library.ts";
 
 // 注册跨类型换角色路由（ADR-111：按 variants preview key 路由，.pmx/.pmd→"mmd"）
 registerReRoute("mmd", (path) => createMmd3D(path));
-
-/** 数据端口注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
-async function makeMmdPort(): Promise<MmdDataPort> {
-  const App = await getApp();
-  return {
-    readFileBytes: (p) =>
-      (App as unknown as Record<string, (x: string) => Promise<string | null>>)["ReadFileBytes"](p),
-    readFileBytesBatch: async (paths) => {
-      try {
-        const batchFn = (App as unknown as Record<string, (x: string[]) => Promise<Record<string, string | null>>>)["ReadFileBytesBatch"];
-        if (typeof batchFn !== "function") return {};
-        return await batchFn(paths);
-      } catch {
-        return {};
-      }
-    },
-    // KTX2 缓存管线依赖 hash：一次 RPC 拿回数据+hash，缺失则 blobUrlToHash 恒空 → 编码/替换全短路
-    readFileBytesBatchWithMeta: async (paths) => {
-      try {
-        const batchFn = (App as unknown as Record<string, (x: string[]) => Promise<Record<string, { data: string | null; hash: string } | null>>>)["ReadFileBytesBatchWithMeta"];
-        if (typeof batchFn !== "function") return {};
-        return await batchFn(paths);
-      } catch {
-        return {};
-      }
-    },
-    listAllFilePaths: (d) =>
-      (App as unknown as Record<string, (x: string) => Promise<string[] | null>>)["ListAllFilePaths"](d),
-    addOpLog: async (op, msg, status, err) => {
-      try {
-        const addFn = (App as unknown as Record<string, (a: string, b: string, c: string, d: string, e: number, f: string, g: string) => Promise<unknown>>)["AddOpLog"];
-        if (typeof addFn !== "function") return;
-        await addFn("mmd-preview", op, msg, "", 0, status, err || "");
-      } catch {
-        /* 诊断不阻断 */
-      }
-    },
-    getCachedTexture: async (p) => {
-      try {
-        const appAny = App as unknown as Record<string, (x: string) => Promise<unknown>>;
-        const getFn = appAny["GetCachedTexture"];
-        if (typeof getFn !== "function") return null;
-        const result = await getFn(p) as { format: string; data: string; hash: string } | null;
-        if (!result) return null;
-        return { format: result.format, data: result.data, hash: result.hash };
-      } catch {
-        return null;
-      }
-    },
-  };
-}
 
 const mmdPanelHooks: MmdPanelHooks = {
   fillModelPanel: fillMmdModelPanel,
@@ -71,7 +20,7 @@ const mmdPanelHooks: MmdPanelHooks = {
 
 const mmdAdapter: PreviewAdapter = {
   id: "mmd",
-  build: async (ctx, path) => buildMmdScene(ctx, path, await makeMmdPort(), mmdPanelHooks),
+  build: async (ctx, path) => buildMmdScene(ctx, path, await makeMmdDataPort("mmd-preview"), mmdPanelHooks),
 };
 
 /** 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） */

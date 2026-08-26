@@ -7,63 +7,13 @@
 // 内容层复用 buildMmdScene（mmd-adapter.ts），确保 PMX 解析/纹理绑定逻辑一致。
 
 import { mount3D, cleanupPreview, invalidatePreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
-import { buildMmdScene, type MmdDataPort, type MmdPanelHooks } from "../../utils/3d/adapters/mmd-adapter.ts";
-import { getApp } from "../../backend/app.ts";
+import { buildMmdScene, type MmdPanelHooks } from "../../utils/3d/adapters/mmd-adapter.ts";
+import { makeMmdDataPort } from "./mmd-data-port.ts";
 import { fillMmdModelPanel, fillMmdPlayPanel, fillMmdShotPanel, buildMaterialControls } from "./mmd-controls.ts";
 import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
 
 // 注册跨类型换角色路由（ADR-111：按 variants preview key 路由，SceneModel .pmx/.pmd→"mmd-scene"）
 registerReRoute("mmd-scene", (path) => createScene3D(path));
-
-/** 数据端口注入（与 mmd-3d.ts 同款实现，复用同一批 Go RPC） */
-async function makeScenePort(): Promise<MmdDataPort> {
-  const App = await getApp();
-  return {
-    readFileBytes: (p) =>
-      (App as unknown as Record<string, (x: string) => Promise<string | null>>)["ReadFileBytes"](p),
-    readFileBytesBatch: async (paths) => {
-      try {
-        const batchFn = (App as unknown as Record<string, (x: string[]) => Promise<Record<string, string | null>>>)["ReadFileBytesBatch"];
-        if (typeof batchFn !== "function") return {};
-        return await batchFn(paths);
-      } catch {
-        return {};
-      }
-    },
-    readFileBytesBatchWithMeta: async (paths) => {
-      try {
-        const batchFn = (App as unknown as Record<string, (x: string[]) => Promise<Record<string, { data: string | null; hash: string } | null>>>)["ReadFileBytesBatchWithMeta"];
-        if (typeof batchFn !== "function") return {};
-        return await batchFn(paths);
-      } catch {
-        return {};
-      }
-    },
-    listAllFilePaths: (d) =>
-      (App as unknown as Record<string, (x: string) => Promise<string[] | null>>)["ListAllFilePaths"](d),
-    addOpLog: async (op, msg, status, err) => {
-      try {
-        const addFn = (App as unknown as Record<string, (a: string, b: string, c: string, d: string, e: number, f: string, g: string) => Promise<unknown>>)["AddOpLog"];
-        if (typeof addFn !== "function") return;
-        await addFn("mmd-scene-preview", op, msg, "", 0, status, err || "");
-      } catch {
-        /* 诊断不阻断 */
-      }
-    },
-    getCachedTexture: async (p) => {
-      try {
-        const appAny = App as unknown as Record<string, (x: string) => Promise<unknown>>;
-        const getFn = appAny["GetCachedTexture"];
-        if (typeof getFn !== "function") return null;
-        const result = await getFn(p) as { format: string; data: string; hash: string } | null;
-        if (!result) return null;
-        return { format: result.format, data: result.data, hash: result.hash };
-      } catch {
-        return null;
-      }
-    },
-  };
-}
 
 const scenePanelHooks: MmdPanelHooks = {
   fillModelPanel: fillMmdModelPanel,
@@ -75,7 +25,7 @@ const scenePanelHooks: MmdPanelHooks = {
 /** 场景适配器：id = "mmd-scene"，驱动场景专属预设（天空/光照/阴影） */
 const sceneAdapter: PreviewAdapter = {
   id: "mmd-scene",
-  build: async (ctx, path) => buildMmdScene(ctx, path, await makeScenePort(), scenePanelHooks),
+  build: async (ctx, path) => buildMmdScene(ctx, path, await makeMmdDataPort("mmd-scene-preview"), scenePanelHooks),
 };
 
 /** 打开场景 MMD 3D 预览（独立入口，只加载 SceneModel 目录下的 PMX/PMD） */

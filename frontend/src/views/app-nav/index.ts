@@ -8,6 +8,7 @@ import { t } from "../../core/i18n/t.ts";
 import { getApp } from "../../backend/app.ts";
 import { can } from "../../utils/dom/capabilities.ts";
 import { RESOURCE_TYPES, GROUP_META, GROUP_OF, GROUP_TYPE_OPTIONS, type GroupTypeOption } from "../../utils/resource/types.ts";
+import { esc } from "../../utils/dom/html.ts";
 import { shortLabelOf } from "../../utils/resource/short-label.ts";
 import { navCSS } from "./tpl.ts";
 
@@ -53,7 +54,7 @@ function anBindDualSelects(shadowRoot: ShadowRoot): void {
       .sort((a, b) => a[1].order - b[1].order)
       .map(([gid, meta]) => ({ gid, label: meta.icon + " " + meta.name }));
     groupSel.innerHTML = groups
-      .map((g) => `<option value="${g.gid}">${g.label}</option>`)
+      .map((g) => `<option value="${esc(g.gid)}">${esc(g.label)}</option>`)
       .join("");
 
     const buildSubtypeOptions = (group: string): GroupTypeOption[] =>
@@ -65,7 +66,7 @@ function anBindDualSelects(shadowRoot: ShadowRoot): void {
     const fillSubtypes = (group: string): void => {
       const opts = buildSubtypeOptions(group);
       subtypeSel.innerHTML = opts
-        .map((o, i) => `<option value="${i}" data-rtype="${o.rtype}" data-subdir="${o.subdir}">${o.label}</option>`)
+        .map((o, i) => `<option value="${i}" data-rtype="${esc(o.rtype)}" data-subdir="${esc(o.subdir)}">${esc(o.label)}</option>`)
         .join("");
       const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
       const savedSubdir = safeGet("repo_subdir") || "";

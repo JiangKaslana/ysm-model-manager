@@ -182,74 +182,95 @@ function asbHandlePushMenuClick(
 ): void {
   const selected = asbBeginSync(e, "推送", ctx, flags, () => asbCloseAllMenus(pushMenu, pullMenu), pushBtn);
   if (!selected) return;
-  (async () => {
-    let skipped = 0;
-    let timedOut = 0;
-    try {
-      const types = asbResolveTypes((e.target as HTMLElement)?.closest<HTMLElement>(".dd-item")?.dataset.syncType || "all");
-      for (const insName of selected) {
-        for (const rt of types) {
-          try {
-            await new Promise<unknown>((resolve, reject) => {
-              const token = `${insName}:${rt}:${Date.now()}`;
-              let timer: ReturnType<typeof setTimeout> | null = null;
-              const unsub = bus.on("sync:download:done", (payload) => {
-                if (payload?.token === token) {
-                  unsub();
-                  if (timer) clearTimeout(timer);
-                  if (payload.skipped) {
-                    const err = new Error(`推送被跳过（已有同步进行中）: ${insName}/${rt}`);
-                    (err as Error & { kind?: string }).kind = "skipped";
-                    reject(err);
-                  } else {
-                    resolve(payload);
-                  }
-                }
-              });
-              timer = setTimeout(() => {
-                unsub();
-                const err = new Error(`推送超时: ${insName}/${rt}`);
-                (err as Error & { kind?: string }).kind = "timeout";
-                reject(err);
-              }, SYNC_TIMEOUT_MS);
-              bus.emit("sync:download:missing", { instanceName: insName, rtype: rt, token });
-            });
-          } catch (e) {
-            const kind = (e as Error & { kind?: string })?.kind;
-            if (kind === "skipped") skipped++;
-            else timedOut++;
-            if (kind !== "skipped") {
-              await new Promise<void>((resolve) => {
-                const waitUnsub = bus.on("sync:download:done", (p) => {
-                  if (p?.skipped) return;
-                  waitUnsub();
-                  resolve();
-                });
-                setTimeout(() => {
-                  waitUnsub();
-                  resolve();
-                }, SYNC_TIMEOUT_MS);
-              });
-            }
-          }
+  const types = asbResolveTypes((e.target as HTMLElement)?.closest<HTMLElement>(".dd-item")?.dataset.syncType || "all");
+  void asbRunPush(selected, types, pushBtn, flags);
+}
+
+/** 单品推送：等待该 token 的下载完成事件；命中 skipped / 超时分别 reject 带 kind */
+async function asbPushOne(insName: string, rt: string): Promise<void> {
+  const token = `${insName}:${rt}:${Date.now()}`;
+  await new Promise<void>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = bus.on("sync:download:done", (payload) => {
+      if (payload?.token !== token) return;
+      unsub();
+      if (timer) clearTimeout(timer);
+      if (payload.skipped) {
+        reject(asbKindError(`推送被跳过（已有同步进行中）: ${insName}/${rt}`, "skipped"));
+      } else {
+        resolve();
+      }
+    });
+    timer = setTimeout(() => {
+      unsub();
+      reject(asbKindError(`推送超时: ${insName}/${rt}`, "timeout"));
+    }, SYNC_TIMEOUT_MS);
+    bus.emit("sync:download:missing", { instanceName: insName, rtype: rt, token });
+  });
+}
+
+/** 等待当前同步活动归位（最后一次非 skipped done 后 resolve），防后续推送竞态 */
+async function asbWaitBusQuiet(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const waitUnsub = bus.on("sync:download:done", (p) => {
+      if (p?.skipped) return;
+      waitUnsub();
+      resolve();
+    });
+    setTimeout(() => {
+      waitUnsub();
+      resolve();
+    }, SYNC_TIMEOUT_MS);
+  });
+}
+
+function asbKindError(msg: string, kind: "skipped" | "timeout"): Error {
+  const err = new Error(msg) as Error & { kind?: "skipped" | "timeout" };
+  err.kind = kind;
+  return err;
+}
+
+function asbPushErrorKind(e: unknown): "skipped" | "timeout" | undefined {
+  return (e as Error & { kind?: "skipped" | "timeout" })?.kind;
+}
+
+/** 推送主流程：顺序逐包逐类型推送，跳过的按类型计数 → 汇总 toast + 按钮复位统一收口 */
+async function asbRunPush(
+  selected: string[],
+  types: string[],
+  pushBtn: HTMLButtonElement,
+  flags: AsbSyncFlags,
+): Promise<void> {
+  let skipped = 0;
+  let timedOut = 0;
+  try {
+    for (const insName of selected) {
+      for (const rt of types) {
+        try {
+          await asbPushOne(insName, rt);
+        } catch (e) {
+          const kind = asbPushErrorKind(e);
+          if (kind === "skipped") skipped++;
+          else timedOut++;
+          if (kind !== "skipped") await asbWaitBusQuiet();
         }
       }
-      if (skipped > 0 || timedOut > 0) {
-        const parts: string[] = [];
-        if (skipped > 0) parts.push(`${skipped} 个被跳过（同步进行中）`);
-        if (timedOut > 0) parts.push(`${timedOut} 个超时`);
-        bus.emit("toast:show", { msg: `⚠️ 推送完成，${parts.join("，")}`, duration: 3000, type: "warn" });
-      } else {
-        bus.emit("toast:show", { msg: `✅ 推送完成：${selected.length} 个整合包`, duration: 2500 });
-      }
-    } catch (err) {
-      bus.emit("toast:show", { msg: "❌ 推送失败: " + (safeErrorMessage(err)), duration: 3000, type: "error" });
-    } finally {
-      pushBtn.textContent = "⬆️ 推送所选 ▾";
-      pushBtn.disabled = false;
-      flags.setSyncInProgress(false);
     }
-  })();
+    if (skipped > 0 || timedOut > 0) {
+      const parts: string[] = [];
+      if (skipped > 0) parts.push(`${skipped} 个被跳过（同步进行中）`);
+      if (timedOut > 0) parts.push(`${timedOut} 个超时`);
+      bus.emit("toast:show", { msg: `⚠️ 推送完成，${parts.join("，")}`, duration: 3000, type: "warn" });
+    } else {
+      bus.emit("toast:show", { msg: `✅ 推送完成：${selected.length} 个整合包`, duration: 2500 });
+    }
+  } catch (err) {
+    bus.emit("toast:show", { msg: "❌ 推送失败: " + (safeErrorMessage(err)), duration: 3000, type: "error" });
+  } finally {
+    pushBtn.textContent = "⬆️ 推送所选 ▾";
+    pushBtn.disabled = false;
+    flags.setSyncInProgress(false);
+  }
 }
 
 // ---------- asb* 包级函数：_bindSyncSelected pullMenu 大闭包升格 ----------
@@ -263,38 +284,46 @@ function asbHandlePullMenuClick(
 ): void {
   const selected = asbBeginSync(e, "拉取", ctx, flags, () => asbCloseAllMenus(pushMenu, pullMenu), pullBtn);
   if (!selected) return;
+  const types = asbResolveTypes((e.target as HTMLElement)?.closest<HTMLElement>(".dd-item")?.dataset.syncType || "all");
+  void asbRunPull(selected, types, pullBtn, flags);
+}
+
+/** 拉取主流程：并行拉取各类型资源，计数成功/失败 → 汇总 toast + 刷新统计与树 */
+async function asbRunPull(
+  selected: string[],
+  types: string[],
+  pullBtn: HTMLButtonElement,
+  flags: AsbSyncFlags,
+): Promise<void> {
   let totalPulled = 0;
   let failed = 0;
-  (async () => {
-    try {
-      const { PullResourceFromInstance } = await getApp();
-      const types = asbResolveTypes((e.target as HTMLElement)?.closest<HTMLElement>(".dd-item")?.dataset.syncType || "all");
-      for (const insName of selected) {
-        const results = await Promise.allSettled(
-          types.map((rt) => PullResourceFromInstance(rt, insName)),
-        );
-        for (const r of results) {
-          if (r.status === "fulfilled") totalPulled += r.value;
-          else failed++;
-        }
+  try {
+    const { PullResourceFromInstance } = await getApp();
+    for (const insName of selected) {
+      const results = await Promise.allSettled(
+        types.map((rt) => PullResourceFromInstance(rt, insName)),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") totalPulled += r.value;
+        else failed++;
       }
-      if (failed > 0) {
-        bus.emit("toast:show", { msg: `⚠️ 拉取完成: ${totalPulled} 个文件, ${failed} 个失败`, duration: 3000, type: "warn" });
-      } else if (totalPulled > 0) {
-        bus.emit("toast:show", { msg: `✅ 拉取完成，共 ${totalPulled} 个文件`, duration: 2500 });
-      } else {
-        bus.emit("toast:show", { msg: "📭 没有可拉取的文件（实例中无多余资源）", duration: 2500, type: "info" });
-      }
-      bus.emit("stats:refresh");
-      bus.emit("tree:reload");
-    } catch (err) {
-      bus.emit("toast:show", { msg: "❌ 拉取失败: " + (safeErrorMessage(err)), duration: 3000, type: "error" });
-    } finally {
-      pullBtn.textContent = "⬇️ " + t("sidebar.pullSelected") + " ▾";
-      pullBtn.disabled = false;
-      flags.setSyncInProgress(false);
     }
-  })();
+    if (failed > 0) {
+      bus.emit("toast:show", { msg: `⚠️ 拉取完成: ${totalPulled} 个文件, ${failed} 个失败`, duration: 3000, type: "warn" });
+    } else if (totalPulled > 0) {
+      bus.emit("toast:show", { msg: `✅ 拉取完成，共 ${totalPulled} 个文件`, duration: 2500 });
+    } else {
+      bus.emit("toast:show", { msg: "📭 没有可拉取的文件（实例中无多余资源）", duration: 2500, type: "info" });
+    }
+    bus.emit("stats:refresh");
+    bus.emit("tree:reload");
+  } catch (err) {
+    bus.emit("toast:show", { msg: "❌ 拉取失败: " + (safeErrorMessage(err)), duration: 3000, type: "error" });
+  } finally {
+    pullBtn.textContent = "⬇️ " + t("sidebar.pullSelected") + " ▾";
+    pullBtn.disabled = false;
+    flags.setSyncInProgress(false);
+  }
 }
 
 // ---------- asb* 包级函数：_bindSyncSelected 主装配 ----------
