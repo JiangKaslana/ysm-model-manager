@@ -36,10 +36,10 @@ use_when:
 | views 其余(nav/sidebar/sync-mgr/toast/context-menu) | 4~5 | 3.0k | app-toast 满分；共性=innerHTML 静态值 esc 口径不一 |
 | utils(除 3d) | 4.0 | 6.3k | esc()/hl() 管线精良；含唯一运行时 bug（short-label.ts） |
 | ui | 4.0 | 2.9k | ui-rows.ts 822 行接近红线 |
-| features | 4.0 | 3.8k | import-executor/download-queue 三层防御严谨；version-updater 无 AbortController |
+| features | 4.0 | 3.8k | import-executor/download-queue 三层防御严谨；version-updater 无 AbortController（**by-design**：CheckUpdate 是 Go 绑定非 fetch，AbortSignal 无法取消 RPC，手动超时走 Promise.race+setTimeout 即正确范式，无需补 AbortController） |
 | services / wasm / test-utils | 5.0 | 1.3k | 满分区：registry 极简、WASM malloc/free 配对规范 |
 | workers | 4.0 | 0.4k | stats-core 纯函数与 Go 同口径 |
-| web-spike | 3.0 | 0.08k | ADR-049 Phase 0 spike，正式实现已落地，**废弃候选** |
+| web-spike | 3.0 | 0.08k | ADR-049 Phase 0 spike，正式实现已落地，**废弃候选**；废弃评估结论（2026-08-26）：解码逻辑 `summarizeDecoded` 已收敛至 `utils/format/summarize.ts`（60b46e3b），但独立页 `web-spike/main.ts` 仍经 `web.html` → `vite.web.config` `spike` 入口编译进 `dist-web/web.html`，作轻量网页解码冒烟/演示页仍有用；**保留**，仅当网页版演示面被判定冗余时才删 |
 
 ## 真 bug / 高优先级
 
