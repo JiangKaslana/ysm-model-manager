@@ -30,11 +30,11 @@
 | `repo:rtype-changed` | 3 | 6 | 0 | 0 | ✅ |
 | `repo:search-creator` | 2 | 1 | 0 | 0 | ✅ |
 | `repo:subdir-changed` | 1 | 1 | 0 | 0 | ✅ |
-| `stats:refresh` | 21 | 2 | 0 | 0 | ✅ |
+| `stats:refresh` | 22 | 2 | 0 | 0 | ✅ |
 | `sync:download:done` | 2 | 2 | 0 | 0 | ✅ |
 | `sync:download:missing` | 1 | 1 | 0 | 0 | ✅ |
 | `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
-| `toast:show` | 203 | 2 | 0 | 0 | ✅ |
+| `toast:show` | 204 | 2 | 0 | 0 | ✅ |
 | `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
 
@@ -94,9 +94,9 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sidebar/events.ts` | 111 |
-| `frontend/src/views/app-tree/events.ts` | 315 |
-| `frontend/src/views/app-tree/events.ts` | 339 |
-| `frontend/src/views/app-tree/events.ts` | 350 |
+| `frontend/src/views/app-tree/events.ts` | 294 |
+| `frontend/src/views/app-tree/events.ts` | 318 |
+| `frontend/src/views/app-tree/events.ts` | 329 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -212,8 +212,8 @@
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 366 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 227 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 294 |
-| `frontend/src/views/app-tree/events.ts` | 175 |
-| `frontend/src/views/app-tree/events.ts` | 271 |
+| `frontend/src/views/app-tree/events.ts` | 154 |
+| `frontend/src/views/app-tree/events.ts` | 250 |
 | `frontend/src/views/app-tree/index.ts` | 406 |
 
 **订阅方（on）：**
@@ -323,7 +323,8 @@
 | `frontend/src/views/app-tree/bus-handlers.ts` | 135 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 186 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 223 |
-| `frontend/src/views/app-tree/events.ts` | 118 |
+| `frontend/src/views/app-tree/events.ts` | 97 |
+| `frontend/src/views/app-tree/events.ts` | 377 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -363,8 +364,8 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 318 |
-| `frontend/src/views/app-tree/events.ts` | 116 |
-| `frontend/src/views/app-tree/events.ts` | 472 |
+| `frontend/src/views/app-tree/events.ts` | 95 |
+| `frontend/src/views/app-tree/events.ts` | 467 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -545,18 +546,19 @@
 | `frontend/src/views/app-tree/bus-handlers.ts` | 286 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 321 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 327 |
-| `frontend/src/views/app-tree/events.ts` | 89 |
-| `frontend/src/views/app-tree/events.ts` | 97 |
-| `frontend/src/views/app-tree/events.ts` | 122 |
-| `frontend/src/views/app-tree/events.ts` | 150 |
-| `frontend/src/views/app-tree/events.ts` | 191 |
-| `frontend/src/views/app-tree/events.ts` | 200 |
-| `frontend/src/views/app-tree/events.ts` | 216 |
-| `frontend/src/views/app-tree/events.ts` | 223 |
-| `frontend/src/views/app-tree/events.ts` | 426 |
-| `frontend/src/views/app-tree/events.ts` | 434 |
-| `frontend/src/views/app-tree/events.ts` | 475 |
-| `frontend/src/views/app-tree/events.ts` | 488 |
+| `frontend/src/views/app-tree/events.ts` | 68 |
+| `frontend/src/views/app-tree/events.ts` | 76 |
+| `frontend/src/views/app-tree/events.ts` | 101 |
+| `frontend/src/views/app-tree/events.ts` | 129 |
+| `frontend/src/views/app-tree/events.ts` | 170 |
+| `frontend/src/views/app-tree/events.ts` | 179 |
+| `frontend/src/views/app-tree/events.ts` | 195 |
+| `frontend/src/views/app-tree/events.ts` | 202 |
+| `frontend/src/views/app-tree/events.ts` | 380 |
+| `frontend/src/views/app-tree/events.ts` | 421 |
+| `frontend/src/views/app-tree/events.ts` | 429 |
+| `frontend/src/views/app-tree/events.ts` | 470 |
+| `frontend/src/views/app-tree/events.ts` | 483 |
 | `frontend/src/views/app-tree/index.ts` | 199 |
 | `frontend/src/views/app-tree/index.ts` | 342 |
 | `frontend/src/views/app-tree/index.ts` | 350 |

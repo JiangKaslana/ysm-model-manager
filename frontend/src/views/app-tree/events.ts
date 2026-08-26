@@ -50,28 +50,7 @@ function atTeGetRtype(vm: AppTree): string {
   return vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM;
 }
 
-// ===== 事件段 1：DnD 拖入（dragover/drop + switchExternal/switchTo） =====
-function atTeBindDragDrop(ctx: AtTeCtx): void {
-  const { container } = ctx;
-  container.addEventListener("dragover", (e: DragEvent) => {
-    if (ctx.disposed) return;
-    if (!e.dataTransfer?.types.includes("Files")) return;
-    e.preventDefault();
-  });
-  container.addEventListener("drop", (e: DragEvent) => {
-    if (ctx.disposed) return;
-    if (!e.dataTransfer?.files?.length) return;
-    e.preventDefault();
-    const target = e.target as HTMLElement | null;
-    const row = target?.closest(".fh, .fh-list, .fl, .fl-list") as HTMLElement | null;
-    const dir = row?.dataset.dir || "";
-    (bus as any).emit("tree:drop-files", {
-      files: Array.from(e.dataTransfer.files),
-      dir,
-      rtype: atTeGetRtype(ctx.vm),
-    });
-  });
-}
+// ===== 事件段 1：DnD 拖入 — 由 import-dnd.ts bindTreeDnD 在 document 层处理，此处不重复注册 =====
 
 // ===== 事件段 2：行复选框多选（文件夹/文件开关 ck） =====
 function atTeBindSelCheckboxes(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement): boolean {
@@ -387,7 +366,23 @@ function atTeBindRenameInput(ctx: AtTeCtx): void {
     }
     const row = inp.closest(".fl, .fl-list") as HTMLElement | null;
     const path = row?.dataset.fullpath || row?.dataset.path || "";
-    if (path) (bus as any).emit("file:rename", { path, newName });
+    if (!path) { vm._renderTree(); return; }
+    // 直接调用 RenameFile，不走 bus（bus 无订阅者，原设计遗留半成品）
+    // 对齐 context-menu-file-handlers.ts "file.rename" 范式
+    getApp()
+      .then(({ RenameFile }) => RenameFile(path, newName))
+      .then(async () => {
+        await vm._load();
+        vm._renderTree();
+        bus.emit("stats:refresh");
+      })
+      .catch((err) => {
+        bus.emit("toast:show", {
+          msg: "❌ " + friendlyError(err, "重命名失败"),
+          duration: 4000,
+          type: "error",
+        });
+      });
   });
 }
 
@@ -499,7 +494,6 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
 export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
   const ctx: AtTeCtx = { container, vm, disposed: false };
 
-  atTeBindDragDrop(ctx);
   atTeBindRowDoubleClick(ctx);
   atTeBindContextMenu(ctx);
   atTeBindRenameInput(ctx);

@@ -2234,8 +2234,8 @@
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
-| `updateSelectCount()` | `frontend/src/views/app-tree/events:395` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:499` | — |
+| `updateSelectCount()` | `frontend/src/views/app-tree/events:390` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:494` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:61` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |
