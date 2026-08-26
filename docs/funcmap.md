@@ -1838,8 +1838,8 @@
 | `ModelNameFields()` | `frontend/src/utils/dom/dialogs/rename-format:27` | 命名模板输入字段（variant 可选：单重命名有、批量重建无） |
 | `buildModelName()` | `frontend/src/utils/dom/dialogs/rename-format:40` | 按 YSM 命名规范拼接文件名：`[作者]【作品】角色[-变体] (年月).ext[.disabled]` 单一模板引擎——buildRenameName（缺省填充）与 rebui |
 | `buildRenameName()` | `frontend/src/utils/dom/dialogs/rename-format:60` | 按 YSM 命名规范拼接新文件名：`[作者]【品牌】角色-变体 (年月).ext` 品牌缺省「未知」、角色缺省「?」，与预览一致（收敛自 buildModelName，索引 4.9 |
-| `showRenameDialog()` | `frontend/src/utils/dom/dialogs/rename:17` | 弹出重命名对话框 |
-| `modalTagEditor()` | `frontend/src/utils/dom/dialogs/tag-editor:15` | 弹出标签编辑弹窗 |
+| `showRenameDialog()` | `frontend/src/utils/dom/dialogs/rename:210` | 弹出重命名对话框 |
+| `modalTagEditor()` | `frontend/src/utils/dom/dialogs/tag-editor:220` | 弹出标签编辑弹窗 |
 | `TagSetResult()` | `frontend/src/utils/dom/dialogs/tag-set:6` | — |
 | `MAX_TAG_LENGTH()` | `frontend/src/utils/dom/dialogs/tag-set:12` | 标签最大长度（与原 addTag 一致） |
 | `addTagToSet()` | `frontend/src/utils/dom/dialogs/tag-set:19` | 向标签集合添加一个标签（已 trim）： 空输入 → 原样返回；重复 → error「标签已存在」；超长 → error「最多 20 个字符」； 合法 → 排序后返回新数组。错误文 |
@@ -1979,10 +1979,10 @@
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:125` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
 | `formatSize()` | `frontend/src/views/app-content/diagnostics/health:178` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:22` | 初始化诊断页所有功能 |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:206` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:9` | 转义函数签名（单一事实源 = utils/dom/html.ts 的 esc；调用方以 (s) =&gt; esc(String(s || "")) 包装适配） |
-| `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:45` | — |
-| `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:160` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
+| `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:189` | — |
+| `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:209` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
 | `setHTML()` | `frontend/src/views/app-content/diagnostics/perf-cli:22` | 写入某容器 HTML；容器不存在时静默跳过 |
 | `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:38` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
 | `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:78` | — |
