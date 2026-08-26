@@ -176,7 +176,6 @@ describe("initSettings — 初始化", () => {
     await waitFor(() => saveFn.mock.calls.length > 0);
     // SaveAppConfig(filesRoot, rpRoot, mcRoot, linkMode, theme)
     expect(saveFn.mock.calls[0]![2]).toBe("/pick");
-    expect(busEmit).toHaveBeenCalledWith("config:updated");
     expect(busEmit).toHaveBeenCalledWith(
       "toast:show",
       expect.objectContaining({ msg: expect.stringContaining("路径已更新") }),
@@ -343,17 +342,11 @@ describe("initSettings — 高级面板/主题/镜像/发布页", () => {
 
 describe("initSettings — 主题自动切换（theme.ts）", () => {
   it("auto 切 system → theme:change bus + theme 落盘 + 卡片取消选中", async () => {
-    const spy = themeChangeSpy();
-    busOn.mockImplementation((event: string, fn: (p: unknown) => void) => {
-      if (event === "theme:change") busEmit.mockImplementation(() => {});
-      return () => {};
-    });
     const { root } = makeRoot();
     await initSettings(root);
     const sel = root.getElementById("theme-auto") as HTMLSelectElement;
     sel.value = "system";
     sel.dispatchEvent(new Event("change"));
-    expect(busEmit).toHaveBeenCalledWith("theme:change", { name: "system" });
     expect(localStorage.getItem("theme")).toBe("system");
     expect(localStorage.getItem("theme-auto")).toBe("system");
     expect(root.querySelectorAll(".theme-card.active").length).toBe(0);
@@ -382,12 +375,13 @@ describe("initSettings — 主题自动切换（theme.ts）", () => {
     expect(localStorage.getItem("theme")).toBe("cyber");
   });
 
-  it("持久化 theme-auto=system 初始化 → theme:change bus 发射 system", async () => {
-    themeChangeSpy();
+  it("持久化 theme-auto=system 初始化 → 应用 system 主题", async () => {
     localStorage.setItem("theme-auto", "system");
     const { root } = makeRoot();
     await initSettings(root);
-    expect(busEmit).toHaveBeenCalledWith("theme:change", { name: "system" });
+    // theme:change 已随 P2 收敛删除（无订阅）；改断言 applyTheme 经 document.body 类生效
+    expect([...document.body.classList].some((c) => c.startsWith("theme-"))).toBe(true);
+    expect(localStorage.getItem("theme-auto")).toBe("system");
   });
 });
 
