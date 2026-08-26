@@ -206,16 +206,13 @@ interface MdMmParseState {
   pmxParsePromise: Promise<import("./mmd-pmx-parser.worker.ts").PmxParseResponse> | null;
   mmd: Awaited<ReturnType<MMDLoader["loadAsync"]>> | null;
   workerBuilt: PmxBuildResult | null;
-  workerParseOk: boolean;
   pmxParsedData: import("./mmd-pmx-parser.worker.ts").PmxParseResponse | null;
   mesh: THREE.SkinnedMesh;
-  workerMode: boolean;
 }
 
 /** 纹理/解码域：纹理映射、blob URL 生命周期与缓存哈希 */
 interface MdMmTextureState {
   texMap: Map<string, string>;
-  texKtx2Map: Map<string, string>;
   texHashMap: Map<string, string>;
   decodeTasks: Array<{ relPath: string; bytes: ArrayBuffer; mimeType: string }>;
   decodedTexturesPromise: Promise<Map<string, DecodedTexture>> | null;
@@ -247,13 +244,11 @@ interface MdMmPerceptionState {
   bonePanelRef: { current: (() => void) | null };
   boneTree: BoneTree | null;
   perceptionState: PerceptionState;
-  perceptionCaps: PerceptionCapability[];
 }
 
 /** 生命周期/计时域：构建流程计时与跟踪 */
 interface MdMmTraceState {
   manager: THREE.LoadingManager;
-  tStart: number;
   textureLoadedAt: number;
   tParseStart: number;
   tParseEnd: number;
@@ -264,7 +259,7 @@ interface MdMmTraceState {
   stopLongTaskWatch: () => void;
 }
 
-/** 构建上下文：6 个域接口组合（60 字段） */
+/** 构建上下文：6 个域接口组合（55 字段，5 个低频字段已下沉） */
 interface MdMmBuildCtx
   extends MdMmIoState,
     MdMmParseState,
@@ -273,13 +268,97 @@ interface MdMmBuildCtx
     MdMmPerceptionState,
     MdMmTraceState {}
 
-function mdMmDetectFormat(c: MdMmBuildCtx): "pmx" | "pmd" {
+// ===== 第 2 档：逐 stage 签名收窄（Pick）=====
+// 传入仍是完整 c（结构类型兼容），但函数签名只暴露自己用到的字段——
+// 此后某 stage 新增越界访问（摸别人域的字段），编译器直接报错。
+// 域纪律从自觉变强制，可逐 stage 渐进收紧（频率数据是路线图）。
+
+type MdMmDetectFormatCtx = Pick<MdMmBuildCtx, "modelBase">;
+
+type MdMmStage1Ctx = Pick<
+  MdMmBuildCtx,
+  | "_traceFiles" | "_traceGpuMb" | "blobUrlToHash" | "blobUrlToRel" | "blobUrls"
+  | "bytes" | "ctx" | "decodeTasks" | "decodedTexturesPromise" | "dirPath"
+  | "effectivePath" | "effectivePort" | "modelB64" | "modelBase" | "modelBlobUrl"
+  | "origPath" | "path" | "pmxParsePromise" | "pmxParser" | "port"
+  | "stopLongTaskWatch" | "texHashMap" | "texMap" | "usePmxWorker" | "vmdPaths"
+  | "vpdPaths" | "zipModelOverride"
+>;
+
+type MdMmStage1bCtx = Pick<
+  MdMmBuildCtx,
+  | "_traceFiles" | "blobUrlToHash" | "blobUrlToRel" | "blobUrls" | "decodeTasks"
+  | "decodedTexturesPromise" | "dirPath" | "effectivePort" | "texHashMap"
+  | "texMap" | "vmdPaths" | "vpdPaths"
+>;
+
+type MdMmStage2Ctx = Pick<
+  MdMmBuildCtx,
+  | "_traceGpuMb" | "ctx" | "effectivePath" | "effectivePort" | "manager" | "mmd"
+  | "tBuildEnd" | "tParseEnd" | "tParseStart" | "texHashMap" | "texMap"
+  | "textureLoadedAt"
+>;
+
+type MdMmParsePmxCtx = Pick<
+  MdMmBuildCtx,
+  | "effectivePath" | "effectivePort" | "pmxParsePromise" | "pmxParsedData"
+  | "texMap" | "usePmxWorker" | "workerBuilt"
+>;
+
+type MdMmParsePmdCtx = Pick<
+  MdMmBuildCtx,
+  | "blobUrlToRel" | "decodedTexturesPromise" | "effectivePath" | "effectivePort"
+  | "manager" | "mesh" | "mmd" | "pmxParsedData" | "pmxParser" | "tParseEnd"
+  | "tParseStart" | "workerBuilt"
+>;
+
+type MdMmStage3Ctx = Pick<
+  MdMmBuildCtx,
+  | "blobUrlToHash" | "blobUrls" | "buildSucceeded" | "cachedHashes" | "ctx"
+  | "effectivePath" | "effectivePort" | "mesh" | "port"
+>;
+
+type MdMmStage4Ctx = Pick<
+  MdMmBuildCtx,
+  | "action" | "blobUrls" | "cameraAction" | "cameraAnimRoot" | "cameraAnimTarget"
+  | "cameraClips" | "cameraMixer" | "clips" | "ctx" | "curIdx" | "customAnimPath"
+  | "effectivePort" | "firstCameraClip" | "mesh" | "mixer" | "playing"
+  | "vmdPaths" | "vpdPaths" | "vpdPoses"
+>;
+
+type MdMmStage5Ctx = Pick<
+  MdMmBuildCtx,
+  | "action" | "bonePanelRef" | "boneTree" | "cameraAction" | "cameraClips"
+  | "cameraMixer" | "clips" | "ctx" | "curIdx" | "customAnimPath" | "mesh"
+  | "mixer" | "mmd" | "origPath" | "panels" | "perceptionState" | "playing"
+>;
+
+// 收尾聚合器：内部调用 stage6bTrace，故其 Pick 需同时覆盖 stage6b 用到的
+// trace 字段（结构类型兼容：传给 stage6bTrace 的 c 必须满足 MdMmStage6bCtx）
+type MdMmStage6Ctx = Pick<
+  MdMmBuildCtx,
+  | "action" | "blobUrls" | "bonePanelRef" | "cameraAction" | "cameraAnimRoot"
+  | "cameraAnimTarget" | "cameraMixer" | "ctx" | "mesh" | "mixer" | "mmd"
+  | "perceptionState" | "port" | "stopLongTaskWatch" | "vpdPoses" | "workerBuilt"
+  | "_traceFiles" | "_traceGpuMb" | "blobUrlToHash" | "buildSucceeded"
+  | "cachedHashes" | "clips" | "origPath" | "tBuildEnd" | "tParseEnd"
+  | "tParseStart" | "textureLoadedAt" | "usePmxWorker"
+>;
+
+type MdMmStage6bCtx = Pick<
+  MdMmBuildCtx,
+  | "_traceFiles" | "_traceGpuMb" | "blobUrlToHash" | "buildSucceeded"
+  | "cachedHashes" | "clips" | "mmd" | "origPath" | "tBuildEnd" | "tParseEnd"
+  | "tParseStart" | "textureLoadedAt" | "usePmxWorker"
+>;
+
+function mdMmDetectFormat(c: MdMmDetectFormatCtx): "pmx" | "pmd" {
   const ext = c.modelBase.split(".").pop()?.toLowerCase();
   if (ext === "pmd") return "pmd";
   return "pmx";
 }
 
-async function mdMmStage1Input(c: MdMmBuildCtx): Promise<void> {
+async function mdMmStage1Input(c: MdMmStage1Ctx): Promise<void> {
   c.ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div id="ysm-mmd-progress" style="height:100%;width:5%;background:var(--accent,#7c83ff);border-radius:2px;transition:width 0.2s"></div></div>';
   c.stopLongTaskWatch = startMainThreadWatch((info) => {
@@ -324,7 +403,6 @@ async function mdMmStage1Input(c: MdMmBuildCtx): Promise<void> {
   c.blobUrls = [];
   c.vmdPaths = [];
   c.vpdPaths = [];
-  c.texKtx2Map = new Map();
   c.texHashMap = new Map();
   c.decodeTasks = [];
   c.decodedTexturesPromise = null;
@@ -336,7 +414,7 @@ async function mdMmStage1Input(c: MdMmBuildCtx): Promise<void> {
   await mdMmStage1bFileScan(c);
 }
 
-async function mdMmStage1bFileScan(c: MdMmBuildCtx): Promise<void> {
+async function mdMmStage1bFileScan(c: MdMmStage1bCtx): Promise<void> {
   try {
     const files = (await c.effectivePort.listAllFilePaths(c.dirPath)) || [];
     c._traceFiles = files.length;
@@ -418,9 +496,8 @@ async function mdMmStage1bFileScan(c: MdMmBuildCtx): Promise<void> {
   }
 }
 
-async function mdMmStage2LoadingManager(c: MdMmBuildCtx): Promise<void> {
+async function mdMmStage2LoadingManager(c: MdMmStage2Ctx): Promise<void> {
   c.manager = new THREE.LoadingManager();
-  c.tStart = performance.now();
   c.textureLoadedAt = 0;
   c.tParseStart = 0;
   c.tParseEnd = 0;
@@ -513,16 +590,14 @@ async function mdMmStage2LoadingManager(c: MdMmBuildCtx): Promise<void> {
   }
 }
 
-async function mdMmParsePmxStage(c: MdMmBuildCtx): Promise<void> {
+async function mdMmParsePmxStage(c: MdMmParsePmxCtx): Promise<void> {
   c.workerBuilt = null;
-  c.workerParseOk = false;
   c.pmxParsedData = null;
   if (c.usePmxWorker && c.pmxParsePromise) {
     try {
       const pmxResult = await c.pmxParsePromise;
       c.pmxParsedData = pmxResult;
       if (pmxResult.ok && pmxResult.vertices && pmxResult.faces) {
-        c.workerParseOk = true;
         c.workerBuilt = await buildPmxSceneSliced(pmxResult, { texUrlMap: c.texMap });
         if (c.workerBuilt) {
           await mmdDiag(c.effectivePort, "pmx-worker-build", c.effectivePath, "ok",
@@ -538,10 +613,9 @@ async function mdMmParsePmxStage(c: MdMmBuildCtx): Promise<void> {
   }
 }
 
-async function mdMmParsePmdStage(c: MdMmBuildCtx): Promise<void> {
+async function mdMmParsePmdStage(c: MdMmParsePmdCtx): Promise<void> {
   if (c.workerBuilt) {
     c.mesh = c.workerBuilt.mesh;
-    c.workerMode = true;
     c.tParseStart = performance.now();
     c.tParseEnd = c.tParseStart;
     c.mmd = {
@@ -614,7 +688,7 @@ async function mdMmParsePmdStage(c: MdMmBuildCtx): Promise<void> {
   }
 }
 
-async function mdMmStage3SceneMesh(c: MdMmBuildCtx): Promise<void> {
+async function mdMmStage3SceneMesh(c: MdMmStage3Ctx): Promise<void> {
   c.buildSucceeded = false;
   // 结构化守卫替代 !：scene 可选（self 模式适配器自驱 renderer 时为 undefined）
   const scene = c.ctx.scene;
@@ -705,7 +779,7 @@ async function mdMmStage3SceneMesh(c: MdMmBuildCtx): Promise<void> {
   }
 }
 
-async function mdMmStage4Anim(c: MdMmBuildCtx): Promise<void> {
+async function mdMmStage4Anim(c: MdMmStage4Ctx): Promise<void> {
   c.mixer = new THREE.AnimationMixer(c.mesh);
   c.clips = [];
   c.customAnimPath = await getCustomAnimPath();
@@ -798,7 +872,7 @@ async function mdMmStage4Anim(c: MdMmBuildCtx): Promise<void> {
   }
 }
 
-function mdMmStage5Menu(c: MdMmBuildCtx): {
+function mdMmStage5Menu(c: MdMmStage5Ctx): {
   semanticBones: ReturnType<typeof mmdSemanticBoneMap> | undefined;
   semanticMorphs: ReturnType<typeof mmdSemanticMorphMap>;
   breath: ReturnType<typeof createBreathController>;
@@ -825,7 +899,8 @@ function mdMmStage5Menu(c: MdMmBuildCtx): {
     ? buildBoneTree(mmdBonesToBoneNodes(c.mmd?.pmx.bones, c.mesh.skeleton.bones))
     : null;
   c.perceptionState = { breath: true, gaze: true, blink: true, lipSync: true, autoDance: true };
-  c.perceptionCaps = [
+  // perceptionCaps 仅本函数使用（菜单注入）——局部 const，不占用 ctx
+  const perceptionCaps: PerceptionCapability[] = [
     { id: "breath", labelKey: "preview.perceptionBreath", fallback: "呼吸" },
     { id: "gaze", labelKey: "preview.perceptionGaze", fallback: "注视" },
     { id: "blink", labelKey: "preview.perceptionBlink", fallback: "眨眼" },
@@ -885,7 +960,7 @@ function mdMmStage5Menu(c: MdMmBuildCtx): {
           cleanupRef: c.bonePanelRef,
         }
       : null,
-    perception: { state: c.perceptionState, caps: c.perceptionCaps },
+    perception: { state: c.perceptionState, caps: perceptionCaps },
   });
   const semanticBones = c.boneTree ? mmdSemanticBoneMap(c.boneTree) : undefined;
   const semanticMorphs = mmdSemanticMorphMap(c.mmd?.pmx?.morphs ?? []);
@@ -903,8 +978,9 @@ function mdMmStage5Menu(c: MdMmBuildCtx): {
 }
 
 function mdMmStage6Result(
-  c: MdMmBuildCtx,
+  c: MdMmStage6Ctx,
   s5: ReturnType<typeof mdMmStage5Menu>,
+  tStart: number,
 ): PreviewScene {
   const { semanticBones, semanticMorphs, breath, gaze, blink, lipSync, lipIndices, autoDance, footIK, items } = s5;
   let lipSyncTime = s5.lipSyncTime;
@@ -1003,7 +1079,8 @@ function mdMmStage6Result(
           const pose = c.vpdPoses[index];
           if (!pose) return;
           try {
-            if (c.workerMode) {
+            // workerMode 已下沉：worker 构建路径等价于 c.workerBuilt 非空
+            if (c.workerBuilt) {
               applyVPDToMesh(c.mesh!, pose.vpd);
             } else {
               applyVPD(c.mmd!, pose.vpd, { ik: true, grant: true });
@@ -1012,15 +1089,15 @@ function mdMmStage6Result(
         }
       : undefined,
   };
-  mdMmStage6bTrace(c);
+  mdMmStage6bTrace(c, tStart);
   return result;
 }
 
-function mdMmStage6bTrace(c: MdMmBuildCtx): void {
+function mdMmStage6bTrace(c: MdMmStage6bCtx, tStart: number): void {
   c.tBuildEnd = performance.now();
   c.buildSucceeded = true;
   const _stages: import("../load-trace.ts").LoadTraceStage[] = [];
-  if (c.tParseStart > 0) _stages.push({ name: "读取", ms: Math.round(c.tParseStart - c.tStart), status: "ok" });
+  if (c.tParseStart > 0) _stages.push({ name: "读取", ms: Math.round(c.tParseStart - tStart), status: "ok" });
   if (c.tParseEnd > 0) _stages.push({ name: "解析", ms: Math.round(c.tParseEnd - c.tParseStart), status: "ok" });
   if (c.textureLoadedAt > 0) _stages.push({ name: "纹理加载", ms: Math.round(c.textureLoadedAt - c.tParseEnd), status: "ok" });
   if (c.tBuildEnd > c.tParseEnd) _stages.push({ name: "build", ms: Math.round(c.tBuildEnd - c.tParseEnd), status: "ok" });
@@ -1066,6 +1143,8 @@ export async function buildMmdScene(
   c.stopLongTaskWatch = () => {};
   c.blobUrls = [];
   c.buildSucceeded = false;
+  // tStart 下沉：读取阶段计时起点（原 c.tStart 字段），经 stage6Result 传至 stage6bTrace
+  const tStart = performance.now();
   try {
     await mdMmStage1Input(c);
     await mdMmStage2LoadingManager(c);
@@ -1075,7 +1154,7 @@ export async function buildMmdScene(
     await mdMmStage3SceneMesh(c);
     await mdMmStage4Anim(c);
     const s5 = mdMmStage5Menu(c);
-    const result = mdMmStage6Result(c, s5);
+    const result = mdMmStage6Result(c, s5, tStart);
     return result;
   } finally {
     if (!c.buildSucceeded) {
