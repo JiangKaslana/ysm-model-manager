@@ -1076,3 +1076,64 @@ func TestScanModelEntriesFiltered_DisabledContainerNoCrossTabLeak(t *testing.T) 
 		t.Fatalf("EntityPlayer tab 不应泄漏禁用容器，实际 %+v", other)
 	}
 }
+
+// ===== runConcurrentAnalyze（searchModelsConcurrent / SearchAllModels Phase 2 收敛 helper）=====
+// 并发分析 count 个候选项 + 确定性排序。analyze(i) 返回 nil 表示该项不满足过滤被跳过。
+// 排序口径：名称主键 + 原始索引兜底（消除并发完成序导致的「同输入不同输出」，ADR-119）。
+
+func TestRunConcurrentAnalyze_Basic(t *testing.T) {
+	got := runConcurrentAnalyze(4, func(i int) *types.SearchResult {
+		return &types.SearchResult{Name: fmt.Sprintf("m%d", i), Path: fmt.Sprintf("/p/%d", i)}
+	})
+	if len(got) != 4 {
+		t.Fatalf("期望 4 个结果, got %d", len(got))
+	}
+	for i, r := range got {
+		if want := fmt.Sprintf("m%d", i); r.Name != want {
+			t.Errorf("index %d: Name = %s, 期望 %s", i, r.Name, want)
+		}
+	}
+}
+
+func TestRunConcurrentAnalyze_FilterSkip(t *testing.T) {
+	// analyze 返回 nil 表示该项不满足过滤 → 从结果剔除
+	got := runConcurrentAnalyze(5, func(i int) *types.SearchResult {
+		if i == 0 || i == 2 {
+			return nil
+		}
+		return &types.SearchResult{Name: fmt.Sprintf("m%d", i), Path: "/p"}
+	})
+	if len(got) != 3 {
+		t.Fatalf("期望跳过 2 项后剩 3 项, got %d", len(got))
+	}
+}
+
+func TestRunConcurrentAnalyze_AllFilteredEmpty(t *testing.T) {
+	if got := runConcurrentAnalyze(3, func(i int) *types.SearchResult { return nil }); len(got) != 0 {
+		t.Fatalf("全过滤应返回空, got %d", len(got))
+	}
+}
+
+func TestRunConcurrentAnalyze_ZeroCount(t *testing.T) {
+	if got := runConcurrentAnalyze(0, func(i int) *types.SearchResult { return &types.SearchResult{} }); len(got) != 0 {
+		t.Fatalf("count=0 应返回空, got %d", len(got))
+	}
+}
+
+func TestRunConcurrentAnalyze_SameNameIndexTieBreak(t *testing.T) {
+	// 同名不同原始 index → 按 index 升序兜底（确定性契约）
+	names := []string{"z", "a", "b", "a"} // 声明序 index 0..3
+	got := runConcurrentAnalyze(len(names), func(i int) *types.SearchResult {
+		return &types.SearchResult{Name: names[i], Path: fmt.Sprintf("/p/%d", i)}
+	})
+	// 期望 Name 主键升序，同名按 index 兜底：a/p1, a/p3, b/p2, z/p0
+	wantPaths := []string{"/p/1", "/p/3", "/p/2", "/p/0"}
+	if len(got) != len(wantPaths) {
+		t.Fatalf("期望 %d 项, got %d", len(wantPaths), len(got))
+	}
+	for i, w := range wantPaths {
+		if got[i].Path != w {
+			t.Errorf("index %d: Path = %s, 期望 %s", i, got[i].Path, w)
+		}
+	}
+}
