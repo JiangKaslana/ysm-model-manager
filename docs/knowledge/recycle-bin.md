@@ -16,7 +16,7 @@ use_when:
   - 还原
 invariant_anchors:
   - frontend/src/features/recycle-bin.ts|isPathInRoot
-  - frontend/src/features/recycle-bin.ts|_loadGen
+  - frontend/src/utils/async/load-guard.ts|createLoadGuard
 ---
 
 # 回收站界面 recycle-bin
@@ -30,7 +30,7 @@ invariant_anchors:
 ## 核心职责
 
 - `loadRecycleBin()`：`ListRecycleBin("")` 取全部条目 → `GetRepoRoot(currentType)` 按当前资源类型根目录前缀过滤 → 渲染条目（名称走 `renderDisplayName`、大小走宿主 `_fmtSize`、完整路径展示）；类型图标取自 `loadResourceRegistry()`
-- generation 守卫：模块内 `_loadGen` 每次加载自增，`await` 后比对，过期请求的结果直接丢弃，不覆盖新列表（含 catch 分支）
+- generation 守卫：`createLoadGuard()`（utils/async/load-guard.ts，与 oldest-models 共用）每次加载自增代数，`await` 后比对 `guard.isStale()`，过期请求的结果直接丢弃，不覆盖新列表；重载入口先 `guard.invalidate()`（含 catch 分支）
 - 单条恢复：按钮 `disabled` 自锁 + `leaving` 离场动画（150ms）后 `RestoreFromRecycle(path, "")`，成功后重载列表并广播刷新；失败回滚 `leaving` 类并解锁按钮
 - 单条删除：`modalConfirm` 二次确认后同样自锁 + 动画 → `DeleteFromRecycle(path)`
 - 清空回收站：`modalConfirm`（danger）确认后 `EmptyRecycleBin("")`，toast 回报数量
@@ -56,7 +56,7 @@ invariant_anchors:
 
 ## 不变量
 
-- `_loadGen` generation 守卫：每个 `await` 后 `if (gen !== _loadGen) return`，防止快速切换资源类型时旧结果覆盖新列表（首个守卫在 GetRepoRoot/ListRecycleBin await 后；getApp await 前无守卫，语义成立）
+- load-guard generation 守卫：`createLoadGuard()` 每个 `await` 后比对代数，过期即弃，防止快速切换资源类型时旧结果覆盖新列表（首个守卫在 GetRepoRoot/ListRecycleBin await 后；getApp await 前无守卫，语义成立）
 - 清空回收站与单条永久删除必须先过 `modalConfirm`（danger 样式）二次确认，不可直接执行
 - 列表仅显示路径前缀匹配当前类型 `GetRepoRoot` 根目录的条目（**带路径分隔符边界**：`path === root || path.startsWith(root + "/")`，防 `ysm2/` 误入 `ysm/`，P3 修复），路径分隔符统一转 `/` 再比较；`GetRepoRoot` 返回空时回退显示全量条目（回退语义属设计取舍）；**空 `Path` 条目一律排除**（P3 修复：防回退全量时渲染 `data-path=""` 点击发 `model:select {path:""}`）
 - 显示名需剥离 `.ban` 后缀（`replace(/\.(ysm|zip|7z)\.ban$/i, ".$1")`）后走 `renderDisplayName`

@@ -39,7 +39,7 @@ invariant_anchors:
 | 幻灯片行 | `ui-slide-row.ts` | `slideRow` 单行构建 |
 | 卡片 | `ui-card.ts` | `cardContainer(container, fn)` — 包一层 `.lcard`，返回内部 dispose |
 | 加载 | `ui-loading.ts` | `withLoadingIndicator` 自包含加载遮罩 |
-| 顶部切换 | `ui-header-toggle.ts` | `createHeaderToggle` 紧凑 toggle |
+| 顶部切换 | `ui-header-toggle.ts` | `createHeaderToggle` 紧凑 toggle；bind 注册用唯一 id `header-toggle-bind#<seq>`（防多实例 Map 覆盖）+ 两击断连清扫 |
 | 预设 | `ui-preset.ts` | 预设选择器 |
 | 滑块 | `ui-slider-controller.ts` | 数值范围滑块控件 |
 | 图标 | `icons.ts` | `createIcon` 图标工厂（Iconify + emoji 回退） |
@@ -67,4 +67,5 @@ invariant_anchors:
 - 纯 UI helper，零业务逻辑、零 app-state import
 - 样式串经 `adoptedStyleSheets` 注入（Shadow 组件）/ `installUiComponentsStyles` 注入（light-DOM，幂等 `_installed` 守卫）；改样式走 MikuMikuAR 源重跑迁移脚本，勿手改生成串
 - 控件自更新：默认 `registerControl` 为 no-op（依赖各 `initControl` 挂载时立即 update），接入 `setControlRegistry` 后持续自更新才生效
+- header-toggle 多实例：bind updater 各持唯一 id，注册前 `_sweepDetached()` 两击清扫——断连一轮入宽限集、连续两轮注销、恢复连接销记；从未挂载实例豁免（挂载历史 = MutationObserver.takeRecords 同步收割 + 扫描时 isConnected 补记，后者兜底 Shadow DOM）；update 不加 isConnected 守卫（保未挂载直调语义）
 - 行/面板 role/class 一律取自 `dom-contract.ts`，禁止手写字符串
