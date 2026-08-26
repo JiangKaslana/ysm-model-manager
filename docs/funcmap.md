@@ -1980,7 +1980,7 @@
 | `formatSize()` | `frontend/src/views/app-content/diagnostics/health:178` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:22` | 初始化诊断页所有功能 |
-| `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:9` | 转义函数签名（与组件 _esc 一致） |
+| `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:9` | 转义函数签名（单一事实源 = utils/dom/html.ts 的 esc；调用方以 (s) =&gt; esc(String(s || "")) 包装适配） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:45` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:160` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
 | `setHTML()` | `frontend/src/views/app-content/diagnostics/perf-cli:21` | 写入某容器 HTML；容器不存在时静默跳过 |
