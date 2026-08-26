@@ -46,8 +46,58 @@ function isDescendant(obj: THREE.Object3D | null, root: THREE.Object3D): boolean
   return false;
 }
 
+type RegisterInput = {
+  path: string;
+  rtype: string;
+  roots: THREE.Object3D[];
+  built: PreviewScene;
+  boneMaps?: BoneMaps | null;
+  menuItems?: PreviewMenuNode[] | null;
+  onBonePick?: ((boneId: string) => void) | null;
+};
+
+function mdSrDedupByExplicitKey(
+  byAuthor: Map<string, string>,
+  byName: Map<string, string>,
+  input: RegisterInput
+): string | null {
+  const existingByPath = byAuthor.get(input.path);
+  if (existingByPath) return existingByPath;
+  const nameKey = `${input.rtype}::${input.path}`;
+  const existingByName = byName.get(nameKey);
+  if (existingByName) return existingByName;
+  return null;
+}
+
+function mdSrBuildEntryFromInput(id: string, input: RegisterInput): ModelEntry {
+  return {
+    id,
+    path: input.path,
+    rtype: input.rtype,
+    roots: input.roots,
+    built: input.built,
+    visible: true,
+    boneMaps: input.boneMaps ?? null,
+    menuItems: input.menuItems ?? null,
+    onBonePick: input.onBonePick ?? null,
+  };
+}
+
+function mdSrIndexIntoMaps(
+  entries: Map<string, ModelEntry>,
+  byAuthor: Map<string, string>,
+  byName: Map<string, string>,
+  entry: ModelEntry
+): void {
+  entries.set(entry.id, entry);
+  byAuthor.set(entry.path, entry.id);
+  byName.set(`${entry.rtype}::${entry.path}`, entry.id);
+}
+
 class SceneRegistry {
   private entries = new Map<string, ModelEntry>();
+  private byAuthor = new Map<string, string>();
+  private byName = new Map<string, string>();
   private seq = 0;
   private activeId: string | null = null;
   private menuSink: MenuItemsSink | null = null;
@@ -55,6 +105,8 @@ class SceneRegistry {
   /** 重置（会话开始/关闭时调用，清空全部模型记录） */
   reset(): void {
     this.entries.clear();
+    this.byAuthor.clear();
+    this.byName.clear();
     this.seq = 0;
     this.activeId = null;
     this.menuSink = null;
@@ -64,32 +116,21 @@ class SceneRegistry {
    * 注册一个模型，返回其 id（同时置为活跃模型）。
    * roots 由调用方经 scene.children 差量捕获传入；boneMaps/menuItems 可选。
    */
-  register(input: {
-    path: string;
-    rtype: string;
-    roots: THREE.Object3D[];
-    built: PreviewScene;
-    boneMaps?: BoneMaps | null;
-    menuItems?: PreviewMenuNode[] | null;
-    onBonePick?: ((boneId: string) => void) | null;
-  }): string {
+  register(input: RegisterInput): string {
+    mdSrDedupByExplicitKey(this.byAuthor, this.byName, input);
     const id = `m${++this.seq}`;
-    this.entries.set(id, {
-      id,
-      path: input.path,
-      rtype: input.rtype,
-      roots: input.roots,
-      built: input.built,
-      visible: true,
-      boneMaps: input.boneMaps ?? null,
-      menuItems: input.menuItems ?? null,
-      onBonePick: input.onBonePick ?? null,
-    });
+    const entry = mdSrBuildEntryFromInput(id, input);
+    mdSrIndexIntoMaps(this.entries, this.byAuthor, this.byName, entry);
     this.activeId = id;
     return id;
   }
 
   unregister(id: string): void {
+    const e = this.entries.get(id);
+    if (e) {
+      this.byAuthor.delete(e.path);
+      this.byName.delete(`${e.rtype}::${e.path}`);
+    }
     this.entries.delete(id);
     if (this.activeId === id) {
       const rest = [...this.entries.keys()];
