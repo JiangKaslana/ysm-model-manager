@@ -56,6 +56,7 @@ export function forceRefreshCommunityMerge(): void {
 /** 供测试清除扫描缓存 */
 export function forceRefreshScanAuthors(): void {
   invalidateCache(SCAN_AUTHORS_KEY);
+  invalidateCache(SCAN_LITE_AUTHORS_KEY);
 }
 
 /** 清除站点索引缓存 */
@@ -70,6 +71,7 @@ export function forceRefreshCommunitySites(): void {
 export function clearAllCommunityCache(): void {
   invalidateCache(COMMUNITY_MERGE_KEY);
   invalidateCache(SCAN_AUTHORS_KEY);
+  invalidateCache(SCAN_LITE_AUTHORS_KEY);
   invalidateCache(SITES_FETCH_KEY);
   dbg("cache", "all community cache cleared");
 }

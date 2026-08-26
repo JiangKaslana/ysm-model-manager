@@ -742,8 +742,8 @@
 | `App.PullResourceFromInstance()` | `internal/app/app_install_instance:410` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
 | `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:452` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
 | `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:473` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:498` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
-| `App.HasYSMMod()` | `internal/app/app_install_instance:548` | ========== YSM 检测 ========== |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:500` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
+| `App.HasYSMMod()` | `internal/app/app_install_instance:562` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install_link:11` | ========== 链接模式 ========== |
 | `App.GetLinkMode()` | `internal/app/app_install_link:38` | — |
 | `App.AddImportLog()` | `internal/app/app_install_log:8` | ========== 日志 ========== |
@@ -776,18 +776,18 @@
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:25` | ========== 导出单模型骨骼结构 ========== ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:63` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
 | `App.SearchAllModels()` | `internal/app/app_scan:216` | SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。 |
-| `App.ScanModelEntries()` | `internal/app/app_scan:295` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
-| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:317` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
-| `App.ScanModelEntriesFiltered()` | `internal/app/app_scan:370` | ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions 注 |
-| `App.ClearScanCache()` | `internal/app/app_scan:420` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
-| `App.ListModelAuthors()` | `internal/app/app_scan:427` | ListModelAuthors 统计 [作者] 前缀（轻量遍历：只看文件名，不读元数据不算哈希， 不占全量扫描缓存——原走 ScanEntries 会陪绑 SHA256，大库下拖 |
-| `App.GenerateRepoIndex()` | `internal/app/app_scan:436` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
-| `App.ScanLocalAuthors()` | `internal/app/app_scan:444` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
-| `App.ListVersionInstances()` | `internal/app/app_scan:453` | — |
-| `App.GetGlobalCustomDir()` | `internal/app/app_scan:457` | — |
-| `App.ListFileNames()` | `internal/app/app_scan:463` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:480` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:489` | — |
+| `App.ScanModelEntries()` | `internal/app/app_scan:303` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
+| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:325` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
+| `App.ScanModelEntriesFiltered()` | `internal/app/app_scan:378` | ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions 注 |
+| `App.ClearScanCache()` | `internal/app/app_scan:428` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
+| `App.ListModelAuthors()` | `internal/app/app_scan:435` | ListModelAuthors 统计 [作者] 前缀（轻量遍历：只看文件名，不读元数据不算哈希， 不占全量扫描缓存——原走 ScanEntries 会陪绑 SHA256，大库下拖 |
+| `App.GenerateRepoIndex()` | `internal/app/app_scan:444` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
+| `App.ScanLocalAuthors()` | `internal/app/app_scan:452` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
+| `App.ListVersionInstances()` | `internal/app/app_scan:461` | — |
+| `App.GetGlobalCustomDir()` | `internal/app/app_scan:465` | — |
+| `App.ListFileNames()` | `internal/app/app_scan:471` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:488` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:497` | — |
 | `App.DetectConflicts()` | `internal/app/app_sync:15` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
 | `App.ResolveConflicts()` | `internal/app/app_sync:59` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |
@@ -1927,17 +1927,17 @@
 | `CommunityData()` | `frontend/src/views/app-content/community-data:25` | 站点 + 创作者 + 作者 数据包 |
 | `forceRefreshCommunityMerge()` | `frontend/src/views/app-content/community-data:52` | 供测试强制刷新缓存 |
 | `forceRefreshScanAuthors()` | `frontend/src/views/app-content/community-data:57` | 供测试清除扫描缓存 |
-| `forceRefreshCommunitySites()` | `frontend/src/views/app-content/community-data:62` | 清除站点索引缓存 |
-| `clearAllCommunityCache()` | `frontend/src/views/app-content/community-data:70` | 统一失效入口：数据变更时一次性清除所有社区相关缓存 供导入/同步/下载完成后调用，替代分散的 invalidateCache 调用 |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:88` | 加载站点 + 创作者数据（纯数据，不碰 DOM）——首屏快路径。 |
-| `loadLocalAuthors()` | `frontend/src/views/app-content/community-data:131` | 本地作者扫描（后台补充路径）：withCached STALE——过期先返旧值再后台刷新， 不阻塞调用方；冷缓存时才真等扫描（Go 侧已轻量化为纯目录枚举）。 |
-| `mergeLocalAuthorsInto()` | `frontend/src/views/app-content/community-data:147` | 把本地扫描提取的作者合并进创作者列表（原地合并，返回同一引用）。 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:223` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:277` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:306` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:343` | 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:378` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:399` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `forceRefreshCommunitySites()` | `frontend/src/views/app-content/community-data:63` | 清除站点索引缓存 |
+| `clearAllCommunityCache()` | `frontend/src/views/app-content/community-data:71` | 统一失效入口：数据变更时一次性清除所有社区相关缓存 供导入/同步/下载完成后调用，替代分散的 invalidateCache 调用 |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:90` | 加载站点 + 创作者数据（纯数据，不碰 DOM）——首屏快路径。 |
+| `loadLocalAuthors()` | `frontend/src/views/app-content/community-data:133` | 本地作者扫描（后台补充路径）：withCached STALE——过期先返旧值再后台刷新， 不阻塞调用方；冷缓存时才真等扫描（Go 侧已轻量化为纯目录枚举）。 |
+| `mergeLocalAuthorsInto()` | `frontend/src/views/app-content/community-data:149` | 把本地扫描提取的作者合并进创作者列表（原地合并，返回同一引用）。 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:225` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:279` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:308` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:345` | 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:380` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:401` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:14` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:4` | — |

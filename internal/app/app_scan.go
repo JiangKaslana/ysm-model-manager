@@ -219,13 +219,21 @@ func (a *App) SearchAllModels(allRoots map[string]string, keyword string, minBon
 	}
 	kw := strings.ToLower(strings.TrimSpace(keyword))
 
-	// 收集所有类型的条目，每个条目携带类型标记
+	// 收集所有类型的条目，每个条目携带类型标记。
+	// 先按 rtype 排序再迭代：Go map 迭代序随机，直接 range 会让同名跨类型条目
+	// 的 index tiebreak 逐次不同（sort.SliceStable by (Name, index) 的兜底键失效）。
 	type typedEntry struct {
 		entry types.ModelEntry
 		rtype string
 	}
 	var all []typedEntry
-	for rtype, root := range allRoots {
+	rtypes := make([]string, 0, len(allRoots))
+	for rtype := range allRoots {
+		rtypes = append(rtypes, rtype)
+	}
+	sort.Strings(rtypes)
+	for _, rtype := range rtypes {
+		root := allRoots[rtype]
 		entries := a.ScanModelEntries(root)
 		for _, e := range entries {
 			all = append(all, typedEntry{entry: e, rtype: rtype})
