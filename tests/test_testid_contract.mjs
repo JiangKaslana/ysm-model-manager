@@ -90,6 +90,17 @@ const TESTID_REGISTRY = {
 
 const errors = [];
 
+// G-1 抗脆弱测试基础设施存在性（原 test_testid_hooks.mjs 并入；
+// 其 4 个 tree-* testid 已由上方 TESTID_REGISTRY 覆盖，此处仅保留 contract 注册表未覆盖的 2 项文件存在性守护）
+// 1. test-utils helper 存在（G-1 ③）
+if (!fs.existsSync(path.join(FE, "src/test-utils/index.ts"))) {
+  errors.push("MISSING: src/test-utils/index.ts（G-1 测试基础设施 helper 缺失）");
+}
+// 2. 首个组件测试存在（G-1 ④）
+if (!fs.existsSync(path.join(FE, "src/views/app-tree/app-tree.state.test.ts"))) {
+  errors.push("MISSING: src/views/app-tree/app-tree.state.test.ts（G-1 首个组件测试缺失）");
+}
+
 for (const [testid, relFile] of Object.entries(TESTID_REGISTRY)) {
   const fp = path.join(FE, relFile);
   if (!fs.existsSync(fp)) {

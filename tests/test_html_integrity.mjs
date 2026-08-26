@@ -38,18 +38,7 @@ for (const m of html.matchAll(/<script[^>]*src="([^"]+)"/g)) {
   }
 }
 
-// 3. 检查 module script 有 type="module"（原实现为 no-op 检查，保持等价）
-for (const m of html.matchAll(/<script\s+([^>]*)>/g)) {
-  const attrs = m[1];
-  if (attrs.includes('module') && !attrs.includes('type')) {
-    // type="module" implied by newer browsers
-  }
-  if (attrs.includes('src=') && !attrs.includes('type') && !attrs.includes('nomodule')) {
-    // 非 module script 检查（原实现为 no-op）
-  }
-}
-
-// 4. 检查自定义组件标签（<app-xxx>）都有对应组件文件（.js/.ts 皆可，ADR-014 渐进迁移）
+// 3. 检查自定义组件标签（<app-xxx>）都有对应组件文件（.js/.ts 皆可，ADR-014 渐进迁移）
 for (const m of html.matchAll(/<(\w+-\w+)[>\s]/g)) {
   const tag = m[1];
   if (tag.startsWith('app-')) {
@@ -66,13 +55,13 @@ for (const m of html.matchAll(/<(\w+-\w+)[>\s]/g)) {
   }
 }
 
-// 5. DOCTYPE
+// 4. DOCTYPE
 const trimmed = html.trimStart();
 if (!trimmed.startsWith('<!doctype html') && !trimmed.startsWith('<!DOCTYPE html')) {
   errors.push('Missing or incorrect DOCTYPE');
 }
 
-// 6. charset
+// 5. charset
 if (!html.includes('charset="UTF-8"') && !html.includes('charset="utf-8"')) {
   errors.push('Missing charset=UTF-8');
 }

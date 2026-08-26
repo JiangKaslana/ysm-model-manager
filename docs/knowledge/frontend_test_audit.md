@@ -31,7 +31,7 @@ use_when:
 | tests 绑定契约簇 | 4.5 | mock_contract 双向扫描、bus_contract spawnSync+fixture 场景、android_bridge 锁 4 层隐式契约 |
 | tests CLI/脚本门禁簇 | 4 | cli_doc_parity 三锁联防、api_break 真实 git ref 端到端 |
 | tests 变更域/分层簇 | 4 | check_layering 纯函数+集成合体 |
-| tests testid/文档簇 | 3.5 | testid_hooks 与 testid_contract 冗余；html_integrity 有空壳检查 |
+| tests testid/文档簇 | 4.5 | testid_hooks 已并入 testid_contract（✅ 已修复）；html_integrity 空壳已移除（✅ 已修复） |
 | tests 知识卡治理簇 | 4.5 | findStaleSnippets 12 种边界；perf-tags 端到端脏写测试 |
 | tests 迁移验证簇 | 3 | verify-adr-042 失败不 exit(1) 是假门禁；theory-matrix-layout 零断言属开发笔记 |
 | e2e 桌面 | 4 | testid 使用率 ~90%、mock 单源双向编译期校验、flaky 防御到位 |
@@ -41,7 +41,7 @@ use_when:
 
 1. **契约盲区**：近期四大重构均无对应契约测试——createWorkerBridge 工厂、backend/runtime.ts 桥收口、model2d 三件拆分、dedupConfig。前两者影响面最大。
 2. **假门禁**（✅ 已于 2026-08-26 修复）：verify-adr-042.mjs 已补 `process.exit(1)` 门禁（GAP_FOUND 即阻断 pre-push）；theory-matrix-layout.mjs 零断言已 `git mv` 至 `poc/theory-matrix-layout.mjs` 脱离 tests/ 套件。
-3. **冗余**：test_testid_hooks（4 个检查）可并入 test_testid_contract（56 个注册表驱动）；html_integrity 的 module script 检查是空壳遗留。
+3. **冗余**（✅ 已于 2026-08-26 修复）：test_testid_hooks 的 4 个 tree-* testid 已被 test_testid_contract 注册表（row-tpl.ts 四项）覆盖；其独有的 2 项 G-1 基础设施存在性检查（test-utils/index.ts、app-tree.state.test.ts）已作为前导并入 test_testid_contract，test_testid_hooks.mjs 已删除。html_integrity 的 module script 检查（no-op 双空分支）已移除，保留真实 script-src 物理文件校验。
 4. **e2e-web 重复**：dropFile/allShadowText/idbKeys/clearIdb 四辅助函数在两个 spec 完全重复 ~120L，应抽 e2e-web/helpers.ts。
 
 ## 中低优先级
