@@ -687,7 +687,9 @@ func ensureRepoWorkflow(repoPath string) {
 	if _, err := os.Stat(workflowPath); !os.IsNotExist(err) {
 		return // 已存在，不覆盖（用户自定义 workflow 保留）
 	}
-	if err := os.WriteFile(workflowPath, []byte(generateIndexWorkflow), fsutil.FilePerms); err != nil {
+	// 裸 os.WriteFile 中途崩溃可能留残缺文件，被上方 os.Stat 误判为「已存在」而永久静默失效；
+	// WriteFileAtomic（临时文件+rename，ADR-109 §4）保证目标「要么不存在、要么完整」。
+	if err := fsutil.WriteFileAtomic(workflowPath, []byte(generateIndexWorkflow)); err != nil {
 		// 写入失败留痕——静默失败会让 CI 自动重生成 index 静默失效，用户无感知
 		emitScanError("[scanner] 写入 workflow %s 失败: %v", workflowPath, err)
 	}

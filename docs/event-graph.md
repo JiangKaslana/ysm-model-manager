@@ -1,9 +1,53 @@
 # Bus 事件契约报告
 
 > **自动生成** — 由 `scripts/event-graph.mjs` 生成。
-> 基于 `frontend/src/bus.ts` 的 `BusEvents` 接口校验所有调用方。
+> 基于 `frontend/src/bus.ts` 的 `BusEvents` 接口校验所有调用方（含 html 内联、可选链调用）。
 
 ## ⚠️ 异常摘要
+
+### emit 实参违约（硬错误）
+
+- `tree:reload` missing_payload — `frontend/src/core/context-menu-shared.ts:16`
+- `stats:refresh` missing_payload — `frontend/src/core/context-menu-shared.ts:17`
+- `tree:reload` missing_payload — `frontend/src/core/handlers/android-events.ts:64`
+- `stats:refresh` missing_payload — `frontend/src/core/handlers/android-events.ts:65`
+- `stats:refresh` missing_payload — `frontend/src/core/handlers/instance-ops.ts:157`
+- `stats:refresh` missing_payload — `frontend/src/core/handlers/sync.ts:102`
+- `tree:reload` missing_payload — `frontend/src/core/handlers/sync.ts:120`
+- `stats:refresh` missing_payload — `frontend/src/core/handlers/sync.ts:211`
+- `tree:reload` missing_payload — `frontend/src/core/handlers/sync.ts:234`
+- `tree:reload` missing_payload — `frontend/src/features/community/download-queue.ts:109`
+- `stats:refresh` missing_payload — `frontend/src/features/community/download-queue.ts:110`
+- `stats:refresh` missing_payload — `frontend/src/features/import-executor.ts:68`
+- `tree:reload` missing_payload — `frontend/src/features/import-executor.ts:69`
+- `tree:reload` missing_payload — `frontend/src/features/import-executor.ts:255`
+- `stats:refresh` missing_payload — `frontend/src/features/import-executor.ts:256`
+- `stats:refresh` missing_payload — `frontend/src/features/recycle-bin.ts:107`
+- `tree:reload` missing_payload — `frontend/src/features/recycle-bin.ts:108`
+- `stats:refresh` missing_payload — `frontend/src/features/recycle-bin.ts:167`
+- `tree:reload` missing_payload — `frontend/src/features/recycle-bin.ts:168`
+- `stats:refresh` missing_payload — `frontend/src/views/app-content/diagnostics/dedup.ts:407`
+- `tree:reload` missing_payload — `frontend/src/views/app-content/diagnostics/dedup.ts:408`
+- `stats:refresh` missing_payload — `frontend/src/views/app-content/settings/init.ts:140`
+- `config:updated` missing_payload — `frontend/src/views/app-content/settings/path-cards.ts:77`
+- `stats:refresh` missing_payload — `frontend/src/views/app-content/settings/path-cards.ts:78`
+- `config:updated` missing_payload — `frontend/src/views/app-content/settings/path-cards.ts:273`
+- `config:updated` missing_payload — `frontend/src/views/app-content/settings/path-cards.ts:301`
+- `config:updated` missing_payload — `frontend/src/views/app-content/settings/path-cards.ts:355`
+- `stats:refresh` missing_payload — `frontend/src/views/app-content/settings/path-cards.ts:356`
+- `stats:refresh` missing_payload — `frontend/src/views/app-sidebar/index.ts:288`
+- `tree:reload` missing_payload — `frontend/src/views/app-sidebar/index.ts:289`
+- `stats:refresh` missing_payload — `frontend/src/views/app-sync-manager/index.ts:217`
+- `stats:refresh` missing_payload — `frontend/src/views/app-tree/bus-handlers.ts:76`
+- `stats:refresh` missing_payload — `frontend/src/views/app-tree/bus-handlers.ts:145`
+- `stats:refresh` missing_payload — `frontend/src/views/app-tree/bus-handlers.ts:196`
+- `stats:refresh` missing_payload — `frontend/src/views/app-tree/bus-handlers.ts:233`
+- `sync:toggle:status` missing_payload — `frontend/src/views/app-tree/bus-handlers.ts:328`
+- `sync:toggle:status` missing_payload — `frontend/src/views/app-tree/events.ts:116`
+- `stats:refresh` missing_payload — `frontend/src/views/app-tree/events.ts:118`
+- `sync:toggle:status` missing_payload — `frontend/src/views/app-tree/events.ts:460`
+- `batch:enable-all` missing_payload — `frontend/src/views/app-tree/toolbar-events.ts:211`
+- `batch:disable-all` missing_payload — `frontend/src/views/app-tree/toolbar-events.ts:212`
 
 ### 孤儿发射（emit 了但无 on/once 订阅方）
 
@@ -25,11 +69,11 @@
 |------|--------|--------|-----------|--------|------|
 | `avatar:refresh` | 1 | 1 | 0 | 0 | ✅ |
 | `batch:disable` | 0 | 1 | 0 | 0 | 👻 鬼订阅 |
-| `batch:disable-all` | 1 | 1 | 0 | 0 | ✅ |
+| `batch:disable-all` | 1 | 1 | 0 | 0 | ⛔ 实参违约 |
 | `batch:enable` | 0 | 1 | 0 | 0 | 👻 鬼订阅 |
-| `batch:enable-all` | 1 | 1 | 0 | 0 | ✅ |
+| `batch:enable-all` | 1 | 1 | 0 | 0 | ⛔ 实参违约 |
 | `batch:rename` | 1 | 1 | 0 | 0 | ✅ |
-| `config:updated` | 4 | 0 | 0 | 0 | 🔇 孤儿发射 |
+| `config:updated` | 4 | 0 | 0 | 0 | ⛔ 实参违约 |
 | `ctx:show` | 4 | 1 | 0 | 0 | ✅ |
 | `dir:batch-rename` | 1 | 1 | 0 | 0 | ✅ |
 | `dir:mkdir` | 1 | 1 | 0 | 0 | ✅ |
@@ -48,13 +92,13 @@
 | `repo:search-creator` | 2 | 1 | 0 | 0 | ✅ |
 | `repo:subdir-changed` | 1 | 1 | 0 | 0 | ✅ |
 | `stage:load` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
-| `stats:refresh` | 21 | 2 | 0 | 0 | ✅ |
+| `stats:refresh` | 21 | 2 | 0 | 0 | ⛔ 实参违约 |
 | `sync:download:done` | 2 | 2 | 0 | 0 | ✅ |
 | `sync:download:missing` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
-| `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
+| `sync:toggle:status` | 3 | 1 | 0 | 0 | ⛔ 实参违约 |
 | `theme:change` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `toast:show` | 200 | 2 | 0 | 0 | ✅ |
-| `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
+| `tree:reload` | 11 | 1 | 0 | 0 | ⛔ 实参违约 |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
 
 ## 调用详情

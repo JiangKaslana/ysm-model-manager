@@ -37,7 +37,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 28 | 212 |
+| Go(internal)·应用入口 | 28 | 211 |
 | 前端·根 (app-modules/bus) | 4 | 18 |
 | frontend/backend | 21 | 108 |
 | 前端·核心 | 18 | 36 |
@@ -49,7 +49,7 @@
 | frontend/views | 114 | 331 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **480** | **2040** |
+| **合计** | **480** | **2039** |
 
 ## Go·头像
 
@@ -788,7 +788,6 @@
 | `App.CheckFileExists()` | `internal/app/app_scan:539` | — |
 | `App.OpenFolder()` | `internal/app/app_scan:631` | — |
 | `App.OpenInstanceFolder()` | `internal/app/app_scan:667` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
-| `progressReader.Read()` | `internal/app/app_scan:701` | — |
 | `App.DetectConflicts()` | `internal/app/app_sync:15` | DetectConflicts 检测指定整合包与全局仓库之间的文件冲突 rtype: 资源类型 ID instanceName: 整合包名称 返回冲突报告 JSON |
 | `App.ResolveConflicts()` | `internal/app/app_sync:59` | ResolveConflicts 批量解决冲突 conflictsJSON: 冲突列表 JSON（来自 DetectConflicts） defaultStrategy: 默认解决 |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |
@@ -1926,19 +1925,19 @@
 | `LocalCreator()` | `frontend/src/views/app-content/community-data:9` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
 | `LocalAuthorLike()` | `frontend/src/views/app-content/community-data:18` | 绑定 LocalAuthor（合并来源） |
 | `CommunityData()` | `frontend/src/views/app-content/community-data:25` | 站点 + 创作者 + 作者 数据包 |
-| `forceRefreshCommunityMerge()` | `frontend/src/views/app-content/community-data:47` | 供测试强制刷新缓存 |
-| `forceRefreshScanAuthors()` | `frontend/src/views/app-content/community-data:52` | 供测试清除扫描缓存 |
-| `forceRefreshCommunitySites()` | `frontend/src/views/app-content/community-data:57` | 清除站点索引缓存 |
-| `clearAllCommunityCache()` | `frontend/src/views/app-content/community-data:65` | 统一失效入口：数据变更时一次性清除所有社区相关缓存 供导入/同步/下载完成后调用，替代分散的 invalidateCache 调用 |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:83` | 加载站点 + 创作者数据（纯数据，不碰 DOM）——首屏快路径。 |
-| `loadLocalAuthors()` | `frontend/src/views/app-content/community-data:125` | 本地作者扫描（后台补充路径）：withCached STALE——过期先返旧值再后台刷新， 不阻塞调用方；冷缓存时才真等扫描（Go 侧已轻量化为纯目录枚举）。 |
-| `mergeLocalAuthorsInto()` | `frontend/src/views/app-content/community-data:141` | 把本地扫描提取的作者合并进创作者列表（原地合并，返回同一引用）。 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:217` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:271` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:300` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:337` | 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:372` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:393` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `forceRefreshCommunityMerge()` | `frontend/src/views/app-content/community-data:52` | 供测试强制刷新缓存 |
+| `forceRefreshScanAuthors()` | `frontend/src/views/app-content/community-data:57` | 供测试清除扫描缓存 |
+| `forceRefreshCommunitySites()` | `frontend/src/views/app-content/community-data:62` | 清除站点索引缓存 |
+| `clearAllCommunityCache()` | `frontend/src/views/app-content/community-data:70` | 统一失效入口：数据变更时一次性清除所有社区相关缓存 供导入/同步/下载完成后调用，替代分散的 invalidateCache 调用 |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:88` | 加载站点 + 创作者数据（纯数据，不碰 DOM）——首屏快路径。 |
+| `loadLocalAuthors()` | `frontend/src/views/app-content/community-data:131` | 本地作者扫描（后台补充路径）：withCached STALE——过期先返旧值再后台刷新， 不阻塞调用方；冷缓存时才真等扫描（Go 侧已轻量化为纯目录枚举）。 |
+| `mergeLocalAuthorsInto()` | `frontend/src/views/app-content/community-data:147` | 把本地扫描提取的作者合并进创作者列表（原地合并，返回同一引用）。 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:223` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:277` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:306` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:343` | 从 GitHub 拉取 workshop_sites.json（三路回退，withCached 30min TTL） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:378` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:399` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:14` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:4` | — |
@@ -2067,7 +2066,7 @@
 | `openEmpty3DFullscreen()` | `frontend/src/views/app-preview/empty-3d:35` | 打开空场景 3D 全屏预览（无需 path）。 |
 | `cleanupEmpty3D()` | `frontend/src/views/app-preview/empty-3d:40` | 清理空场景 3D（WebGL renderer + rAF 循环） |
 | `invalidateEmptyPreview()` | `frontend/src/views/app-preview/empty-3d:45` | 作废在途空场景加载 |
-| `createFbx3D()` | `frontend/src/views/app-preview/fbx-3d:40` | 打开 FBX 3D 预览（独立资产：模型 + 内嵌动画）；siblings 透传同类型候选（ADR-066 §5.6） |
+| `createFbx3D()` | `frontend/src/views/app-preview/fbx-3d:41` | 打开 FBX 3D 预览（独立资产：模型 + 内嵌动画）；siblings 透传同类型候选（ADR-066 §5.6） |
 | `resolveFbxSiblings()` | `frontend/src/views/app-preview/fbx-siblings:7` | 同类型 FBX 模型候选（GetRepoRoot(fbx) → ScanModelEntriesFiltered 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:6` | Bedrock 方块 |
 | `BedrockSubModel()` | `frontend/src/views/app-preview/geometry:19` | SubModel 子模型条目（Go types/bedrock.go SubModel）。 |
@@ -2215,8 +2214,8 @@
 | `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:253` | 空状态 HTML |
 | `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:267` | 加载中 |
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
-| `AuthorInfo()` | `frontend/src/views/app-tree/authors:5` | 作者统计（Go ListModelAuthors 返回） |
-| `loadAuthors()` | `frontend/src/views/app-tree/authors:13` | 从 Go 端加载作者列表 |
+| `AuthorInfo()` | `frontend/src/views/app-tree/authors:6` | 作者统计（Go ListModelAuthors 返回） |
+| `loadAuthors()` | `frontend/src/views/app-tree/authors:19` | 从 Go 端加载作者列表 |
 | `bindBusEvents()` | `frontend/src/views/app-tree/bus-handlers:25` | — |
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
