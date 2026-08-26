@@ -2,7 +2,6 @@ package sync
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -135,14 +134,16 @@ func ResolveConflict(conflict FileConflict, strategy ResolutionStrategy, localDi
 
 	switch strategy {
 	case ResolveForceRemote:
-		// 强制使用远端：先备份本地，再用远端覆盖
+		// 强制使用远端：先备份本地，再用远端覆盖。
+		// 拷贝统一走 fsutil.CopyFile（ADR-044 收敛：原子 tmp+rename，
+		// 中途失败不留半截目标；权限/步骤错误类型化见 fsutil）。
 		backupPath := localPath + ".bak"
-		if err := copyFileSafe(localPath, backupPath); err != nil {
+		if err := fsutil.CopyFile(localPath, backupPath); err != nil {
 			return fmt.Errorf("备份本地文件失败: %w", err)
 		}
-		if err := copyFileSafe(remotePath, localPath); err != nil {
+		if err := fsutil.CopyFile(remotePath, localPath); err != nil {
 			// 恢复备份
-			_ = copyFileSafe(backupPath, localPath)
+			_ = fsutil.CopyFile(backupPath, localPath)
 			_ = os.Remove(backupPath)
 			return fmt.Errorf("拷贝远端文件失败: %w", err)
 		}
@@ -259,34 +260,4 @@ func suggestStrategy(localTime, remoteTime time.Time) ResolutionStrategy {
 		return ResolveForceLocal
 	}
 	return ResolveManual
-}
-
-// copyFileSafe 安全拷贝文件（先备份再覆盖模式）
-func copyFileSafe(src, dst string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-	// 确保目标目录存在
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-
-	dstFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstFile.Close() // 兜底：仅 io.Copy 早退路径触发
-
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return err
-	}
-	// 写路径 Close 错误必须检查：缓冲写失败可能在 Close/Flush 才浮现（Windows/网络盘），
-	// 静默吞掉会把截断的目标文件当成功解决（code_review P3 回归）
-	if err := dstFile.Close(); err != nil {
-		return err
-	}
-	return nil
 }

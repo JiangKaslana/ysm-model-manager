@@ -430,13 +430,13 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `DetectConflicts()` | `go/sync/conflict:70` | DetectConflicts 检测本地和远端之间的冲突 基于文件哈希比较：两端都存在且哈希不同 → 内容冲突 localDir: 本地目录路径（整合包） remoteDir: 远 |
-| `ResolveConflict()` | `go/sync/conflict:132` | ResolveConflict 解决单个文件冲突 先备份再操作，确保安全 |
-| `ResolveConflicts()` | `go/sync/conflict:166` | ResolveConflicts 批量解决冲突 |
-| `ConflictType()` | `go/sync/conflict:14` | ConflictType 冲突类型 |
-| `ResolutionStrategy()` | `go/sync/conflict:24` | ResolutionStrategy 冲突解决策略 |
-| `FileConflict()` | `go/sync/conflict:36` | FileConflict 文件冲突详情 |
-| `ConflictReport()` | `go/sync/conflict:58` | ConflictReport 冲突报告 |
+| `DetectConflicts()` | `go/sync/conflict:69` | DetectConflicts 检测本地和远端之间的冲突 基于文件哈希比较：两端都存在且哈希不同 → 内容冲突 localDir: 本地目录路径（整合包） remoteDir: 远 |
+| `ResolveConflict()` | `go/sync/conflict:131` | ResolveConflict 解决单个文件冲突 先备份再操作，确保安全 |
+| `ResolveConflicts()` | `go/sync/conflict:167` | ResolveConflicts 批量解决冲突 |
+| `ConflictType()` | `go/sync/conflict:13` | ConflictType 冲突类型 |
+| `ResolutionStrategy()` | `go/sync/conflict:23` | ResolutionStrategy 冲突解决策略 |
+| `FileConflict()` | `go/sync/conflict:35` | FileConflict 文件冲突详情 |
+| `ConflictReport()` | `go/sync/conflict:57` | ConflictReport 冲突报告 |
 | `RegisterInvalidationHook()` | `go/sync/sync_cache:30` | RegisterInvalidationHook 把同步扫描缓存挂到 scanner 失效钩子上。 |
 | `InvalidateSyncScanCaches()` | `go/sync/sync_cache:61` | InvalidateSyncScanCaches 清空全部同步目录扫描结果缓存。 |
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |

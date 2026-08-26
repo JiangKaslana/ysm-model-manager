@@ -178,6 +178,42 @@ func TestResolveConflict_ForceRemote(t *testing.T) {
 	}
 }
 
+// TestResolveConflict_ForceRemote_CopyFail_LocalIntact 锁定失败路径契约：
+// 远端拷贝失败（此处远端缺失）时，本地文件必须原样保留、.bak 不残留。
+// ADR-044 收敛后由 fsutil.CopyFile 的原子 tmp+rename 统一保证——即使中途
+// 失败也不会出现"半截目标"，回滚路径同样走原子拷贝。
+func TestResolveConflict_ForceRemote_CopyFail_LocalIntact(t *testing.T) {
+	localDir, remoteDir, cleanup := setupTestDirs(t)
+	defer cleanup()
+
+	writeFile(t, localDir, "test.txt", "local content", time.Now())
+	// 远端故意不写 test.txt → 拷贝必然失败
+
+	conflict := FileConflict{
+		Path: "test.txt",
+		Type: ConflictContentModified,
+	}
+
+	err := ResolveConflict(conflict, ResolveForceRemote, localDir, remoteDir)
+	if err == nil {
+		t.Fatal("远端缺失时应返回错误")
+	}
+
+	// 本地内容必须完好无损
+	content, err := os.ReadFile(filepath.Join(localDir, "test.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "local content" {
+		t.Errorf("失败路径不得破坏本地文件：期望 'local content'，实际 '%s'", string(content))
+	}
+
+	// 回滚后备份应被清理
+	if _, err := os.Stat(filepath.Join(localDir, "test.txt.bak")); !os.IsNotExist(err) {
+		t.Error("失败回滚后备份文件应该已被删除")
+	}
+}
+
 func TestResolveConflict_ForceLocal(t *testing.T) {
 	localDir, remoteDir, cleanup := setupTestDirs(t)
 	defer cleanup()
