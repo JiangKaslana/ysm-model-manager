@@ -23,24 +23,39 @@ export type AdvFilterResult = AdvFilterValue | { cleared: true } | null;
  * @param opts 初始值
  * @returns 筛选条件对象，取消返回 null；清除时返回 { cleared: true }
  */
-export function modalAdvFilter(opts: { value?: Partial<AdvFilterValue> } = {}): Promise<AdvFilterResult> {
-  return new Promise((resolve) => {
-    const v = opts.value || {};
-    const overlay = document.createElement("div");
-    overlay.className = "dlg-overlay";
-    overlay.onclick = (e: MouseEvent): void => {
-      if (e.target === overlay) closeDlg(overlay, resolve, null);
-    };
-    overlay.addEventListener("keydown", (e: KeyboardEvent): void => {
-      if (e.key === "Escape") closeDlg(overlay, resolve, null);
-    });
+/** 收集弹窗输入 → AdvFilterValue（骨骼/立方体/纹理 数字解析 + 关键字/标签去空格） */
+function advFilterCollect(
+  box: HTMLDivElement,
+  kwInput: HTMLInputElement,
+  tagInput: HTMLInputElement,
+): AdvFilterValue {
+  return {
+    keyword: kwInput.value.trim(),
+    minBones: parseFilterNumber(
+      (box.querySelector("#afv-minBones") as HTMLInputElement)?.value ?? "",
+    ),
+    maxBones: parseFilterNumber(
+      (box.querySelector("#afv-maxBones") as HTMLInputElement)?.value ?? "",
+    ),
+    minCubes: parseFilterNumber(
+      (box.querySelector("#afv-minCubes") as HTMLInputElement)?.value ?? "",
+    ),
+    maxCubes: parseFilterNumber(
+      (box.querySelector("#afv-maxCubes") as HTMLInputElement)?.value ?? "",
+    ),
+    minTex: parseFilterNumber(
+      (box.querySelector("#afv-minTex") as HTMLInputElement)?.value ?? "",
+    ),
+    maxTex: parseFilterNumber(
+      (box.querySelector("#afv-maxTex") as HTMLInputElement)?.value ?? "",
+    ),
+    tag: tagInput.value.trim(),
+  };
+}
 
-    const box = document.createElement("div");
-    box.className = "dlg-box dlg-pad";
-    box.style.gap = "10px";
-    box.style.width = "420px";
-
-    box.innerHTML = `
+/** 渲染弹窗表单 HTML（纯函数，无 DOM 副作用） */
+function buildAdvFilterFormHTML(v: Partial<AdvFilterValue>): string {
+  return `
       <div class="dlg-title" style="margin:0">⚙️ ${t("dialog.advFilter")}</div>
 
       <div style="display:flex;flex-direction:column;gap:8px;font-size:11px">
@@ -94,91 +109,104 @@ export function modalAdvFilter(opts: { value?: Partial<AdvFilterValue> } = {}): 
         <button id="afv-ok" class="dlg-btn dlg-btn-primary">🔍 ${t("dialog.applyEnter")}</button>
       </div>
     `;
+}
+
+/** 绑定弹窗交互：清除/取消/应用/Enter + 已有标签提示异步加载 */
+function bindAdvFilterEvents(
+  overlay: HTMLDivElement,
+  box: HTMLDivElement,
+  resolve: (r: AdvFilterResult) => void,
+  getValue: () => AdvFilterValue,
+): void {
+  const kwInput = box.querySelector("#afv-kw") as HTMLInputElement;
+  kwInput.focus();
+
+  const tagInput = box.querySelector("#afv-tag") as HTMLInputElement;
+  const tagHint = box.querySelector("#afv-tag-hint") as HTMLElement;
+
+  // 异步加载已有标签提示
+  (async () => {
+    try {
+      const App = await getApp();
+      const all = (await App.AllTags()) || [];
+      // 弹窗已关闭（Esc/单例槽位替换）后不再写已卸载 DOM
+      if (!overlay.isConnected) return;
+      if (all?.length) {
+        tagHint.textContent = t("dialog.existingTagsHint", {
+          tags: all.join(", "),
+        });
+      }
+    } catch (e) {
+      // 提示属可选功能：留痕但不打扰用户
+      console.warn("[adv-filter] 标签提示加载失败:", e);
+    }
+  })();
+
+  const errEl = box.querySelector("#afv-err") as HTMLElement;
+
+  const close = (result: AdvFilterResult): void =>
+    closeDlg(overlay, resolve, result);
+
+  (box.querySelector("#afv-cancel") as HTMLElement).onclick = (): void =>
+    close(null);
+  (box.querySelector("#afv-clear") as HTMLElement).onclick = (): void =>
+    closeDlg(overlay, resolve, { cleared: true });
+  (box.querySelector("#afv-ok") as HTMLElement).onclick = (): void => {
+    const data = getValue();
+    const err = validateAdvFilter(data);
+    if (err) {
+      errEl.textContent = "⚠️ " + err;
+      return;
+    }
+    close(data);
+  };
+
+  // Enter 提交（任意输入框）
+  const allInputs = box.querySelectorAll("input");
+  allInputs.forEach((el) => {
+    el.addEventListener("keydown", (e: KeyboardEvent): void => {
+      if (e.key === "Enter") {
+        const data = getValue();
+        const err = validateAdvFilter(data);
+        if (err) {
+          errEl.textContent = "⚠️ " + err;
+          return;
+        }
+        close(data);
+      }
+    });
+  });
+}
+
+export function modalAdvFilter(opts: { value?: Partial<AdvFilterValue> } = {}): Promise<AdvFilterResult> {
+  return new Promise((resolve) => {
+    const v = opts.value || {};
+    const overlay = document.createElement("div");
+    overlay.className = "dlg-overlay";
+    overlay.onclick = (e: MouseEvent): void => {
+      if (e.target === overlay) closeDlg(overlay, resolve, null);
+    };
+    overlay.addEventListener("keydown", (e: KeyboardEvent): void => {
+      if (e.key === "Escape") closeDlg(overlay, resolve, null);
+    });
+
+    const box = document.createElement("div");
+    box.className = "dlg-box dlg-pad";
+    box.style.gap = "10px";
+    box.style.width = "420px";
+    box.innerHTML = buildAdvFilterFormHTML(v);
 
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     registerDlg(overlay, () => closeDlg(overlay, resolve, null));
 
     const kwInput = box.querySelector("#afv-kw") as HTMLInputElement;
-    kwInput.focus();
-
     const tagInput = box.querySelector("#afv-tag") as HTMLInputElement;
-    const tagHint = box.querySelector("#afv-tag-hint") as HTMLElement;
-
-    // 异步加载已有标签提示
-    (async () => {
-      try {
-        const App = await getApp();
-        const all = (await App.AllTags()) || [];
-        // 弹窗已关闭（Esc/单例槽位替换）后不再写已卸载 DOM
-        if (!overlay.isConnected) return;
-        if (all?.length) {
-          tagHint.textContent = t("dialog.existingTagsHint", {
-            tags: all.join(", "),
-          });
-        }
-      } catch (e) {
-        // 提示属可选功能：留痕但不打扰用户
-        console.warn("[adv-filter] 标签提示加载失败:", e);
-      }
-    })();
-
-    const errEl = box.querySelector("#afv-err") as HTMLElement;
-
-    const collect = (): AdvFilterValue => ({
-      keyword: kwInput.value.trim(),
-      minBones: parseFilterNumber(
-        (box.querySelector("#afv-minBones") as HTMLInputElement)?.value ?? "",
-      ),
-      maxBones: parseFilterNumber(
-        (box.querySelector("#afv-maxBones") as HTMLInputElement)?.value ?? "",
-      ),
-      minCubes: parseFilterNumber(
-        (box.querySelector("#afv-minCubes") as HTMLInputElement)?.value ?? "",
-      ),
-      maxCubes: parseFilterNumber(
-        (box.querySelector("#afv-maxCubes") as HTMLInputElement)?.value ?? "",
-      ),
-      minTex: parseFilterNumber(
-        (box.querySelector("#afv-minTex") as HTMLInputElement)?.value ?? "",
-      ),
-      maxTex: parseFilterNumber(
-        (box.querySelector("#afv-maxTex") as HTMLInputElement)?.value ?? "",
-      ),
-      tag: tagInput.value.trim(),
-    });
-
-    const close = (result: AdvFilterResult): void =>
-      closeDlg(overlay, resolve, result);
-
-    (box.querySelector("#afv-cancel") as HTMLElement).onclick = (): void =>
-      close(null);
-    (box.querySelector("#afv-clear") as HTMLElement).onclick = (): void =>
-      closeDlg(overlay, resolve, { cleared: true });
-    (box.querySelector("#afv-ok") as HTMLElement).onclick = (): void => {
-      const data = collect();
-      const err = validateAdvFilter(data);
-      if (err) {
-        errEl.textContent = "⚠️ " + err;
-        return;
-      }
-      close(data);
-    };
-
-    // Enter 提交（任意输入框）
-    const allInputs = box.querySelectorAll("input");
-    allInputs.forEach((el) => {
-      el.addEventListener("keydown", (e: KeyboardEvent): void => {
-        if (e.key === "Enter") {
-          const data = collect();
-          const err = validateAdvFilter(data);
-          if (err) {
-            errEl.textContent = "⚠️ " + err;
-            return;
-          }
-          close(data);
-        }
-      });
-    });
+    bindAdvFilterEvents(
+      overlay,
+      box,
+      resolve,
+      () => advFilterCollect(box, kwInput, tagInput),
+    );
   });
 }

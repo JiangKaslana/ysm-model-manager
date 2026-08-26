@@ -37,7 +37,7 @@
 | `sync:download:done` | 2 | 2 | 0 | 0 | ✅ |
 | `sync:download:missing` | 1 | 1 | 0 | 0 | ✅ |
 | `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
-| `toast:show` | 202 | 2 | 0 | 0 | ✅ |
+| `toast:show` | 203 | 2 | 0 | 0 | ✅ |
 | `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
 
@@ -243,7 +243,7 @@
 | `frontend/src/views/app-content/site/events.ts` | 201 |
 | `frontend/src/views/app-nav/index.ts` | 20 |
 | `frontend/src/views/app-nav/index.ts` | 161 |
-| `frontend/src/views/app-sidebar/events.ts` | 210 |
+| `frontend/src/views/app-sidebar/events.ts` | 218 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 115 |
 
 **订阅方（on）：**
@@ -259,7 +259,7 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sidebar/events.ts` | 95 |
-| `frontend/src/views/app-sidebar/events.ts` | 195 |
+| `frontend/src/views/app-sidebar/events.ts` | 203 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -525,6 +525,7 @@
 | `frontend/src/views/app-sidebar/events.ts` | 92 |
 | `frontend/src/views/app-sidebar/events.ts` | 125 |
 | `frontend/src/views/app-sidebar/events.ts` | 130 |
+| `frontend/src/views/app-sidebar/events.ts` | 199 |
 | `frontend/src/views/app-sidebar/index.ts` | 149 |
 | `frontend/src/views/app-sidebar/index.ts` | 241 |
 | `frontend/src/views/app-sidebar/index.ts` | 243 |
