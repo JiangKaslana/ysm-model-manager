@@ -72,11 +72,7 @@ beforeEach(async () => {
     <button id="recy-refresh">🔄 刷新</button>
     <button id="recy-empty">♻️ 清空回收站</button>
     <div id="recy-list"></div>`;
-  host = {
-    _root: root,
-    _esc: (s) => s,
-    _fmtSize: (n) => `${n}B`,
-  };
+  host = { _root: root };
   mocks.GetRepoRoot.mockResolvedValue("/mc");
   mocks.ListRecycleBin.mockResolvedValue([]);
   mocks.loadResourceRegistry.mockResolvedValue({ ysm: { icon: "💎" } });

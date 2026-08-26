@@ -152,7 +152,7 @@ function bindTabs(
           if (tab === "recycle") {
             const { recycleHTML } = await import("./tpl-recycle.ts");
             container.innerHTML = recycleHTML();
-            const recycleCleanup = initRecycleBin(host as never);
+            const recycleCleanup = initRecycleBin(host);
             if (recycleCleanup) host._unsubs.push(recycleCleanup);
           } else if (tab === "dedup") {
             let dedupType = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;

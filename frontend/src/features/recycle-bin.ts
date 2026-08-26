@@ -11,6 +11,8 @@ import { useCurrentResourceType } from "./repo-rtype.ts";
 import { createLoadGuard } from "../utils/async/load-guard.ts";
 import { stagger } from "../utils/animation/stagger.ts";
 import { TOAST_MS } from "../utils/dom/toast-ms.ts";
+import { esc } from "../utils/dom/html.ts";
+import { formatBytes } from "../utils/dom/format.ts";
 
 // ===== 常量（魔法数值集中管理 — code_review P3）=====
 /** 恢复/删除前的 leaving 滑出动画时长（ms），与 content-util.css 的 .leaving 过渡对齐 */
@@ -25,11 +27,11 @@ const TOAST_EMPTY_OK_MS = TOAST_MS.normal;
 /** 清空（批量）失败 toast 时长（ms） */
 const TOAST_EMPTY_ERR_MS = TOAST_MS.long;
 
-/** app-content 组件实例（initRecycleBin 依赖的成员） */
+/** app-content 组件实例（initRecycleBin 依赖的成员）。
+ * 转义/格式化直引 utils 纯函数（esc / formatBytes，单一事实来源），
+ * 不依赖宿主私有薄壳——AppContent 重构后已不持有 _esc/_fmtSize */
 export interface RecycleHost {
   _root: ShadowRoot;
-  _esc: (s: string) => string;
-  _fmtSize: (s: number) => string;
 }
 
 /**
@@ -49,8 +51,7 @@ export function isPathInRoot(path: string, root: string): boolean {
 /** 初始化回收站管理，返回清理函数 */
 export function initRecycleBin(app: RecycleHost): () => void {
   const root = app._root;
-  const esc = (s: string): string => app._esc(s);
-  const fmtSize = (s: number): string => app._fmtSize(s);
+  const fmtSize = formatBytes;
   const onRefreshClick = (): void => {
     loadRecycleBin();
   };
