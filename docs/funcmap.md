@@ -24,7 +24,7 @@
 | Go·Litematic | 6 | 9 |
 | Go·日志 | 2 | 12 |
 | Go·包管理 | 1 | 3 |
-| Go·路径 | 1 | 6 |
+| Go·路径 | 1 | 7 |
 | Go·回收站 | 2 | 19 |
 | go/repoaudit | 1 | 9 |
 | go/rustbridge | 5 | 10 |
@@ -49,7 +49,7 @@
 | frontend/views | 115 | 337 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **482** | **2072** |
+| **合计** | **482** | **2073** |
 
 ## Go·头像
 
@@ -353,8 +353,9 @@
 | `ErrPathEscalation.Error()` | `go/paths/safe:40` | — |
 | `ErrPathEscalation.Unwrap()` | `go/paths/safe:46` | Unwrap 暴露分类哨兵：errors.Is(err, ErrNotInside) 等可直接判断， 无需文本匹配错误文案。 |
 | `IsInside()` | `go/paths/safe:51` | IsInside 检查 path 是否在 baseDir 下，防止路径遍历。 |
-| `HasTraversal()` | `go/paths/safe:113` | HasTraversal 检查路径片段是否包含 ".." 遍历组件（统一入口）。 |
-| `ContainsMinecraftMarker()` | `go/paths/safe:135` | ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记 PrismLauncher 实例目录下可能是 minecra |
+| `IsInsideResolved()` | `go/paths/safe:116` | IsInsideResolved 解析符号链接后再判定 path 是否在 baseDir 下（BUG-1 修复）。 |
+| `HasTraversal()` | `go/paths/safe:137` | HasTraversal 检查路径片段是否包含 ".." 遍历组件（统一入口）。 |
+| `ContainsMinecraftMarker()` | `go/paths/safe:159` | ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记 PrismLauncher 实例目录下可能是 minecra |
 | `ErrPathEscalation()` | `go/paths/safe:32` | ErrPathEscalation 路径越权错误 |
 
 ## Go·回收站

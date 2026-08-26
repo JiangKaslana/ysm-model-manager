@@ -96,7 +96,7 @@ func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
 	// 时 rel=="."、dst==recycleDir 命中回收站自身，整树 rename 会把回收站搬进自己
 	// （目标已存在报错，但守卫语义错位）；显式拒绝 src 等于资源根（对齐 AGENTS.md
 	// 「IsInside 相等放行时额外 Clean 相等拒绝」范式）
-	if paths.IsInside(rootDir, src) != nil || filepath.Clean(src) == filepath.Clean(rootDir) {
+	if paths.IsInsideResolved(rootDir, src) != nil || filepath.Clean(src) == filepath.Clean(rootDir) {
 		return nil, fmt.Errorf("路径越权: %s 不在资源目录下", src)
 	}
 	info, err := os.Lstat(src)
@@ -246,7 +246,7 @@ func (tm *TrashManager) Restore(src string) error {
 	// IsInside 对 path==baseDir 放行——src==recycleDir 时
 	// rel=="."、dst==rootDir，整个回收站会被 rename 成 rootDir 的兄弟目录
 	// （rootDir(1)），回收站被整体搬走；显式拒绝 src 等于回收站本身
-	if paths.IsInside(tm.recycleDir, src) != nil || filepath.Clean(src) == filepath.Clean(tm.recycleDir) {
+	if paths.IsInsideResolved(tm.recycleDir, src) != nil || filepath.Clean(src) == filepath.Clean(tm.recycleDir) {
 		return fmt.Errorf("路径越权: %s 不在回收站目录下", src)
 	}
 	rootDir := filepath.Dir(tm.recycleDir)
@@ -332,7 +332,7 @@ func copyDirRecursive(src, dst string) error {
 // Delete 永久删除回收站中的文件
 // ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll
 func (tm *TrashManager) Delete(src string) error {
-	if err := paths.IsInside(tm.recycleDir, src); err != nil {
+	if err := paths.IsInsideResolved(tm.recycleDir, src); err != nil {
 		return err
 	}
 	// 对齐 Move/Restore 的根级守卫：IsInside 对 path==baseDir 放行（rel=="."）

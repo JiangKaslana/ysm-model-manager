@@ -105,6 +105,30 @@ func IsInside(baseDir, path string) error {
 	return nil
 }
 
+// IsInsideResolved 解析符号链接后再判定 path 是否在 baseDir 下（BUG-1 修复）。
+// 与纯词法 IsInside 的差异：当 baseDir 或 path 含指向外部的 symlink 段时，
+// 真实落点越出 baseDir —— 会被本函数按 ErrNotInside 拒绝，而 IsInside 会误判安全。
+// 语义对齐 installer.validateInstallPaths 的「EvalSymlinks 两侧 → 再 IsInside」模式：
+// 先词法快速失败（空/NUL/越权直接返回，零 I/O），词法通过的才解析真实路径二次复核；
+// EvalSymlinks 失败（路径不存在/断链）时保留原路径不放宽不放窄——不存在的路径
+// 无越权读取面，且未创建写入目标的中段 symlink 由 fileops.checkNoSymlinkInPath /
+// installer.checkDstSymlinkSegments 逐段 Lstat 覆盖，不在此重复。
+func IsInsideResolved(baseDir, path string) error {
+	if err := IsInside(baseDir, path); err != nil {
+		return err
+	}
+	return IsInside(resolveOrKeep(baseDir), resolveOrKeep(path))
+}
+
+// resolveOrKeep 解析路径符号链接为真实路径；失败（不存在/断链等）保留原路径。
+// 与 installer.evalSymlinksOrKeep 同语义（存在解析到目标、不存在保留原样）。
+func resolveOrKeep(p string) string {
+	if resolved, err := filepath.EvalSymlinks(p); err == nil {
+		return resolved
+	}
+	return p
+}
+
 // HasTraversal 检查路径片段是否包含 ".." 遍历组件（统一入口）。
 // 覆盖场景：纯文件名（importer）、目录名（fileops）、子路径（folder_import）。
 // 跨平台：同时检查 / 和 \\，防止未 Clean 的原始输入绕过。

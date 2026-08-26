@@ -14,13 +14,12 @@ import (
 	"testing"
 )
 
-// ---------- Bug 1: Symlink escape (HIGH) ----------
-// IsInside 不解析符号链接。在 Linux 上，baseDir 内指向外部的 symlink
-// 会使 IsInside 对实际逃逸的路径返回 nil。
-func TestIsInside_SymlinkEscape(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only: 符号链接逃逸需要 OS 级 symlink 支持，Windows 跳过")
+// ---------- Bug 1: Symlink escape (HIGH, 已修复) ----------
+// IsInside 是纯词法判定，不解析符号链接；IsInsideResolved 解析两侧 symlink
+// 后再二次判定，拦截 baseDir 内指向外部的 symlink 段逃逸（BUG-1）。
+func TestIsInsideResolved_SymlinkEscape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 无特权创建 os.Symlink")
 	}
 
 	baseDir := t.TempDir()
@@ -36,15 +35,15 @@ func TestIsInside_SymlinkEscape(t *testing.T) {
 	}
 
 	escapedPath := filepath.Join(baseDir, "symlink", "target.ysm")
-	err := IsInside(baseDir, escapedPath)
-	if err == nil {
-		t.Fatal("BUG-1: 符号链接逃逸成功——IsInside 未解析 symlink，外部文件被判定为安全")
+	// 纯词法 IsInside 放行（不解析 symlink，文档行为）
+	if err := IsInside(baseDir, escapedPath); err == nil {
+		t.Logf("INFO(BUG-1): 词法 IsInside 放行 symlink 逃逸（纯词法语义，符合预期）")
 	}
-	var esc *ErrPathEscalation
-	if errors.As(err, &esc) {
-		t.Logf("FIXED/INFO(BUG-1): symlink 未逃逸, reason=%v", esc.Reason)
-	} else {
-		t.Logf("INFO(BUG-1): IsInside 返回非 ErrPathEscalation 错误, err=%v", err)
+	// 修复点：IsInsideResolved 必须拦截
+	if err := IsInsideResolved(baseDir, escapedPath); err == nil {
+		t.Fatal("BUG-1: IsInsideResolved 未拦截 symlink 逃逸")
+	} else if !errors.Is(err, ErrNotInside) {
+		t.Fatalf("BUG-1: 应分类 ErrNotInside, got %v", err)
 	}
 }
 

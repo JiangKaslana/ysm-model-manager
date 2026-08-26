@@ -342,7 +342,7 @@ func (a *App) toggleRootFor(path string) string {
 		if root == "" {
 			continue
 		}
-		if paths.IsInside(root, path) != nil {
+		if paths.IsInsideResolved(root, path) != nil {
 			continue
 		}
 		if best == "" || len(root) > len(best) {

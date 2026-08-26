@@ -322,7 +322,7 @@ func (a *App) ToggleResourcePack(path string) bool {
 		if filepath.Clean(path) == filepath.Clean(root) {
 			return false
 		}
-		if paths.IsInside(root, path) == nil {
+		if paths.IsInsideResolved(root, path) == nil {
 			allowed = true
 		}
 	}

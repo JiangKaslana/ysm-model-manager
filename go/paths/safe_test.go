@@ -196,3 +196,26 @@ func TestIsInside_RelFailureSentinel_Windows(t *testing.T) {
 		t.Fatalf("期望 Unwrap 链 [ErrPathEscalation → wrapError → Rel 错误], got %v", err)
 	}
 }
+
+// IsInsideResolved：解析两侧 symlink 后再判定（BUG-1）。无 symlink 场景下结论
+// 必须与纯词法 IsInside 完全一致；空路径/NUL 等哨兵分类仍需透传（先词法快速失败，
+// 通过的才解析真实路径二次复核）。
+func TestIsInsideResolved_NoSymlinkSameAsIsInside(t *testing.T) {
+	base := filepath.Join(t.TempDir(), "repo")
+
+	if err := IsInsideResolved(base, filepath.Join(base, "sub", "model.ysm")); err != nil {
+		t.Fatalf("目录内应放行, got %v", err)
+	}
+	if err := IsInsideResolved(base, base); err != nil {
+		t.Fatalf("相等应放行, got %v", err)
+	}
+	if err := IsInsideResolved(base, filepath.Join(base, "..", "evil.ysm")); !errors.Is(err, ErrNotInside) {
+		t.Fatalf("词法逃逸应拒绝并分类 ErrNotInside, got %v", err)
+	}
+	if err := IsInsideResolved(base, ""); !errors.Is(err, ErrEmptyPath) {
+		t.Fatalf("空路径应分类 ErrEmptyPath, got %v", err)
+	}
+	if err := IsInsideResolved("", "model.ysm"); !errors.Is(err, ErrEmptyBase) {
+		t.Fatalf("空基准应分类 ErrEmptyBase, got %v", err)
+	}
+}

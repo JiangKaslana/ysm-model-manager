@@ -66,7 +66,7 @@ func RemoveRepoDuplicates(dir, filesRoot, recycleRoot string) int {
 		if !matched {
 			continue
 		}
-		if recycleRoot != "" && paths.IsInside(recycleRoot, p) == nil {
+		if recycleRoot != "" && paths.IsInsideResolved(recycleRoot, p) == nil {
 			// 实例文件在仓库根内 → 移回收站（可恢复）
 			if err := Move(p, recycleRoot); err != nil {
 				continue
