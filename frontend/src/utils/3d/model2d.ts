@@ -307,6 +307,224 @@ export function calcBoneHitZones(
   return zones;
 }
 
+function mdDvDrawRect(
+  ctx: CanvasRenderingContext2D,
+  isHighlight: boolean,
+  drawW: number,
+  drawH: number,
+  pos:
+    | { mode: "centered"; screenX: number; screenY: number; rzRad: number }
+    | { mode: "plain"; drawX: number; drawY: number; doubleStroke?: boolean },
+): void {
+  const fill = isHighlight
+    ? "rgba(255,180,50,0.25)"
+    : "rgba(124,131,255,0.45)";
+  const stroke = isHighlight
+    ? "rgba(255,220,100,1)"
+    : "rgba(205,214,244,0.85)";
+  const lw = isHighlight ? 1.5 : 1;
+
+  if (pos.mode === "centered") {
+    ctx.save();
+    ctx.translate(pos.screenX, pos.screenY);
+    ctx.rotate(-pos.rzRad);
+    ctx.fillStyle = fill;
+    ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lw;
+    ctx.strokeRect(-drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = fill;
+    ctx.fillRect(pos.drawX, pos.drawY, drawW, drawH);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lw;
+    ctx.strokeRect(pos.drawX, pos.drawY, drawW, drawH);
+    if (pos.doubleStroke) {
+      ctx.strokeRect(pos.drawX, pos.drawY, drawW, drawH);
+    }
+  }
+}
+
+function mdDvApplyBoneAnim(
+  x: number, y: number, z: number,
+  sx: number, sy: number, sz: number,
+  pivot: number[],
+  btx: BoneTransform | undefined,
+  cosA: number, sinA: number,
+  ox: number, oy: number, scale: number,
+): { ok: boolean; screenX: number; screenY: number; drawW: number; drawH: number; rzRad: number } {
+  let cx = x + sx / 2;
+  let cy = y + sy / 2;
+  let cz = z + sz / 2;
+
+  if (btx?.position) {
+    cx += btx.position[0] || 0;
+    cy += btx.position[1] || 0;
+    cz += btx.position[2] || 0;
+  }
+
+  const rzRad = ((btx?.rotation?.[2] || 0) * Math.PI) / 180;
+  if (rzRad !== 0) {
+    const cRz = Math.cos(rzRad);
+    const sRz = Math.sin(rzRad);
+    const dxx = cx - pivot[0];
+    const dyy = cy - pivot[1];
+    cx = pivot[0] + dxx * cRz - dyy * sRz;
+    cy = pivot[1] + dxx * sRz + dyy * cRz;
+  }
+
+  const rxRad = ((btx?.rotation?.[0] || 0) * Math.PI) / 180;
+  const cosRx = Math.cos(rxRad);
+  if (rxRad !== 0) {
+    const dyy = cy - pivot[1];
+    cy = pivot[1] + dyy * cosRx;
+  }
+
+  const scrX = cx * cosA - cz * sinA;
+  const scrY = cy;
+  const screenX = ox + scrX * scale;
+  const screenY = oy - scrY * scale;
+
+  const pw = Math.abs(sx * cosA) + Math.abs(sz * sinA);
+  const ph = sy * Math.abs(cosRx);
+  const drawW = pw * scale;
+  const drawH = ph * scale;
+  const ok = drawW >= 1 && drawH >= 1;
+  return { ok, screenX, screenY, drawW, drawH, rzRad };
+}
+
+function mdDvApplyCubeRot(
+  x: number, y: number, z: number,
+  sx: number, sy: number, sz: number,
+  pivot: number[],
+  cubeRot: number[],
+  cosA: number, sinA: number,
+  ox: number, oy: number, scale: number,
+): { ok: boolean; screenX: number; screenY: number; drawW: number; drawH: number; rzRad: number } {
+  const rxRad = (cubeRot[0] * Math.PI) / 180;
+  const rzRad = (cubeRot[2] * Math.PI) / 180;
+  const cosRx = Math.cos(rxRad);
+  const cRz = Math.cos(rzRad);
+  const sRz = Math.sin(rzRad);
+
+  let cx = x + sx / 2;
+  let cy = y + sy / 2;
+  let cz = z + sz / 2;
+
+  if (rxRad !== 0) {
+    const dyy = cy - pivot[1];
+    cy = pivot[1] + dyy * cosRx;
+  }
+
+  if (rzRad !== 0) {
+    const dxx = cx - pivot[0];
+    const dyy = cy - pivot[1];
+    cx = pivot[0] + dxx * cRz - dyy * sRz;
+    cy = pivot[1] + dxx * sRz + dyy * cRz;
+  }
+
+  const scrX = cx * cosA - cz * sinA;
+  const scrY = cy;
+  const screenX = ox + scrX * scale;
+  const screenY = oy - scrY * scale;
+
+  const drawW = sx * scale;
+  const drawH = sy * Math.abs(cosRx) * scale;
+  const ok = drawW >= 1 && drawH >= 1;
+  return { ok, screenX, screenY, drawW, drawH, rzRad };
+}
+
+function mdDvProjectCorner(
+  cx: number, cy: number, cz: number,
+  pivot: number[],
+  btx: BoneTransform | undefined,
+  cosA: number, sinA: number,
+  isFront: boolean,
+): { px2: number; py2: number } {
+  let _cx = cx;
+  let _cy = cy;
+  let _cz = cz;
+  if (btx) {
+    if (btx.position) {
+      _cx += btx.position[0] || 0;
+      _cy += btx.position[1] || 0;
+      _cz += btx.position[2] || 0;
+    }
+    const rz = ((btx.rotation?.[2] || 0) * Math.PI) / 180;
+    if (rz !== 0) {
+      const cRz = Math.cos(rz);
+      const sRz = Math.sin(rz);
+      const dxx = _cx - pivot[0];
+      const dyy = _cy - pivot[1];
+      _cx = pivot[0] + dxx * cRz - dyy * sRz;
+      _cy = pivot[1] + dxx * sRz + dyy * cRz;
+    }
+    const rx = ((btx.rotation?.[0] || 0) * Math.PI) / 180;
+    if (rx !== 0) {
+      const dyy = _cy - pivot[1];
+      _cy = pivot[1] + dyy * Math.cos(rx);
+    }
+  }
+  const rxx = _cx * cosA - _cz * sinA;
+  const rzz = _cx * sinA + _cz * cosA;
+  return { px2: rxx, py2: isFront ? _cy : rzz };
+}
+
+function mdDvDrawLabels(
+  ctx: CanvasRenderingContext2D,
+  model: BedrockModel,
+  scale: number,
+  ox: number, oy: number,
+  highlightBone: string | null,
+  cosA: number, sinA: number,
+  boneTransforms: Map<string, BoneTransform> | null,
+  isFront: boolean,
+): void {
+  ctx.save();
+  ctx.font = "8px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (const bone of model.bones || []) {
+    const cs = bone.cubes || [];
+    if (!cs.length) continue;
+    const btx = boneTransforms?.get(bone.name);
+    let mnX = Infinity;
+    let mxX = -Infinity;
+    let mnY = Infinity;
+    let mxY = -Infinity;
+    for (const c of cs) {
+      const [x, y, z] = cubeVec(c.origin);
+      const [sx, sy, sz] = cubeVec(c.size);
+      const pivot = c.pivot || [x + sx / 2, y + sy / 2, z + sz / 2];
+      for (let dx = 0; dx <= 1; dx++) {
+        for (let dy = 0; dy <= 1; dy++) {
+          for (let dz = 0; dz <= 1; dz++) {
+            const cx = x + dx * sx;
+            const cy = y + dy * sy;
+            const cz = z + dz * sz;
+            const { px2, py2 } = mdDvProjectCorner(cx, cy, cz, pivot, btx, cosA, sinA, isFront);
+            if (px2 < mnX) mnX = px2;
+            if (px2 > mxX) mxX = px2;
+            if (py2 < mnY) mnY = py2;
+            if (py2 > mxY) mxY = py2;
+          }
+        }
+      }
+    }
+    const cx2 = ox + ((mnX + mxX) / 2) * scale;
+    const cy2 = oy - ((mnY + mxY) / 2) * scale;
+    const txt = bone.name;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    const tw = ctx.measureText(txt).width;
+    ctx.fillRect(cx2 - tw / 2 - 2, cy2 - 5, tw + 4, 10);
+    ctx.fillStyle =
+      bone.name === highlightBone ? "#ffd460" : "rgba(205,214,244,0.9)";
+    ctx.fillText(txt, cx2, cy2);
+  }
+  ctx.restore();
+}
+
 function drawView(
   ctx: CanvasRenderingContext2D,
   model: BedrockModel,
@@ -333,130 +551,22 @@ function drawView(
       const pivot = c.pivot || [x + sx / 2, y + sy / 2, z + sz / 2];
 
       if (hasAnim) {
-        // ---- 动画骨骼：使用 Canvas 变换使旋转可见 ----
-        // cube 中心
-        let cx = x + sx / 2;
-        let cy = y + sy / 2;
-        let cz = z + sz / 2;
-
-        // 位置偏移
-        if (btx?.position) {
-          cx += btx.position[0] || 0;
-          cy += btx.position[1] || 0;
-          cz += btx.position[2] || 0;
-        }
-
-        // Z 旋转（绕 pivot，屏幕平面内最可见）
-        const rzRad = ((btx?.rotation?.[2] || 0) * Math.PI) / 180;
-        if (rzRad !== 0) {
-          const cRz = Math.cos(rzRad);
-          const sRz = Math.sin(rzRad);
-          const dxx = cx - pivot[0];
-          const dyy = cy - pivot[1];
-          cx = pivot[0] + dxx * cRz - dyy * sRz;
-          cy = pivot[1] + dxx * sRz + dyy * cRz;
-        }
-
-        // X 旋转（Y 方向压缩）
-        const rxRad = ((btx?.rotation?.[0] || 0) * Math.PI) / 180;
-        const cosRx = Math.cos(rxRad);
-        if (rxRad !== 0) {
-          const dyy = cy - pivot[1];
-          cy = pivot[1] + dyy * cosRx;
-        }
-
-        // 全局 Y 旋转投影
-        const scrX = cx * cosA - cz * sinA;
-        const scrY = cy;
-        const screenX = ox + scrX * scale;
-        const screenY = oy - scrY * scale;
-
-        // 投影后的宽高（不含 Z 旋转，因为 Z 旋转由 canvas.rotate 负责）
-        const pw = Math.abs(sx * cosA) + Math.abs(sz * sinA);
-        const ph = sy * Math.abs(cosRx);
-        const drawW = pw * scale;
-        const drawH = ph * scale;
-        if (drawW < 1 || drawH < 1) continue;
-
-        ctx.save();
-        ctx.translate(screenX, screenY);
-        // 屏幕 Y 轴翻转，取反
-        ctx.rotate(-rzRad);
-
-        ctx.fillStyle = isHighlight
-          ? "rgba(255,180,50,0.25)"
-          : "rgba(124,131,255,0.45)";
-        ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
-        ctx.strokeStyle = isHighlight
-          ? "rgba(255,220,100,1)"
-          : "rgba(205,214,244,0.85)";
-        ctx.lineWidth = isHighlight ? 1.5 : 1;
-        ctx.strokeRect(-drawW / 2, -drawH / 2, drawW, drawH);
-        ctx.restore();
+        const r = mdDvApplyBoneAnim(x, y, z, sx, sy, sz, pivot, btx, cosA, sinA, ox, oy, scale);
+        if (!r.ok) continue;
+        mdDvDrawRect(ctx, isHighlight, r.drawW, r.drawH, {
+          mode: "centered", screenX: r.screenX, screenY: r.screenY, rzRad: r.rzRad,
+        });
       } else {
-        // ---- 静态骨骼：应用 cube rotation ----
         const cubeRot = c.rotation || [0, 0, 0];
-        const hasRotation =
-          cubeRot[0] !== 0 || cubeRot[1] !== 0 || cubeRot[2] !== 0;
-
+        const hasRotation = cubeRot[0] !== 0 || cubeRot[1] !== 0 || cubeRot[2] !== 0;
         if (hasRotation) {
-          // 有 rotation，使用简化方法：先计算旋转后的中心点，然后用 Canvas rotate 绘制
           const pivot2 = c.pivot || [x + sx / 2, y + sy / 2, z + sz / 2];
-
-          // 获取旋转角度
-          const rxRad = (cubeRot[0] * Math.PI) / 180;
-          const rzRad = (cubeRot[2] * Math.PI) / 180;
-          const cosRx = Math.cos(rxRad);
-          const cRz = Math.cos(rzRad);
-          const sRz = Math.sin(rzRad);
-
-          // cube 原始中心点
-          let cx = x + sx / 2;
-          let cy = y + sy / 2;
-          let cz = z + sz / 2;
-
-          // 应用 X 轴旋转（只影响 Y 坐标）
-          if (rxRad !== 0) {
-            const dyy = cy - pivot2[1];
-            cy = pivot2[1] + dyy * cosRx;
-          }
-
-          // 应用 Z 轴旋转（影响 X 和 Y）
-          if (rzRad !== 0) {
-            const dxx = cx - pivot2[0];
-            const dyy = cy - pivot2[1];
-            cx = pivot2[0] + dxx * cRz - dyy * sRz;
-            cy = pivot2[1] + dxx * sRz + dyy * cRz;
-          }
-
-          // 全局 Y 轴旋转投影
-          const scrX = cx * cosA - cz * sinA;
-          const scrY = cy;
-          const screenX = ox + scrX * scale;
-          const screenY = oy - scrY * scale;
-
-          // 计算尺寸（考虑 X 轴旋转对高度的影响）
-          const drawW = sx * scale;
-          const drawH = sy * Math.abs(cosRx) * scale;
-          if (drawW < 1 || drawH < 1) continue;
-
-          ctx.save();
-          ctx.translate(screenX, screenY);
-          // 屏幕 Y 轴翻转，取负
-          ctx.rotate(-rzRad);
-
-          ctx.fillStyle = isHighlight
-            ? "rgba(255,180,50,0.25)"
-            : "rgba(124,131,255,0.45)";
-          ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
-          ctx.strokeStyle = isHighlight
-            ? "rgba(255,220,100,1)"
-            : "rgba(205,214,244,0.85)";
-          ctx.lineWidth = isHighlight ? 1.5 : 1;
-          ctx.strokeRect(-drawW / 2, -drawH / 2, drawW, drawH);
-          ctx.restore();
+          const r = mdDvApplyCubeRot(x, y, z, sx, sy, sz, pivot2, cubeRot, cosA, sinA, ox, oy, scale);
+          if (!r.ok) continue;
+          mdDvDrawRect(ctx, isHighlight, r.drawW, r.drawH, {
+            mode: "centered", screenX: r.screenX, screenY: r.screenY, rzRad: r.rzRad,
+          });
         } else {
-          // 无 rotation，使用原有快速路径
           const rx = x * cosA - z * sinA;
           const rz = x * sinA + z * cosA;
           const px = rx;
@@ -468,91 +578,16 @@ function drawView(
           const drawW = pw * scale;
           const drawH = ph * scale;
           if (drawW < 0.5 || drawH < 0.5) continue;
-
-          ctx.fillStyle = isHighlight
-            ? "rgba(255,180,50,0.25)"
-            : "rgba(124,131,255,0.45)";
-          ctx.fillRect(drawX, drawY, drawW, drawH);
-          ctx.strokeStyle = isHighlight
-            ? "rgba(255,220,100,1)"
-            : "rgba(205,214,244,0.85)";
-          ctx.lineWidth = isHighlight ? 1.5 : 1;
-          ctx.strokeRect(drawX, drawY, drawW, drawH);
-          ctx.strokeRect(drawX, drawY, drawW, drawH);
+          mdDvDrawRect(ctx, isHighlight, drawW, drawH, {
+            mode: "plain", drawX, drawY, doubleStroke: true,
+          });
         }
       }
     }
   }
 
-  // 骨骼名标注（跟随动画变换）
   if (showLabels !== false) {
-    ctx.save();
-    ctx.font = "8px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    for (const bone of model.bones || []) {
-      const cs = bone.cubes || [];
-      if (!cs.length) continue;
-      const btx = boneTransforms?.get(bone.name);
-      let mnX = Infinity;
-      let mxX = -Infinity;
-      let mnY = Infinity;
-      let mxY = -Infinity;
-      for (const c of cs) {
-        const [x, y, z] = cubeVec(c.origin);
-        const [sx, sy, sz] = cubeVec(c.size);
-        const pivot = c.pivot || [x + sx / 2, y + sy / 2, z + sz / 2];
-        // 8 个角
-        for (let dx = 0; dx <= 1; dx++) {
-          for (let dy = 0; dy <= 1; dy++) {
-            for (let dz = 0; dz <= 1; dz++) {
-              let cx = x + dx * sx;
-              let cy = y + dy * sy;
-              let cz = z + dz * sz;
-              if (btx) {
-                if (btx.position) {
-                  cx += btx.position[0] || 0;
-                  cy += btx.position[1] || 0;
-                  cz += btx.position[2] || 0;
-                }
-                const rz = ((btx.rotation?.[2] || 0) * Math.PI) / 180;
-                if (rz !== 0) {
-                  const cRz = Math.cos(rz);
-                  const sRz = Math.sin(rz);
-                  const dxx = cx - pivot[0];
-                  const dyy = cy - pivot[1];
-                  cx = pivot[0] + dxx * cRz - dyy * sRz;
-                  cy = pivot[1] + dxx * sRz + dyy * cRz;
-                }
-                const rx = ((btx.rotation?.[0] || 0) * Math.PI) / 180;
-                if (rx !== 0) {
-                  const dyy = cy - pivot[1];
-                  cy = pivot[1] + dyy * Math.cos(rx);
-                }
-              }
-              const rxx = cx * cosA - cz * sinA;
-              const rzz = cx * sinA + cz * cosA;
-              const px2 = rxx;
-              const py2 = isFront ? cy : rzz;
-              if (px2 < mnX) mnX = px2;
-              if (px2 > mxX) mxX = px2;
-              if (py2 < mnY) mnY = py2;
-              if (py2 > mxY) mxY = py2;
-            }
-          }
-        }
-      }
-      const cx2 = ox + ((mnX + mxX) / 2) * scale;
-      const cy2 = oy - ((mnY + mxY) / 2) * scale;
-      const txt = bone.name;
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      const tw = ctx.measureText(txt).width;
-      ctx.fillRect(cx2 - tw / 2 - 2, cy2 - 5, tw + 4, 10);
-      ctx.fillStyle =
-        bone.name === highlightBone ? "#ffd460" : "rgba(205,214,244,0.9)";
-      ctx.fillText(txt, cx2, cy2);
-    }
-    ctx.restore();
+    mdDvDrawLabels(ctx, model, scale, ox, oy, highlightBone, cosA, sinA, boneTransforms, isFront);
   }
 }
 

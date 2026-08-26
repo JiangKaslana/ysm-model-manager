@@ -1415,8 +1415,8 @@
 | `roleBaseName()` | `frontend/src/utils/3d/adapters/preview-menu:796` | 角色路径 basename：角色详情/工具面板标题复用（fillRoles 与 dock 🧍 捷径共享，防两处漂移）。 |
 | `renderMenu()` | `frontend/src/utils/3d/adapters/preview-menu:1016` | — |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
-| `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
-| `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
+| `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:202` | 模块级单例（随活跃会话 reset） |
+| `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:205` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:30` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:90` | 会话内切换模型（复用外壳重建内容层）。 |
 | `arrangeModelsInRow()` | `frontend/src/utils/3d/adapters/switch-preview:282` | 按可见模型的包围盒宽度自动计算 X 轴偏移，避免同框重叠。 |
