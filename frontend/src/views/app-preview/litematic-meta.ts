@@ -105,6 +105,80 @@ interface LitematicMeta {
   [key: string]: unknown;
 }
 
+/** 解析投影元数据：按扩展名分发 Go 读取 + 校验，无法解析抛错（litematic 解析语义） */
+async function parseLitematicMeta(ext: string, path: string): Promise<LitematicMeta> {
+  const { ReadLitematicMeta, ReadNbtStructure, ReadSchematic } = await getApp();
+  let meta: LitematicMeta;
+  if (ext === ".nbt") {
+    meta = JSON.parse((await ReadNbtStructure(path)) || "{}") as LitematicMeta;
+    if (!meta || (!meta.size && !meta.blockCount)) throw new Error("无法解析");
+  } else if (ext === ".schematic") {
+    meta = JSON.parse((await ReadSchematic(path)) || "{}") as LitematicMeta;
+    if (!meta || (!meta.size && !meta.blockCount)) throw new Error("无法解析");
+  } else {
+    meta = JSON.parse((await ReadLitematicMeta(path)) || "{}") as LitematicMeta;
+    if (!meta || (!meta.name && !meta.author && meta.totalBlocks === undefined)) throw new Error("无法解析");
+  }
+  return meta;
+}
+
+/** 渲染详情面板：代际守卫 + field/extra 拼接 + detailDiv innerHTML（litematic 详情语义） */
+function renderLitematicDetail(
+  ctx: PreviewRoot,
+  meta: LitematicMeta,
+  ext: string,
+  basename: string,
+  gen: number,
+): void {
+  const sizeArr = meta.enclosingSize || meta.size;
+  const sizeStr = sizeArr ? `${sizeArr[0] || 0} × ${sizeArr[1] || 0} × ${sizeArr[2] || 0}` : "未知";
+
+  const previewImgHTML = meta.previewImage
+    ? `<img src="${esc(meta.previewImage)}" alt="preview" style="width:140px;height:140px;object-fit:contain;border-radius:6px;border:1px solid var(--bd);align-self:center;image-rendering:pixelated">`
+    : "";
+
+  function field(label: string, value: unknown): string {
+    return value
+      ? `<div class="lt-meta-row"><span class="lt-meta-label">${label}</span><span>${esc(String(value))}</span></div>`
+      : "";
+  }
+
+  const detailDiv = ctx.root.getElementById("preview-detail");
+  if (!detailDiv) return;
+  // P2 修复：await Go 解析后比对代际——慢 litematic A 迟到不得污染已切换的 B
+  if (gen !== litematicGen) return;
+  let extra = "";
+  if (ext === ".nbt" || ext === ".schematic") {
+    extra = `${field(t("preview.dataVersion"), meta.dataVersion)}${field(t("preview.formatVersion"), meta.version)}${field(t("preview.nameLabel"), meta.name)}${field(t("preview.authorLabel"), meta.author)}`;
+  } else {
+    extra = `${field(t("preview.nameLabel"), meta.name)}${field(t("preview.authorLabel"), meta.author)}${field(t("preview.createdAt"), meta.timeCreated ? fmtTime(meta.timeCreated) : "")}${field(t("preview.modifiedAt"), meta.timeModified ? fmtTime(meta.timeModified) : "")}<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.formatVersion")}</span><span>Litematica v${meta.version || "?"} · MC Data v${meta.minecraftDataVersion || "?"}</span></div>${field(t("preview.description"), meta.description)}`;
+  }
+  detailDiv.innerHTML = `<h3>📋 ${t("preview.blueprintDetail")}</h3>
+    <div style="padding:12px;display:flex;flex-direction:column;gap:6px;font-size:var(--fs-sm)">
+      ${previewImgHTML}
+      <div><strong>${renderFormattedText(basename || "")}</strong></div>
+      ${extra}
+      <div style="margin:4px 0;border-top:1px solid var(--bd)"></div>
+      <div class="lt-meta-row"><span class="lt-meta-label">${t("preview.nonAirBlocks")}</span><span>${t("preview.blockCount", { n: (meta.totalBlocks || meta.blockCount || 0).toLocaleString() })}</span></div>
+      <div class="lt-meta-row"><span class="lt-meta-label">${t("preview.totalVolume")}</span><span>${t("preview.cubeUnit", { n: (meta.totalVolume || 0).toLocaleString() })}</span></div>
+      <div class="lt-meta-row"><span class="lt-meta-label">${t("preview.boundingBox")}</span><span>${sizeStr}</span></div>
+      ${ext !== ".nbt" && ext !== ".schematic" ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.regionCount")}</span><span>${meta.regionCount || 0}</span></div>` : ""}
+      ${meta.entityCount !== undefined ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.entityCount")}</span><span>${meta.entityCount}</span></div>` : ""}
+      ${meta.tileEntityCount !== undefined ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.blockEntity")}</span><span>${meta.tileEntityCount}</span></div>` : ""}
+    </div>`;
+}
+
+/** 渲染材料清单面板：materialDiv + renderBlockList（litematic 材料语义） */
+function renderLitematicMaterial(ctx: PreviewRoot, meta: LitematicMeta): void {
+  const blockStats = meta.blockStats || meta.paletteStats;
+  const materialDiv = ctx.root.getElementById("preview-material");
+  if (!materialDiv) return;
+  materialDiv.innerHTML = `<h3>🧱 ${t("preview.materialList")}</h3>
+	    <div style="padding:12px;font-size:var(--fs-sm)">
+	      ${renderBlockList(blockStats)}
+	    </div>`;
+}
+
 /** 显示投影文件详情面板（tab 布局） */
 export async function showLitematic(
   ctx: PreviewRoot,
@@ -149,65 +223,9 @@ export async function showLitematic(
   const ext = extOf(path);
 
   try {
-    const { ReadLitematicMeta, ReadNbtStructure, ReadSchematic } = await getApp();
-    let meta: LitematicMeta;
-    if (ext === ".nbt") {
-      meta = JSON.parse((await ReadNbtStructure(path)) || "{}") as LitematicMeta;
-      if (!meta || (!meta.size && !meta.blockCount)) throw new Error("无法解析");
-    } else if (ext === ".schematic") {
-      meta = JSON.parse((await ReadSchematic(path)) || "{}") as LitematicMeta;
-      if (!meta || (!meta.size && !meta.blockCount)) throw new Error("无法解析");
-    } else {
-      meta = JSON.parse((await ReadLitematicMeta(path)) || "{}") as LitematicMeta;
-      if (!meta || (!meta.name && !meta.author && meta.totalBlocks === undefined)) throw new Error("无法解析");
-    }
-
-    const sizeArr = meta.enclosingSize || meta.size;
-    const sizeStr = sizeArr ? `${sizeArr[0] || 0} × ${sizeArr[1] || 0} × ${sizeArr[2] || 0}` : "未知";
-    const blockStats = meta.blockStats || meta.paletteStats;
-
-    const previewImgHTML = meta.previewImage
-      ? `<img src="${esc(meta.previewImage)}" alt="preview" style="width:140px;height:140px;object-fit:contain;border-radius:6px;border:1px solid var(--bd);align-self:center;image-rendering:pixelated">`
-      : "";
-
-    function field(label: string, value: unknown): string {
-      return value
-        ? `<div class="lt-meta-row"><span class="lt-meta-label">${label}</span><span>${esc(String(value))}</span></div>`
-        : "";
-    }
-
-    const detailDiv = ctx.root.getElementById("preview-detail");
-    if (detailDiv) {
-      // P2 修复：await Go 解析后比对代际——慢 litematic A 迟到不得污染已切换的 B
-      if (gen !== litematicGen) return;
-      let extra = "";
-      if (ext === ".nbt" || ext === ".schematic") {
-        extra = `${field(t("preview.dataVersion"), meta.dataVersion)}${field(t("preview.formatVersion"), meta.version)}${field(t("preview.nameLabel"), meta.name)}${field(t("preview.authorLabel"), meta.author)}`;
-      } else {
-        extra = `${field(t("preview.nameLabel"), meta.name)}${field(t("preview.authorLabel"), meta.author)}${field(t("preview.createdAt"), meta.timeCreated ? fmtTime(meta.timeCreated) : "")}${field(t("preview.modifiedAt"), meta.timeModified ? fmtTime(meta.timeModified) : "")}<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.formatVersion")}</span><span>Litematica v${meta.version || "?"} · MC Data v${meta.minecraftDataVersion || "?"}</span></div>${field(t("preview.description"), meta.description)}`;
-      }
-      detailDiv.innerHTML = `<h3>📋 ${t("preview.blueprintDetail")}</h3>
-    <div style="padding:12px;display:flex;flex-direction:column;gap:6px;font-size:var(--fs-sm)">
-      ${previewImgHTML}
-      <div><strong>${renderFormattedText(basename || "")}</strong></div>
-      ${extra}
-      <div style="margin:4px 0;border-top:1px solid var(--bd)"></div>
-      <div class="lt-meta-row"><span class="lt-meta-label">${t("preview.nonAirBlocks")}</span><span>${t("preview.blockCount", { n: (meta.totalBlocks || meta.blockCount || 0).toLocaleString() })}</span></div>
-      <div class="lt-meta-row"><span class="lt-meta-label">${t("preview.totalVolume")}</span><span>${t("preview.cubeUnit", { n: (meta.totalVolume || 0).toLocaleString() })}</span></div>
-      <div class="lt-meta-row"><span class="lt-meta-label">${t("preview.boundingBox")}</span><span>${sizeStr}</span></div>
-      ${ext !== ".nbt" && ext !== ".schematic" ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.regionCount")}</span><span>${meta.regionCount || 0}</span></div>` : ""}
-      ${meta.entityCount !== undefined ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.entityCount")}</span><span>${meta.entityCount}</span></div>` : ""}
-      ${meta.tileEntityCount !== undefined ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.blockEntity")}</span><span>${meta.tileEntityCount}</span></div>` : ""}
-    </div>`;
-    }
-
-    const materialDiv = ctx.root.getElementById("preview-material");
-    if (materialDiv) {
-      materialDiv.innerHTML = `<h3>🧱 ${t("preview.materialList")}</h3>
-	    <div style="padding:12px;font-size:var(--fs-sm)">
-	      ${renderBlockList(blockStats)}
-	    </div>`;
-    }
+    const meta = await parseLitematicMeta(ext, path);
+    renderLitematicDetail(ctx, meta, ext, basename, gen);
+    renderLitematicMaterial(ctx, meta);
 
     if (btn3d) {
       // 按扩展名单点映射体素 RPC（ADR-066 解墙）；web 端由 web-fs.ts 的
