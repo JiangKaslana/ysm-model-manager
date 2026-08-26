@@ -191,8 +191,16 @@ function restoreSelectedCard(
       // app-content 每次收到都 innerHTML 重建 <app-sync-manager>（状态丢失/闪烁）
       const emitKey = rtypeKey + ":" + savedName;
       if (_lastEmittedPkg !== emitKey) {
+        const pkg = instances[idx];
+        // P3 修复：与点击路径同构——空 rtype 拦截报错，不 emit。
+        // restore 恢复 localStorage 残留的漏 rtype 实例时，init-pages 的防御性
+        // return 会静默丢面板，须与点击路径一致给用户 toast 反馈。
+        if (!pkg?.rtype) {
+          bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: 3000, type: "error" });
+          return;
+        }
         _lastEmittedPkg = emitKey;
-        bus.emit("package:selected", instances[idx]);
+        bus.emit("package:selected", pkg);
       }
     });
   } catch (e) { console.warn("[sidebar] restoreSelectedCard:", e); }

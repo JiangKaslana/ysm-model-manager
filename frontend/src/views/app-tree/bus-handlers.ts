@@ -334,18 +334,6 @@ async function runBatchToggle(
   }
 }
 
-async function batchToggle(
-  vm: AppTree,
-  dir: string,
-  enable: boolean,
-): Promise<void> {
-  if (!vm._entries.some((e) => e.banned === enable)) return;
-  return runBatchToggle(vm, enable, {
-    prefix: dir,
-    label: t("tree.batchToggle", { action: enable ? t("tree.enable") : t("tree.disable") }),
-  });
-}
-
 async function batchToggleAll(vm: AppTree, enable: boolean): Promise<void> {
   return runBatchToggle(vm, enable, {
     label: t("tree.allToggle", { action: enable ? t("tree.enable") : t("tree.disable") }),

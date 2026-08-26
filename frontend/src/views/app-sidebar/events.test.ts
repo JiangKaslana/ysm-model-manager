@@ -78,6 +78,22 @@ describe("bindCardEvents — list 复用数据陈旧回归（P2）", () => {
     (container.querySelector(".instance-card-header") as HTMLElement).click();
     expect(emitMock).toHaveBeenLastCalledWith("package:selected", B[0]);
   });
+
+  // P1 修复回归护栏（b4e00a6d）：点击空 rtype 实例 → 拦截并 toast，不 emit package:selected。
+  // 此前静默兜底成 YSM，MMD 实例 rtype 漏传时右侧同步面板 default-type 错成 YSM。
+  it("点击无 rtype 实例 → 不 emit package:selected，emit toast 报错", () => {
+    const noRtype = { ...instance("X1"), rtype: "" };
+    const { container } = mount([noRtype]);
+
+    (container.querySelector(".instance-card-header") as HTMLElement).click();
+
+    const pkgCalls = emitMock.mock.calls.filter(([evt]) => evt === "package:selected");
+    expect(pkgCalls).toHaveLength(0); // 空 rtype 被拦截，不派发
+    expect(emitMock).toHaveBeenCalledWith(
+      "toast:show",
+      expect.objectContaining({ type: "error" }),
+    );
+  });
 });
 
 // P3 补测（code_review）：_lastEmittedPkg 去重状态机——该逻辑已两次回归
