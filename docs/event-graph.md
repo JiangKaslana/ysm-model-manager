@@ -271,7 +271,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-preview/index.ts` | 111 |
+| `frontend/src/views/app-preview/index.ts` | 110 |
 
 ### `morph:apply`
 
@@ -519,8 +519,8 @@
 | `frontend/src/views/app-content/diagnostics/init.ts` | 86 |
 | `frontend/src/views/app-content/diagnostics/init.ts` | 101 |
 | `frontend/src/views/app-content/diagnostics/init.ts` | 109 |
-| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 92 |
-| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 358 |
+| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 87 |
+| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 353 |
 | `frontend/src/views/app-content/index.ts` | 169 |
 | `frontend/src/views/app-content/init-pages.ts` | 194 |
 | `frontend/src/views/app-content/init-pages.ts` | 249 |
@@ -572,8 +572,8 @@
 | `frontend/src/views/app-nav/index.ts` | 100 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 241 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 307 |
-| `frontend/src/views/app-preview/index.ts` | 230 |
-| `frontend/src/views/app-preview/index.ts` | 250 |
+| `frontend/src/views/app-preview/index.ts` | 229 |
+| `frontend/src/views/app-preview/index.ts` | 249 |
 | `frontend/src/views/app-preview/mmd-controls.ts` | 282 |
 | `frontend/src/views/app-preview/preview-library.ts` | 75 |
 | `frontend/src/views/app-preview/ysm-controls.ts` | 113 |

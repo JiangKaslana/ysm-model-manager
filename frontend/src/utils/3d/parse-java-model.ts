@@ -340,5 +340,3 @@ export function isRenderableModel(m: JavaModelResult | null): m is JavaModelResu
   return !!m && m.faces.some((f) => f.texEntry !== null || f.texColor !== null);
 }
 
-// 供测试/移植对账
-export const INTERNALS = { ELEM_FACES, COLOR_RE };

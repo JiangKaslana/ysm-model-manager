@@ -8,7 +8,7 @@ import { getLoadTraces } from "../../../utils/3d/load-trace.ts";
 import type { EscFn } from "./logs.ts";
 import { sectionHeader } from "./perf-cli.ts";
 
-export function formatTime(ms: number): string {
+function formatTime(ms: number): string {
   if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
   if (ms >= 100) return `${ms.toFixed(0)}ms`;
   return `${ms.toFixed(1)}ms`;

@@ -34,15 +34,3 @@ export async function resolveStageSiblings(): Promise<Array<{
     return [];
   }
 }
-
-/** 仅获取 StageAnim 下所有 VMD 文件路径列表 */
-export async function resolveStageVmdList(): Promise<string[]> {
-  const all = await resolveStageSiblings();
-  return all.filter((r) => r.kind === "vmd").map((r) => r.path);
-}
-
-/** 仅获取 StageAnim 下所有音频文件路径列表 */
-export async function resolveStageAudioList(): Promise<string[]> {
-  const all = await resolveStageSiblings();
-  return all.filter((r) => r.kind === "audio").map((r) => r.path);
-}

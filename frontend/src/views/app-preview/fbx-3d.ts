@@ -42,7 +42,7 @@ export async function createFbx3D(path: string, opts?: Mount3DOptions): Promise<
 }
 
 /** 清理 FBX 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 */
-export function cleanupFbx3D(): void {
+function cleanupFbx3D(): void {
   cleanupPreview();
 }
 

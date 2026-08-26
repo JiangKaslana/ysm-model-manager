@@ -45,11 +45,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 34 |
 | frontend/ui | 18 | 64 |
-| 前端·工具 | 160 | 639 |
-| frontend/views | 115 | 338 |
+| 前端·工具 | 159 | 632 |
+| frontend/views | 114 | 328 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **482** | **2052** |
+| **合计** | **480** | **2035** |
 
 ## Go·头像
 
@@ -1320,7 +1320,6 @@
 | `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:24` | 从文件列表中筛选动作文件（.vmd / .vpd） |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |
 | `BasisModuleLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:29` | 初始化后的 basis 模块（含 BasisEncoder 构造器） |
-| `loadBasisModule()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:40` | 加载并初始化本地 basis_encoder（缓存单例）。 |
 | `MAX_KTX2_PIXELS()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:65` | 单纹理像素上限：超过则跳过 KTX2 编码。 |
 | `TextureTooLargeError()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:68` | 超大纹理跳过编码的标记错误（encodeAndCacheTexture 据此记 warn 而非 fail） |
 | `encodeToKTX2Basis()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:81` | 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。 |
@@ -1419,7 +1418,6 @@
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:209` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:30` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:90` | 会话内切换模型（复用外壳重建内容层）。 |
-| `arrangeModelsInRow()` | `frontend/src/utils/3d/adapters/switch-preview:282` | 按可见模型的包围盒宽度自动计算 X 轴偏移，避免同框重叠。 |
 | `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:324` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
 | `Endianness()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/endianness:4` | Endianness utility class for serlization/deserialization |
 | `ConsoleLogger()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/ILogger:6` | A logger that outputs to the console generally, you can use this class as default logger |
@@ -1486,7 +1484,6 @@
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-visibility:11` | 设置指定骨骼组及其所有子网格的可见性。 |
 | `toggleBone()` | `frontend/src/utils/3d/bone-visibility:19` | 切换指定骨骼组的可见性（取反）。 |
 | `showModelGroup()` | `frontend/src/utils/3d/bone-visibility:29` | 按索引显示单个模型组件（idx &lt; 0 = 全部显示，NaN 防御）。 |
-| `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:19` | 注册 free 模式 pointer drag 监听器。 |
 | `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:12` | 根据内容根节点的包围盒适配相机位置和 controls.target。 |
 | `fitCameraToRoots()` | `frontend/src/utils/3d/camera-setup:26` | 按给定根节点列表（多模型同框）计算并集包围盒并返回相机初始位姿。 |
 | `EnvPresetId()` | `frontend/src/utils/3d/caps/environment-capability:20` | — |
@@ -1556,7 +1553,6 @@
 | `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:164` | — |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:40` | 遍历场景图释放所有 Mesh 的 geometry 和 material。 |
-| `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:59` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
 | `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
@@ -1640,7 +1636,6 @@
 | `modelEntryFor()` | `frontend/src/utils/3d/parse-java-model:93` | 模型名 → 条目路径（无命名空间默认 minecraft） |
 | `parseJavaModel()` | `frontend/src/utils/3d/parse-java-model:310` | 解析资源包内 block/item 模型（parent 链递归）。 |
 | `isRenderableModel()` | `frontend/src/utils/3d/parse-java-model:339` | 判定模型是否"完整可渲染"：至少一个面有纹理或纯色（纯模板如 cube/cube_all 返回 false） |
-| `INTERNALS()` | `frontend/src/utils/3d/parse-java-model:344` | — |
 | `BeatDetectorLike()` | `frontend/src/utils/3d/perception/autodance:18` | 节拍 detector 接口（抽象，解耦具体实现） |
 | `AutoDanceOptions()` | `frontend/src/utils/3d/perception/autodance:26` | AutoDance 配置 |
 | `createAutoDanceController()` | `frontend/src/utils/3d/perception/autodance:69` | — |
@@ -1737,10 +1732,9 @@
 | `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:66` | 骨骼层级节点 |
 | `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:473` | 解析完整的基岩版动画 JSON 字符串 |
 | `evaluateKeyframes()` | `frontend/src/utils/animation/animation:549` | 在指定时间 t 对一组关键帧求值 |
-| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:594` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
-| `executeTimeline()` | `frontend/src/utils/animation/animation:671` | 执行 timeline 事件：找出 [prevTime, currentTime] 区间内触发的事件并执行。 |
-| `evaluateClip()` | `frontend/src/utils/animation/animation:703` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
-| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:836` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
+| `executeTimeline()` | `frontend/src/utils/animation/animation:613` | 执行 timeline 事件：找出 [prevTime, currentTime] 区间内触发的事件并执行。 |
+| `evaluateClip()` | `frontend/src/utils/animation/animation:645` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:778` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
 | `Easings()` | `frontend/src/utils/animation/molang-lib/easing:2` | — |
 | `Molang()` | `frontend/src/utils/animation/molang-lib/molang:11` | — |
 | `MolangFn()` | `frontend/src/utils/animation/molang:18` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |
@@ -1856,7 +1850,6 @@
 | `attachTooltip()` | `frontend/src/utils/dom/tooltip:110` | 给元素挂悬浮提示，返回 cleanup 函数（摘除全部监听并隐藏）。 |
 | `promoteTitle()` | `frontend/src/utils/dom/tooltip:149` | 把元素上的原生 title 升级为自定义 tooltip（模板里已写 title 的按钮一行接入）。 |
 | `promoteTitleIfPresent()` | `frontend/src/utils/dom/tooltip:158` | promoteTitle + 空值守卫（querySelector 结果可能为 null 的绑定点一行接入） |
-| `VS_BUFFER()` | `frontend/src/utils/dom/virtual-scroll:8` | 可见行缓冲：上下各多渲染 BUFFER 行，保证快速滚动不露白 |
 | `calcVisibleRange()` | `frontend/src/utils/dom/virtual-scroll:17` | 根据滚动位置计算可见行范围。 |
 | `installScrollSync()` | `frontend/src/utils/dom/virtual-scroll:36` | 在滚动容器上安装监听，滚动时经 rAF 合并后触发重渲（一帧最多一次）。 |
 | `WebComponentBase()` | `frontend/src/utils/dom/web-component-base:7` | — |
@@ -1951,7 +1944,6 @@
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:138` | — |
 | `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:231` | — |
 | `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:191` | 初始化去重配置面板（标签页打开时调用，配置实时保存） 扫描结果不覆盖面板，控件扫描后仍可改；code_review P3） |
-| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:198` | 获取当前去重配置（供外部调用） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:542` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
 | `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
@@ -1962,13 +1954,11 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:9` | 转义函数签名（单一事实源 = utils/dom/html.ts 的 esc；调用方以 (s) =&gt; esc(String(s || "")) 包装适配） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:189` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:209` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `setHTML()` | `frontend/src/views/app-content/diagnostics/perf-cli:22` | 写入某容器 HTML；容器不存在时静默跳过 |
-| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:38` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
-| `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:78` | — |
-| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:321` | — |
-| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:436` | — |
-| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:517` | — |
-| `formatTime()` | `frontend/src/views/app-content/diagnostics/perf-trace:11` | — |
+| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:33` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
+| `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:73` | — |
+| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:316` | — |
+| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:431` | — |
+| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:512` | — |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf-trace:18` | 渲染加载剖析区段（取最近一条 trace 渲染甘特图 + 资产清单） |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf` | — |
 | `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:14` | 初始化性能面板（single-bench / gui-flow / perf-log / 加载剖析） |
@@ -2073,14 +2063,12 @@
 | `cleanupEmpty3D()` | `frontend/src/views/app-preview/empty-3d:40` | 清理空场景 3D（WebGL renderer + rAF 循环） |
 | `invalidateEmptyPreview()` | `frontend/src/views/app-preview/empty-3d:45` | 作废在途空场景加载 |
 | `createFbx3D()` | `frontend/src/views/app-preview/fbx-3d:40` | 打开 FBX 3D 预览（独立资产：模型 + 内嵌动画）；siblings 透传同类型候选（ADR-066 §5.6） |
-| `cleanupFbx3D()` | `frontend/src/views/app-preview/fbx-3d:45` | 清理 FBX 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `resolveFbxSiblings()` | `frontend/src/views/app-preview/fbx-siblings:7` | 同类型 FBX 模型候选（GetRepoRoot(fbx) → ScanModelEntriesFiltered 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:6` | Bedrock 方块 |
 | `BedrockSubModel()` | `frontend/src/views/app-preview/geometry:19` | SubModel 子模型条目（Go types/bedrock.go SubModel）。 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:26` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:41` | 解析后的 Bedrock geometry |
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:83` | 从 JSON 字符串解析 Bedrock geometry |
-| `appPreviewStyle()` | `frontend/src/views/app-preview/index:9` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:26` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
 | `appendLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:49` | 同台追加 Litematic/蓝图 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4），与 mmd/vrm 对称 |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:54` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
@@ -2145,8 +2133,6 @@
 | `setActive3DClose()` | `frontend/src/views/app-preview/skeleton:41` | 设置当前活跃的 3D 全屏 overlay 关闭函数（maid/通用 Bedrock 模型复用此机制）。 |
 | `loadModel2D()` | `frontend/src/views/app-preview/skeleton:58` | 加载模型 2D 骨骼线条图 + 统计面板 |
 | `resolveStageSiblings()` | `frontend/src/views/app-preview/stage-siblings:13` | 扫描 StageAnim 目录下所有资源文件（VMD + 音频 + config）；失败返回 [] |
-| `resolveStageVmdList()` | `frontend/src/views/app-preview/stage-siblings:39` | 仅获取 StageAnim 下所有 VMD 文件路径列表 |
-| `resolveStageAudioList()` | `frontend/src/views/app-preview/stage-siblings:45` | 仅获取 StageAnim 下所有音频文件路径列表 |
 | `OrderedTexInput()` | `frontend/src/views/app-preview/texture-order:7` | — |
 | `buildOrderedTexKeys()` | `frontend/src/views/app-preview/texture-order:21` | 计算 3D 渲染/纹理选择器用的有序纹理名列表 |
 | `ModelDetailMeta()` | `frontend/src/views/app-preview/tpl:6` | 模型统计元数据（modelDetailHTML 入参） |
@@ -2167,7 +2153,6 @@
 | `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:60` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:65` | 任意新预览派发时调用，作废在途 VRM 加载 |
 | `VrmMaterialControlBridge()` | `frontend/src/views/app-preview/vrm-controls:15` | 材质控制桥：复用 vrm-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在本文件 |
-| `buildVrmMaterialControls()` | `frontend/src/views/app-preview/vrm-controls:27` | 在 container 渲染 VRM 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `makeVrmPanelRenderer()` | `frontend/src/views/app-preview/vrm-controls:94` | VRM 菜单面板渲染器（声明式菜单 item.render 回调） |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:20` | — |
 | `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:42` | — |
@@ -2213,14 +2198,12 @@
 | `tabStatus()` | `frontend/src/views/app-sync-manager/store:63` | tabStatus：diverged 折叠进 missing tab（继承可操作属性——与 renderer 计数同规， 逐节点复用以防口径漂移）。返回该条目在 status ta |
 | `applyFilter()` | `frontend/src/views/app-sync-manager/store:111` | 应用类型 + 状态筛选，写入 self._filteredItems（递归 + keep-ancestors）。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
-| `SyncFile()` | `frontend/src/views/app-sync-manager/tpl:25` | 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） |
 | `STATUS_ICON()` | `frontend/src/views/app-sync-manager/tpl:32` | — |
 | `STATUS_COLOR()` | `frontend/src/views/app-sync-manager/tpl:41` | — |
 | `statusIconOf()` | `frontend/src/views/app-sync-manager/tpl:50` | — |
 | `statusColorOf()` | `frontend/src/views/app-sync-manager/tpl:51` | — |
 | `actionBtnHTML()` | `frontend/src/views/app-sync-manager/tpl:54` | 状态操作按钮（missing/diverged→push；optional→pull；legacy→pullHere；其余无） |
 | `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:71` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |
-| `syncFileRowHTML()` | `frontend/src/views/app-sync-manager/tpl:113` | 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） |
 | `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:138` | 容器骨架 |
 | `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:181` | 状态筛选标签 HTML |
 | `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:210` | 列表项 HTML（扁平文件行，按 isDir 为 false 渲染） |

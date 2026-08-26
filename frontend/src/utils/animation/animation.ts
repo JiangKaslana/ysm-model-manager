@@ -590,64 +590,6 @@ export function evaluateKeyframes(keyframes: Keyframe[], t: number): Vec3 | null
   ];
 }
 
-/** Allocation-free keyframe evaluation for the per-frame preview hot path. */
-export function evaluateKeyframesInto(keyframes: Keyframe[], t: number, out: Vec3): boolean {
-  if (!keyframes?.length) return false;
-  // Molang 动态轴（code review P2：PR 热路径丢 postMolang——静默回归，冻结在基姿态）：
-  // 与 resolveFramePost 同口径，postMolang 存在时按当前 t 求值；写回 dst 保持低分配
-  const resolvePost = (kf: Keyframe, dst: Vec3): void => {
-    const base = kf.post || [0, 0, 0];
-    const fns = kf.postMolang;
-    dst[0] = fns?.[0] ? fns[0](t) : base[0];
-    dst[1] = fns?.[1] ? fns[1](t) : base[1];
-    dst[2] = fns?.[2] ? fns[2](t) : base[2];
-  };
-  if (!Number.isFinite(t) || t <= keyframes[0].time) {
-    resolvePost(keyframes[0], out);
-    return true;
-  }
-  const last = keyframes[keyframes.length - 1];
-  if (t >= last.time) {
-    resolvePost(last, out);
-    return true;
-  }
-
-  const lo = findKeyframeLowerIndex(keyframes, t);
-  const hi = lo + 1;
-  const a = keyframes[lo];
-  const b = keyframes[hi];
-  if (a.lerp === "step" || b.time <= a.time) {
-    resolvePost(a, out);
-    return true;
-  }
-  const fraction = (t - a.time) / (b.time - a.time);
-
-  // catmullrom：与 evaluateKeyframes 同口径的三次样条（热路径冷分支，允许一次分配）
-  if (a.lerp === "catmullrom") {
-    const p0: Vec3 = [0, 0, 0];
-    const p3: Vec3 = [0, 0, 0];
-    resolvePost(keyframes[Math.max(0, lo - 1)], p0);
-    resolvePost(keyframes[Math.min(keyframes.length - 1, hi + 1)], p3);
-    const p1: Vec3 = [0, 0, 0];
-    resolvePost(a, p1);
-    const p2: Vec3 = [0, 0, 0];
-    resolvePost(b, p2);
-    const r = sampleCatmullRom(p0, p1, p2, p3, fraction);
-    out[0] = r[0];
-    out[1] = r[1];
-    out[2] = r[2];
-    return true;
-  }
-
-  const ap: Vec3 = [0, 0, 0];
-  const bp: Vec3 = [0, 0, 0];
-  resolvePost(a, ap);
-  resolvePost(b, bp);
-  out[0] = ap[0] + (bp[0] - ap[0]) * fraction;
-  out[1] = ap[1] + (bp[1] - ap[1]) * fraction;
-  out[2] = ap[2] + (bp[2] - ap[2]) * fraction;
-  return true;
-}
 
 function findKeyframeLowerIndex(keyframes: Keyframe[], t: number): number {
   let lo = 0;

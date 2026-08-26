@@ -52,10 +52,3 @@ export function disposeSceneMeshes(
     }
   });
 }
-
-/**
- * 安全释放 renderer（dispose 可能因已释放而抛错）。
- */
-export function safeDisposeRenderer(renderer: THREE.WebGLRenderer): void {
-  try { renderer.dispose(); } catch { /* renderer 已被 dispose 则忽略 */ }
-}

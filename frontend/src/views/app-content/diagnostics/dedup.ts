@@ -195,7 +195,7 @@ export function initDedupConfig(list: HTMLElement): void {
 /**
  * 获取当前去重配置（供外部调用）
  */
-export function getDedupConfig(): { strategy: string; keepPolicy: string; priorityPath: string } {
+function getDedupConfig(): { strategy: string; keepPolicy: string; priorityPath: string } {
   return {
     strategy: _dedupStrategy,
     keepPolicy: _keepPolicy,

@@ -14,7 +14,6 @@ const appPreviewStyle: CSSStyleSheet = (() => {
   sheet.replaceSync(previewCSS);
   return sheet;
 })();
-export { appPreviewStyle };
 import { RESOURCE_TYPES, isYsmWasmPreview, extOf } from "../../utils/resource/types.ts";
 import { modelDetailHTML } from "./tpl.ts";
 import {

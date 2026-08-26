@@ -22,7 +22,7 @@ export interface SyncItem {
 }
 
 /** 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） */
-export interface SyncFile {
+interface SyncFile {
   name: string;
   path: string;      // 相对父目录的完整路径（用于 data-path）
   size: number;
@@ -110,7 +110,7 @@ export function syncDirRowHTML(
 }
 
 /** 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） */
-export function syncFileRowHTML(f: SyncFile, indent: number): string {
+function syncFileRowHTML(f: SyncFile, indent: number): string {
   const sizeStr = f.size > 0 ? formatBytes(f.size) : "";
   return (
     '<div class="sm-item sm-file" data-path="' +

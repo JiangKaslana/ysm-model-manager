@@ -37,7 +37,7 @@ let basisModulePromise: Promise<BasisModuleLike> | null = null;
  * 加载并初始化本地 basis_encoder（缓存单例）。
  * fetch 项目 public/basis/ 下的 js + wasm，执行 Emscripten 模块工厂。
  */
-export async function loadBasisModule(): Promise<BasisModuleLike> {
+async function loadBasisModule(): Promise<BasisModuleLike> {
   if (basisModulePromise) return basisModulePromise;
   basisModulePromise = (async () => {
     const [jsText, wasmBinary] = await Promise.all([

@@ -18,11 +18,6 @@ let perfSingleSeq = 0;
 let perfGuiSeq = 0;
 let perfHistSeq = 0;
 
-/** 写入某容器 HTML；容器不存在时静默跳过 */
-export function setHTML(root: ShadowRoot, id: string, html: string): void {
-  const el = root.getElementById(id);
-  if (el) el.innerHTML = html;
-}
 
 /** 运行中占位 */
 function busyHTML(): string {

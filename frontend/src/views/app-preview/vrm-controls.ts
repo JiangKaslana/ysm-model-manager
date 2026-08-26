@@ -24,7 +24,7 @@ export interface VrmMaterialControlBridge {
  * 复用 🥉 slide-item 行样式（对齐 buildMaterialControls 口径）。
  * 纯渲染层——所有状态变更经 bridge 下沉到 vrm-materials.ts，本函数零业务逻辑。
  */
-export function buildVrmMaterialControls(
+function buildVrmMaterialControls(
   container: HTMLElement,
   bridge: VrmMaterialControlBridge,
 ): void {

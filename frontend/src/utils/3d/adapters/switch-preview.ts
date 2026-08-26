@@ -279,7 +279,7 @@ export async function switchToSession(
  * 只在 keepInScene（同台追加）模式下由 switchToSession 调用。
  * 适配器无感知——偏移由 core 统一计算并设置 roots 的 position.x。
  */
-export function arrangeModelsInRow(): void {
+function arrangeModelsInRow(): void {
   const entries = sceneRegistry.getAll();
   if (entries.length <= 1) return;
 
