@@ -261,7 +261,7 @@
 |------|----|
 | `frontend/src/features/oldest-models.ts` | 51 |
 | `frontend/src/features/recycle-bin.ts` | 108 |
-| `frontend/src/views/app-content/diagnostics/dedup.ts` | 346 |
+| `frontend/src/views/app-content/diagnostics/dedup.ts` | 357 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 227 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 295 |
 | `frontend/src/views/app-tree/events.ts` | 158 |
@@ -379,7 +379,7 @@
 | `frontend/src/features/import-executor.ts` | 256 |
 | `frontend/src/features/recycle-bin.ts` | 78 |
 | `frontend/src/features/recycle-bin.ts` | 191 |
-| `frontend/src/views/app-content/diagnostics/dedup.ts` | 391 |
+| `frontend/src/views/app-content/diagnostics/dedup.ts` | 407 |
 | `frontend/src/views/app-content/settings/init.ts` | 198 |
 | `frontend/src/views/app-content/settings/path-cards.ts` | 78 |
 | `frontend/src/views/app-content/settings/path-cards.ts` | 356 |
@@ -505,16 +505,16 @@
 | `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 976 |
 | `frontend/src/utils/3d/adapters/switch-preview.ts` | 97 |
 | `frontend/src/utils/3d/adapters/switch-preview.ts` | 166 |
-| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 96 |
-| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 281 |
-| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 298 |
-| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 322 |
+| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 101 |
+| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 391 |
+| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 405 |
+| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 425 |
 | `frontend/src/utils/dom/directory-picker.ts` | 23 |
 | `frontend/src/utils/dom/directory-picker.ts` | 34 |
 | `frontend/src/utils/dom/directory-picker.ts` | 46 |
 | `frontend/src/utils/module-loader.ts` | 12 |
-| `frontend/src/views/app-content/diagnostics/conflicts.ts` | 21 |
-| `frontend/src/views/app-content/diagnostics/conflicts.ts` | 136 |
+| `frontend/src/views/app-content/diagnostics/conflicts.ts` | 27 |
+| `frontend/src/views/app-content/diagnostics/conflicts.ts` | 173 |
 | `frontend/src/views/app-content/diagnostics/init.ts` | 32 |
 | `frontend/src/views/app-content/diagnostics/init.ts` | 43 |
 | `frontend/src/views/app-content/diagnostics/init.ts` | 51 |
@@ -523,7 +523,7 @@
 | `frontend/src/views/app-content/diagnostics/init.ts` | 109 |
 | `frontend/src/views/app-content/diagnostics/init.ts` | 125 |
 | `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 91 |
-| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 282 |
+| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 357 |
 | `frontend/src/views/app-content/index.ts` | 169 |
 | `frontend/src/views/app-content/init-pages.ts` | 194 |
 | `frontend/src/views/app-content/init-pages.ts` | 249 |
@@ -668,7 +668,7 @@
 | `frontend/src/features/import-executor.ts` | 255 |
 | `frontend/src/features/recycle-bin.ts` | 79 |
 | `frontend/src/features/recycle-bin.ts` | 192 |
-| `frontend/src/views/app-content/diagnostics/dedup.ts` | 392 |
+| `frontend/src/views/app-content/diagnostics/dedup.ts` | 408 |
 | `frontend/src/views/app-sidebar/index.ts` | 289 |
 
 **订阅方（on）：**

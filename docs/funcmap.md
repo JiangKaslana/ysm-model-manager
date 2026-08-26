@@ -1816,8 +1816,8 @@
 | `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:31` | — |
 | `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:41` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
 | `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:20` | 应用变更载荷 |
-| `__resetBatchRenameForTest()` | `frontend/src/utils/dom/dialogs/batch-rename:43` | 测试钩子：重置模块级弹窗单例（isolate:false 共享模块图下，兄弟文件残留的 dialogEl 会让「重复打开」用例的 closeDlgMock 计数失真；modal._ |
-| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:56` | 弹出批量重命名对话框 重复打开时先结算上一个 Promise，调用方 await 不会永远悬挂 |
+| `__resetBatchRenameForTest()` | `frontend/src/utils/dom/dialogs/batch-rename:62` | — |
+| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:442` | — |
 | `trapFocus()` | `frontend/src/utils/dom/dialogs/modal:25` | 焦点陷阱：Tab 键在弹窗内可聚焦元素间循环，防止焦点逃逸到背后页面 |
 | `closeDlg()` | `frontend/src/utils/dom/dialogs/modal:53` | 带退场动画关闭对话框 |
 | `__resetModalStateForTest()` | `frontend/src/utils/dom/dialogs/modal:81` | 测试钩子：重置活动弹窗单例槽位（isolate:false 共享模块图下，兄弟文件残留的 _activeOverlay 会让「无活动弹窗」断言失真；web-store.__rese |
@@ -1969,11 +1969,11 @@
 | `contentRepoCSS()` | `frontend/src/views/app-content/content-repo:2` | — |
 | `contentStgCSS()` | `frontend/src/views/app-content/content-stg:7` | — |
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
-| `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:16` | — |
-| `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:129` | — |
-| `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:88` | 初始化去重配置面板（标签页打开时调用，配置实时保存） 扫描结果不覆盖面板，控件扫描后仍可改；code_review P3） |
-| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:139` | 获取当前去重配置（供外部调用） |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:152` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:138` | — |
+| `scanSyncConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:231` | — |
+| `initDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:191` | 初始化去重配置面板（标签页打开时调用，配置实时保存） 扫描结果不覆盖面板，控件扫描后仍可改；code_review P3） |
+| `getDedupConfig()` | `frontend/src/views/app-content/diagnostics/dedup:198` | 获取当前去重配置（供外部调用） |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:542` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:52` | 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果—— 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类 |
 | `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:125` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |

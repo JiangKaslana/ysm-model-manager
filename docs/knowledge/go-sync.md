@@ -95,6 +95,7 @@ invariant_anchors:
 - 硬链接检测跨平台分实现，系统调用失败一律降级 `LinkCopy`；`GetLinkType` 必须先 `os.Lstat` 判 `os.ModeSymlink`——用 `os.Stat` 会跟随链接、把符号链接误判成普通文件，进而按「复制」策略走回收站
 - 链接类型是删除策略依据：硬链接(nlink>1)/符号链接直接删，普通文件才移回收站（致命陷阱 #8）
 - 拉取侧 `copyFile`（sync_push.go）已修复为 **tmp+rename 原子落地**（P3 修复）：带 defer 清理半截文件，失败不清理残留；`copyDirRecursive`（sync_push.go）递归复制时保留符号链接语义（`os.Readlink` + `os.Symlink`），不跟随复制——与 [go_recycle](./go-recycle.md) 的 `copyDirRecursive` 口径已对齐
+- 冲突解决（conflict.go）的备份/覆盖/回滚三处拷贝已收敛 `fsutil.CopyFile` 原子 tmp+rename（ADR-044 收尾，原 `copyFileSafe` 直写壳已删）；失败路径契约（本地完好 + .bak 清理）由 `TestResolveConflict_ForceRemote_CopyFail_LocalIntact` 锁定
 - 实例 custom 目录固定为 `config/yes_steve_model/custom`
 
 ## 已知限制 / 待治理（2026-08-24 审计）
