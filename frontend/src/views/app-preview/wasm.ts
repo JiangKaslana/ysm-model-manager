@@ -838,8 +838,16 @@ async function doDecodeYsmViaWasm(
   if (cachedGeo?.bones?.length) return cached as DecodedYsm;
   if (cached?._wasmFailed) return null;
 
-  const { ReadFileBytes } = await getApp();
-  const raw = await ReadFileBytes(modelPath);
+  let ReadFileBytes: (path: string) => Promise<string | null>;
+  let raw: string | null;
+  try {
+    ({ ReadFileBytes } = await getApp());
+    raw = await ReadFileBytes(modelPath);
+  } catch (e) {
+    devLog(`[YSM] ❌ ${safeErrorMessage(e)}`);
+    cacheSet(modelPath, { _wasmFailed: true });
+    return null;
+  }
   const bytes = raw ? mdWsBase64ToBytes(raw) : new Uint8Array(0);
   devLog(`[YSM] 读取 ${bytes?.length || 0} bytes`);
 

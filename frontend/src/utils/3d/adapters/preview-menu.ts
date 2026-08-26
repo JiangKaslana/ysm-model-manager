@@ -656,10 +656,11 @@ function applySwitchRowClick(
   ctx: PreviewMenuCtx,
   keepInScene: boolean,
 ): void {
-  const opts = keepInScene ? { keepInScene: true } : undefined;
+  // 追加语义才带 opts；替换语义保持旧签名形态（不传第二/三参），调用方契约按参数个数区分
+  const extra: [{ keepInScene?: boolean }?] = keepInScene ? [{ keepInScene: true }] : [];
   const r = !sameType && ctx.switchExternal
-    ? ctx.switchExternal(p, ctx.getSiblings(), opts)
-    : ctx.switchTo(p, opts);
+    ? ctx.switchExternal(p, ctx.getSiblings(), ...extra)
+    : ctx.switchTo(p, ...extra);
   if (r && typeof (r as Promise<void>).then === "function") void (r as Promise<void>).catch(() => {});
 }
 

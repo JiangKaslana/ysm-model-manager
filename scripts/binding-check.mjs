@@ -62,7 +62,8 @@ function paramBody(text, open, close) {
 /**
  * Go 参数类型序列：`a string, b int` → ['string','int']。
  * 支持 `a, b string` 合写（第一段纯参数名无类型 → null，比对时跳过）。
- * variadic `...T` 去前缀。
+ * variadic `...T` 归一为 `[]T`（数组语义，对齐 TS 侧 `...name: T[]`），
+ * 此前剥成标量 `T` 会与 Wails 生成的 `...x: T[]` 误判漂移（FindDuplicateFiles 回归）。
  */
 function goParamTypes(body) {
   if (!body) return [];
@@ -70,7 +71,7 @@ function goParamTypes(body) {
     const toks = seg.trim().split(/\s+/);
     if (toks.length < 2) return null;
     let t = toks[toks.length - 1];
-    if (t.startsWith('...')) t = t.slice(3);
+    if (t.startsWith('...')) t = `[]${t.slice(3)}`;
     return t;
   });
 }

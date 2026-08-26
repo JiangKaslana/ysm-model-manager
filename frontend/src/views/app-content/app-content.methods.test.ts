@@ -38,6 +38,11 @@ vi.mock("./diagnostics/init.ts", () => ({
   initDiagnostics: vi.fn(),
   startDedup: vi.fn(),
 }));
+// init-pages 直接从 dedup.ts import startDedup/initDedupConfig（init.ts 仅 re-export 兼容壳）
+vi.mock("./diagnostics/dedup.ts", () => ({
+  startDedup: vi.fn(),
+  initDedupConfig: vi.fn(),
+}));
 vi.mock("../../features/recycle-bin.ts", () => ({ initRecycleBin: vi.fn() }));
 vi.mock("../../features/oldest-models.ts", () => ({
   loadOldestModel: vi.fn().mockResolvedValue(undefined),
@@ -57,7 +62,8 @@ vi.mock("../../utils/icon/workshop-icons.ts", () => ({ getSiteIcon: vi.fn(() => 
 import { bus } from "../../bus.ts";
 import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
-import { startDedup } from "./diagnostics/init.ts";
+// 断言跟随实现的真实消费路径（init-pages 直接 import dedup.ts；init.ts 仅兼容壳）
+import { startDedup } from "./diagnostics/dedup.ts";
 import { PAGE_REGISTRY } from "./page-registry.ts";
 import { loadCommunityData } from "./community-data.ts";
 import { tryFetchModels } from "../../features/community/data.ts";

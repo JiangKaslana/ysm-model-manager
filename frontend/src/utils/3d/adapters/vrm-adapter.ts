@@ -349,8 +349,7 @@ function mdVrStage4MenuPanels(
   perception: MdVrPerceptionState,
 ): PreviewMenuNode[] {
   const { bonePanelRef, boneTree } = boneAssy;
-  const { motionClips, motionMixer, motionAction, motionPlaying, motionIdx } = motion;
-  const motionMutRef = { motionAction, motionPlaying, motionIdx };
+  const { motionClips, motionMixer } = motion;
   const menuItems = vrmMenuItems({
     panels,
     screenshot: () => Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
@@ -373,29 +372,26 @@ function mdVrStage4MenuPanels(
     play: motionClips.length > 0
       ? {
           clips: motionClips.map((c) => ({ label: c.label })),
-          isPlaying: () => motionMutRef.motionPlaying,
+          isPlaying: () => motion.motionPlaying,
           toggle: () => {
-            motionMutRef.motionPlaying = !motionMutRef.motionPlaying;
-            if (motionMutRef.motionAction) motionMutRef.motionAction.paused = !motionMutRef.motionPlaying;
+            motion.motionPlaying = !motion.motionPlaying;
+            if (motion.motionAction) motion.motionAction.paused = !motion.motionPlaying;
           },
-          currentIndex: () => motionMutRef.motionIdx,
+          currentIndex: () => motion.motionIdx,
           select: (i: number) => {
-            if (i === motionMutRef.motionIdx || !motionMixer) return;
+            if (i === motion.motionIdx || !motionMixer) return;
             if (i < 0 || i >= motionClips.length) return;
-            motionMutRef.motionIdx = i;
-            motionMutRef.motionAction?.stop();
-            motionMutRef.motionAction = motionMixer.clipAction(motionClips[i].clip);
-            motionMutRef.motionAction.play();
-            motionMutRef.motionAction.paused = !motionMutRef.motionPlaying;
+            motion.motionIdx = i;
+            motion.motionAction?.stop();
+            motion.motionAction = motionMixer.clipAction(motionClips[i].clip);
+            motion.motionAction.play();
+            motion.motionAction.paused = !motion.motionPlaying;
           },
           animDir: null,
         }
       : null,
     perception: { state: perception.perceptionState, caps: perception.perceptionCaps },
   });
-  motion.motionAction = motionMutRef.motionAction;
-  motion.motionPlaying = motionMutRef.motionPlaying;
-  motion.motionIdx = motionMutRef.motionIdx;
   return menuItems;
 }
 function mdVrStage5BuildResult(
@@ -411,12 +407,11 @@ function mdVrStage5BuildResult(
 ): PreviewScene {
   const { vrm } = parseRes;
   const { semanticBones, bonePanelRef } = boneAssy;
-  const { motionClips, motionMixer, motionAction, motionPlaying, motionIdx } = motion;
+  const { motionClips, motionMixer } = motion;
   const {
     perceptionState, breath, gaze, blink, footIK,
     useNativeLookAt, blinkExpressionNames, exprMgr,
   } = perception;
-  const motionMut = { motionAction, motionPlaying, motionIdx };
   recordLoadTrace({
     ts: Date.now(),
     format: "vrm",
@@ -441,7 +436,7 @@ function mdVrStage5BuildResult(
       if (!vrm.scene.visible) return;
       if (motionMixer) motionMixer.update(dt);
       vrm.update(dt);
-      const animActive = !!motionMut.motionAction && !motionMut.motionAction.paused;
+      const animActive = !!motion.motionAction && !motion.motionAction.paused;
       if (semanticBones) {
         if (!animActive && perceptionState.breath) breath.apply(dt, semanticBones);
         if (!animActive && !useNativeLookAt && perceptionState.gaze) gaze!.apply(dt, semanticBones, ctx.camera!.position);

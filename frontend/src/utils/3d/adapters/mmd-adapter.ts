@@ -534,7 +534,7 @@ async function mdMmParsePmdStage(c: MdMmBuildCtx): Promise<void> {
     try {
       c.mmd = await loader.loadAsync(c.effectivePath);
     } catch (e) {
-      for (const url of c.blobUrls) URL.revokeObjectURL(url);
+      // blob 回收由 buildMmdScene 主入口 finally 统一兜底（此处再收会双回收）
       await mmdDiag(c.effectivePort, "parse", c.effectivePath, "fail", safeErrorMessage(e));
       throw e;
     }
