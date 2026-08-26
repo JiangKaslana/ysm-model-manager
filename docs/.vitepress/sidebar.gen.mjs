@@ -1610,7 +1610,7 @@ export const autoSidebar = [
             "link": "/knowledge/community-feature"
           },
           {
-            "text": "导入队列 import-queue",
+            "text": "全局导入执行 import-executor",
             "link": "/knowledge/import-queue"
           },
           {

@@ -1,98 +1,109 @@
 ---
 kind: import-queue
-name: 导入队列 import-queue
+name: 全局导入执行 import-executor
 tier: architecture
 category: feature
 source_files:
+  - frontend/src/features/import-executor.ts
   - frontend/src/features/import-dnd.ts
   - frontend/src/features/dnd-shared.ts
   - frontend/src/features/dnd-collector.ts
-  - frontend/src/features/import-executor.ts
 tests:
-  - frontend/src/features/dnd-shared.test.ts
   - frontend/src/features/import-executor.test.ts
   - frontend/src/features/import-dnd.test.ts
+  - frontend/src/features/dnd-shared.test.ts
+  - frontend/src/features/dnd-collector.test.ts
 use_when:
   - 导入
   - 导入队列
   - 拖拽导入
-  - 命名表单
   - 文件夹导入
   - 覆盖导入
   - import
+  - 拖拽
 invariant_anchors:
   - frontend/src/features/dnd-shared.ts|isImportableFile
+  - frontend/src/features/import-executor.ts|executeCollected
 ---
 
-# 导入队列 import-queue
+# 全局导入执行 import-executor
 
 ## 概览
 
-导入分两层：**全局导入执行器 `import-executor.ts`（一等公民）** 负责真正的落盘（`directImport` 单文件直导 / `importFolder` 文件夹整组 / `executeCollected` 批量路由）与内存导入历史 `ImportHistory`；**`import-queue.ts`** 只是仓库页「导入」tab 的界面层：拖拽区/文件选择/文件夹选择收文件 → `shouldEnterForm` 分流（仅 `ysm.json` 进命名表单，其余全部转发执行器直导）→ 渲染队列与已导入列表。由 app-content 在首次切到 import tab 时懒加载调用 `initImportQueue(this)`，返回的清理函数收进 `_unsubs`。
+**2026-08-05 重构**：原 `import-queue.ts`（导入 tab UI 层）与 `ImportHistory`（内存导入历史）已全部删除。导入改为**全局静默执行**架构——拖拽/选择文件直接走 `import-executor.ts` 执行落盘，不依赖任何 tab 挂载。核心链路：
 
-全局拖拽（handlers/dnd.ts）**不再切到导入 tab、不再弹表单**，直接调 `executeCollected` 静默入仓，完成后经 `import:history-changed` 驱动本 tab 刷新。
+`拖拽源 → collectFiles 收集 → groupCollected 分组 → executeCollected 执行 → Go binding 落盘 → bus 广播刷新`
 
-## 核心职责
+## 核心模块
 
 ### import-executor.ts（全局执行器）
 
-- `directImport(file)`：`FileReader` 读 base64 → `ImportModelFile(name, base64)`（保留原文件名，类型路由/冲突判定全在 Go 端）→ 写 `ImportHistory` → `stats:refresh`+`tree:reload`+toast
-- `importFolder(dir, files)`：按顶层目录名为模型名、`dir` 前缀之前的路径为 `subpath`，逐个文件转 base64 后调 `ImportModelFolder(folderName, subpath, items)`（保留嵌套层级）；捕获 `FILE_EXISTS`/「目标已存在」时提示改名重导
-- **上下文路由（2026-08-24）**：`importFolder(dir, files, rtype)` / `executeCollected(collected, rtype)` 支持透传页面上下文类型——`<app-tree>` 把自身根属性经 `bindTreeDnD(el, getRType)` 传入（**getter 惰性解析**：root 属性支持动态切换，drop 时才取值防闭包残留旧类型），非空时走 Go 绑定 `ImportModelFolderTo(folderName, subpath, rtype, items)` 按该类型仓库根落盘（解决 `.zip` 六类型歧义文件夹被内容推断兜底进 ysm 根、maid-model 等仅注册 `.zip` 的类型永不可达的结构性失灵）；空串/未注册回退 `inferFolderType` 内容推断；前端对 `ImportModelFolderTo` 有 `typeof` 存在性守卫（旧桥/Android 时序缺失时退回内容推断旧路）；内容明确归属其他单一类型时后端记 warn OpLog 不阻断。**例外：默认中性页（上下文=ysm）让位内容推断**——整条委托 `ImportModelFolder` 旧路（含 ysm.json 入口优先级），最常用入口不静默改数据落点。类型判定仍在 Go，前端只透传树上下文
-- `executeCollected(collected)`：`groupCollected` 分组后先整组文件夹、后散落单文件，返回 `{ folders, singles }` 计数供调用方判空
-- `ImportHistory`：模块级内存历史（`records` / `push` / `rename` / `clear`），每次变更 `bus.emit("import:history-changed")`
+- `directImport(file)`：`FileReader` 读 base64 → `ImportModelFile(name, base64)` 直导（保留原文件名，类型路由/冲突判定全在 Go 端）→ toast 成功/失败；`ysm.json` 单文件拦截引导拖整个文件夹
+- `importFolder(dir, files, rtype)`：按顶层目录名为模型名、`dir` 前缀为 `subpath`，逐个文件转 base64；**上下文路由**（2026-08-24）：`rtype` 非空走 `ImportModelFolderTo(folderName, subpath, rtype, items)` 按页面类型仓库根落盘，空串回退 `ImportModelFolder` 内容推断；逐文件读取失败跳过不拖垮整组
+- `executeCollected(collected, rtype)`：`groupCollected` 分组后先整组文件夹、后散落单文件，返回 `{ folders, singles }` 计数
+- `importWebFilesWithToast(files, onFinally)`：网页版导入，经 `importWebFiles` 直写 IndexedDB
+- `_inFlight: Set<string>`：per-file/folder 在途去重，键含 `name+size+lastModified` 防同名不同源误判
 
-### import-queue.ts（导入 tab 界面）
+### import-dnd.ts（仓库页拖拽）
 
-- 拖拽区内独立的 `dragover`/`dragleave`/`drop` 处理（`stopPropagation` 阻止冒泡到全局 DnD handler），`webkitGetAsEntry` 递归读取文件夹（`collectEntry`，`readEntries` 单批 100 条循环读空为止）
-- `shouldEnterForm(name, base64)`（dnd-shared.ts）：**仅 `ysm.json` 返回 true**；`.ysm`/`.zip`/`.7z` 及其他注册扩展名一律 false → 走 `directImport` 保留原名，ZIP 内容类型检测下沉 Go 端 `importer.DetectZipType`
-- 命名表单：`parseModelName` 预填作者/作品/角色/日期，实时预览；勾选「读取作者」调 `ExtractYSMHeaderFromBase64` 自动填作者与 tips；`SavePreviewTempFile` 存临时文件后 `bus.emit("model:select")` 驱动右侧预览
-- 队列状态：本地 `fileQueue`（待处理）+ 全局 `ImportHistory.records`（已导入，渲染数据源）；`enqueueFile` 对两者做重名去重；仓库已有文件名缓存 `repoFiles`（`ScanModelEntries` 加载）用于队列行 ⚠️ 重名预警
-- 表单落盘：`showRenameDialog(null, newName)` 确认最终名 → 调 `ImportModelFileTo(finalName, subpath, base64)`（后端 `app_install_import.go` 内部按注册表路由类型；MMD 用途子目录经 `subpath`/`mmdSubdir` 参数落位）；捕获 `FILE_EXISTS`/「文件已存在」后 `modalConfirm` 二次确认走覆盖分支 `ImportModelFileOverwriteTo`（2026-08-21 更新：原 `mmd-skin` 专属 `ImportModelFileToMMD`/`ImportModelFileOverwriteToMMD` 绑定前端已不再调用，仅存 Go 侧实现，类型退役后统一走通用导入）
-- 单文件/文件夹直导统一走 `directImport` → `ImportModelFile` / `importFolder` → `ImportModelFolder`（见 import-executor.ts）；**MMD 用途子目录选择（ADR-096 P2）已全局化到 app-nav 双下拉**（`repo_rtype` / `repo_subdir` 落盘 + `repo:rtype-changed` 广播），选项与 MMD 子类型对齐（EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/Shader），不再有下载页局部下拉（原 `#dl-mmd-subdir` 仅 `mmd-skin` 条件渲染已移除）
-- 已导入项 ✂️ 按钮 → `showRenameDialog` + `RenameFile`，成功后 `ImportHistory.rename` 同步历史
+- `handleTreeDrop(e, isBusy, setBusy, rtype)`：`<app-tree>` 容器内 drop 处理
+  - 网页版：`resolveWebMode()` → `importWebFilesWithToast`
+  - 桌面版：`dataTransfer.files` + `webkitGetAsEntry` 补充收集 → `executeCollected`
+- `bindTreeDnD(container, rtype)`：注册 `dragover`/`dragleave`/`drop` 到 document 层，通过 `composedPath` 判定是否命中容器；**rtype 支持 getter**（动态切换树根类型，drop 时才取值防闭包残留）
+- 含 100MB 超量逐文件过滤 + busy 状态守卫
+
+### dnd-shared.ts（共享判定）
+
+- `isSupportedFile(name)`：扩展名是否在 `ALL_EXTS` 支持列表
+- `isImportableFile(name)`：`.json` 仅放行 `ysm.json` 入口清单（包内 `main.json`/`*.animation.json`/`zh_cn.json` 等不得单独导入），与 `go/scanner/scanner.go:80-87` 白名单对齐
+- `shouldEnterForm(name)`：**仅 `ysm.json` 返回 true**（当前仅用于表单分流，整组导入不进表单）
+- `groupCollected(collected)`：按顶层目录分组，组内至少 1 个支持文件才整组导入，否则整组丢弃
+- 类型：`CollectedEntry`、`FolderGroup`
+
+### dnd-collector.ts（文件收集器）
+
+- `collectFiles(items, isEntryArray, basePath, depth)`：递归收集 `DataTransferItem[]` 或 `FileSystemEntry[]`
+- `getFileFromEntry(entry)`：`FileSystemFileEntry.file()` Promise 化 + 5s 超时兜底
+- `readEntries` 3s 超时防 WebView2 卡死，`MAX_DEPTH=10` 防递归过深
+- 错误静默跳过（warn 日志），不拖垮整批
 
 ## 对外 API / 入口
 
-- import-queue.ts 导出：`initImportQueue(app: ImportQueueHost): () => void`（清理函数：清 `conflictTimer`、成对 remove 全部 `on()` 注册的监听、unsub `import:history-changed`）、`interface ImportQueueHost`（依赖宿主 `_root`/`_esc`）
-- import-executor.ts 导出：`directImport`、`importFolder`、`executeCollected`、`ImportHistory`、`isImportableFile`（透传 dnd-shared）、类型 `ImportFile`/`ImportRecord`/`CollectedEntry`
-- dnd-shared.ts 导出：`isSupportedFile`、`isImportableFile`、`shouldEnterForm`、`getExt`、`groupCollected`、类型 `CollectedEntry`/`FolderGroup`
-- 监听 bus：`import:history-changed`
-- 派发 bus：`model:select`、`toast:show`、`stats:refresh`、`tree:reload`
-- getApp() 调用：import-queue → `SavePreviewTempFile`、`ExtractYSMHeaderFromBase64`、`CheckFileExists`、`LoadAppConfig`、`ImportModelFileTo`、`ImportModelFileOverwriteTo`、`ScanModelEntries`、`GetRepoRoot`、`RenameFile`；import-executor → `ImportModelFile`、`ImportModelFolder`
-- 依赖弹窗：`showRenameDialog`（dialogs/rename.ts）、`modalConfirm`（dialogs/modal.ts）
+- import-executor 导出：`directImport`、`importFolder`、`executeCollected`、`importWebFilesWithToast`、`isImportableFile`
+- import-dnd 导出：`handleTreeDrop`、`bindTreeDnD`
+- dnd-shared 导出：`isSupportedFile`、`isImportableFile`、`shouldEnterForm`、`getExt`、`groupCollected`、类型 `CollectedEntry`/`FolderGroup`
+- dnd-collector 导出：`collectFiles`、类型 `CollectedFile`
+- 派发 bus：`toast:show`、`stats:refresh`、`tree:reload`
+- getApp() 调用：`ImportModelFile`、`ImportModelFolder`、`ImportModelFolderTo`、`AddOpLog`
 
 ## 关键机制
 
-- **静默直导**：`readAndRouteFile` 读完 base64 后，非表单文件直接 `await execDirectImport(file)`（执行器内部重新读一次 base64，历史/去重/toast 单点）；`routeCollected` 与执行器 `executeCollected` 语义一致（文件夹整组 → 散落单文件）
-- **并发/重复守卫**：执行器持 per-file `_inFlight: Set<string>`，同名文件在途时 `directImport` 直接返回（拦重复与并发重导），不同文件仍可并行；导入 tab 另有 `_importing` 布尔守卫，`dl-import` 与 ✂️ 重命名共用槽位防连点
-- **ysm.json 单文件拦截**：`directImport` 遇 `ysm.json` 单文件（光杆清单）不导入，toast 引导拖入整个模型文件夹走整组路径
-- **队列顺序流转**：落盘成功后 `findIndex` + `splice` 摘掉已导入项，`advanceQueue()` 若队列非空则 `showForm(fileQueue[0])`，否则 `toggleForm(false)` 回到拖拽区
-- **命名解析**：`parseModelName` 按 `[作者]作品-角色` 命名模式预填 author/work/chara 字段（来自 utils/dom/display.ts）；未填角色名则沿用原文件名
-- **冲突提示两条线**：表单内 `checkConflictDebounced`（400ms 防抖 → `CheckFileExists` → 显隐 `dl-conflict`）；队列行 ⚠️ 来自 `repoFiles` 名称缓存比对
-- **异步 fail-soft**：`collectEntry` 把回调式 `entry.file()` Promise 化并补 rejection handler（executor 同步异常不会让 Promise 永不 resolve）；`processDropItems` 的 `Promise.all` 链补 `.catch`；`showForm` 内 `setTimeout(async …)` 包 try/catch——三处缺一都会导致拖拽导入静默卡死
-- **Android 文件选择（双端桥，ADR-046）**：`dl-file-input`（`<input type="file">`）在 Android WebView 默认 WebChromeClient 下点击静默无反应——`MainActivity` 已加 `WebChromeClient.onShowFileChooser` → `ACTION_GET_CONTENT` 多选（`EXTRA_ALLOW_MULTIPLE`），返回的 `content://` URI 由系统临时授权、WebView 直接读，前端 `FileReader`→base64 流不变（与桌面同链）。`FileChooserParams` 公共 API 无目录模式（`MODE_OPEN_DIRECTORY` 不存在，勿引用），`webkitdirectory` 的 `dl-folder-input` 在 Android 触屏不可达（Ctrl+点击）；拖拽 DnD 无触屏等效，Android 导入走「点拖拽区选文件」或树「📁 导入文件」（`SelectImportFile` 官方桥）
-- **导入反馈**：成功后 `stats:refresh` + `tree:reload` 双事件联动；失败统一 `toast:show`（error 类型 4~5s）
+- **静默直导**：完成后 `stats:refresh` + `tree:reload` 双事件联动，无导入 tab 依赖
+- **并发/重复守卫**：`_inFlight` 持 per-file 指纹（name+size+lastModified），同名不同源文件不误判；busy 命中 toast 反馈（不静默）
+- **逐文件容错**：文件夹导入中单个文件读取失败跳过（warn 日志），不拖垮整组
+- **上下文路由守卫**：`ImportModelFolderTo` 不可用时（旧桥/Android 时序）降级为内容推断 + warn toast，不静默错位
+- **ysm.json 拦截**：`directImport` 遇 `ysm.json` 单文件 toast 引导拖整个文件夹走整组路径
+- **100MB 防线**：逐文件 `MAX_IMPORT_BYTES` 过滤，超限跳过 + toast 提示
+- **Shadow DOM 穿透**：`bindTreeDnD` 用 `document.addEventListener` + `composedPath` 判定命中，跨 ShadowRoot 边界正常触发
 
 ## 与其他子系统关系
 
-- 由 [app_content](./app-content.md) 懒加载初始化；清理函数收进组件 `_unsubs` 统一在 `disconnectedCallback` 释放
-- 与 [global_handlers](./global-handlers.md) 分工：全局 DnD 收集完（含 100MB 上限拦截）直接 `await executeCollected` 静默入仓，**不切 tab、不弹表单**；导入完成后经 `import:history-changed` 驱动本模块刷新已导入列表——导入 tab 未挂载时导入照常生效，挂载后从 `ImportHistory` 补渲染
-- 导入成功后发 `stats:refresh` + `tree:reload` 联动 [app_tree](./app-tree.md) 与统计；单文件落盘策略见 [go_importer](./go-importer.md)，文件夹整组写入见 `go/fileops.WriteModelFolder`（[go_fileops](./go-fileops.md)）
+- 由 [app-tree](./app-tree.md) 调用 `bindTreeDnD` 注册仓库页拖拽
+- 与 [global-handlers](./global-handlers.md) 分工：全局 DnD 遮罩已删除（ADR-060 收敛至组件级），拖拽全部走 `app-tree` 容器绑定
+- 类型判定/归类归 Go（`resource_types.json` + `go/scanner`），前端只透传上下文类型
+- 单文件落盘见 [go_importer](./go-importer.md)，文件夹整组写入见 `go/fileops.WriteModelFolder`（[go_fileops](./go-fileops.md)）
 
 ## 不变量
 
-- 拖拽区内事件必须 `stopPropagation`，否则与全局 DnD 遮罩双重触发
-- `enqueueFile` 重名去重：`fileQueue` 与 `ImportHistory.records` 中已有同名文件则跳过（比 name + relPath，ADR-039 P3）
-- `directImport` 的 `_inFlight` 去重键为文件名，`finally` 中必须删除，否则该文件后续再也导不进来
-- 覆盖分支仅在 Go 返回 `FILE_EXISTS`/「文件已存在」时经 `modalConfirm` 确认后执行，且 `finalName` 在 try 外声明保证 catch 可见
-- 文件夹整组要求组内至少 1 个支持文件（`groupCollected` 前端判定与后端 `isSupportedEntryFile` 对齐），否则整组丢弃
-- 拖拽区点击有 500ms `clickLocked` 节流，防抖出双开文件选择器
-- **队列行 ⚠️ 重名预警的 `repoFiles` 键统一「去扩展名」形态**（P2 修复：原 Set 存 `e.Name` 含扩展名、预警查去扩展名，两侧键格式不匹配 → 预警永不触发）
+- `isImportableFile` 的 `.json` 白名单仅放行 `ysm.json`，与 `go/scanner/scanner.go:80-87` 对齐
+- `groupCollected` 组内至少 1 个支持文件才整组导入（与后端 `isSupportedEntryFile` 对齐）
+- `_inFlight` 键 = `name:size:lastModified`，防止跨源同名文件误判在途
+- `bindTreeDnD` 文档级监听 + `composedPath` 判定，Shadow DOM 穿透红线
+- `rtype` getter 支持动态切换，drop 时惰性取值防闭包残留旧类型
 
 ## 相关
 
-- [global_handlers](./global-handlers.md) — 全局拖拽入口与遮罩状态机
-- [dialog_rename](./dialog-rename.md) — 导入确认与重命名弹窗
-- [dialog_modal](./dialog-modal.md) — 覆盖确认 modalConfirm
-- [app_content](./app-content.md) — 宿主组件与 tab 懒加载
+- [global_handlers](./global-handlers.md) — 全局拖拽入口（历史，已收敛至组件级）
+- [app-tree](./app-tree.md) — 仓库页组件，调用方
+- [go-importer](./go-importer.md) — Go 端导入实现
+- [go-fileops](./go-fileops.md) — Go 端文件操作（WriteModelFolder）
