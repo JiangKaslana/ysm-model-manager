@@ -837,6 +837,73 @@ func TestSearchModels_ResultOrder(t *testing.T) {
 	}
 }
 
+// TestSearchModels_DeterministicOrder_SameName: 同名不同路径的模型并发搜索 50 次，
+// 输出顺序必须逐次一致（名称主键 + 原始索引兜底 + SliceStable）。
+// 回归 ADR-119 确定性契约：消除 goroutine 完成序随机 + sort.Slice 非稳定导致的「同输入不同输出」。
+func TestSearchModels_DeterministicOrder_SameName(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	if err := os.MkdirAll(ysmRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// 两个不同父目录下各放一个同名子目录 fixture → ScanModelEntries 扫出两条同名不同路径条目。
+	// 声明序：dirA/mymodel 先于 dirB/mymodel（WalkDir 字典序：aaa < bbb）。
+	dirs := []string{"aaa_pack", "bbb_pack"}
+	for _, d := range dirs {
+		packDir := filepath.Join(ysmRoot, d, "mymodel")
+		if err := os.MkdirAll(packDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		geoName := "mymodel.geo.json"
+		ysmContent := fmt.Sprintf(`{"files":{"player":{"model":{"main":"%s"}}}}`, geoName)
+		if err := os.WriteFile(filepath.Join(packDir, "ysm.json"), []byte(ysmContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(packDir, geoName), []byte(geoJSON("mymodel", 3)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 再加几个不同名的模型凑成 > 2 候选，强制走并发路径。
+	for _, name := range []string{"zzz_other", "aaa_first"} {
+		writeYsmModelFixture(t, ysmRoot, name, 2)
+	}
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+
+	const runs = 50
+	var first []types.SearchResult
+	for i := range runs {
+		got := a.SearchModels(base, "", 0, 0, 0, 0, 0, 0)
+		if i == 0 {
+			first = got
+			continue
+		}
+		if len(got) != len(first) {
+			t.Fatalf("run %d: 结果数 %d 与首次 %d 不一致", i, len(got), len(first))
+		}
+		for j := range got {
+			if got[j].Name != first[j].Name || got[j].Path != first[j].Path {
+				t.Fatalf("run %d: 结果顺序漂移\n首次: %+v\n本次: %+v",
+					i, first, got)
+			}
+		}
+	}
+
+	// 同名 mymodel 两条按声明序（aaa_pack 先于 bbb_pack）稳定排列。
+	var mymodelPaths []string
+	for _, r := range first {
+		if r.Name == "mymodel" {
+			mymodelPaths = append(mymodelPaths, r.Path)
+		}
+	}
+	if len(mymodelPaths) != 2 {
+		t.Fatalf("期望 2 条同名 mymodel，got %d", len(mymodelPaths))
+	}
+	if !strings.Contains(mymodelPaths[0], "aaa_pack") || !strings.Contains(mymodelPaths[1], "bbb_pack") {
+		t.Fatalf("同名模型未按声明序排列: %v", mymodelPaths)
+	}
+}
+
 // TestSearchModels_ZeroBoneFilter: 零骨骼模型被过滤
 func TestSearchModels_ZeroBoneFilter(t *testing.T) {
 	base := t.TempDir()

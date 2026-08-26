@@ -107,6 +107,10 @@ func (a *App) searchModelsSequential(entries []types.ModelEntry, minBones, maxBo
 			TexWidth: model.TexWidth, TexHeight: model.TexHeight,
 		})
 	}
+	// 与 searchModelsConcurrent 对齐：候选声明序已稳定，再按 Name 主键排序保证跨路径口径一致。
+	sort.SliceStable(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
 	return results
 }
 
@@ -159,19 +163,27 @@ func (a *App) searchModelsConcurrent(entries []types.ModelEntry, minBones, maxBo
 		close(resultCh)
 	}()
 
-	// 收集结果并按原始顺序排序
-	var results []types.SearchResult
+	// 收集带原始索引的结果（goroutine 完成序随机，index 用于确定性兜底）
+	var indexed []indexedResult
 	for r := range resultCh {
 		if r.result != nil {
-			results = append(results, *r.result)
+			indexed = append(indexed, r)
 		}
 	}
 
-	// 按原始索引排序，保持确定性顺序
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Name < results[j].Name
+	// 按名称为主键、原始索引为兜底键稳定排序：
+	// 同名不同路径的模型按扫描声明序排列，消除并发完成序导致的「同输入不同输出」。
+	sort.SliceStable(indexed, func(i, j int) bool {
+		if ni, nj := indexed[i].result.Name, indexed[j].result.Name; ni != nj {
+			return ni < nj
+		}
+		return indexed[i].index < indexed[j].index
 	})
 
+	results := make([]types.SearchResult, len(indexed))
+	for i, r := range indexed {
+		results[i] = *r.result
+	}
 	return results
 }
 
@@ -283,15 +295,24 @@ func (a *App) SearchAllModels(allRoots map[string]string, keyword string, minBon
 		wg.Wait()
 		close(resultCh)
 	}()
-	var results []types.SearchResult
+	// 收集带原始索引的结果（goroutine 完成序随机，index 用于确定性兜底）
+	var indexed []indexedResult
 	for r := range resultCh {
 		if r.result != nil {
-			results = append(results, *r.result)
+			indexed = append(indexed, r)
 		}
 	}
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Name < results[j].Name
+	// 同 searchModelsConcurrent：名称主键 + 原始索引兜底，消除并发完成序导致的「同输入不同输出」。
+	sort.SliceStable(indexed, func(i, j int) bool {
+		if ni, nj := indexed[i].result.Name, indexed[j].result.Name; ni != nj {
+			return ni < nj
+		}
+		return indexed[i].index < indexed[j].index
 	})
+	results := make([]types.SearchResult, len(indexed))
+	for i, r := range indexed {
+		results[i] = *r.result
+	}
 	return results
 }
 
