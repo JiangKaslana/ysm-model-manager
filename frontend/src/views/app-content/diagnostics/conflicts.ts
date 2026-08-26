@@ -399,7 +399,8 @@ function renderSyncConflictsResult(
   const header = `<div class="stat-row diag-msg diag-msg-error">⚠️ ${t("diagnostics.syncConflictFound", { n: conflicts.length })}</div>`;
   const rowsHtml = dgCfBuildSyncConflictRows(conflicts, esc);
   const resolveHtml = dgCfBuildResolveSectionHtml();
-  list.innerHTML = header + rowsHtml + resolveHtml;
+  const html = header + rowsHtml + resolveHtml;
+  list.innerHTML = html;
   list.querySelector("#do-resolve-btn")?.addEventListener("click", async () => {
     await dgCfExecuteResolve(list, esc, conflicts, rtype, instanceName);
   });

@@ -2034,7 +2034,7 @@
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
 | `aboutHTML()` | `frontend/src/views/app-content/tpl-settings-about:6` | About 标签页（版本/特性/技术栈/链接/快速上手） |
 | `creditsHTML()` | `frontend/src/views/app-content/tpl-settings-about:101` | Credits 标签页（灵感来源/特别感谢） |
-| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:328` | — |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:331` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |

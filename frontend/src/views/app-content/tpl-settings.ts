@@ -316,8 +316,11 @@ function renderStgParserWorkers(): string {
 }
 
 function renderStgTabBody(tabId: string, display: string, body: string): string {
+  // 激活 tab 传空 display → 不回写 inline，回落 .tab-body{display:flex}(content-stg.ts:102)，
+  // 与 bindTabs.activate 置 "" 的行为一致；隐藏 tab 才显式 "none"。
+  const style = `overflow-y:auto${display ? `;display:${display}` : ""}`;
   return `<!-- stg-tab-${tabId} -->
-<div class="tab-body" id="stg-tab-${tabId}" style="display:${display};overflow-y:auto">
+<div class="tab-body" id="stg-tab-${tabId}" style="${style}">
 <div class="stg-page" style="padding:16px 20px">
 ${body}
 </div>
@@ -349,7 +352,7 @@ ${renderStgPreview3d()}`;
 
   return `<div class="repo-wrap">
 ${renderStgTabs()}
-${renderStgTabBody("basic", "block", basicBody)}
+${renderStgTabBody("basic", "", basicBody)}
 ${renderStgTabBody("ui", "none", uiBody)}
 ${renderStgTabBody("parser", "none", parserBody)}
 ${aboutHTML()}
