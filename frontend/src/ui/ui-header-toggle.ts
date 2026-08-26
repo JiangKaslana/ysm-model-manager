@@ -27,8 +27,8 @@ function _harvestMounts(): void {
                 for (const n of rec.addedNodes) {
                     if (n instanceof Element) {
                         _everConnected.add(n);
-                        // 子树内的后代也一并标记（MO 只报直接 addedNodes）
-                        for (const child of n.querySelectorAll("*")) {
+                        // 子树内的 toggle 也一并标记（MO 只报直接 addedNodes）
+                        for (const child of n.querySelectorAll(".header-toggle")) {
                             _everConnected.add(child);
                         }
                     }
@@ -42,7 +42,7 @@ function _harvestMounts(): void {
         for (const n of rec.addedNodes) {
             if (n instanceof Element) {
                 _everConnected.add(n);
-                for (const child of n.querySelectorAll("*")) {
+                for (const child of n.querySelectorAll(".header-toggle")) {
                     _everConnected.add(child);
                 }
             }
