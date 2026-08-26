@@ -5,7 +5,7 @@ import { bindEditEvents } from "./site/edit.ts";
 import { bindDragEvents } from "./site/drag.ts";
 import type { SiteViewState, CleanupFn } from "./site/types.ts";
 import { bus } from "../../bus.ts";
-import type { BrowseMode } from "./workshop-browse-mode.ts";
+import type { BrowseMode, BrowseModeRef } from "./workshop-browse-mode.ts";
 import type { WorkshopSite, WorkshopCreator } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 
@@ -27,8 +27,8 @@ export interface RenderSiteViewCtx {
   openUrl: (url: string) => void;
   backToSite: () => void;
   avatarCache: Record<string, string>;
-  /** 创作者频道浏览模式：external/embed/window（localStorage 持久化） */
-  browseMode: BrowseMode;
+  /** 创作者频道浏览模式（external/embed/window，ref 单源，localStorage 持久化） */
+  browseMode: BrowseModeRef;
   /** 更新浏览模式（写 localStorage + 更新共享变量），供事件块即时切换 */
   setBrowseMode: (mode: BrowseMode) => void;
   /** 分类标签过滤（localStorage 持久化），""=全部 */

@@ -45,7 +45,7 @@ function makeCtx(overrides: Partial<BuildSiteHtmlCtx> = {}): BuildSiteHtmlCtx {
     repoAuthors: [],
     authorCountMap: {},
     avatarCache: {},
-    browseMode: "external",
+    browseMode: { v: "external" },
     activeTag: "",
     searchKw: "",
     viewerMode: false,
@@ -141,9 +141,9 @@ describe("buildSiteHtml 浏览态", () => {
     expect(root.querySelector(".cr-mode-opt.cr-mode-ext")?.classList.contains("active")).toBe(true);
     expect(root.querySelector(".cr-mode-opt.cr-mode-emb")?.classList.contains("active")).toBe(false);
 
-    const rootEmb = renderHtml(makeCtx({ site, browseMode: "embed" }));
+    const rootEmb = renderHtml(makeCtx({ site, browseMode: { v: "embed" } }));
     expect(rootEmb.querySelector(".cr-mode-opt.cr-mode-emb")?.classList.contains("active")).toBe(true);
-    const rootWin = renderHtml(makeCtx({ site, browseMode: "window" }));
+    const rootWin = renderHtml(makeCtx({ site, browseMode: { v: "window" } }));
     expect(rootWin.querySelector(".cr-mode-opt.cr-mode-win")?.classList.contains("active")).toBe(true);
   });
 });

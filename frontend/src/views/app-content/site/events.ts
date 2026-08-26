@@ -13,7 +13,7 @@ import { getSiteIcon, getTagIconFromRole } from "../../../utils/icon/workshop-ic
 import { createCrCard, type CrCardCtx } from "./render.ts";
 import { getApp } from "../../../backend/app.ts";
 import { t } from "../../../core/i18n/t.ts";
-import { type BrowseMode } from "../workshop-browse-mode.ts";
+import { type BrowseMode, type BrowseModeRef } from "../workshop-browse-mode.ts";
 import type { SiteViewState, CleanupFn } from "./types.ts";
 import type { LocalCreatorLike } from "../site-view.ts";
 import type { bus } from "../../../bus.ts";
@@ -411,8 +411,8 @@ function cmSeSyncAvatarCache(
   });
 }
 
-function cmSeSyncBrowseMode(ctx: { browseMode: BrowseMode }, refreshView: () => void): void {
-  // 占位：模式切换键触发时重新读取 ctx.browseMode（当前由本地点击直接写入，保留分派槽）
+function cmSeSyncBrowseMode(ctx: { browseMode: BrowseModeRef }, refreshView: () => void): void {
+  // 占位：跨标签同步浏览模式（ref 单源，重渲染读 ctx.browseMode.v 自动最新）
   void ctx;
   void refreshView;
 }
@@ -467,7 +467,7 @@ function cmSeMakeSyncFn(
   creators: LocalCreatorLike[],
   wsEditModeRef: { v: boolean },
   cardCtx: CrCardCtx,
-  ctx: { browseMode: BrowseMode },
+  ctx: { browseMode: BrowseModeRef },
   refreshView: () => void,
 ): (e: StorageEvent) => void {
   return (e: StorageEvent) => {

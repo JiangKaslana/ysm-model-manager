@@ -43,7 +43,7 @@ function makeCtx(over: Partial<RenderSiteViewCtx> = {}): {
     openUrl: vi.fn(),
     backToSite: vi.fn(),
     avatarCache: {},
-    browseMode: "external",
+    browseMode: { v: "external" },
     setBrowseMode: vi.fn(),
     activeTag: "",
     searchKw: "",

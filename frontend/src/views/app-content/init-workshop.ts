@@ -15,7 +15,7 @@ import { dbg } from "../../utils/debug/debug.ts";
 import { fillSearch } from "./community-data.ts";
 import { renderSiteView, type RenderSiteViewCtx, type RepoAuthorLike } from "./site-view.ts";
 import { showRepoModels } from "../../features/community/show-repo-models.ts";
-import { loadBrowseMode, saveBrowseMode, type BrowseMode } from "./workshop-browse-mode.ts";
+import { loadBrowseMode, saveBrowseMode, createBrowseModeRef, type BrowseMode } from "./workshop-browse-mode.ts";
 import { initWorkshopTabs, setShowSiteView, createWorkshopRefs } from "./workshop-tabs.ts";
 import { openSite, bindSiteEvents } from "./workshop-site-opener.ts";
 import { loadCommunityData, type LocalCreator } from "./community-data.ts";
@@ -47,11 +47,11 @@ export function initWorkshopPage(host: AppContentHost): void {
   if (!host._workshopCache) host._setWorkshopCache(new Map());
   const repoModelCache = host._workshopCache;
 
-  // 浏览模式：单源变量 + setter（site 事件块经回调更新，写 localStorage；
-  // re-render 与 openUrl 都读此共享变量 → 切换即时生效、无需重进页面）
-  let browseMode = loadBrowseMode();
+  // 浏览模式：单源 ref（{ v }）＋ setter——setBrowseMode 改 .v 即让
+  // re-render 高亮与 openUrl 打开同时读到新值，无需退出页面、无值拷贝 stale。
+  const browseModeRef = createBrowseModeRef(loadBrowseMode());
   const setBrowseMode = (mode: BrowseMode): void => {
-    browseMode = mode;
+    browseModeRef.v = mode;
     saveBrowseMode(mode);
   };
 
@@ -87,7 +87,7 @@ export function initWorkshopPage(host: AppContentHost): void {
     runPrevSiteViewCleanup();
     const openUrl = (url: string): void => {
       // 透传目标 URL：搜索按钮拼好的带词链接（fillSearch）需真正打开，不能丢弃只开首页
-      openSite(host, site, browseMode, url);
+      openSite(host, site, browseModeRef.v, url);
     };
     const ctx: RenderSiteViewCtx = {
       esc: (s) => esc(String(s || "")),
@@ -114,7 +114,7 @@ export function initWorkshopPage(host: AppContentHost): void {
       repoModelCache: repoModelCache!,
       openUrl,
       avatarCache: host._avatarCache,
-      browseMode,
+      browseMode: browseModeRef,
       setBrowseMode,
       activeTag: safeGet("ysm-ws-active-tag") || "",
       searchKw: safeGet("ysm-ws-search-kw") || "",
@@ -138,7 +138,7 @@ export function initWorkshopPage(host: AppContentHost): void {
   initWorkshopTabs(host, refs);
 
   // 绑定站点打开事件
-  bindSiteEvents(host, browseMode);
+  bindSiteEvents(host);
 
   // 下载完成后增量刷新创作者头像
   if (!host._avatarRefreshRegistered) {

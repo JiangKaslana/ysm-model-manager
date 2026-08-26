@@ -6,6 +6,7 @@ import {
   loadFavs,
 } from "../workshop-data.ts";
 import { t } from "../../../core/i18n/t.ts";
+import type { BrowseModeRef } from "../workshop-browse-mode.ts";
 import type { WorkshopSite } from "../../../utils/types-re-export.ts";
 import type { LocalCreatorLike, RepoAuthorLike } from "../site-view.ts";
 
@@ -30,8 +31,8 @@ export interface BuildSiteHtmlCtx {
   repoAuthors: RepoAuthorLike[];
   authorCountMap: Record<string, number>;
   avatarCache: Record<string, string>;
-  /** 创作者频道浏览模式：external/embed/window，决定 pill 开关初始 active */
-  browseMode: 'external' | 'embed' | 'window';
+  /** 创作者频道浏览模式 { v }，决定 pill 开关当前 active */
+  browseMode: BrowseModeRef;
   /** 分类标签过滤（localStorage 持久化），""=全部 */
   activeTag: string;
   /** 创作者搜索关键词（localStorage 持久化） */
@@ -142,9 +143,9 @@ export function buildSiteHtml(ctx: BuildSiteHtmlCtx): string {
       ")</span>" +
       '<span class="cr-section-fill"></span>' +
       '<button id="cr-mode-toggle" class="cr-mode-switch">' +
-      '<span class="cr-mode-opt cr-mode-ext' + (ctx.browseMode === 'external' ? ' active' : '') + '" data-mode="external" title="' + t("content.modeExternal") + '">' + t("content.modeExternal") + "</span>" +
-      '<span class="cr-mode-opt cr-mode-emb' + (ctx.browseMode === 'embed' ? ' active' : '') + '" data-mode="embed" title="' + t("content.modeEmbed") + '">' + t("content.modeEmbed") + "</span>" +
-      '<span class="cr-mode-opt cr-mode-win' + (ctx.browseMode === 'window' ? ' active' : '') + '" data-mode="window" title="' + t("content.modeWindow") + '">' + t("content.modeWindow") + "</span>" +
+      '<span class="cr-mode-opt cr-mode-ext' + (ctx.browseMode.v === 'external' ? ' active' : '') + '" data-mode="external" title="' + t("content.modeExternal") + '">' + t("content.modeExternal") + "</span>" +
+      '<span class="cr-mode-opt cr-mode-emb' + (ctx.browseMode.v === 'embed' ? ' active' : '') + '" data-mode="embed" title="' + t("content.modeEmbed") + '">' + t("content.modeEmbed") + "</span>" +
+      '<span class="cr-mode-opt cr-mode-win' + (ctx.browseMode.v === 'window' ? ' active' : '') + '" data-mode="window" title="' + t("content.modeWindow") + '">' + t("content.modeWindow") + "</span>" +
       "</button>" +
       "</div>" +
       '<div class="cr-preset-area">' +

@@ -43,13 +43,13 @@
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 17 | 83 |
 | 前端·服务 | 2 | 18 |
-| frontend/test-utils | 5 | 43 |
-| frontend/ui | 18 | 77 |
+| frontend/test-utils | 5 | 34 |
+| frontend/ui | 18 | 64 |
 | 前端·工具 | 160 | 639 |
-| frontend/views | 115 | 336 |
+| frontend/views | 115 | 338 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **482** | **2072** |
+| **合计** | **482** | **2052** |
 
 ## Go·头像
 
@@ -1188,24 +1188,15 @@
 | `getByTestId()` | `frontend/src/test-utils/index` | — |
 | `queryAllByTestId()` | `frontend/src/test-utils/index` | — |
 | `getAllByTestId()` | `frontend/src/test-utils/index` | — |
-| `fireEvent()` | `frontend/src/test-utils/index` | — |
-| `fireClick()` | `frontend/src/test-utils/index` | — |
-| `fireFocus()` | `frontend/src/test-utils/index` | — |
-| `fireBlur()` | `frontend/src/test-utils/index` | — |
-| `fireKeyDown()` | `frontend/src/test-utils/index` | — |
-| `fireInput()` | `frontend/src/test-utils/index` | — |
-| `fireDrop()` | `frontend/src/test-utils/index` | — |
-| `fireDrag()` | `frontend/src/test-utils/index` | — |
-| `renderComponent()` | `frontend/src/test-utils/index` | — |
 | `expectContainsAtLeast()` | `frontend/src/test-utils/index` | — |
 | `expectNotContains()` | `frontend/src/test-utils/index` | — |
 | `deriveTestIds()` | `frontend/src/test-utils/index` | — |
 | `extractIds()` | `frontend/src/test-utils/index` | — |
-| `mountCustomElement()` | `frontend/src/test-utils/index:39` | 同步渲染自定义元素到 body，返回已创建元素。 |
-| `unmountElement()` | `frontend/src/test-utils/index:51` | 卸载元素：从 DOM 移除。 |
-| `sleep()` | `frontend/src/test-utils/index:58` | 简单睡眠（测试中等待异步渲染）。 |
-| `waitFor()` | `frontend/src/test-utils/index:67` | 轮询等待条件满足（兼容现有测试风格，作为统一导出）。 |
-| `waitForElementToBeRemoved()` | `frontend/src/test-utils/index:96` | 轮询等待元素被移除。 |
+| `mountCustomElement()` | `frontend/src/test-utils/index:30` | 同步渲染自定义元素到 body，返回已创建元素。 |
+| `unmountElement()` | `frontend/src/test-utils/index:42` | 卸载元素：从 DOM 移除。 |
+| `sleep()` | `frontend/src/test-utils/index:49` | 简单睡眠（测试中等待异步渲染）。 |
+| `waitFor()` | `frontend/src/test-utils/index:58` | 轮询等待条件满足（兼容现有测试风格，作为统一导出）。 |
+| `waitForElementToBeRemoved()` | `frontend/src/test-utils/index:87` | 轮询等待元素被移除。 |
 | `QueryContainer()` | `frontend/src/test-utils/query-by-testid:11` | — |
 | `queryByTestId()` | `frontend/src/test-utils/query-by-testid:30` | — |
 | `getByTestId()` | `frontend/src/test-utils/query-by-testid:39` | — |
@@ -1250,22 +1241,9 @@
 | `SLIDER_QUARTER_SMALL_STEP()` | `frontend/src/ui/ui-constants:8` | 中左/中右微调步进：全范围 5% |
 | `HeaderToggleConfig()` | `frontend/src/ui/ui-header-toggle:82` | — |
 | `createHeaderToggle()` | `frontend/src/ui/ui-header-toggle:100` | 创建标题栏小型开关。返回 `&lt;label class="toggle header-toggle"&gt;`， 含双触发去重（跳过 target===input 的 synthetic |
-| `ControlOptions()` | `frontend/src/ui/ui-helpers` | — |
-| `slideRow()` | `frontend/src/ui/ui-helpers` | — |
-| `initControl()` | `frontend/src/ui/ui-helpers` | — |
-| `addToggleRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addSliderRow()` | `frontend/src/ui/ui-helpers` | — |
-| `toggleRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addFieldRow()` | `frontend/src/ui/ui-helpers` | — |
-| `createHeaderToggle()` | `frontend/src/ui/ui-helpers` | — |
-| `addColorSliderRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addModeSlider()` | `frontend/src/ui/ui-helpers` | — |
-| `addVector3SliderRow()` | `frontend/src/ui/ui-helpers` | — |
 | `cardContainer()` | `frontend/src/ui/ui-helpers` | — |
-| `withLoadingIndicator()` | `frontend/src/ui/ui-helpers` | — |
+| `addFieldRow()` | `frontend/src/ui/ui-helpers` | — |
 | `createSlideMenu()` | `frontend/src/ui/ui-helpers` | — |
-| `SlideMenuHandle()` | `frontend/src/ui/ui-helpers` | — |
-| `SlideMenuView()` | `frontend/src/ui/ui-helpers` | — |
 | `withLoadingIndicator()` | `frontend/src/ui/ui-loading:10` | — |
 | `PresetChipItem()` | `frontend/src/ui/ui-preset:16` | 单个预设芯片的描述。 |
 | `buildPresetChipGroup()` | `frontend/src/ui/ui-preset:35` | 渲染一组 preset-chip（统一 .preset-group 容器 + addPresetChip 布局）。 |
@@ -2031,9 +2009,9 @@
 | `renderSiteView()` | `frontend/src/views/app-content/site-view:54` | 站点视图渲染主入口 — 编排壳：构造数据 → 构 HTML → 绑事件 → 聚 cleanup。 |
 | `bindDragEvents()` | `frontend/src/views/app-content/site/drag:14` | 绑定拖拽 JSON 导入事件：创作者 JSON / 站点 JSON 识别 + 合并。 |
 | `bindEditEvents()` | `frontend/src/views/app-content/site/edit:520` | 绑定编辑模式事件：编辑入口 / 拉取配置 / 取消 / 保存 / 行内编辑 / 删除创作者 / 拖拽排序 / 增删搜索词 / 搜索过滤。 |
-| `CrCardCtx()` | `frontend/src/views/app-content/site/render:13` | 创作者卡片工厂上下文 |
-| `BuildSiteHtmlCtx()` | `frontend/src/views/app-content/site/render:24` | buildSiteHtml 依赖的渲染上下文 |
-| `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |
+| `CrCardCtx()` | `frontend/src/views/app-content/site/render:14` | 创作者卡片工厂上下文 |
+| `BuildSiteHtmlCtx()` | `frontend/src/views/app-content/site/render:25` | buildSiteHtml 依赖的渲染上下文 |
+| `createCrCard()` | `frontend/src/views/app-content/site/render:45` | 创作者卡片工厂 |
 | `SiteViewState()` | `frontend/src/views/app-content/site/types:13` | SiteViewState —— renderSiteView 内部闭包共享变量的显式收拢。 |
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:43` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
 | `RepoCacheEntry()` | `frontend/src/views/app-content/state:13` | — |
@@ -2052,8 +2030,10 @@
 | `workshopHTML()` | `frontend/src/views/app-content/tpl:202` | — |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:13` | 提取创作者头像（后台批量） 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache； 先前按「当前站点/作者限 |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
-| `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |
-| `saveBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:21` | 保存浏览模式到 localStorage |
+| `BrowseModeRef()` | `frontend/src/views/app-content/workshop-browse-mode:8` | 浏览模式可变引用：与 wsEditModeRef:{v} 同构，贯穿 ctx→render→openUrl 消除值拷贝 stale |
+| `createBrowseModeRef()` | `frontend/src/views/app-content/workshop-browse-mode:13` | 建浏览模式 ref（单源，setBrowseMode 改 .v 即处处生效） |
+| `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:20` | 从 localStorage 加载浏览模式 |
+| `saveBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:31` | 保存浏览模式到 localStorage |
 | `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:9` | 创作者身份识别结果 |
 | `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:16` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
 | `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:23` | — |

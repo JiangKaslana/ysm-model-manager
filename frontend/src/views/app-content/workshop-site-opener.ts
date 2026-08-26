@@ -71,7 +71,6 @@ function openEmbedded(
  */
 export function bindSiteEvents(
   host: AppContentHost,
-  browseMode: BrowseMode,
 ): void {
   const root = host._root;
 
