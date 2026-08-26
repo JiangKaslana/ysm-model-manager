@@ -891,7 +891,7 @@
 | `normalizeTheme()` | `frontend/src/app-modules` | — |
 | `applyTheme()` | `frontend/src/app-modules` | — |
 | `initTheme()` | `frontend/src/app-modules` | — |
-| `bus()` | `frontend/src/bus:210` | 默认实例（组件直接使用） |
+| `bus()` | `frontend/src/bus:208` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
@@ -900,8 +900,8 @@
 | `ModelSelectPayload()` | `frontend/src/bus:46` | — |
 | `CtxShowPayload()` | `frontend/src/bus:51` | — |
 | `BusEvents()` | `frontend/src/bus:70` | — |
-| `BusEventName()` | `frontend/src/bus:121` | — |
-| `Bus()` | `frontend/src/bus:147` | — |
+| `BusEventName()` | `frontend/src/bus:119` | — |
+| `Bus()` | `frontend/src/bus:145` | — |
 | `revealMainWindow()` | `frontend/src/startup-reveal:2` | Wait until the DOM has been upgraded and painted before exposing the native window. |
 | `normalizeTheme()` | `frontend/src/theme-core:18` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
 | `applyTheme()` | `frontend/src/theme-core:22` | — |
@@ -1970,10 +1970,10 @@
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:20` | 初始化 GitHub 页 |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:20` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:27` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:267` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:274` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:282` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:286` | — |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:270` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:277` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:285` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:289` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:38` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:171` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
@@ -2173,8 +2173,8 @@
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
-| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:162` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
-| `bindFooter()` | `frontend/src/views/app-sidebar/events:195` | — |
+| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:169` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
+| `bindFooter()` | `frontend/src/views/app-sidebar/events:202` | — |
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:12` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:36` | 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） 去重只服务「读并发」（多组件同时触发 reload），若变异完成的刷新并入变异前发起 |

@@ -36,8 +36,11 @@ export function initInstancesPage(host: AppContentHost): void {
     bus.on("package:selected", (pkg) => {
       const content = host._root.getElementById("ins-content");
       if (!content) return;
+      // P1 修复：去掉 || RESOURCE_TYPES.YSM 静默兜底。
+      // 发射点（app-sidebar/events.ts）已拦空 rtype，这里防御性 return。
+      if (!pkg.rtype) return;
       const insName = pkg.name || "";
-      const defaultType = pkg.rtype || RESOURCE_TYPES.YSM;
+      const defaultType = pkg.rtype;
       content.innerHTML =
         '<app-sync-manager instance="' +
         String(insName).replace(/"/g, "&quot;") +

@@ -109,8 +109,6 @@ export interface BusEvents {
   "batch:rename": { paths: string[] };
   "batch:enable-all": void;
   "batch:disable-all": void;
-  "batch:enable": { dir: string };
-  "batch:disable": { dir: string };
   // 目录
   "dir:rename": { dir: string };
   "dir:recycle": { dir: string };

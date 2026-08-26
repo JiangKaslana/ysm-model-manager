@@ -85,6 +85,13 @@ export function bindCardEvents(
     const idx = parseInt(card.dataset.idx || "", 10);
     const pkg = st.instances[idx];
     if (pkg) {
+      // P1 修复：与右键路径同构——空 rtype 拦截报错，不 emit。
+      // 旧实现点击路径静默兜底成 YSM，MMD 实例 rtype 漏传时
+      // 右侧同步面板 default-type 错成 YSM（handler-sync 同款病）。
+      if (!pkg.rtype) {
+        bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: 3000, type: "error" });
+        return;
+      }
       bus.emit("package:selected", pkg);
       // P2-1 修复：点击路径同步更新去重状态机（emitKey 格式与 restoreSelectedCard 的
       // reload 分支一致）。点击卡片 → 触发 reload（stats:refresh 等）→ restoreSelectedCard

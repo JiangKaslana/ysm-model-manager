@@ -13,19 +13,12 @@
 - `morph:apply` — emit×1
 - `stage:load` — emit×1
 
-### 鬼订阅（有 on/once 但从未被 emit）
-
-- `batch:enable` — on×1
-- `batch:disable` — on×1
-
 ## 事件总览
 
 | 事件 | 发射方 | 订阅方 | 一次性订阅 | 退订方 | 状态 |
 |------|--------|--------|-----------|--------|------|
 | `avatar:refresh` | 1 | 1 | 0 | 0 | ✅ |
-| `batch:disable` | 0 | 1 | 0 | 0 | 👻 鬼订阅 |
 | `batch:disable-all` | 1 | 1 | 0 | 0 | ✅ |
-| `batch:enable` | 0 | 1 | 0 | 0 | 👻 鬼订阅 |
 | `batch:enable-all` | 1 | 1 | 0 | 0 | ✅ |
 | `batch:rename` | 1 | 1 | 0 | 0 | ✅ |
 | `config:updated` | 4 | 0 | 0 | 0 | 🔇 孤儿发射 |
@@ -52,7 +45,7 @@
 | `sync:download:missing` | 1 | 1 | 0 | 0 | ✅ |
 | `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
 | `theme:change` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
-| `toast:show` | 201 | 2 | 0 | 0 | ✅ |
+| `toast:show` | 202 | 2 | 0 | 0 | ✅ |
 | `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
 
@@ -70,13 +63,6 @@
 |------|----|
 | `frontend/src/views/app-content/init-workshop.ts` | 147 |
 
-### `batch:disable`
-
-**订阅方（on）：**
-| 文件 | 行 |
-|------|----|
-| `frontend/src/views/app-tree/bus-handlers.ts` | 31 |
-
 ### `batch:disable-all`
 
 **发射方：**
@@ -88,13 +74,6 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 29 |
-
-### `batch:enable`
-
-**订阅方（on）：**
-| 文件 | 行 |
-|------|----|
-| `frontend/src/views/app-tree/bus-handlers.ts` | 30 |
 
 ### `batch:enable-all`
 
@@ -118,7 +97,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-tree/bus-handlers.ts` | 36 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 34 |
 
 ### `config:updated`
 
@@ -135,7 +114,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/events.ts` | 126 |
+| `frontend/src/views/app-sidebar/events.ts` | 133 |
 | `frontend/src/views/app-tree/events.ts` | 303 |
 | `frontend/src/views/app-tree/events.ts` | 327 |
 | `frontend/src/views/app-tree/events.ts` | 338 |
@@ -155,7 +134,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-tree/bus-handlers.ts` | 35 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 33 |
 
 ### `dir:mkdir`
 
@@ -167,7 +146,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-tree/bus-handlers.ts` | 33 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 31 |
 
 ### `dir:recycle`
 
@@ -179,7 +158,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-tree/bus-handlers.ts` | 34 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 32 |
 
 ### `dir:rename`
 
@@ -191,7 +170,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-tree/bus-handlers.ts` | 32 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 30 |
 
 ### `import:history-changed`
 
@@ -289,7 +268,7 @@
 | `frontend/src/views/app-content/site/events.ts` | 201 |
 | `frontend/src/views/app-nav/index.ts` | 20 |
 | `frontend/src/views/app-nav/index.ts` | 161 |
-| `frontend/src/views/app-sidebar/events.ts` | 203 |
+| `frontend/src/views/app-sidebar/events.ts` | 210 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 115 |
 
 **订阅方（on）：**
@@ -304,8 +283,8 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/events.ts` | 88 |
-| `frontend/src/views/app-sidebar/events.ts` | 188 |
+| `frontend/src/views/app-sidebar/events.ts` | 95 |
+| `frontend/src/views/app-sidebar/events.ts` | 195 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -325,8 +304,8 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/features/repo-rtype.ts` | 33 |
-| `frontend/src/views/app-content/init-pages.ts` | 75 |
-| `frontend/src/views/app-content/init-pages.ts` | 187 |
+| `frontend/src/views/app-content/init-pages.ts` | 78 |
+| `frontend/src/views/app-content/init-pages.ts` | 190 |
 | `frontend/src/views/app-nav/index.ts` | 153 |
 | `frontend/src/views/app-sidebar/index.ts` | 399 |
 | `frontend/src/views/app-sync-manager/index.ts` | 172 |
@@ -384,10 +363,10 @@
 | `frontend/src/views/app-content/settings/path-cards.ts` | 356 |
 | `frontend/src/views/app-sidebar/index.ts` | 288 |
 | `frontend/src/views/app-sync-manager/index.ts` | 218 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 76 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 145 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 196 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 233 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 66 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 135 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 186 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 223 |
 | `frontend/src/views/app-tree/events.ts` | 118 |
 
 **订阅方（on）：**
@@ -427,7 +406,7 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-tree/bus-handlers.ts` | 328 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 318 |
 | `frontend/src/views/app-tree/events.ts` | 116 |
 | `frontend/src/views/app-tree/events.ts` | 460 |
 
@@ -527,8 +506,8 @@
 | `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 87 |
 | `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 353 |
 | `frontend/src/views/app-content/index.ts` | 169 |
-| `frontend/src/views/app-content/init-pages.ts` | 203 |
-| `frontend/src/views/app-content/init-pages.ts` | 260 |
+| `frontend/src/views/app-content/init-pages.ts` | 206 |
+| `frontend/src/views/app-content/init-pages.ts` | 263 |
 | `frontend/src/views/app-content/settings/init.ts` | 47 |
 | `frontend/src/views/app-content/settings/init.ts` | 82 |
 | `frontend/src/views/app-content/settings/init.ts` | 126 |
@@ -582,8 +561,9 @@
 | `frontend/src/views/app-preview/mmd-controls.ts` | 290 |
 | `frontend/src/views/app-preview/preview-library.ts` | 88 |
 | `frontend/src/views/app-preview/ysm-controls.ts` | 113 |
-| `frontend/src/views/app-sidebar/events.ts` | 118 |
-| `frontend/src/views/app-sidebar/events.ts` | 123 |
+| `frontend/src/views/app-sidebar/events.ts` | 92 |
+| `frontend/src/views/app-sidebar/events.ts` | 125 |
+| `frontend/src/views/app-sidebar/events.ts` | 130 |
 | `frontend/src/views/app-sidebar/index.ts` | 149 |
 | `frontend/src/views/app-sidebar/index.ts` | 241 |
 | `frontend/src/views/app-sidebar/index.ts` | 243 |
@@ -601,20 +581,20 @@
 | `frontend/src/views/app-toast/index.ts` | 118 |
 | `frontend/src/views/app-toast/index.ts` | 137 |
 | `frontend/src/views/app-toast/index.ts` | 146 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 78 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 104 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 149 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 155 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 172 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 197 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 204 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 234 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 241 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 276 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 288 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 296 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 331 |
-| `frontend/src/views/app-tree/bus-handlers.ts` | 337 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 68 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 94 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 139 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 145 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 162 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 187 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 194 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 224 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 231 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 266 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 278 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 286 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 321 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 327 |
 | `frontend/src/views/app-tree/events.ts` | 89 |
 | `frontend/src/views/app-tree/events.ts` | 97 |
 | `frontend/src/views/app-tree/events.ts` | 122 |
@@ -676,7 +656,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-tree/bus-handlers.ts` | 37 |
+| `frontend/src/views/app-tree/bus-handlers.ts` | 35 |
 
 ### `tree:set-search`
 

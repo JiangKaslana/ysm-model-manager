@@ -27,8 +27,6 @@ export function bindBusEvents(vm: AppTree): Array<() => void> {
 
   cleanups.push(bus.on("batch:enable-all", () => atBeHandleBatchEnableAll(vm)));
   cleanups.push(bus.on("batch:disable-all", () => atBeHandleBatchDisableAll(vm)));
-  cleanups.push(bus.on("batch:enable", ({ dir }) => atBeHandleBatchEnable(vm, dir)));
-  cleanups.push(bus.on("batch:disable", ({ dir }) => atBeHandleBatchDisable(vm, dir)));
   cleanups.push(bus.on("dir:rename", ({ dir }) => { void atBeHandleDirRename(vm, dir); }));
   cleanups.push(bus.on("dir:mkdir", ({ dir }) => { void atBeHandleDirMkdir(vm, dir); }));
   cleanups.push(bus.on("dir:recycle", ({ dir }) => { void atBeHandleDirRecycle(vm, dir); }));
@@ -45,14 +43,6 @@ function atBeHandleBatchEnableAll(vm: AppTree): void {
 
 function atBeHandleBatchDisableAll(vm: AppTree): void {
   void batchToggleAll(vm, false);
-}
-
-function atBeHandleBatchEnable(vm: AppTree, dir: string): void {
-  void batchToggle(vm, dir, true);
-}
-
-function atBeHandleBatchDisable(vm: AppTree, dir: string): void {
-  void batchToggle(vm, dir, false);
 }
 
 async function atBeHandleDirRename(vm: AppTree, dir: string): Promise<void> {

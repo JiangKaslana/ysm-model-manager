@@ -209,20 +209,6 @@ describe("bindBusEvents — 批量启用/禁用", () => {
     expect(ToggleEnableMock).toHaveBeenCalledWith("/repo/a.ysm");
   });
 
-  it("batch:enable（目录前缀）→ 只处理该目录下条目", async () => {
-    const vm = makeVM([
-      makeEntry({ name: "a.ysm", path: "dir1/a.ysm", fullPath: "/repo/dir1/a.ysm", banned: true }),
-      makeEntry({ name: "b.ysm", path: "dir2/b.ysm", fullPath: "/repo/dir2/b.ysm", banned: true }),
-    ]);
-    await bind(vm);
-
-    bus.emit("batch:enable", { dir: "dir1" });
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(ToggleEnableMock).toHaveBeenCalledTimes(1);
-    expect(ToggleEnableMock).toHaveBeenCalledWith("/repo/dir1/a.ysm");
-  });
-
   it("ToggleEnable 部分失败 → toast 报告成功/失败数", async () => {
     const vm = makeVM([
       makeEntry({ name: "a.ysm", fullPath: "/repo/a.ysm", banned: true }),
@@ -245,16 +231,6 @@ describe("bindBusEvents — 批量启用/禁用", () => {
     vm._batchBusy = true;
 
     bus.emit("batch:enable-all");
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(ToggleEnableMock).not.toHaveBeenCalled();
-  });
-
-  it("目录下无待处理条目 → 不调后端不 toast", async () => {
-    const vm = makeVM([makeEntry({ banned: false })]);
-    await bind(vm);
-
-    bus.emit("batch:enable", { dir: "dir1" });
     await new Promise((r) => setTimeout(r, 0));
 
     expect(ToggleEnableMock).not.toHaveBeenCalled();
