@@ -86,6 +86,8 @@ export function resetEncoderState(): void {
   cancelled = false;
   completedHashes.clear();
   inProgressHashes.clear();
+  // 清空 Worker 桥在途请求（测试钩子用；生产侧 pending 本应已结算）
+  ktx2Bridge?.clearPending();
 }
 
 /** 从 blob URL 解码图像数据为 { data, width, height } */
@@ -132,7 +134,8 @@ async function blobUrlToBase64(blobUrl: string): Promise<string> {
 
 import { encodeToKTX2Basis, TextureTooLargeError, MAX_KTX2_PIXELS } from "./mmd-ktx2-basis.ts";
 // type-only import：不产生运行时 import（worker 文件含 self.onmessage，主线程不能执行它）
-import type { Ktx2EncodeRequest, Ktx2EncodeResponse } from "./mmd-ktx2-worker.ts";
+import type { Ktx2EncodeResponse } from "./mmd-ktx2-worker.ts";
+import { createWorkerBridge, type WorkerBridge } from "./worker-bridge.ts";
 
 /** Worker 池大小（与 MAX_CONCURRENT 对齐：3 个并行编码线程） */
 const KTX2_WORKER_COUNT = 3;
@@ -141,13 +144,12 @@ const KTX2_WORKER_COUNT = 3;
 const KTX2_ENCODE_TIMEOUT_MS = 120_000;
 
 let ktx2Workers: Worker[] | null = null;
-let nextWorkerIdx = 0;
-let encodeRequestSeq = 0;
-const pendingEncode = new Map<number, {
-  resolve: (b: ArrayBuffer) => void;
-  reject: (e: unknown) => void;
-  timer: ReturnType<typeof setTimeout>;
-}>();
+type Ktx2Bridge = WorkerBridge<
+  { id: number; width: number; height: number; data: ArrayBuffer },
+  Ktx2EncodeResponse,
+  ArrayBuffer
+>;
+let ktx2Bridge: Ktx2Bridge | null = null;
 
 /** 懒创建 Worker 池；不支持（非浏览器/被屏蔽）返回 null → 调用方降级同步编码 */
 function getKtx2WorkerPool(): Worker[] | null {
@@ -156,23 +158,35 @@ function getKtx2WorkerPool(): Worker[] | null {
   try {
     const pool: Worker[] = [];
     for (let i = 0; i < KTX2_WORKER_COUNT; i++) {
-      const w = new Worker(new URL("./mmd-ktx2-worker.ts", import.meta.url), { type: "module" });
-      w.onmessage = (e: MessageEvent<Ktx2EncodeResponse>) => {
-        const { id, ok, buffer, error } = e.data;
-        const p = pendingEncode.get(id);
-        if (!p) return;
-        pendingEncode.delete(id);
-        clearTimeout(p.timer);
-        if (ok && buffer) p.resolve(buffer);
-        else p.reject(new Error(error ?? "KTX2 worker 编码失败"));
-      };
+      pool.push(new Worker(new URL("./mmd-ktx2-worker.ts", import.meta.url), { type: "module" }));
+    }
+    const bridge = createWorkerBridge<
+      { id: number; width: number; height: number; data: ArrayBuffer },
+      Ktx2EncodeResponse,
+      ArrayBuffer
+    >({
+      workers: pool,
+      getId: (r) => r.id,
+      timeoutMs: KTX2_ENCODE_TIMEOUT_MS,
+      timeoutMsg: `KTX2 编码超时（${KTX2_ENCODE_TIMEOUT_MS}ms）`,
+      settle: (r, { resolve, reject }) => {
+        if (r.ok && r.buffer) resolve(r.buffer);
+        else reject(new Error(r.error ?? "KTX2 worker 编码失败"));
+      },
+      onWorkerError: "terminatePool",
+      // 崩溃终止整池后清空缓存，下次调度重建（降级同步路径）
+      onPoolTerminated: () => {
+        ktx2Workers = null;
+        ktx2Bridge = null;
+      },
+    });
+    for (const w of pool) {
+      w.onmessage = (e: MessageEvent<Ktx2EncodeResponse>) => bridge.handleMessage(e.data);
       // worker 崩溃 → 终止整池并让在途任务降级（对齐 web-stats 降级契约）
-      w.onerror = () => {
-        terminateKtx2Workers();
-      };
-      pool.push(w);
+      w.onerror = () => bridge.handleWorkerError();
     }
     ktx2Workers = pool;
+    ktx2Bridge = bridge;
     return pool;
   } catch {
     ktx2Workers = null;
@@ -182,15 +196,8 @@ function getKtx2WorkerPool(): Worker[] | null {
 
 /** 终止全部 KTX2 worker，在途任务全部 reject（降级同步路径） */
 function terminateKtx2Workers(): void {
-  if (ktx2Workers) {
-    for (const w of ktx2Workers) w.terminate();
-    ktx2Workers = null;
-  }
-  for (const [, p] of pendingEncode) {
-    clearTimeout(p.timer);
-    p.reject(new Error("KTX2 worker 终止"));
-  }
-  pendingEncode.clear();
+  // 终止整池 + reject 全部在途；onPoolTerminated 已清 ktx2Workers/ktx2Bridge
+  ktx2Bridge?.terminatePool();
 }
 
 /**
@@ -204,24 +211,14 @@ async function encodeToKTX2(img: { data: Uint8Array; width: number; height: numb
     throw new TextureTooLargeError(img.width, img.height);
   }
   const pool = getKtx2WorkerPool();
-  if (!pool) {
+  if (!pool || !ktx2Bridge) {
     // 降级：同步编码（测试环境 / Worker 被屏蔽）
     return encodeToKTX2Basis(img);
   }
-  return new Promise<ArrayBuffer>((resolve, reject) => {
-    const id = ++encodeRequestSeq;
-    const w = pool[nextWorkerIdx % pool.length];
-    nextWorkerIdx = (nextWorkerIdx + 1) % pool.length;
-    const timer = setTimeout(() => {
-      pendingEncode.delete(id);
-      reject(new Error(`KTX2 编码超时（${KTX2_ENCODE_TIMEOUT_MS}ms）`));
-    }, KTX2_ENCODE_TIMEOUT_MS);
-    pendingEncode.set(id, { resolve, reject, timer });
-    // blobUrlToImageData 返回 new Uint8Array(imageData.data.buffer)，保证是 ArrayBuffer（非 SharedArrayBuffer）
-    const dataBuf = img.data.buffer as ArrayBuffer;
-    const req: Ktx2EncodeRequest = { id, width: img.width, height: img.height, data: dataBuf };
-    w.postMessage(req, [dataBuf]); // transfer：零拷贝，避免 64MB 大数组复制阻塞主线程
-  });
+  // blobUrlToImageData 返回 new Uint8Array(imageData.data.buffer)，保证是 ArrayBuffer（非 SharedArrayBuffer）
+  const dataBuf = img.data.buffer as ArrayBuffer;
+  // 工厂接管 id + round-robin 选 worker + 超时 + pending + onerror 终止整池
+  return ktx2Bridge.request({ width: img.width, height: img.height, data: dataBuf }, [dataBuf]);
 }
 
 /** 测试注入点：替换编码实现（默认走本地 WASM） */

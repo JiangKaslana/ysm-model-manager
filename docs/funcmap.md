@@ -1325,9 +1325,9 @@
 | `encodeToKTX2Basis()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:81` | 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。 |
 | `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:71` | 取消所有待执行的编码（已在执行的不受影响） |
 | `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:83` | 重置编码器状态（测试用） |
-| `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:231` | 测试用：注入编码实现（默认走本地 WASM） |
-| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:242` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
-| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:292` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
+| `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:228` | 测试用：注入编码实现（默认走本地 WASM） |
+| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:239` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
+| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:289` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
 | `Ktx2TextureLoaderDeps()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:21` | 拦截 loader 依赖注入（装配方提供） |
 | `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:61` | — |
 | `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:9` | 主线程 → Worker 的请求 |
