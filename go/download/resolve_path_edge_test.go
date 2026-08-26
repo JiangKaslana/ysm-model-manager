@@ -309,6 +309,27 @@ func TestResolveSavePath_InvalidURL(t *testing.T) {
 	}
 }
 
+// ---------- 15b. 畸形 raw URL：结构化解析失败 → 无 jsd/api 回退源 ----------
+// 固化行为：四段式结构化解析失败的 raw URL（尾斜杠/双斜杠/缺文件路径）只产出
+// savePath，不生成 jsd/api 回退源（repoPath 为空）。此前 repoPath 提取块不可达
+// 已删除，此测试防后续误判为回归。
+func TestResolveSavePath_MalformedRawNoFallback(t *testing.T) {
+	cases := []string{
+		"https://raw.githubusercontent.com/user/repo/main/",     // 尾斜杠
+		"https://raw.githubusercontent.com/user/repo//file.ysm", // 双斜杠
+		"https://raw.githubusercontent.com/user/repo/main",      // 缺文件路径
+	}
+	for _, u := range cases {
+		savePath, jsd, api := ResolveSavePath(u, t.TempDir())
+		if savePath == "" {
+			t.Errorf("畸形 raw URL 应仍产出 savePath: %s", u)
+		}
+		if jsd != "" || api != "" {
+			t.Errorf("畸形 raw URL 不应生成 jsd/api 回退源: %s → jsd=%q api=%q", u, jsd, api)
+		}
+	}
+}
+
 // ---------- 16. isBinaryContentType 纯函数表驱动 ----------
 func TestIsBinaryContentType_Table(t *testing.T) {
 	cases := []struct {

@@ -565,42 +565,42 @@ function outputAudit() {
 // ---- CLI 入口。main 守卫：import 供契约测试（test_redlines_changed_files.mjs）时
 // 不执行脚本主逻辑；直接 node 运行本文件时 process.argv[1] === 本文件。 ----
 const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
-if (!isMain) process.exit(0);
-
-const args = process.argv.slice(2);
-const jsonMode = args.includes('--json');
-const auditMode = args.includes('--audit');
-const baselineMode = args.includes('--baseline') || args.includes('--update-baseline');
-if (auditMode) {
-  outputAudit();
-  process.exit(0);
-}
-const results = runChecks();
-if (baselineMode) {
-  const r = runBaseline(results);
-  if (jsonMode) {
-    outputJson(results, {
-      rules: results.length,
-      violations: results.reduce((s, rr) => s + rr.count, 0),
-      baselineViolations: r.baselineCount ?? null,
-      newViolations: r.newViolations?.length ?? null,
-      advisoryViolations: r.advisoryViolations?.length ?? null,
-      goneCount: r.goneCount ?? null,
-      ok: r.ok,
-      scanHealthy: rgHealthy,
-      notice: r.note,
-    });
-  } else {
-    console.log(`红线基线比对: ${r.ok ? '[OK]' : '[FAIL]'} ${r.note}`);
-    for (const e of r.errors || []) console.log(`  ${e}`);
-    for (const w of r.warns || []) console.log(`  ${w}`);
-    for (const i of r.infos || []) console.log(`  ${i}`);
-    if (!r.ok) console.log('→ 修复: 检查新增红线违规项并修复，或 node scripts/check-redlines.mjs --json --update-baseline 接受现状');
+if (isMain) {
+  const args = process.argv.slice(2);
+  const jsonMode = args.includes('--json');
+  const auditMode = args.includes('--audit');
+  const baselineMode = args.includes('--baseline') || args.includes('--update-baseline');
+  if (auditMode) {
+    outputAudit();
+    process.exit(0);
   }
-  process.exitCode = r.ok ? 0 : 1;
-} else if (jsonMode) {
-  outputJson(results);
-} else {
-  outputText(results);
+  const results = runChecks();
+  if (baselineMode) {
+    const r = runBaseline(results);
+    if (jsonMode) {
+      outputJson(results, {
+        rules: results.length,
+        violations: results.reduce((s, rr) => s + rr.count, 0),
+        baselineViolations: r.baselineCount ?? null,
+        newViolations: r.newViolations?.length ?? null,
+        advisoryViolations: r.advisoryViolations?.length ?? null,
+        goneCount: r.goneCount ?? null,
+        ok: r.ok,
+        scanHealthy: rgHealthy,
+        notice: r.note,
+      });
+    } else {
+      console.log(`红线基线比对: ${r.ok ? '[OK]' : '[FAIL]'} ${r.note}`);
+      for (const e of r.errors || []) console.log(`  ${e}`);
+      for (const w of r.warns || []) console.log(`  ${w}`);
+      for (const i of r.infos || []) console.log(`  ${i}`);
+      if (!r.ok) console.log('→ 修复: 检查新增红线违规项并修复，或 node scripts/check-redlines.mjs --json --update-baseline 接受现状');
+    }
+    process.exitCode = r.ok ? 0 : 1;
+  } else if (jsonMode) {
+    outputJson(results);
+  } else {
+    outputText(results);
+  }
 }
 

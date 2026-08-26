@@ -290,18 +290,18 @@ function buildOldestPageHtml(opts: OldestPageOpts): string {
 export async function loadOldestModel(container: HTMLElement, esc: (s: string) => string): Promise<() => void> {
   if (!container) return () => {};
   const guard = createLoadGuard();
-  const S = '<div style="padding:12px;font-size:var(--fs-base)">';
+  const S = '<div style="padding:12px;';
   async function render(): Promise<void> {
     const gen = guard.next();
-    container.innerHTML = S + 'color:var(--muted)">⏳ ' + t("oldest.scanning") + '</div>';
+    container.innerHTML = S + 'color:var(--muted);font-size:var(--fs-base)">⏳ ' + t("oldest.scanning") + '</div>';
     try {
       const { ScanModelEntriesWithLabel, GetRepoRoot } = await getApp();
       const filesRoot = await GetRepoRoot(getCurrentType());
       if (guard.stale(gen)) return;
-      if (!filesRoot) { container.innerHTML = S + 'color:var(--status-error)">' + t("oldest.configTypeDir") + '</div>'; return; }
+      if (!filesRoot) { container.innerHTML = S + 'color:var(--status-error);font-size:var(--fs-base)">' + t("oldest.configTypeDir") + '</div>'; return; }
       const entries: ModelEntry[] = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[getCurrentType()] ?? RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
       if (guard.stale(gen)) return;
-      if (!entries || !entries.length) { container.innerHTML = S + 'color:var(--muted)">' + t("oldest.repoEmpty") + '</div>'; return; }
+      if (!entries || !entries.length) { container.innerHTML = S + 'color:var(--muted);font-size:var(--fs-base)">' + t("oldest.repoEmpty") + '</div>'; return; }
       const stats = computeRepoStats(entries);
       const heatmapHtml = buildHeatmapHtml(entries, esc);
       const sorted4 = [...entries].filter((e) => Number.isFinite(e.ModTime) && e.ModTime > 0).sort((a, b) => a.ModTime - b.ModTime).slice(0, OLDEST_CARD_COUNT);
@@ -315,7 +315,7 @@ export async function loadOldestModel(container: HTMLElement, esc: (s: string) =
       container.addEventListener("click", handleContainerClick);
     } catch (err) {
       if (guard.stale(gen)) return;
-      container.innerHTML = S + 'color:var(--status-error)">❌ ' + t("resource.loadFailed") + ": " + esc((err as Error).message || String(err)) + "</div>";
+      container.innerHTML = S + 'color:var(--status-error);font-size:var(--fs-base)">❌ ' + t("resource.loadFailed") + ": " + esc((err as Error).message || String(err)) + "</div>";
     }
   }
   const { get: getCurrentType, cleanup: cleanupRtype } = useCurrentResourceType(() => { render(); });
