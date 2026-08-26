@@ -4,6 +4,7 @@
 
 import { t } from "../../../core/i18n/t.ts";
 import { executeCLI } from "../../../services/cli-bridge.ts";
+import type { CLIArgs } from "../../../services/cli-bridge.ts";
 import { resolveWebMode } from "../../../backend/platform.ts";
 import { bus } from "../../../bus.ts";
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
@@ -189,245 +190,350 @@ function renderPerfTrendSection(esc: EscFn): string {
   );
 }
 
+// ===== dgPc 共用收敛辅助：代际守卫/错误渲染/busy占位/CLI 调用守卫 =====
+
+type CLIResp = Awaited<ReturnType<typeof executeCLI>>;
+
+interface DgPcGenGuard {
+  gen: number;
+  stale: () => boolean;
+}
+
+function dgPcMakeGen(seqRef: { current: number }): DgPcGenGuard {
+  const gen = ++seqRef.current;
+  return { gen, stale: () => gen !== seqRef.current };
+}
+
+function dgPcGetOut(root: ShadowRoot, id: string): HTMLElement | null {
+  return root.getElementById(id);
+}
+
+function dgPcSetBusy(out: HTMLElement): void {
+  out.innerHTML = busyHTML();
+}
+
+function dgPcSetErrorMsg(out: HTMLElement, msg: string, esc: EscFn): void {
+  out.innerHTML = errorHTML(msg, esc);
+}
+
+function dgPcSetErrorResp(out: HTMLElement, resp: CLIResp, esc: EscFn): void {
+  out.innerHTML = errorHTML(resp.error?.message ?? t("diagnostics.perfFail"), esc);
+}
+
+function dgPcSetErrorCatch(out: HTMLElement, e: unknown, esc: EscFn): void {
+  console.error("[diagnostics] perf-cli 失败:", e);
+  out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${safeErrorMessage(e)}`, esc);
+}
+
+function dgPcRespHasOutput(resp: CLIResp): resp is CLIResp & { status: "success"; data: { output: string } } {
+  return resp.status === "success" && !!resp.data?.output;
+}
+
 // ===== single-bench：7 阶段耗时柱状图 =====
-export async function runSingleBench(root: ShadowRoot, esc: EscFn): Promise<void> {
-  const gen = ++perfSingleSeq;
-  const out = root.getElementById("diag-perf-single");
-  if (!out) return;
+
+interface DgPcSbStage {
+  name: string;
+  ms: number;
+  status: string;
+}
+
+type DgPcSbParams = CLIArgs & {
+  model: string;
+  iterations: number;
+};
+
+function dgPcSbGetParams(root: ShadowRoot): DgPcSbParams {
   const model = (root.getElementById("diag-perf-model") as HTMLInputElement | null)
     ?.value.trim() ?? "";
   const iterRaw =
     (root.getElementById("diag-perf-iter") as HTMLInputElement | null)?.value ?? "3";
   const iterations = Math.max(1, parseInt(iterRaw, 10) || 3);
+  return { model, iterations };
+}
 
-  if (!model) {
-    out.innerHTML = errorHTML(t("diagnostics.perfModelRequired"), esc);
-    return;
+function dgPcSbValidateAndRender(
+  root: ShadowRoot,
+  out: HTMLElement,
+  esc: EscFn,
+): DgPcSbParams | null {
+  const params = dgPcSbGetParams(root);
+  if (!params.model) {
+    dgPcSetErrorMsg(out, t("diagnostics.perfModelRequired"), esc);
+    return null;
   }
-  out.innerHTML = busyHTML();
-  try {
-    const resp = await executeCLI("single-bench", { model, iterations });
-    if (gen !== perfSingleSeq) return;
-    if (resp.status !== "success" || !resp.data?.output) {
-      out.innerHTML = errorHTML(
-        resp.error?.message ?? t("diagnostics.perfFail"),
-        esc,
-      );
-      return;
-    }
-    const lines = resp.data.output.split("\n");
+  return params;
+}
 
-    // 阶段行：`   ① 文件读取               12.34ms 🔴 瓶颈`（名称可含空格/编号前缀，
-    // 状态后缀可能是单 token（✅/🟢）或多 token（🔴 瓶颈/🟡 注意），故整段捕获）
-    const stageRe = /^\s+(.+?)\s+(\d+(?:\.\d+)?)ms(?:\s+(.*))?$/;
-    // 总耗时行：`⏱️  总耗时（3 次迭代）: 123.45ms`
-    const totalRe = /⏱️\s*总耗时.*?([\d.]+)ms/;
+function dgPcSbParseStages(output: string): { stages: DgPcSbStage[]; total: number } | null {
+  const lines = output.split("\n");
+  const stageRe = /^\s+(.+?)\s+(\d+(?:\.\d+)?)ms(?:\s+(.*))?$/;
+  const totalRe = /⏱️\s*总耗时.*?([\d.]+)ms/;
 
-    interface Stage {
-      name: string;
-      ms: number;
-      status: string;
-    }
-    const stages: Stage[] = [];
-    let maxMs = 0;
-    for (const raw of lines) {
-      const line = raw.trimEnd();
-      const m = line.match(stageRe);
-      if (!m) continue;
-      const name = m[1].trim();
-      if (name === "总计") continue; // 每块行末"总计"非阶段，跳过避免混入柱状
-      const ms = parseFloat(m[2]);
-      const status = m[3] ?? "";
-      stages.push({ name, ms, status });
-      if (ms > maxMs) maxMs = ms;
-    }
-    const totalRes = lines.find((l) => totalRe.test(l));
-    const total = totalRes ? parseFloat(totalRes.match(totalRe)![1]) : stages.reduce((s, x) => s + x.ms, 0);
+  const stages: DgPcSbStage[] = [];
+  let maxMs = 0;
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const m = line.match(stageRe);
+    if (!m) continue;
+    const name = m[1].trim();
+    if (name === "总计") continue;
+    const ms = parseFloat(m[2]);
+    const status = m[3] ?? "";
+    stages.push({ name, ms, status });
+    if (ms > maxMs) maxMs = ms;
+  }
+  const totalRes = lines.find((l) => totalRe.test(l));
+  const total = totalRes
+    ? parseFloat(totalRes.match(totalRe)![1])
+    : stages.reduce((s, x) => s + x.ms, 0);
 
-    if (!stages.length) {
-      out.innerHTML = errorHTML(t("diagnostics.perfFail"), esc);
-      return;
-    }
-    const bars = stages
-      .map((s) => {
-        const pct = maxMs > 0 ? Math.max(3, Math.round((s.ms / maxMs) * 100)) : 3;
-        const cls = s.ms > 100 ? "perf-bar-danger" : s.ms > 50 ? "perf-bar-warn" : "";
-        return `<div class="perf-bar-row">
+  return stages.length ? { stages, total } : null;
+}
+
+function dgPcSbRenderBars(
+  stages: DgPcSbStage[],
+  total: number,
+  rawOutput: string,
+  esc: EscFn,
+): string {
+  let maxMs = 0;
+  for (const s of stages) if (s.ms > maxMs) maxMs = s.ms;
+  const bars = stages
+    .map((s) => {
+      const pct = maxMs > 0 ? Math.max(3, Math.round((s.ms / maxMs) * 100)) : 3;
+      const cls = s.ms > 100 ? "perf-bar-danger" : s.ms > 50 ? "perf-bar-warn" : "";
+      return `<div class="perf-bar-row">
 <span class="perf-bar-name" title="${esc(s.name)}">${esc(s.name)}</span>
 <span class="perf-bar-track"><span class="perf-bar-fill ${cls}" style="width:${pct}%"></span></span>
 <span class="perf-bar-val ${cls}">${s.ms.toFixed(2)}ms ${esc(s.status)}</span>
 </div>`;
-      })
-      .join("");
-    savePerfRecord(stages);
-    const rawOutput = resp.data.output;
-    out.innerHTML =
-      sectionHeader("⚡", t("diagnostics.perfSingleResult"), rawOutput) +
-      `<div class="perf-bars" style="padding:8px 2px;user-select:text;-webkit-user-select:text">${bars}</div>` +
-      `<div class="perf-total">⏱️ ${t("diagnostics.perfTotal")}: ${total.toFixed(2)}ms</div>` +
-      renderPerfTrendSection(esc);
+    })
+    .join("");
+  savePerfRecord(stages);
+  return (
+    sectionHeader("⚡", t("diagnostics.perfSingleResult"), rawOutput) +
+    `<div class="perf-bars" style="padding:8px 2px;user-select:text;-webkit-user-select:text">${bars}</div>` +
+    `<div class="perf-total">⏱️ ${t("diagnostics.perfTotal")}: ${total.toFixed(2)}ms</div>` +
+    renderPerfTrendSection(esc)
+  );
+}
+
+export async function runSingleBench(root: ShadowRoot, esc: EscFn): Promise<void> {
+  const { stale } = dgPcMakeGen({ get current() { return perfSingleSeq; }, set current(v) { perfSingleSeq = v; } });
+  const out = dgPcGetOut(root, "diag-perf-single");
+  if (!out) return;
+  const params = dgPcSbValidateAndRender(root, out, esc);
+  if (!params) return;
+  dgPcSetBusy(out);
+  try {
+    const resp = await executeCLI("single-bench", params);
+    if (stale()) return;
+    if (!dgPcRespHasOutput(resp)) {
+      dgPcSetErrorResp(out, resp, esc);
+      return;
+    }
+    const parsed = dgPcSbParseStages(resp.data.output);
+    if (!parsed) {
+      dgPcSetErrorMsg(out, t("diagnostics.perfFail"), esc);
+      return;
+    }
+    out.innerHTML = dgPcSbRenderBars(parsed.stages, parsed.total, resp.data.output, esc);
   } catch (e) {
-    if (gen !== perfSingleSeq) return;
-    console.error("[diagnostics] single-bench 失败:", e);
-    out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${safeErrorMessage(e)}`, esc);
+    if (stale()) return;
+    dgPcSetErrorCatch(out, e, esc);
   }
 }
 
 // ===== gui-flow：6 阶段状态（✅/❌ + 耗时） =====
-export async function runGuiFlow(root: ShadowRoot, esc: EscFn): Promise<void> {
-  const gen = ++perfGuiSeq;
-  const out = root.getElementById("diag-perf-gui-out");
-  if (!out) return;
+
+interface DgPcGfStage {
+  status: string;
+  name: string;
+  ms: number;
+  desc: string[];
+}
+
+function dgPcGfWebModeCheck(): boolean {
   if (resolveWebMode()) {
     bus.emit("toast:show", {
       msg: "网页版不支持性能诊断",
       duration: 3000,
       type: "warn",
     });
-    return;
+    return true;
   }
-  out.innerHTML = busyHTML();
-  try {
-    const resp = await executeCLI("gui-flow", { verbose: true });
-    if (gen !== perfGuiSeq) return;
-    if (resp.status !== "success" || !resp.data?.output) {
-      out.innerHTML = errorHTML(
-        resp.error?.message ?? t("diagnostics.perfFail"),
-        esc,
-      );
-      return;
-    }
-    const lines = resp.data.output.split("\n");
-    const rawOutput = resp.data.output;
+  return false;
+}
 
-    // 阶段行：`✅ [1] ① 配置加载 (1.23ms)`；后续缩进行是该阶段描述
-    const stageRe = /^([✅❌])\s*\[\d+\]\s*(.+?)\s*\(([\d.]+)ms\)$/;
-    const totalRe = /⏱️\s*总耗时:\s*([\d.]+)ms/;
+function dgPcGfParseEntries(output: string): {
+  entries: DgPcGfStage[];
+  flowTotal: number | null;
+  failed: boolean;
+} | null {
+  const lines = output.split("\n");
+  const stageRe = /^([✅❌])\s*\[\d+\]\s*(.+?)\s*\(([\d.]+)ms\)$/;
+  const totalRe = /⏱️\s*总耗时:\s*([\d.]+)ms/;
 
-    interface FlowStage {
-      status: string;
-      name: string;
-      ms: number;
-      desc: string[];
+  const entries: DgPcGfStage[] = [];
+  let cur: DgPcGfStage | null = null;
+  let flowTotal: number | null = null;
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const sm = line.match(stageRe);
+    if (sm) {
+      cur = { status: sm[1], name: sm[2].trim(), ms: parseFloat(sm[3]), desc: [] };
+      entries.push(cur);
+      continue;
     }
-    const entries: FlowStage[] = [];
-    let cur: FlowStage | null = null;
-    let flowTotal: number | null = null;
-    for (const raw of lines) {
-      const line = raw.trimEnd();
-      const sm = line.match(stageRe);
-      if (sm) {
-        cur = { status: sm[1], name: sm[2].trim(), ms: parseFloat(sm[3]), desc: [] };
-        entries.push(cur);
-        continue;
-      }
-      const tm = line.match(totalRe);
-      if (tm) {
-        flowTotal = parseFloat(tm[1]);
-        continue;
-      }
-      if (cur && /^\s{3}/.test(line) && line.trim()) cur.desc.push(line.trim());
+    const tm = line.match(totalRe);
+    if (tm) {
+      flowTotal = parseFloat(tm[1]);
+      continue;
     }
+    if (cur && /^\s{3}/.test(line) && line.trim()) cur.desc.push(line.trim());
+  }
 
-    if (!entries.length) {
-      out.innerHTML = errorHTML(t("diagnostics.perfFail"), esc);
-      return;
-    }
-    const failed = entries.some((e) => e.status === "❌");
-    const rows = entries
-      .map((e) => {
-        const desc = e.desc.length
-          ? `<span class="perf-gui-desc">${esc(e.desc.join("<br>"))}</span>`
-          : "";
-        const cls = e.status === "❌" ? "perf-gui-fail" : "";
-        return `<div class="perf-gui-stage ${cls}">
+  if (!entries.length) return null;
+  const failed = entries.some((e) => e.status === "❌");
+  return { entries, flowTotal, failed };
+}
+
+function dgPcGfRenderStages(
+  entries: DgPcGfStage[],
+  flowTotal: number | null,
+  failed: boolean,
+  rawOutput: string,
+  esc: EscFn,
+): string {
+  const rows = entries
+    .map((e) => {
+      const desc = e.desc.length
+        ? `<span class="perf-gui-desc">${esc(e.desc.join("<br>"))}</span>`
+        : "";
+      const cls = e.status === "❌" ? "perf-gui-fail" : "";
+      return `<div class="perf-gui-stage ${cls}">
 <span class="perf-gui-status">${e.status}</span>
 <span class="perf-gui-name">${esc(e.name)}</span>
 <span class="perf-gui-ms">${e.ms.toFixed(2)}ms</span>${desc}
 </div>`;
-      })
-      .join("");
-    const totalLine =
-      flowTotal !== null
-        ? `<div class="perf-total">⏱️ ${t("diagnostics.perfTotal")}: ${flowTotal.toFixed(2)}ms</div>`
-        : "";
-    const failLine = failed
-      ? `<div class="diag-stat diag-stat-error">❌ ${t("diagnostics.perfGuiFailed")}</div>`
+    })
+    .join("");
+  const totalLine =
+    flowTotal !== null
+      ? `<div class="perf-total">⏱️ ${t("diagnostics.perfTotal")}: ${flowTotal.toFixed(2)}ms</div>`
       : "";
-    out.innerHTML =
-      sectionHeader("🩺", t("diagnostics.perfGuiResult"), rawOutput) +
-      `<div class="perf-gui" style="padding:8px 2px;user-select:text;-webkit-user-select:text">${rows}</div>` +
-      totalLine +
-      failLine;
+  const failLine = failed
+    ? `<div class="diag-stat diag-stat-error">❌ ${t("diagnostics.perfGuiFailed")}</div>`
+    : "";
+  return (
+    sectionHeader("🩺", t("diagnostics.perfGuiResult"), rawOutput) +
+    `<div class="perf-gui" style="padding:8px 2px;user-select:text;-webkit-user-select:text">${rows}</div>` +
+    totalLine +
+    failLine
+  );
+}
+
+export async function runGuiFlow(root: ShadowRoot, esc: EscFn): Promise<void> {
+  const { stale } = dgPcMakeGen({ get current() { return perfGuiSeq; }, set current(v) { perfGuiSeq = v; } });
+  const out = dgPcGetOut(root, "diag-perf-gui-out");
+  if (!out) return;
+  if (dgPcGfWebModeCheck()) return;
+  dgPcSetBusy(out);
+  try {
+    const resp = await executeCLI("gui-flow", { verbose: true });
+    if (stale()) return;
+    if (!dgPcRespHasOutput(resp)) {
+      dgPcSetErrorResp(out, resp, esc);
+      return;
+    }
+    const parsed = dgPcGfParseEntries(resp.data.output);
+    if (!parsed) {
+      dgPcSetErrorMsg(out, t("diagnostics.perfFail"), esc);
+      return;
+    }
+    out.innerHTML = dgPcGfRenderStages(
+      parsed.entries,
+      parsed.flowTotal,
+      parsed.failed,
+      resp.data.output,
+      esc,
+    );
   } catch (e) {
-    if (gen !== perfGuiSeq) return;
-    console.error("[diagnostics] gui-flow 失败:", e);
-    out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${safeErrorMessage(e)}`, esc);
+    if (stale()) return;
+    dgPcSetErrorCatch(out, e, esc);
   }
 }
 
 // ===== perf-log：优化历史（按时间倒序） =====
-export async function runPerfLog(root: ShadowRoot, esc: EscFn): Promise<void> {
-  const gen = ++perfHistSeq;
-  const out = root.getElementById("diag-perf-hist");
-  if (!out) return;
-  out.innerHTML = busyHTML();
-  try {
-    const resp = await executeCLI("perf-log", {});
-    if (gen !== perfHistSeq) return;
-    if (resp.status !== "success" || !resp.data?.output) {
-      out.innerHTML = errorHTML(
-        resp.error?.message ?? t("diagnostics.perfFail"),
-        esc,
-      );
-      return;
-    }
-    const lines = resp.data.output.split("\n");
 
-    // 条目头：`─ 2026-08-19 ─ 纹理编码 ─ abc1234`；后续 `  问题/做法/效果:` 为明细
-    const headRe = /^─\s*(.+?)\s*─\s*(.+?)\s*─\s*(.+?)\s*$/;
-    interface PerfEntry {
-      date: string;
-      area: string;
-      commit: string;
-      body: string[];
-    }
-    const entries: PerfEntry[] = [];
-    let cur: PerfEntry | null = null;
-    for (const raw of lines) {
-      const line = raw;
-      const hm = line.match(headRe);
-      if (hm) {
-        cur = { date: hm[1].trim(), area: hm[2].trim(), commit: hm[3].trim(), body: [] };
-        entries.push(cur);
-        continue;
-      }
-      if (cur && (line.startsWith("  问题:") || line.startsWith("  做法:") || line.startsWith("  效果:")) && line.trim()) {
-        cur.body.push(line.trim());
-      }
-    }
+interface DgPcPlEntry {
+  date: string;
+  area: string;
+  commit: string;
+  body: string[];
+}
 
-    if (!entries.length) {
-      out.innerHTML = errorHTML(t("diagnostics.perfFail"), esc);
-      return;
+function dgPcPlParseEntries(output: string): DgPcPlEntry[] | null {
+  const lines = output.split("\n");
+  const headRe = /^─\s*(.+?)\s*─\s*(.+?)\s*─\s*(.+?)\s*$/;
+  const entries: DgPcPlEntry[] = [];
+  let cur: DgPcPlEntry | null = null;
+  for (const raw of lines) {
+    const line = raw;
+    const hm = line.match(headRe);
+    if (hm) {
+      cur = { date: hm[1].trim(), area: hm[2].trim(), commit: hm[3].trim(), body: [] };
+      entries.push(cur);
+      continue;
     }
-    const cards = entries
-      .map((e, i) => {
-        const body = e.body.length
-          ? `<span class="perf-hist-body">${e.body.map((d) => esc(d)).join("<br>")}</span>`
-          : "";
-        return `<div class="perf-hist-card" style="animation-delay:${stagger(i)}ms">
+    if (
+      cur &&
+      (line.startsWith("  问题:") || line.startsWith("  做法:") || line.startsWith("  效果:")) &&
+      line.trim()
+    ) {
+      cur.body.push(line.trim());
+    }
+  }
+  return entries.length ? entries : null;
+}
+
+function dgPcPlRenderCards(entries: DgPcPlEntry[], rawOutput: string, esc: EscFn): string {
+  const cards = entries
+    .map((e, i) => {
+      const body = e.body.length
+        ? `<span class="perf-hist-body">${e.body.map((d) => esc(d)).join("<br>")}</span>`
+        : "";
+      return `<div class="perf-hist-card" style="animation-delay:${stagger(i)}ms">
 <span class="perf-hist-head">🗓️ ${esc(e.date)} · ${esc(e.area)} · <code>${esc(e.commit)}</code></span>${body}
 </div>`;
-      })
-      .join("");
-    const rawOutput = resp.data.output;
-    out.innerHTML =
-      sectionHeader("🗒️", t("diagnostics.perfHistResult"), rawOutput) +
-      `<div class="perf-hist" style="padding:8px 2px;user-select:text;-webkit-user-select:text">${cards}</div>`;
+    })
+    .join("");
+  return (
+    sectionHeader("🗒️", t("diagnostics.perfHistResult"), rawOutput) +
+    `<div class="perf-hist" style="padding:8px 2px;user-select:text;-webkit-user-select:text">${cards}</div>`
+  );
+}
+
+export async function runPerfLog(root: ShadowRoot, esc: EscFn): Promise<void> {
+  const { stale } = dgPcMakeGen({ get current() { return perfHistSeq; }, set current(v) { perfHistSeq = v; } });
+  const out = dgPcGetOut(root, "diag-perf-hist");
+  if (!out) return;
+  dgPcSetBusy(out);
+  try {
+    const resp = await executeCLI("perf-log", {});
+    if (stale()) return;
+    if (!dgPcRespHasOutput(resp)) {
+      dgPcSetErrorResp(out, resp, esc);
+      return;
+    }
+    const parsed = dgPcPlParseEntries(resp.data.output);
+    if (!parsed) {
+      dgPcSetErrorMsg(out, t("diagnostics.perfFail"), esc);
+      return;
+    }
+    out.innerHTML = dgPcPlRenderCards(parsed, resp.data.output, esc);
   } catch (e) {
-    if (gen !== perfHistSeq) return;
-    console.error("[diagnostics] perf-log 失败:", e);
-    out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${safeErrorMessage(e)}`, esc);
+    if (stale()) return;
+    dgPcSetErrorCatch(out, e, esc);
   }
 }

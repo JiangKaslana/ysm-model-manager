@@ -1823,16 +1823,16 @@
 | `__resetModalStateForTest()` | `frontend/src/utils/dom/dialogs/modal:81` | 测试钩子：重置活动弹窗单例槽位（isolate:false 共享模块图下，兄弟文件残留的 _activeOverlay 会让「无活动弹窗」断言失真；web-store.__rese |
 | `registerDlg()` | `frontend/src/utils/dom/dialogs/modal:88` | 弹窗 append 到 body 后调用，登记为当前活动弹窗 |
 | `closeActiveDialog()` | `frontend/src/utils/dom/dialogs/modal:104` | 关闭当前活动弹窗（按取消值结算）。返回是否关闭了弹窗。 |
-| `ModalPromptOptions()` | `frontend/src/utils/dom/dialogs/modal:163` | modalPrompt 选项 |
-| `modalPrompt()` | `frontend/src/utils/dom/dialogs/modal:176` | 弹出带输入框的模态框，类似 styled prompt() |
-| `ModalSelectOptions()` | `frontend/src/utils/dom/dialogs/modal:233` | modalSelect 选项 |
-| `modalSelect()` | `frontend/src/utils/dom/dialogs/modal:246` | 弹出下拉选择框 |
-| `ModalConfirmOptions()` | `frontend/src/utils/dom/dialogs/modal:298` | modalConfirm 选项 |
-| `modalConfirm()` | `frontend/src/utils/dom/dialogs/modal:314` | 弹出确认对话框 |
-| `ModalProgressOptions()` | `frontend/src/utils/dom/dialogs/modal:360` | — |
-| `ModalProgressHandle()` | `frontend/src/utils/dom/dialogs/modal:368` | — |
-| `fmtMB()` | `frontend/src/utils/dom/dialogs/modal:375` | 格式化字节为 MB（进度弹窗/窗口标题共用） |
-| `modalProgress()` | `frontend/src/utils/dom/dialogs/modal:385` | 只读进度弹窗（无确认/取消按钮，Esc 或点遮罩关闭）。 |
+| `ModalPromptOptions()` | `frontend/src/utils/dom/dialogs/modal:185` | modalPrompt 选项 |
+| `modalPrompt()` | `frontend/src/utils/dom/dialogs/modal:263` | 弹出带输入框的模态框，类似 styled prompt() |
+| `ModalSelectOptions()` | `frontend/src/utils/dom/dialogs/modal:282` | modalSelect 选项 |
+| `modalSelect()` | `frontend/src/utils/dom/dialogs/modal:351` | 弹出下拉选择框 |
+| `ModalConfirmOptions()` | `frontend/src/utils/dom/dialogs/modal:367` | modalConfirm 选项 |
+| `modalConfirm()` | `frontend/src/utils/dom/dialogs/modal:422` | 弹出确认对话框 |
+| `ModalProgressOptions()` | `frontend/src/utils/dom/dialogs/modal:435` | — |
+| `ModalProgressHandle()` | `frontend/src/utils/dom/dialogs/modal:443` | — |
+| `fmtMB()` | `frontend/src/utils/dom/dialogs/modal:450` | 格式化字节为 MB（进度弹窗/窗口标题共用） |
+| `modalProgress()` | `frontend/src/utils/dom/dialogs/modal:533` | 只读进度弹窗（无确认/取消按钮，Esc 或点遮罩关闭）。 |
 | `RenameFields()` | `frontend/src/utils/dom/dialogs/rename-format:7` | 重命名字段（调用方已 trim） |
 | `BuildModelNameOptions()` | `frontend/src/utils/dom/dialogs/rename-format:21` | 命名模板引擎选项（索引 4.9 收敛 buildRenameName / rebuildParsedName 两套手工拼接）： - fillDefaults=true：空作品补「未 |
 | `ModelNameFields()` | `frontend/src/utils/dom/dialogs/rename-format:27` | 命名模板输入字段（variant 可选：单重命名有、批量重建无） |
@@ -1983,12 +1983,12 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:9` | 转义函数签名（单一事实源 = utils/dom/html.ts 的 esc；调用方以 (s) =&gt; esc(String(s || "")) 包装适配） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:45` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:160` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `setHTML()` | `frontend/src/views/app-content/diagnostics/perf-cli:21` | 写入某容器 HTML；容器不存在时静默跳过 |
-| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:37` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
-| `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:77` | — |
-| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:193` | — |
-| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:277` | — |
-| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:370` | — |
+| `setHTML()` | `frontend/src/views/app-content/diagnostics/perf-cli:22` | 写入某容器 HTML；容器不存在时静默跳过 |
+| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:38` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
+| `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:78` | — |
+| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:321` | — |
+| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:436` | — |
+| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:517` | — |
 | `formatTime()` | `frontend/src/views/app-content/diagnostics/perf-trace:11` | — |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf-trace:18` | 渲染加载剖析区段（取最近一条 trace 渲染甘特图 + 资产清单） |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf` | — |
@@ -2276,8 +2276,8 @@
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:34` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
 | `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:355` | — |
-| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:42` | — |
-| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:236` | — |
+| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:252` | — |
+| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:286` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |

@@ -522,8 +522,8 @@
 | `frontend/src/views/app-content/diagnostics/init.ts` | 92 |
 | `frontend/src/views/app-content/diagnostics/init.ts` | 109 |
 | `frontend/src/views/app-content/diagnostics/init.ts` | 125 |
-| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 91 |
-| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 357 |
+| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 92 |
+| `frontend/src/views/app-content/diagnostics/perf-cli.ts` | 358 |
 | `frontend/src/views/app-content/index.ts` | 169 |
 | `frontend/src/views/app-content/init-pages.ts` | 194 |
 | `frontend/src/views/app-content/init-pages.ts` | 249 |
@@ -639,14 +639,14 @@
 | `frontend/src/views/app-tree/toolbar-events.ts` | 329 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 335 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 346 |
-| `frontend/src/views/app-tree/toolbar-search.ts` | 122 |
-| `frontend/src/views/app-tree/toolbar-search.ts` | 144 |
-| `frontend/src/views/app-tree/toolbar-search.ts` | 178 |
-| `frontend/src/views/app-tree/toolbar-search.ts` | 197 |
-| `frontend/src/views/app-tree/toolbar-search.ts` | 219 |
-| `frontend/src/views/app-tree/toolbar-search.ts` | 225 |
-| `frontend/src/views/app-tree/toolbar-search.ts` | 254 |
-| `frontend/src/views/app-tree/toolbar-search.ts` | 263 |
+| `frontend/src/views/app-tree/toolbar-search.ts` | 142 |
+| `frontend/src/views/app-tree/toolbar-search.ts` | 161 |
+| `frontend/src/views/app-tree/toolbar-search.ts` | 191 |
+| `frontend/src/views/app-tree/toolbar-search.ts` | 207 |
+| `frontend/src/views/app-tree/toolbar-search.ts` | 236 |
+| `frontend/src/views/app-tree/toolbar-search.ts` | 242 |
+| `frontend/src/views/app-tree/toolbar-search.ts` | 304 |
+| `frontend/src/views/app-tree/toolbar-search.ts` | 313 |
 
 **订阅方（on）：**
 | 文件 | 行 |
