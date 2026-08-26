@@ -153,52 +153,13 @@ function bindTabs(
         inited[tab] = true;
         try {
           if (tab === "recycle") {
-            const { recycleHTML } = await import("./tpl-recycle.ts");
-            container.innerHTML = recycleHTML();
-            const recycleCleanup = initRecycleBin(host);
+            const recycleCleanup = await initRecycleTab(host, container);
             if (recycleCleanup) host._unsubs.push(recycleCleanup);
           } else if (tab === "dedup") {
-            let dedupType = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
-            container.innerHTML =
-              '<div style="display:flex;flex-direction:column;height:100%">' +
-              '<div style="display:flex;align-items:center;gap:8px;padding:4px 12px;border-bottom:1px solid var(--bd)">' +
-              '<span style="flex:1;font-size:var(--fs-sm);color:var(--muted)">📌 ' + t("dedup.sha256Hint") + '</span>' +
-              '<button class="btn-base accent" id="dedup-start-btn">🔗 ' + t("dedup.startDedup") + '</button>' +
-              "</div>" +
-              // P3 修复（code_review）：配置面板独立容器——扫描结果只写 result-list，
-              // 面板不被 innerHTML 覆盖销毁（原 initDedupConfig 渲染进 result-list，
-              // 首次扫描后策略/保留策略控件永久消失，无法再配置）
-              '<div id="dedup-config-panel" style="padding:4px 12px;border-bottom:1px solid var(--bd)"></div>' +
-              '<div id="dedup-result-list" style="flex:1;overflow-y:auto;padding:8px 0"></div>' +
-              "</div>";
-            const panel = container.querySelector("#dedup-config-panel") as HTMLElement | null;
-            // 初始化配置面板（显示策略选择，无需点击按钮）
-            if (panel) initDedupConfig(panel);
-            const doDedup = (): void => {
-              const listEl = container.querySelector("#dedup-result-list");
-              if (listEl)
-                startDedup(
-                  listEl as HTMLElement,
-                  (s: unknown) => esc(String(s || "")),
-                  dedupType,
-                );
-            };
-            container
-              .querySelector("#dedup-start-btn")
-              ?.addEventListener("click", doDedup);
-            // 全局类型切换时自动重复
-            const _unsub = bus.on("repo:rtype-changed", (rt) => {
-              if (rt !== dedupType) {
-                dedupType = rt;
-                doDedup();
-              }
-            });
-            // 组件卸载时清理
-            host._unsubs.push(_unsub);
+            const unsub = await initDedupTab(host, container);
+            if (unsub) host._unsubs.push(unsub);
           } else if (tab === "oldest") {
-            const oldestCleanup = await loadOldestModel(container, (s) =>
-              esc(s),
-            );
+            const oldestCleanup = await initOldestTab(host, container);
             if (oldestCleanup) host._unsubs.push(oldestCleanup);
           }
         } catch (e) {
@@ -249,6 +210,62 @@ function bindTabs(
       }
     });
   });
+}
+
+/**
+ * 初始化回收站 tab（懒加载 tpl-recycle + 绑定回收站逻辑），返回清理函数
+ */
+async function initRecycleTab(host: AppContentHost, container: HTMLElement): Promise<(() => void) | null> {
+  const { recycleHTML } = await import("./tpl-recycle.ts");
+  container.innerHTML = recycleHTML();
+  const recycleCleanup = initRecycleBin(host);
+  return recycleCleanup;
+}
+
+/**
+ * 初始化去重组 tab：配置面板 + 开始去重按钮 + 全局类型切换自动复扫。
+ * 返回组件卸载时需执行的清理函数（bus 订阅取消）。
+ * P3 修复：配置面板独立容器，扫描结果只写 result-list，不被 innerHTML 覆盖销毁。
+ */
+async function initDedupTab(host: AppContentHost, container: HTMLElement): Promise<(() => void) | null> {
+  let dedupType = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+  container.innerHTML =
+    '<div style="display:flex;flex-direction:column;height:100%">' +
+    '<div style="display:flex;align-items:center;gap:8px;padding:4px 12px;border-bottom:1px solid var(--bd)">' +
+    '<span style="flex:1;font-size:var(--fs-sm);color:var(--muted)">📌 ' + t("dedup.sha256Hint") + '</span>' +
+    '<button class="btn-base accent" id="dedup-start-btn">🔗 ' + t("dedup.startDedup") + '</button>' +
+    "</div>" +
+    '<div id="dedup-config-panel" style="padding:4px 12px;border-bottom:1px solid var(--bd)"></div>' +
+    '<div id="dedup-result-list" style="flex:1;overflow-y:auto;padding:8px 0"></div>' +
+    "</div>";
+  const panel = container.querySelector("#dedup-config-panel") as HTMLElement | null;
+  if (panel) initDedupConfig(panel);
+  const doDedup = (): void => {
+    const listEl = container.querySelector("#dedup-result-list");
+    if (listEl)
+      startDedup(
+        listEl as HTMLElement,
+        (s: unknown) => esc(String(s || "")),
+        dedupType,
+      );
+  };
+  container.querySelector("#dedup-start-btn")?.addEventListener("click", doDedup);
+  // 全局类型切换时自动复扫
+  const unsub = bus.on("repo:rtype-changed", (rt) => {
+    if (rt !== dedupType) {
+      dedupType = rt;
+      doDedup();
+    }
+  });
+  return unsub;
+}
+
+/**
+ * 初始化「最近/最旧模型」tab，返回清理函数
+ */
+async function initOldestTab(host: AppContentHost, container: HTMLElement): Promise<(() => void) | null> {
+  const oldestCleanup = await loadOldestModel(container, (s) => esc(s));
+  return oldestCleanup;
 }
 
 /**
