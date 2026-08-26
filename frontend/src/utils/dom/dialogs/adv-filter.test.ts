@@ -2,18 +2,20 @@
 // 覆盖：初始值回填、应用/清除/取消/Esc/overlay 点击、验证失败拦截、Enter 提交、标签提示加载
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { closeDlgMock, registerDlgMock, AllTagsMock } = vi.hoisted(() => ({
+const { closeDlgMock, registerDlgMock, trapFocusMock, AllTagsMock } = vi.hoisted(() => ({
   closeDlgMock: vi.fn(
     (_o: unknown, resolve?: (r: unknown) => void, result?: unknown) =>
       resolve?.(result),
   ),
   registerDlgMock: vi.fn(),
+  trapFocusMock: vi.fn(),
   AllTagsMock: vi.fn(),
 }));
 
 vi.mock("./modal.ts", () => ({
   closeDlg: closeDlgMock,
   registerDlg: registerDlgMock,
+  trapFocus: trapFocusMock,
   esc: (s: unknown): string => String(s),
 }));
 

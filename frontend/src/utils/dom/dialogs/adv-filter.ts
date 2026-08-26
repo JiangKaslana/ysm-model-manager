@@ -5,7 +5,7 @@
 // 后端约束：当前 Go SearchModels 只支持 (minBones, maxBones, minCubes, maxCubes, minTex, maxTex) 6 个范围 + 1 个关键字；
 //   不支持文件大小、排序（避免展示无效控件）
 import { esc } from "../html.ts";
-import { closeDlg, registerDlg } from "./modal.ts";
+import { closeDlg, registerDlg, trapFocus } from "./modal.ts";
 import { getApp } from "../../../backend/app.ts";
 import { t } from "../../../core/i18n/t.ts";
 import {
@@ -199,6 +199,7 @@ export function modalAdvFilter(opts: { value?: Partial<AdvFilterValue> } = {}): 
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     registerDlg(overlay, () => closeDlg(overlay, resolve, null));
+    trapFocus(overlay); // #3：Tab 焦点锁在弹窗内，防逃逸到背后页面（修复陷阱 #14 变体）
 
     const kwInput = box.querySelector("#afv-kw") as HTMLInputElement;
     const tagInput = box.querySelector("#afv-tag") as HTMLInputElement;

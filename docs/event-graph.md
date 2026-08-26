@@ -436,10 +436,10 @@
 | `frontend/src/utils/3d/adapters/mount-preview-core.ts` | 823 |
 | `frontend/src/utils/3d/adapters/switch-preview.ts` | 136 |
 | `frontend/src/utils/3d/adapters/switch-preview.ts` | 226 |
-| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 101 |
-| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 391 |
-| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 405 |
-| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 425 |
+| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 94 |
+| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 386 |
+| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 400 |
+| `frontend/src/utils/dom/dialogs/batch-rename.ts` | 420 |
 | `frontend/src/utils/dom/directory-picker.ts` | 33 |
 | `frontend/src/utils/dom/directory-picker.ts` | 44 |
 | `frontend/src/utils/dom/directory-picker.ts` | 56 |

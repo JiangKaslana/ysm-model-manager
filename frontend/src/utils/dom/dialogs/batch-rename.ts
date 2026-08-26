@@ -3,7 +3,7 @@
 import { bus } from "../../../bus.ts";
 import { parseModelName, type ParsedModelName } from "../../../utils/dom/display.ts";
 import { stagger } from "../../../utils/animation/stagger.ts";
-import { registerDlg, closeDlg } from "./modal.ts";
+import { registerDlg, closeDlg, trapFocus } from "./modal.ts";
 import { esc } from "../../../utils/dom/html.ts";
 import { rebuildParsedName, applyReplaceToName } from "./batch-rename-util.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
@@ -37,11 +37,9 @@ interface BatchItem {
 
 interface DgBrShell {
   items: BatchItem[];
-  getDialogEl: () => HTMLElement | null;
-  setDialogEl: (el: HTMLElement | null) => void;
-  getClose: () => () => void;
-  getPendingResolve: () => (() => void) | null;
-  setPendingResolve: (fn: (() => void) | null) => void;
+  overlay: HTMLElement;
+  pendingResolve: (() => void) | null;
+  closed: boolean;
   brTimers: Array<ReturnType<typeof setTimeout> | null>;
   batchAuthor: HTMLInputElement | null;
   batchWork: HTMLInputElement | null;
@@ -56,13 +54,8 @@ interface DgBrShell {
   presetsMenu: HTMLElement | null;
 }
 
-let dialogEl: HTMLElement | null = null;
-let _pendingResolve: (() => void) | null = null;
-
-export function __resetBatchRenameForTest(): void {
-  dialogEl = null;
-  _pendingResolve = null;
-}
+// 弹窗状态（dialogEl / pendingResolve / closed）已收进 DgBrShell 实例；
+// 单例由 modal.ts registerDlg 槽位统一保证，不再用模块级全局（修复 #1 并发覆盖风险）。
 
 function dgBrParseItems(entries: BatchEntry[]): BatchItem[] {
   return entries.map((e) => {
@@ -209,44 +202,45 @@ function dgBrRenderPreview(el: HTMLElement | null, items: BatchItem[]): void {
   }
 }
 
-function dgBrClose(): void {
-  if (dialogEl) {
-    const el = dialogEl;
-    const timers = (el as HTMLElement & { _brTimers?: ReturnType<typeof setTimeout>[] })._brTimers;
-    if (timers) timers.forEach((t) => clearTimeout(t));
-    dialogEl = null;
-    const res = _pendingResolve;
-    _pendingResolve = null;
-    closeDlg(el, () => res?.(), undefined);
-  }
+function dgBrClose(shell: DgBrShell): void {
+  if (shell.closed) return;
+  shell.closed = true;
+  const timers = shell.brTimers;
+  if (timers) timers.forEach((t) => t && clearTimeout(t));
+  const res = shell.pendingResolve;
+  shell.pendingResolve = null;
+  closeDlg(shell.overlay, () => res?.(), undefined);
 }
 
-function dgBrBuildOverlay(dir: string, items: BatchItem[], closeFn: () => void): { shell: DgBrShell; thisEl: HTMLElement } {
+function dgBrBuildOverlay(dir: string, items: BatchItem[], pendingResolve: () => void): {
+  shell: DgBrShell;
+  overlay: HTMLElement;
+  closeFn: () => void;
+} {
   const el = document.createElement("div");
   el.tabIndex = 0;
   el.className = "dlg-overlay";
-  el.style.background = "rgba(0,0,0,.55)";
+  // 遮罩背景不再内联硬编码：由 .dlg-overlay CSS 类统一提供（#4 / R5 样式令牌红线）
+  let shell: DgBrShell;
+  const closeFn = (): void => dgBrClose(shell);
   el.addEventListener("keydown", (e: KeyboardEvent): void => {
     if (e.key === "Escape") closeFn();
     if (e.key === "Enter") {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "BUTTON" || e.isComposing)) return;
-      const applyBtn = el?.querySelector("#br-apply") as HTMLButtonElement | null;
+      const applyBtn = el.querySelector("#br-apply") as HTMLButtonElement | null;
       if (applyBtn && !applyBtn.disabled) applyBtn.click();
     }
   });
   el.innerHTML = dgBrGenHTML(dir, items);
   document.body.appendChild(el);
   const brTimers: Array<ReturnType<typeof setTimeout> | null> = [null, null];
-  (el as HTMLElement & { _brTimers?: Array<ReturnType<typeof setTimeout> | null> })._brTimers = brTimers;
 
-  const shell: DgBrShell = {
+  shell = {
     items,
-    getDialogEl: () => dialogEl,
-    setDialogEl: (v) => (dialogEl = v),
-    getClose: () => closeFn,
-    getPendingResolve: () => _pendingResolve,
-    setPendingResolve: (v) => (_pendingResolve = v),
+    overlay: el,
+    pendingResolve,
+    closed: false,
     brTimers,
     batchAuthor: el.querySelector("#br-batch-author") as HTMLInputElement | null,
     batchWork: el.querySelector("#br-batch-work") as HTMLInputElement | null,
@@ -261,13 +255,14 @@ function dgBrBuildOverlay(dir: string, items: BatchItem[], closeFn: () => void):
     presetsMenu: el.querySelector("#br-presets-menu") as HTMLElement | null,
   };
 
-  const thisEl = el;
-  registerDlg(thisEl, () => {
-    if (dialogEl === thisEl) closeFn();
+  // 单例由 registerDlg 槽位保证（与 modal.ts 四个标准弹窗一致）；cancelClose 走身份守卫防重复结算
+  registerDlg(el, () => {
+    if (!shell.closed) closeFn();
   });
+  trapFocus(el); // #3 等价：Tab 焦点锁在弹窗内（修复陷阱 #14 变体）
   el.focus();
 
-  return { shell, thisEl };
+  return { shell, overlay: el, closeFn };
 }
 
 function dgBrApplyBatch(shell: DgBrShell): void {
@@ -345,7 +340,7 @@ function dgBrBindReplaceTab(shell: DgBrShell): void {
 }
 
 function dgBrBindModeSwitch(shell: DgBrShell): void {
-  const { items, modeSelect, parseModeEl, replaceModeEl, findInput, replaceInput, regexCb, previewEl, getDialogEl } = shell;
+  const { items, modeSelect, parseModeEl, replaceModeEl, findInput, replaceInput, regexCb, previewEl } = shell;
   modeSelect?.addEventListener("change", (): void => {
     const isReplace = modeSelect.value === "replace";
     if (parseModeEl) parseModeEl.style.display = isReplace ? "none" : "flex";
@@ -358,7 +353,7 @@ function dgBrBindModeSwitch(shell: DgBrShell): void {
         it._author = "";
         it._work = "";
       });
-      const dlgEl = getDialogEl();
+      const dlgEl = shell.overlay;
       const authorInput = dlgEl?.querySelector("#br-batch-author") as HTMLInputElement | null;
       const workInput = dlgEl?.querySelector("#br-batch-work") as HTMLInputElement | null;
       if (authorInput) authorInput.value = "";
@@ -371,7 +366,7 @@ function dgBrBindModeSwitch(shell: DgBrShell): void {
 }
 
 function dgBrBindCancelAndOutside(shell: DgBrShell, thisEl: HTMLElement, closeFn: () => void): void {
-  const { getDialogEl } = shell;
+  // 取消按钮 → 关闭；遮罩点击关闭在此统一管理（与 createDialog 等价）
   thisEl.querySelector("#br-cancel")?.addEventListener("click", closeFn);
   thisEl.addEventListener("click", (e: MouseEvent): void => {
     if (e.target === thisEl) closeFn();
@@ -384,7 +379,7 @@ function dgBrBindApplyClick(
   onApply: (changes: BatchRenameChange[]) => Promise<void>,
   closeFn: () => void,
 ): void {
-  const { items, getDialogEl } = shell;
+  const { items } = shell;
   thisEl.querySelector("#br-apply")?.addEventListener("click", async (): Promise<void> => {
     const changed = items.filter((it) => it.selected && it.changed);
     if (!changed.length) {
@@ -412,7 +407,7 @@ function dgBrBindApplyClick(
     const btn = thisEl.querySelector("#br-apply") as HTMLButtonElement;
     btn.textContent = "⏳ " + t("dialog.executing");
     btn.disabled = true;
-    const applyEl = getDialogEl();
+    const applyEl = shell.overlay;
     try {
       await onApply(
         changed.map((it) => ({
@@ -434,7 +429,7 @@ function dgBrBindApplyClick(
     } finally {
       btn.textContent = "📝 " + t("dialog.doRename");
       btn.disabled = false;
-      if (getDialogEl() === applyEl) closeFn();
+      closeFn();
     }
   });
 }
@@ -444,31 +439,22 @@ export function showBatchRenameDialog(
   entries: BatchEntry[],
   onApply: (changes: BatchRenameChange[]) => Promise<void>,
 ): Promise<void> {
-  if (dialogEl) dgBrClose();
-  let resolvePending!: () => void;
-  const pending = new Promise<void>((r) => (resolvePending = r));
-  _pendingResolve = resolvePending;
+  return new Promise<void>((resolve) => {
+    const items = dgBrParseItems(entries);
+    const { shell, overlay, closeFn } = dgBrBuildOverlay(dir, items, resolve);
 
-  const items = dgBrParseItems(entries);
-  const closeFn = (): void => dgBrClose();
+    dgBrBindParseTab(shell);
+    dgBrBindReplaceTab(shell);
+    dgBrBindModeSwitch(shell);
+    dgBrBindCancelAndOutside(shell, overlay, closeFn);
+    dgBrBindApplyClick(shell, overlay, onApply, closeFn);
 
-  const { shell, thisEl } = dgBrBuildOverlay(dir, items, closeFn);
-  dialogEl = thisEl;
-  shell.setDialogEl(thisEl);
-
-  dgBrBindParseTab(shell);
-  dgBrBindReplaceTab(shell);
-  dgBrBindModeSwitch(shell);
-  dgBrBindCancelAndOutside(shell, thisEl, closeFn);
-  dgBrBindApplyClick(shell, thisEl, onApply, closeFn);
-
-  dgBrUpdateAll(items);
-  if (items[0]) {
-    if (shell.batchAuthor) shell.batchAuthor.value = items[0].p.author;
-    if (shell.batchWork) shell.batchWork.value = items[0].p.work;
-  }
-  dgBrRenderPreview(shell.previewEl, items);
-  dgBrUpdateCount(items);
-
-  return pending;
+    dgBrUpdateAll(items);
+    if (items[0]) {
+      if (shell.batchAuthor) shell.batchAuthor.value = items[0].p.author;
+      if (shell.batchWork) shell.batchWork.value = items[0].p.work;
+    }
+    dgBrRenderPreview(shell.previewEl, items);
+    dgBrUpdateCount(items);
+  });
 }

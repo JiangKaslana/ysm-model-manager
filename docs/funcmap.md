@@ -45,11 +45,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 34 |
 | frontend/ui | 18 | 64 |
-| 前端·工具 | 163 | 645 |
+| 前端·工具 | 163 | 644 |
 | frontend/views | 115 | 333 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **486** | **2053** |
+| **合计** | **486** | **2052** |
 
 ## Go·头像
 
@@ -1802,8 +1802,7 @@
 | `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:31` | — |
 | `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:41` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
 | `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:20` | 应用变更载荷 |
-| `__resetBatchRenameForTest()` | `frontend/src/utils/dom/dialogs/batch-rename:62` | — |
-| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:442` | — |
+| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:437` | — |
 | `trapFocus()` | `frontend/src/utils/dom/dialogs/modal:25` | 焦点陷阱：Tab 键在弹窗内可聚焦元素间循环，防止焦点逃逸到背后页面 |
 | `closeDlg()` | `frontend/src/utils/dom/dialogs/modal:53` | 带退场动画关闭对话框 |
 | `__resetModalStateForTest()` | `frontend/src/utils/dom/dialogs/modal:81` | 测试钩子：重置活动弹窗单例槽位（isolate:false 共享模块图下，兄弟文件残留的 _activeOverlay 会让「无活动弹窗」断言失真；web-store.__rese |

@@ -4,18 +4,28 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { bus } from "../../../bus.ts";
 
-const { closeDlgMock, registerDlgMock } = vi.hoisted(() => ({
-  closeDlgMock: vi.fn((_o: unknown, resolve?: () => void) => resolve?.()),
-  registerDlgMock: vi.fn(),
-}));
+const { closeDlgMock, registerDlgMock, trapFocusMock, activeCancelRef } = vi.hoisted(() => {
+  // 模拟 modal.ts registerDlg 的真实单例语义：登记新弹窗前先结算旧弹窗的取消回调
+  const activeCancelRef = { current: null as (() => void) | null };
+  return {
+    closeDlgMock: vi.fn((_o: unknown, resolve?: () => void) => resolve?.()),
+    registerDlgMock: vi.fn((_overlay: HTMLElement, cancelClose: () => void) => {
+      if (activeCancelRef.current) activeCancelRef.current();
+      activeCancelRef.current = cancelClose;
+    }),
+    trapFocusMock: vi.fn(),
+    activeCancelRef,
+  };
+});
 
 vi.mock("./modal.ts", () => ({
   registerDlg: registerDlgMock,
   closeDlg: closeDlgMock,
+  trapFocus: trapFocusMock,
   esc: (s: unknown): string => String(s),
 }));
 
-import { showBatchRenameDialog, __resetBatchRenameForTest } from "./batch-rename.ts";
+import { showBatchRenameDialog } from "./batch-rename.ts";
 import type { BatchRenameChange } from "./batch-rename.ts";
 
 async function open(entries: Array<{ Name: string; Path?: string }>) {
@@ -30,7 +40,7 @@ beforeEach(() => {
   document.body.innerHTML = "";
   closeDlgMock.mockClear();
   registerDlgMock.mockClear();
-  __resetBatchRenameForTest(); // 重置模块级 dialogEl（防 isolate:false 跨文件残留）
+  activeCancelRef.current = null; // 重置单例槽位（防 isolate:false 跨文件残留）
 });
 
 afterEach(() => {
