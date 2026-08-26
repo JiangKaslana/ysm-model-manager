@@ -1139,10 +1139,10 @@
 | `importFolder()` | `frontend/src/features/import-executor:140` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） rtype：页面上下文类型（当前树根属性，派生自注册表路由配置）——非空走 Im |
 | `executeCollected()` | `frontend/src/features/import-executor:228` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
 | `importWebFilesWithToast()` | `frontend/src/features/import-executor:253` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
-| `loadOldestModel()` | `frontend/src/features/oldest-models:43` | 加载资历最深、仓库评分、热力图和每日推荐 |
-| `RecycleHost()` | `frontend/src/features/recycle-bin:33` | app-content 组件实例（initRecycleBin 依赖的成员）。 |
-| `isPathInRoot()` | `frontend/src/features/recycle-bin:42` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
-| `initRecycleBin()` | `frontend/src/features/recycle-bin:52` | 初始化回收站管理，返回清理函数 |
+| `loadOldestModel()` | `frontend/src/features/oldest-models:290` | — |
+| `RecycleHost()` | `frontend/src/features/recycle-bin:23` | — |
+| `isPathInRoot()` | `frontend/src/features/recycle-bin:33` | — |
+| `initRecycleBin()` | `frontend/src/features/recycle-bin:235` | — |
 | `currentRepoType()` | `frontend/src/features/repo-rtype:18` | 读取当前仓库资源类型（时刻值）。 |
 | `useCurrentResourceType()` | `frontend/src/features/repo-rtype:28` | 订阅当前仓库资源类型。 |
 | `UpdateInfo()` | `frontend/src/features/version-updater:13` | 更新信息（CheckUpdate 返回） |
