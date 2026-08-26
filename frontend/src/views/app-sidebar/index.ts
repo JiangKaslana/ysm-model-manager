@@ -132,6 +132,31 @@ function asbResolveTypes(t: string): string[] {
   return t === "all" ? ALL_RESOURCE_TYPES : [t];
 }
 
+// push/pull 前置守卫共用的入闸流程（取 selected → 判空 toast → 置 inprogress → 关菜单 → 按钮 loading）
+function asbBeginSync(
+  e: Event,
+  verb: string,
+  ctx: AsbSidebarContext,
+  flags: AsbSyncFlags,
+  closeAll: () => void,
+  btn: HTMLButtonElement,
+): string[] | null {
+  const target = e.target as HTMLElement | null;
+  const item = target ? target.closest(".dd-item") : null;
+  if (!item) return null;
+  const selected = asbGetSelected(ctx);
+  if (!selected.length) {
+    bus.emit("toast:show", { msg: `请先勾选要${verb}的整合包`, duration: 2000, type: "info" });
+    return null;
+  }
+  if (flags.getSyncInProgress()) return null;
+  flags.setSyncInProgress(true);
+  closeAll();
+  btn.textContent = "⏳";
+  btn.disabled = true;
+  return selected;
+}
+
 function asbBindToggleMenu(
   btn: HTMLButtonElement,
   menu: HTMLElement,
@@ -155,24 +180,13 @@ function asbHandlePushMenuClick(
   ctx: AsbSidebarContext,
   flags: AsbSyncFlags,
 ): void {
-  const target = e.target as HTMLElement | null;
-  const item = target ? target.closest(".dd-item") : null;
-  if (!item) return;
-  const selected = asbGetSelected(ctx);
-  if (!selected.length) {
-    bus.emit("toast:show", { msg: "请先勾选要推送的整合包", duration: 2000, type: "info" });
-    return;
-  }
-  if (flags.getSyncInProgress()) return;
-  flags.setSyncInProgress(true);
-  asbCloseAllMenus(pushMenu, pullMenu);
-  pushBtn.textContent = "⏳";
-  pushBtn.disabled = true;
+  const selected = asbBeginSync(e, "推送", ctx, flags, () => asbCloseAllMenus(pushMenu, pullMenu), pushBtn);
+  if (!selected) return;
   (async () => {
     let skipped = 0;
     let timedOut = 0;
     try {
-      const types = asbResolveTypes((item as HTMLElement).dataset.syncType || "all");
+      const types = asbResolveTypes((e.target as HTMLElement)?.closest<HTMLElement>(".dd-item")?.dataset.syncType || "all");
       for (const insName of selected) {
         for (const rt of types) {
           try {
@@ -247,25 +261,14 @@ function asbHandlePullMenuClick(
   ctx: AsbSidebarContext,
   flags: AsbSyncFlags,
 ): void {
-  const target = e.target as HTMLElement | null;
-  const item = target ? target.closest(".dd-item") : null;
-  if (!item) return;
-  const selected = asbGetSelected(ctx);
-  if (!selected.length) {
-    bus.emit("toast:show", { msg: "请先勾选要拉取的整合包", duration: 2000, type: "info" });
-    return;
-  }
-  if (flags.getSyncInProgress()) return;
-  flags.setSyncInProgress(true);
-  asbCloseAllMenus(pushMenu, pullMenu);
-  pullBtn.textContent = "⏳";
-  pullBtn.disabled = true;
+  const selected = asbBeginSync(e, "拉取", ctx, flags, () => asbCloseAllMenus(pushMenu, pullMenu), pullBtn);
+  if (!selected) return;
   let totalPulled = 0;
   let failed = 0;
   (async () => {
     try {
       const { PullResourceFromInstance } = await getApp();
-      const types = asbResolveTypes((item as HTMLElement).dataset.syncType || "all");
+      const types = asbResolveTypes((e.target as HTMLElement)?.closest<HTMLElement>(".dd-item")?.dataset.syncType || "all");
       for (const insName of selected) {
         const results = await Promise.allSettled(
           types.map((rt) => PullResourceFromInstance(rt, insName)),

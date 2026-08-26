@@ -551,18 +551,20 @@ export class SkyCapability implements SceneCapability {
     return group;
   }
 
+  /** 释放一组 mesh 的 geometry/material（god rays / sunset tint 复用） */
+  private disposeMeshGroup(group: THREE.Object3D | null): void {
+    if (!group) return;
+    group.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.geometry.dispose();
+      const mat = child.material;
+      if (mat instanceof THREE.ShaderMaterial) mat.dispose();
+    });
+  }
+
   /** 创建体积光束 geometry + material */
   private createGodRays(): void {
-    if (this.godRays) {
-      this.godRays.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          const mat = child.material;
-          if (mat instanceof THREE.ShaderMaterial) mat.dispose();
-        }
-      });
-      this.godRays = null;
-    }
+    this.disposeMeshGroup(this.godRays);
     this.godRays = this.createConePlanes();
   }
 
@@ -685,22 +687,10 @@ export class SkyCapability implements SceneCapability {
     (this.envSky.material as THREE.Material).dispose();
     this.pmrem?.dispose();
     // 释放 god rays
-    if (this.godRays) {
-      this.godRays.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          const mat = child.material;
-          if (mat instanceof THREE.ShaderMaterial) mat.dispose();
-        }
-      });
-      this.godRays = null;
-    }
+    this.disposeMeshGroup(this.godRays);
+    this.godRays = null;
     // 释放 sunset tint mesh
-    if (this.sunsetTintMesh) {
-      this.sunsetTintMesh.geometry.dispose();
-      const mat = this.sunsetTintMesh.material;
-      if (mat instanceof THREE.ShaderMaterial) mat.dispose();
-      this.sunsetTintMesh = null;
-    }
+    this.disposeMeshGroup(this.sunsetTintMesh);
+    this.sunsetTintMesh = null;
   }
 }

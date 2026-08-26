@@ -53,7 +53,7 @@
 | `sync:download:missing` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
 | `sync:toggle:status` | 3 | 1 | 0 | 0 | ✅ |
 | `theme:change` | 1 | 0 | 0 | 0 | 🔇 孤儿发射 |
-| `toast:show` | 204 | 2 | 0 | 0 | ✅ |
+| `toast:show` | 203 | 2 | 0 | 0 | ✅ |
 | `tree:reload` | 11 | 1 | 0 | 0 | ✅ |
 | `tree:set-search` | 1 | 1 | 0 | 0 | ✅ |
 
@@ -329,7 +329,7 @@
 | `frontend/src/views/app-content/init-pages.ts` | 74 |
 | `frontend/src/views/app-content/init-pages.ts` | 183 |
 | `frontend/src/views/app-nav/index.ts` | 153 |
-| `frontend/src/views/app-sidebar/index.ts` | 396 |
+| `frontend/src/views/app-sidebar/index.ts` | 399 |
 | `frontend/src/views/app-sync-manager/index.ts` | 171 |
 
 ### `repo:search-creator`
@@ -383,7 +383,7 @@
 | `frontend/src/views/app-content/settings/init.ts` | 198 |
 | `frontend/src/views/app-content/settings/path-cards.ts` | 78 |
 | `frontend/src/views/app-content/settings/path-cards.ts` | 356 |
-| `frontend/src/views/app-sidebar/index.ts` | 285 |
+| `frontend/src/views/app-sidebar/index.ts` | 288 |
 | `frontend/src/views/app-sync-manager/index.ts` | 217 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 76 |
 | `frontend/src/views/app-tree/bus-handlers.ts` | 145 |
@@ -394,7 +394,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/index.ts` | 388 |
+| `frontend/src/views/app-sidebar/index.ts` | 391 |
 | `frontend/src/views/app-sync-manager/index.ts` | 151 |
 
 ### `sync:download:done`
@@ -408,15 +408,15 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/index.ts` | 182 |
-| `frontend/src/views/app-sidebar/index.ts` | 209 |
+| `frontend/src/views/app-sidebar/index.ts` | 196 |
+| `frontend/src/views/app-sidebar/index.ts` | 223 |
 
 ### `sync:download:missing`
 
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/index.ts` | 201 |
+| `frontend/src/views/app-sidebar/index.ts` | 215 |
 
 ### `sync:toggle:status`
 
@@ -582,15 +582,14 @@
 | `frontend/src/views/app-preview/ysm-controls.ts` | 113 |
 | `frontend/src/views/app-sidebar/events.ts` | 118 |
 | `frontend/src/views/app-sidebar/events.ts` | 123 |
-| `frontend/src/views/app-sidebar/index.ts` | 163 |
-| `frontend/src/views/app-sidebar/index.ts` | 227 |
-| `frontend/src/views/app-sidebar/index.ts` | 229 |
-| `frontend/src/views/app-sidebar/index.ts` | 232 |
-| `frontend/src/views/app-sidebar/index.ts` | 255 |
-| `frontend/src/views/app-sidebar/index.ts` | 279 |
-| `frontend/src/views/app-sidebar/index.ts` | 281 |
-| `frontend/src/views/app-sidebar/index.ts` | 283 |
-| `frontend/src/views/app-sidebar/index.ts` | 288 |
+| `frontend/src/views/app-sidebar/index.ts` | 149 |
+| `frontend/src/views/app-sidebar/index.ts` | 241 |
+| `frontend/src/views/app-sidebar/index.ts` | 243 |
+| `frontend/src/views/app-sidebar/index.ts` | 246 |
+| `frontend/src/views/app-sidebar/index.ts` | 282 |
+| `frontend/src/views/app-sidebar/index.ts` | 284 |
+| `frontend/src/views/app-sidebar/index.ts` | 286 |
+| `frontend/src/views/app-sidebar/index.ts` | 291 |
 | `frontend/src/views/app-sidebar/loader.ts` | 145 |
 | `frontend/src/views/app-sync-manager/index.ts` | 148 |
 | `frontend/src/views/app-sync-manager/network.ts` | 43 |
@@ -670,7 +669,7 @@
 | `frontend/src/features/recycle-bin.ts` | 79 |
 | `frontend/src/features/recycle-bin.ts` | 192 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 392 |
-| `frontend/src/views/app-sidebar/index.ts` | 286 |
+| `frontend/src/views/app-sidebar/index.ts` | 289 |
 
 **订阅方（on）：**
 | 文件 | 行 |

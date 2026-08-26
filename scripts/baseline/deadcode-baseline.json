@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-25T00:55:07.463Z",
+  "generated": "2026-08-26T00:41:05.401Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|esbuild",
@@ -42,7 +42,6 @@
     "src/utils/3d/adapters/mmd-ktx2-basis.ts|types|BasisModuleLike",
     "src/utils/3d/adapters/mmd-texture-decoder.ts|types|TexDecodeConfig",
     "src/utils/3d/adapters/preview-menu-defs.ts|types|PreviewMenuGroupId",
-    "src/utils/3d/adapters/preview-menu-node-types.ts|types|PreviewActionMenuCtx",
     "src/utils/3d/adapters/preview-menu-node-types.ts|types|PreviewControlSpec",
     "src/utils/3d/adapters/preview-menu-node-types.ts|types|PreviewMenuNodeKind",
     "src/utils/3d/adapters/preview-menu-node-types.ts|types|PreviewStatePath",
@@ -72,6 +71,7 @@
     "src/utils/3d/semantic-morphs.ts|exports|MMD_SEMANTIC_MORPH_CANDIDATES",
     "src/utils/3d/semantic-morphs.ts|exports|SEMANTIC_MORPH_IDS",
     "src/utils/3d/spec-builder.ts|types|SubModel",
+    "src/utils/animation/animation-controller.ts|types|ControllerTransition",
     "src/utils/animation/animation.ts|exports|evaluateKeyframesInto",
     "src/utils/animation/animation.ts|types|MolangAxes",
     "src/utils/animation/molang-lib/molang-prism-syntax.js|file|src/utils/animation/molang-lib/molang-prism-syntax.js",
