@@ -57,7 +57,7 @@ invariant_anchors:
 - `List` — 列出回收站条目（ADR-038 D3.4：含 `ysm.json` 的目录合并为单一条目并 `SkipDir`，`Size` 用 `dirSize` 递归求和；其余按 `.ban` 或受支持扩展名过滤）
 - `Restore` — 恢复到原位（目标冲突自动加 `(1)` 后缀；先 `os.Rename`，失败则目录 `copyDirRecursive`、文件 `copyFile` 后删源，复制失败清理半截目标）
 - `Delete` — 永久删除单个（目录用 `RemoveAll`，因整组条目 `Path` 指向目录）；`Empty` — 清空回收站（先 `List` 计数 → `RemoveAll` → 重建目录）
-- `recycle_clean.go` — 回收站过期清理
+- `recycle_clean.go` — 回收站过期清理；`RemoveRepoDuplicates(dir, filesRoot, recycleRoot)` 清理整合包中仓库已有副本：**文件名命中 + SHA256 内容一致**才删（scanner.ComputeFileHash，候选哈希带缓存；哈希失败/超限保守保留）——语义归 [go_installer](./go-installer.md)「保留自装」备案；`DeduplicateEntries` 按 SHA256 分组保序留一
 
 ## 与其他子系统关系
 
