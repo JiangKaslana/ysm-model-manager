@@ -143,45 +143,42 @@ func WriteFileAtomic(destPath string, data []byte) error {
 }
 
 // DetectZipType 扫描容器条目名识别资源类型
-// 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries
-// （exact/prefix/suffix 三种模式），新增类型只需改 JSON，无需改检测器。
-// ADR-082 续：zip 走 local header 字节扫描（轻量），.7z 走 container 枚举（ADR-068 统一
-// 打开）；无特征返回 ""（未知）——不再默认 ysm，识别不出就是识别不出，由调用方决定
-// 报错/降级，杜绝「坏文件假装 YSM 模型」。
+// #5 收敛：收集全部条目名后委托 types.DetectByEntries 做 (priority desc, id asc)
+// 裁决（注册表顺序无关）；无指纹/结果为 "container"/"other" 时返回 ""（未知，
+// 由调用方决定报错/降级——ADR-082 续：识别不出就是识别不出，不假装 YSM）。
 func DetectZipType(data []byte) string {
+	var entries []string
 	if len(data) >= 4 && bytes.HasPrefix(data, sevenZipSig) {
-		// .7z 内容指纹：container.Open7zBytes 枚举条目（ADR-068 统一桥接），
-		// 与 zip 分支同走 MatchZipEntry 注册表指纹
 		r, err := container.Open7zBytes(data, int64(len(data)))
 		if err != nil {
 			return ""
 		}
 		defer r.Close()
 		for _, e := range r.Entries() {
-			if rtype := types.MatchZipEntry(e.Name()); rtype != "" {
-				return rtype
-			}
+			entries = append(entries, e.Name())
 		}
+	} else {
+		idx := 0
+		for idx+30 <= len(data) {
+			if !bytes.HasPrefix(data[idx:idx+4], zipLocalHeaderSig) {
+				break
+			}
+			nameLen := int(data[idx+26]) | int(data[idx+27])<<8
+			extraLen := int(data[idx+28]) | int(data[idx+29])<<8
+			if idx+30+nameLen > len(data) {
+				break
+			}
+			entries = append(entries, string(data[idx+30:idx+30+nameLen]))
+			compSize := int(data[idx+18]) | int(data[idx+19])<<8 | int(data[idx+20])<<16 | int(data[idx+21])<<24
+			idx += 30 + nameLen + extraLen + compSize
+		}
+	}
+	if len(entries) == 0 {
 		return ""
 	}
-	idx := 0
-	for idx+30 <= len(data) {
-		if !bytes.HasPrefix(data[idx:idx+4], zipLocalHeaderSig) {
-			break
-		}
-		nameLen := int(data[idx+26]) | int(data[idx+27])<<8
-		extraLen := int(data[idx+28]) | int(data[idx+29])<<8
-		if idx+30+nameLen > len(data) {
-			break
-		}
-		name := strings.ToLower(string(data[idx+30 : idx+30+nameLen]))
-		if rtype := types.MatchZipEntry(name); rtype != "" {
-			return rtype
-		}
-		// 跳到下一个 entry（跳过压缩数据）
-		compSize := int(data[idx+18]) | int(data[idx+19])<<8 | int(data[idx+20])<<16 | int(data[idx+21])<<24
-		idx += 30 + nameLen + extraLen + compSize
+	id := types.DetectByEntries(entries, types.LoadRegistry())
+	if id == "" || id == types.ClassContainer || id == types.ClassOther {
+		return ""
 	}
-	// 无特征返回空（未知）：识别不出就是识别不出，不再假装 YSM
-	return ""
+	return id
 }

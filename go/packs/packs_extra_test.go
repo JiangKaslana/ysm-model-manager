@@ -160,8 +160,8 @@ func TestDetectResourceType_YsmDetector(t *testing.T) {
 	}
 	// .zip 不含 ysm → 不匹配
 	emptyZip := testutil.WriteZipFile(t, "pack.zip", map[string]string{"readme.txt": "hello"})
-	if got := DetectResourceType(emptyZip, reg); got != "" {
-		t.Errorf("不含 ysm 的 .zip 应不匹配, 得到 %q", got)
+	if got := DetectResourceType(emptyZip, reg); got != "container" {
+		t.Errorf("不含 ysm 的 .zip 应标 container, 得到 %q", got)
 	}
 }
 
@@ -171,7 +171,7 @@ func TestDetectResourceType_NoMatch(t *testing.T) {
 			{ID: "test", Extensions: []string{".foo"}, Detector: "extension"},
 		},
 	}
-	if got := DetectResourceType("/path/file.unknown", reg); got != "" {
-		t.Errorf("不匹配应返回空, 得到 %q", got)
+	if got := DetectResourceType("/path/file.unknown", reg); got != "other" {
+		t.Errorf("不匹配应返回 other, 得到 %q", got)
 	}
 }

@@ -28,11 +28,20 @@ var (
 )
 
 func initExtMap() {
-	extToTypeID = make(map[string]string)
+	count := make(map[string]int)
+	owner := make(map[string]string)
 	reg := types.LoadRegistry()
 	for _, rt := range reg.ResourceTypes {
 		for _, e := range rt.EffectiveExtensions() {
-			extToTypeID[strings.ToLower(e)] = rt.ID
+			low := strings.ToLower(e)
+			count[low]++
+			owner[low] = rt.ID
+		}
+	}
+	extToTypeID = make(map[string]string)
+	for e, n := range count {
+		if n == 1 {
+			extToTypeID[e] = owner[e]
 		}
 	}
 }
@@ -349,9 +358,8 @@ func isModelFileValid(path, ext string) bool {
 }
 
 // Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。
-// 注册表驱动——新增类型只需在 resource_types.json 添加条目，无需改本函数。
-// 未命中任何类型 → "other"。导出供 resource-scan/审计共用，唯一实现防双轨。
-// 性能：首次调用 sync.Once 构建预计算 ext→id map，后续 O(1) 查表。
+// 单一声明者直判——零或多声明者返回 "other"（禁 last-wins，共享扩展名靠
+// 扩展名判型本身就是回归根源）。导出供 resource-scan/审计兜底共用。
 func Classify(ext string) string {
 	extToTypeIDMu.Do(initExtMap)
 	id, ok := extToTypeID[strings.ToLower(strings.TrimSpace(ext))]

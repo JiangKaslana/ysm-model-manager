@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
@@ -135,239 +134,26 @@ func ReadPackMeta(path string) (*types.PackMeta, string, error) {
 	return &meta, thumb, nil
 }
 
-// DetectResourceType 检测文件属于哪种资源类型
-// Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir，
-// 解决 MMD 子类型共享扩展名（EntityPlayer/SceneModel 都 .pmx）的歧义。
-// Phase 2（扩展名兜底）：按现有逻辑遍历，路径消歧未命中时使用。
-// 禁用后缀文件（.disabled/.ban）：扩展名推导前剥离后缀（c08c62bc P3 回归——
-// 否则 ToggleEnable 改名后的 xxx.zip.disabled 判不出容器类型，跨 tab 泄漏；
-// 打开文件仍用真实路径，剥离只影响扩展名判定）。
+// DetectResourceType 薄壳委托 types.ClassifyResource（#5 收敛：三套编排统一于 types 包，
+// packs 不再持有独立分类逻辑）。签名保持不变——cli/flow.go classifyForScan 直接调用。
 func DetectResourceType(path string, registry *types.ResourceTypeRegistry) string {
-	if registry == nil || len(registry.ResourceTypes) == 0 {
-		return ""
-	}
-	ext := strings.ToLower(filepath.Ext(types.StripDisableSuffix(path)))
-	isContainer := types.IsContainerExt(ext)
-
-	// Phase 1：路径消歧——当类型共享扩展名时，用 InstanceDir 区分
-	if id := detectByPathDisambiguation(path, ext, isContainer, registry); id != "" {
-		return id
-	}
-
-	// Phase 2：扩展名兜底——指纹 pass/fail 竞争，通过者按 Priority 裁决
-	// （专用指纹类型 > 通用指纹类型），同 Priority 取注册表顺序在前者。
-	// 容器只打开一次：所有容器指纹类型共享同一份条目列表（发现3 P3），
-	// 跨类型不比较匹配条目数——模式宽窄不可比（shaderpack 的 shaders/ 前缀可匹配
-	// 多条目，resourcepack 的 pack.mcmeta 至多 1 条，比数会把资源包误判为光影包，发现1 P2）。
-	var bestID string
-	bestPriority := 0
-	var containerEntries []container.Entry
-	var containerOpened bool
-	for _, rt := range registry.ResourceTypes {
-		if !hasExt(ext, rt.EffectiveExtensions()) {
-			continue
-		}
-		pass := false
-		if isContainer && (rt.Detector == "ysm" || rt.Detector == "zipentry" || rt.Detector == "mcmeta" || rt.Detector == "shader") {
-			// 容器指纹类型共享一次打开：ysm 走段后缀指纹，其余走 ZipEntries 匹配
-			if !containerOpened {
-				containerOpened = true
-				if r, err := container.Open(path); err == nil {
-					containerEntries = r.Entries()
-					r.Close()
-				}
-			}
-			if rt.Detector == "ysm" {
-				pass = matchYsmEntries(containerEntries)
-			} else {
-				pass = countZipEntryMatches(containerEntries, &rt) > 0
-			}
-		} else if detectorPasses(path, ext, isContainer, &rt) {
-			pass = true
-		}
-		if !pass {
-			continue
-		}
-		if bestID == "" || rt.Priority > bestPriority {
-			bestID = rt.ID
-			bestPriority = rt.Priority
-		}
-	}
-	return bestID
+	return types.ClassifyResource(path, registry)
 }
 
-// detectByPathDisambiguation 路径消歧：遍历文件所有祖先目录（深→浅），检查是否匹配某类型的
-// InstanceDir/StorageSubDir。祖先目录外层优先——最深匹配的子类型（如 DefaultMorph）无论注册表
-// 顺序如何都能打赢外层父类型（如 EntityPlayer）。仅在扩展名也匹配时才返回——确保路径消歧
-// 不会跨组误判（如 .pmx 只在 MMD 组内消歧）。
-func detectByPathDisambiguation(path string, ext string, isContainer bool, registry *types.ResourceTypeRegistry) string {
-	dir := filepath.Dir(path)
-	if dir == "." {
-		return ""
-	}
-
-	// 收集所有祖先目录（深→浅，与 TypeByLocation 对齐）
-	// Windows 盘符根（如 "D:"）filepath.Dir 返回自身，需显式终止
-	var ancestors []string
-	d := dir
-	for d != "." && d != string(filepath.Separator) {
-		ancestors = append(ancestors, d)
-		parent := filepath.Dir(d)
-		if parent == d {
-			break
-		}
-		d = parent
-	}
-
-	// 预过滤：只保留有候选目录且扩展名匹配的类型（避免对每个祖先重复检查）
-	type disambCandidate struct {
-		rt         *types.ResourceType
-		candidates []string // 非空的 InstanceDir/StorageSubDir
-	}
-	var filtered []disambCandidate
-	for i := range registry.ResourceTypes {
-		rt := &registry.ResourceTypes[i]
-		cands := make([]string, 0, 2)
-		if rt.InstanceDir != "" {
-			cands = append(cands, rt.InstanceDir)
-		}
-		if rt.StorageSubDir != "" {
-			cands = append(cands, rt.StorageSubDir)
-		}
-		if len(cands) == 0 {
-			continue
-		}
-		if !hasExt(ext, rt.EffectiveExtensions()) {
-			continue
-		}
-		filtered = append(filtered, disambCandidate{rt: rt, candidates: cands})
-	}
-	if len(filtered) == 0 {
-		return ""
-	}
-
-	// 深度优先：外层遍历祖先（深→浅），内层遍历类型
-	// 最深匹配的祖先无论类型注册顺序如何都优先命中——修复 mmd/PMX/DefaultMorph/x.zip
-	// 被外层 EntityPlayer 抢走的子类型化场景（2026-08-23 修复）
-	for _, anc := range ancestors {
-		ancNorm := filepath.ToSlash(strings.ToLower(anc))
-		for _, dc := range filtered {
-			for _, c := range dc.candidates {
-				cNorm := filepath.ToSlash(strings.ToLower(c))
-				if strings.HasSuffix(ancNorm, "/"+cNorm) || ancNorm == cNorm {
-					if detectorPasses(path, ext, isContainer, dc.rt) {
-						return dc.rt.ID
-					}
-				}
-			}
-		}
-	}
-	return ""
+// isYsmFile 薄壳委托 types.IsYsmFile（#5 收敛）。
+// 保留 packs 包可见性——packs_extra_test.go/mcmeta_test.go 直接引用。
+func isYsmFile(path string) bool {
+	return types.IsYsmFile(path)
 }
 
-// detectorPasses 检查文件是否通过指定类型的 detector 判定（抽公共逻辑供两条路径复用）
-func detectorPasses(path string, ext string, isContainer bool, rt *types.ResourceType) bool {
-	switch strings.ToLower(rt.Detector) {
-	case "ysm":
-		return isYsmFile(path)
-	case "mcmeta", "shader":
-		return isContainer && matchZipArchive(path, rt)
-	case "zipentry":
-		if isContainer {
-			return matchZipArchive(path, rt)
-		}
-		return hasExt(ext, rt.EffectiveExtensions())
-	case "", "extension":
-		return hasExt(ext, rt.EffectiveExtensions())
-	default:
-		return hasExt(ext, rt.EffectiveExtensions())
-	}
-}
-
-// matchZipArchive 打开容器（.zip/.7z）并按 rt.ZipEntries 内容指纹匹配（ADR-067/068）：
-// 走 container 统一打开——.7z 也参与内容指纹（ADR-067 §3 遗留，原仅 zip；
-// sevenzip 只读但可枚举条目）。条目名统一 lowercase（与 MatchZipEntry 内部 ToLower 幂等）。
-func matchZipArchive(path string, rt *types.ResourceType) bool {
-	return matchZipArchiveCount(path, rt) > 0
-}
-
-// matchZipArchiveCount 打开容器并返回匹配的条目数（供 matchZipArchive 使用；
-// Phase 2 多类型竞争请用 countZipEntryMatches 共享一次打开）
-func matchZipArchiveCount(path string, rt *types.ResourceType) int {
-	r, err := container.Open(path)
-	if err != nil {
-		return 0
-	}
-	defer r.Close()
-	return countZipEntryMatches(r.Entries(), rt)
-}
-
-// countZipEntryMatches 对已打开的条目列表统计匹配数（去重：同一文件被多条规则
-// 命中只计一次；Phase 2 所有容器类型共享一次打开后逐类型计数）
-func countZipEntryMatches(entries []container.Entry, rt *types.ResourceType) int {
-	count := 0
-	matchedEntries := make(map[string]bool)
-	for _, e := range entries {
-		entryName := e.Name()
-		if rt.MatchZipEntry(entryName) {
-			if !matchedEntries[entryName] {
-				matchedEntries[entryName] = true
-				count++
-			}
-		}
-	}
-	return count
-}
-
-// matchYsmEntries 对已打开的条目列表做 ysm 指纹判定（ysm.json / models/ 任意层级段后缀），
-// 与 isYsmFile 的容器分支同口径（ADR-082 S1）；Phase 2 共享一次打开后复用
-func matchYsmEntries(entries []container.Entry) bool {
-	for _, e := range entries {
-		segs := strings.Split(filepath.ToSlash(strings.ToLower(e.Name())), "/")
-		for i := range segs {
-			seg := strings.Join(segs[i:], "/")
-			if types.IsYsmEntryJSON(seg) || strings.HasPrefix(seg, "models/") {
-				return true
-			}
-		}
-	}
-	return false
-}
-
+// hasExt 扩展名集合成员判定（测试直接引用，保留）。
 func hasExt(ext string, exts []string) bool {
 	for _, e := range exts {
-		// 注册表扩展名大小写归一（与 types.IsSupportedExt 口径一致）
 		if ext == strings.ToLower(e) {
 			return true
 		}
 	}
 	return false
-}
-
-// isYsmFile 检查文件是否为 YSM 模型
-// .ysm → 直接返回 true；.json → 仅 ysm.json 入口清单算模型（scanner 同口径，动画/动作 json 不算）；
-// .zip/.7z → 统一走 container 打开 + ysm.json/models/ 任意层级指纹（ADR-082 续：
-// 不再对 .7z 扩展名直判——坏容器打开失败即 false，识别不出就是识别不出）
-func isYsmFile(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext == ".ysm" {
-		return true
-	}
-	if ext == ".json" {
-		// 注册表声明 .json 为 YSM 扩展，但只有 ysm.json 算独立模型文件
-		return types.IsYsmEntryJSON(filepath.Base(path))
-	}
-	if !types.IsContainerExt(ext) {
-		return false
-	}
-	// .zip/.7z 统一走 container（ADR-068）：任意层级段后缀匹配（ADR-082 S1 与
-	// types.MatchZipEntry 同构）——ys m.json / models/ 命中任意层级；坏容器返回 false
-	r, err := container.Open(path)
-	if err != nil {
-		return false
-	}
-	defer r.Close()
-	return matchYsmEntries(r.Entries())
 }
 
 // ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名

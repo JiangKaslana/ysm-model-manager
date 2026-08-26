@@ -33,7 +33,7 @@
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 7 | 93 |
+| Go·类型 | 8 | 101 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -49,7 +49,7 @@
 | frontend/views | 115 | 333 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **486** | **2052** |
+| **合计** | **487** | **2060** |
 
 ## Go·头像
 
@@ -260,7 +260,7 @@
 |------|--------|------|
 | `ImportFromBase64()` | `go/importer/importer_file:39` | ImportFromBase64 从 base64 导入模型文件（校验 + 类型检测 + 写文件） rootFn 按资源类型返回仓库根目录（薄壳注入 a.GetRepoRoot） |
 | `WriteFileAtomic()` | `go/importer/importer_file:135` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
-| `DetectZipType()` | `go/importer/importer_file:151` | DetectZipType 扫描容器条目名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries （exact/pr |
+| `DetectZipType()` | `go/importer/importer_file:149` | DetectZipType 扫描容器条目名识别资源类型 #5 收敛：收集全部条目名后委托 types.DetectByEntries 做 (priority desc, id as |
 | `ImportOptions()` | `go/importer/importer_file:29` | ImportOptions 导入选项 |
 | `ImportLogger()` | `go/importer/importer_file:35` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
 | `Register()` | `go/importer/importer:34` | Register 注册导入策略（线程安全） |
@@ -342,9 +342,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ReadPackMeta()` | `go/packs/mcmeta:35` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
-| `DetectResourceType()` | `go/packs/mcmeta:145` | DetectResourceType 检测文件属于哪种资源类型 Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir， 解决 MMD 子类型共享扩展名 |
-| `ReadShaderpackLang()` | `go/packs/mcmeta:375` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
+| `ReadPackMeta()` | `go/packs/mcmeta:34` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
+| `DetectResourceType()` | `go/packs/mcmeta:139` | DetectResourceType 薄壳委托 types.ClassifyResource（#5 收敛：三套编排统一于 types 包， packs 不再持有独立分类逻辑）。签名 |
+| `ReadShaderpackLang()` | `go/packs/mcmeta:161` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
 
 ## Go·路径
 
@@ -386,15 +386,15 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Audit()` | `go/repoaudit/repoaudit:115` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
-| `HealthReportFor()` | `go/repoaudit/repoaudit:241` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
-| `Classify()` | `go/repoaudit/repoaudit:355` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
-| `Result()` | `go/repoaudit/repoaudit:55` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
-| `Completeness()` | `go/repoaudit/repoaudit:66` | Completeness 完整性统计 |
-| `CacheStatus()` | `go/repoaudit/repoaudit:74` | CacheStatus 缓存状态 |
-| `ResourceSummary()` | `go/repoaudit/repoaudit:84` | ResourceSummary 资源统计 |
-| `DedupSummary()` | `go/repoaudit/repoaudit:93` | DedupSummary 去重维度汇总（HealthReport 追加） |
-| `HealthReport()` | `go/repoaudit/repoaudit:100` | HealthReport 完整体检：审计 + 去重（GUI 与 CLI health-report 同一载荷） |
+| `Audit()` | `go/repoaudit/repoaudit:124` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
+| `HealthReportFor()` | `go/repoaudit/repoaudit:250` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
+| `Classify()` | `go/repoaudit/repoaudit:363` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
+| `Result()` | `go/repoaudit/repoaudit:64` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
+| `Completeness()` | `go/repoaudit/repoaudit:75` | Completeness 完整性统计 |
+| `CacheStatus()` | `go/repoaudit/repoaudit:83` | CacheStatus 缓存状态 |
+| `ResourceSummary()` | `go/repoaudit/repoaudit:93` | ResourceSummary 资源统计 |
+| `DedupSummary()` | `go/repoaudit/repoaudit:102` | DedupSummary 去重维度汇总（HealthReport 追加） |
+| `HealthReport()` | `go/repoaudit/repoaudit:109` | HealthReport 完整体检：审计 + 去重（GUI 与 CLI health-report 同一载荷） |
 
 ## go/rustbridge
 
@@ -525,6 +525,14 @@
 | `YsmMetadata()` | `go/types/bedrock:79` | YsmMetadata ysm.json 的 metadata 段（模型详情：名称/许可/作者/链接）。 |
 | `YsmLicense()` | `go/types/bedrock:88` | YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}） |
 | `YsmAuthor()` | `go/types/bedrock:94` | YsmAuthor 作者条目 |
+| `ClassifyResource()` | `go/types/classify:37` | ClassifyResource 规范资源类型识别器（单一事实源）。 |
+| `ClassifyExt()` | `go/types/classify:63` | ClassifyExt 扩展名兜底判定：仅单一声明者直判，多/零声明者返回 "other"。 |
+| `ExtBelongsToBy()` | `go/types/classify:72` | ExtBelongsToBy 返回扩展名在指定注册表中的声明者 ID 列表（ExtBelongsTo 的可注入版本）。 |
+| `DetectByEntries()` | `go/types/classify:90` | DetectByEntries 条目名列表指纹裁决（importer 字节流路径专用，不开文件）： 对每个有指纹能力的类型做匹配，(priority desc, id asc) 裁 |
+| `IsYsmFile()` | `go/types/classify:277` | IsYsmFile YSM 模型判定：.ysm 直判；.json 仅 ysm.json 入口清单； .zip/.7z 统一开容器走段后缀指纹（ADR-082 续：坏容器 false |
+| `MatchZipArchive()` | `go/types/classify:292` | MatchZipArchive 打开容器并按 rt.ZipEntries 内容指纹匹配（packs.matchZipArchive 收敛版）。 |
+| `CountZipEntryMatches()` | `go/types/classify:297` | CountZipEntryMatches 对已打开条目统计匹配数（去重：同一文件被多条规则命中只计一次）。 |
+| `MatchYsmEntries()` | `go/types/classify:311` | MatchYsmEntries 对已打开条目做 ysm 段后缀指纹判定（ysm.json/models/ 任意层级）。 |
 | `ParseDedupConfig()` | `go/types/config:105` | ParseDedupConfig 解析去重配置 JSON 字符串（绑定层 configStr 的统一入口）。 |
 | `AppConfig()` | `go/types/config:10` | AppConfig 应用持久化配置 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"）， 取 |
 | `PackInfo()` | `go/types/config:50` | PackInfo 模型整合包信息（ysm-pack.json） |

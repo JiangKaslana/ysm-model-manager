@@ -44,8 +44,8 @@ func TestDetectResourceType_ExtensionOnly(t *testing.T) {
 	if got := DetectResourceType("/path/file.bar", reg); got != "other-type" {
 		t.Errorf("got %q, want other-type", got)
 	}
-	if got := DetectResourceType("/path/file.unknown", reg); got != "" {
-		t.Errorf("got %q, want ''", got)
+	if got := DetectResourceType("/path/file.unknown", reg); got != "other" {
+		t.Errorf("got %q, want 'other'", got)
 	}
 }
 

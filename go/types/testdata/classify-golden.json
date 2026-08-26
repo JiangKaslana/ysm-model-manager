@@ -1,0 +1,82 @@
+[
+  {
+    "path": "mmd/PMX/hatsune/hatsune.pmx",
+    "expect": "EntityPlayer"
+  },
+  {
+    "path": "mmd/PMX/DefaultMorph/face.vpd",
+    "expect": "DefaultMorph"
+  },
+  {
+    "path": "mmd/PMX/SceneModel/stage.pmx",
+    "expect": "SceneModel"
+  },
+  {
+    "path": "mmd/PMX/CustomAnim/dance.vmd",
+    "expect": "CustomAnim"
+  },
+  {
+    "path": "mmd/PMX/CustomMorph/smile.vpd",
+    "expect": "CustomMorph"
+  },
+  {
+    "path": "mmd/PMX/StageAnim/show.vmd",
+    "expect": "StageAnim"
+  },
+  {
+    "path": "mmd/PMX/shader/toon.glsl",
+    "expect": "mmd-shader"
+  },
+  {
+    "path": "mmd/PMX/DefaultAnim/wave.vmd",
+    "expect": "DefaultAnim"
+  },
+  {
+    "path": "config/yes_steve_model/custom/steve.ysm",
+    "expect": "ysm"
+  },
+  {
+    "path": "tlm_custom_pack/assets/mc/maid_model.json",
+    "expect": "maid-model"
+  },
+  {
+    "path": "schematics/gear.zip",
+    "expect": "blueprint",
+    "entries": ["gear.nbt"]
+  },
+  {
+    "path": "gear.zip",
+    "expect": "blueprint",
+    "entries": ["gear.nbt"]
+  },
+  {
+    "path": "schematics/house.zip",
+    "expect": "litematic",
+    "entries": ["house.litematic"]
+  },
+  {
+    "path": "resourcepacks/foo.zip",
+    "expect": "resourcepack",
+    "entries": ["pack.mcmeta"]
+  },
+  {
+    "path": "shaderpacks/bar.zip",
+    "expect": "shaderpack",
+    "entries": ["shaders/bar.fsh"]
+  },
+  {
+    "path": "tlm_custom_pack/maid.zip",
+    "expect": "maid-model",
+    "entries": ["assets/mc/maid_model.json"]
+  },
+  {
+    "path": "3d-skin/EntityPlayer/char.zip",
+    "expect": "EntityPlayer",
+    "entries": ["char.pmx"]
+  },
+  {
+    "path": "random.zip",
+    "expect": "container",
+    "entries": ["readme.txt"]
+  }
+]

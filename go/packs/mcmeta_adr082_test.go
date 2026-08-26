@@ -72,7 +72,7 @@ func TestDetectResourceType_SevenZipNoFallback(t *testing.T) {
 	if err := os.WriteFile(sevenPath, []byte("not really 7z"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if got := DetectResourceType(sevenPath, reg); got != "" {
-		t.Fatalf("坏 .7z 应识别不出返回空，实际 %q（不得兜底 ysm）", got)
+	if got := DetectResourceType(sevenPath, reg); got != "container" {
+		t.Fatalf("坏 .7z 应标 container（容器无指纹），实际 %q", got)
 	}
 }

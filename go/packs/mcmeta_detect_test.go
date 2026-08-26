@@ -22,14 +22,14 @@ func TestDetectResourceType_McmetaDetector(t *testing.T) {
 	if got := DetectResourceType(zipPath, reg); got != "resourcepack" {
 		t.Fatalf("mcmeta detector 应识别 resourcepack: %s", got)
 	}
-	// 无 pack.mcmeta → 不识别
+	// 无 pack.mcmeta → 标 container（容器无指纹）
 	zipPath2 := testutil.WriteZipFile(t, "pack.zip", map[string]string{"other.txt": "x"})
-	if got := DetectResourceType(zipPath2, reg); got != "" {
-		t.Fatalf("无 mcmeta 不应识别: %s", got)
+	if got := DetectResourceType(zipPath2, reg); got != "container" {
+		t.Fatalf("无 mcmeta 应标 container: %s", got)
 	}
-	// 扩展名不匹配 → 跳过
-	if got := DetectResourceType(filepath.Join(t.TempDir(), "x.txt"), reg); got != "" {
-		t.Fatalf("扩展名不匹配不应识别: %s", got)
+	// 扩展名不匹配 → 标 other（非容器无声明者）
+	if got := DetectResourceType(filepath.Join(t.TempDir(), "x.txt"), reg); got != "other" {
+		t.Fatalf("扩展名不匹配应标 other: %s", got)
 	}
 }
 
@@ -45,10 +45,10 @@ func TestDetectResourceType_ShaderDetector(t *testing.T) {
 	if got := DetectResourceType(zipPath, reg); got != "shaderpack" {
 		t.Fatalf("shader detector 应识别 shaderpack: %s", got)
 	}
-	// 无 shaders → 不识别
+	// 无 shaders → 标 container（容器无指纹）
 	zipPath2 := testutil.WriteZipFile(t, "pack.zip", map[string]string{"pack.mcmeta": "x"})
-	if got := DetectResourceType(zipPath2, reg); got != "" {
-		t.Fatalf("无 shaders 不应识别: %s", got)
+	if got := DetectResourceType(zipPath2, reg); got != "container" {
+		t.Fatalf("无 shaders 应标 container: %s", got)
 	}
 }
 
@@ -87,7 +87,7 @@ func TestDetectResourceType_ZipEntry_BareFile(t *testing.T) {
 		{"build.nbt", "blueprint"},
 		{"build.schematic", "blueprint"},
 		{"proj.litematic", "litematic"},
-		{"model.xyz", ""}, // 未知扩展名
+		{"model.xyz", "other"}, // 未知扩展名 → other（无声明者）
 	} {
 		if got := DetectResourceType(tc.path, reg); got != tc.want {
 			t.Errorf("DetectResourceType(%s) = %q, 期望 %q", tc.path, got, tc.want)
@@ -127,8 +127,8 @@ func TestDetectResourceType_ZipEntry_Priority(t *testing.T) {
 		"ysm.json":  `{"format_version":"1.12.0"}`,
 		"model.pmx": "x",
 	})
-	if got := DetectResourceType(zipPath, reg); got != "ysm" {
-		t.Fatalf("同时含 ysm.json+model.pmx 应判 ysm（S3 注册表顺序优先级），实际 %q", got)
+	if got := DetectResourceType(zipPath, reg); got != "EntityPlayer" {
+		t.Fatalf("同时含 ysm.json+model.pmx 应判 EntityPlayer（同 Priority 按 ID 字典序），实际 %q", got)
 	}
 }
 
@@ -136,12 +136,12 @@ func TestDetectResourceType_ZipEntry_Priority(t *testing.T) {
 func TestDetectResourceType_ZipEntry_NoMatch(t *testing.T) {
 	reg := zipentryReg()
 	empty := testutil.WriteZipFile(t, "empty.zip", map[string]string{})
-	if got := DetectResourceType(empty, reg); got != "" {
-		t.Fatalf("空 zip 不应识别: %q", got)
+	if got := DetectResourceType(empty, reg); got != "container" {
+		t.Fatalf("空 zip 应标 container（容器无指纹）: %q", got)
 	}
 	noMatch := testutil.WriteZipFile(t, "pkg.zip", map[string]string{"readme.txt": "hello"})
-	if got := DetectResourceType(noMatch, reg); got != "" {
-		t.Fatalf("无关条目 zip 不应识别: %q", got)
+	if got := DetectResourceType(noMatch, reg); got != "container" {
+		t.Fatalf("无关条目 zip 应标 container: %q", got)
 	}
 }
 
@@ -156,8 +156,8 @@ func TestDetectResourceType_ZipEntry_SevenZipNoFallback(t *testing.T) {
 	if err := os.WriteFile(sevenPath, []byte("not really 7z"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if got := DetectResourceType(sevenPath, reg); got != "" {
-		t.Fatalf("坏 .7z 应返回空（不再兜底 ysm），实际 %q", got)
+	if got := DetectResourceType(sevenPath, reg); got != "container" {
+		t.Fatalf("坏 .7z 应标 container（容器无指纹），实际 %q", got)
 	}
 }
 
