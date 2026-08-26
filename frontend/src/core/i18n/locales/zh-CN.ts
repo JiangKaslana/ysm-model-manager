@@ -365,6 +365,11 @@ export const zhCN: Record<string, string> = {
   "recycle.empty": "清空回收站",
   "recycle.tab": "回收站",
   "recycle.cleared": "已清空 {n} 个文件",
+  "recycle.emptyConfirm": "确定永久清空回收站所有文件？此操作不可恢复！",
+  "recycle.emptyOk": "♻️ 清空",
+  "recycle.deleteTitle": "删除文件",
+  "recycle.deleteConfirm": "确定永久删除此文件？",
+  "recycle.deleteOk": "🗑️ 删除",
   "recycle.restored": "✅ 已恢复",
   "recycle.deleted": "✅ 已删除",
 

@@ -363,6 +363,11 @@ export const ja: Record<string, string> = {
   "recycle.empty": "ゴミ箱を空にする",
   "recycle.tab": "ゴミ箱",
   "recycle.cleared": "{n} 個のファイルを完全に削除しました",
+  "recycle.emptyConfirm": "ゴミ箱を完全に空にしますか？この操作は取り消せません！",
+  "recycle.emptyOk": "♻️ 空にする",
+  "recycle.deleteTitle": "ファイルを削除",
+  "recycle.deleteConfirm": "このファイルを完全に削除しますか？",
+  "recycle.deleteOk": "🗑️ 削除",
   "recycle.restored": "✅ 復元しました",
   "recycle.deleted": "✅ 削除しました",
 

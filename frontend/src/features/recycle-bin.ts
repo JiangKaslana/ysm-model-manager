@@ -121,7 +121,7 @@ function setupRecycleActions(
     toastKey: "recycle.restored",
   });
   bindRecycleAction(".recy-del", {
-    confirm: { title: "删除文件", icon: "🗑️", message: "确定永久删除此文件？", okText: "🗑️ 删除" },
+    confirm: { title: opts.t("recycle.deleteTitle"), icon: "🗑️", message: opts.t("recycle.deleteConfirm"), okText: opts.t("recycle.deleteOk") },
     binding: (p) => opts.DeleteFromRecycle(p),
     toastKey: "recycle.deleted",
   });
@@ -153,9 +153,9 @@ function onRecycleEmptyClick(opts: {
   return async (): Promise<void> => {
     if (opts.getEmptyBusy()) return;
     const confirmed = await opts.modalConfirm({
-      title: "清空回收站", icon: "♻️",
-      message: "确定永久清空回收站所有文件？此操作不可恢复！",
-      okText: "♻️ 清空", danger: true,
+      title: opts.t("recycle.empty"), icon: "♻️",
+      message: opts.t("recycle.emptyConfirm"),
+      okText: opts.t("recycle.emptyOk"), danger: true,
     });
     if (!confirmed) return;
     opts.setEmptyBusy(true);
