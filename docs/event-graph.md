@@ -318,8 +318,8 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-content/settings/init.ts` | 346 |
-| `frontend/src/views/app-content/settings/init.ts` | 370 |
+| `frontend/src/views/app-content/settings/init.ts` | 274 |
+| `frontend/src/views/app-content/settings/init.ts` | 296 |
 | `frontend/src/views/app-nav/index.ts` | 81 |
 
 **订阅方（on）：**
@@ -380,7 +380,7 @@
 | `frontend/src/features/recycle-bin.ts` | 107 |
 | `frontend/src/features/recycle-bin.ts` | 167 |
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 407 |
-| `frontend/src/views/app-content/settings/init.ts` | 198 |
+| `frontend/src/views/app-content/settings/init.ts` | 140 |
 | `frontend/src/views/app-content/settings/path-cards.ts` | 78 |
 | `frontend/src/views/app-content/settings/path-cards.ts` | 356 |
 | `frontend/src/views/app-sidebar/index.ts` | 288 |
@@ -524,14 +524,14 @@
 | `frontend/src/views/app-content/index.ts` | 169 |
 | `frontend/src/views/app-content/init-pages.ts` | 194 |
 | `frontend/src/views/app-content/init-pages.ts` | 249 |
-| `frontend/src/views/app-content/settings/init.ts` | 117 |
+| `frontend/src/views/app-content/settings/init.ts` | 47 |
+| `frontend/src/views/app-content/settings/init.ts` | 82 |
+| `frontend/src/views/app-content/settings/init.ts` | 126 |
+| `frontend/src/views/app-content/settings/init.ts` | 142 |
 | `frontend/src/views/app-content/settings/init.ts` | 149 |
-| `frontend/src/views/app-content/settings/init.ts` | 184 |
-| `frontend/src/views/app-content/settings/init.ts` | 200 |
-| `frontend/src/views/app-content/settings/init.ts` | 207 |
-| `frontend/src/views/app-content/settings/init.ts` | 213 |
-| `frontend/src/views/app-content/settings/init.ts` | 242 |
-| `frontend/src/views/app-content/settings/init.ts` | 296 |
+| `frontend/src/views/app-content/settings/init.ts` | 155 |
+| `frontend/src/views/app-content/settings/init.ts` | 183 |
+| `frontend/src/views/app-content/settings/init.ts` | 230 |
 | `frontend/src/views/app-content/settings/keymap.ts` | 103 |
 | `frontend/src/views/app-content/settings/keymap.ts` | 114 |
 | `frontend/src/views/app-content/settings/keymap.ts` | 135 |

@@ -5,16 +5,17 @@ import { resolveWebMode } from "../../backend/platform.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { aboutHTML, creditsHTML } from "./tpl-settings-about.ts";
 
-export function settingsHTML(): string {
-  // 查看器模式守卫（ADR-046/049）：Android 与网页版均无 Minecraft Java 版/
-  // 无整合包概念，隐藏「游戏根目录」「链接模式」卡片（绑定均有 null 守卫，安全）。
-  // 文件存储路径卡不隐藏：Android 走 Java 桥授权本地仓库定位渲染本地路径卡，
-  // 网页版渲染 FSA web-repo 授权卡（2026-08 修，code_review P3 注释同步）。
-  const isViewer = isViewerMode();
-  // 仅网页版才渲染 FSA web-repo 授权卡（showDirectoryPicker 只在浏览器可用）。
-  // Android 虽同为 viewer（有 Java 桥），走 requestStoragePermission + 本地仓库定位，
-  // 不应渲染需 showDirectoryPicker 的网页版授权入口（违规会报"浏览器不支持 FSA"）。
-  const isWebViewer = resolveWebMode();
+function renderStgTabs(): string {
+  return `<div class="repo-tabs">
+<button class="stg-tab active" data-tab="basic">⚙️ ${t("settings.basic")}</button>
+<button class="stg-tab" data-tab="ui">🎨 ${t("settings.appearance")}</button>
+<button class="stg-tab" data-tab="parser">🧩 ${t("settings.parser")}</button>
+<button class="stg-tab" data-tab="about">ℹ️ ${t("settings.about")}</button>
+<button class="stg-tab" data-tab="credits">🙏 ${t("settings.credits")}</button>
+</div>`;
+}
+
+function renderStgBasicPaths(isViewer: boolean): string {
   const gameRootCard = isViewer
     ? ""
     : `<div class="stg-card" style="animation-delay:0ms">
@@ -42,25 +43,9 @@ export function settingsHTML(): string {
         <div id="lm-hint-symlink" style="display:none;font-size:var(--fs-sm);color:var(--muted);padding:2px 0"><span style="color:var(--status-error)">${t("settings.links.symlinkHint")}</span></div>
       </div>
     </div>`;
-  return `<div class="repo-wrap">
-<div class="repo-tabs">
-<button class="stg-tab active" data-tab="basic">⚙️ ${t("settings.basic")}</button>
-<button class="stg-tab" data-tab="ui">🎨 ${t("settings.appearance")}</button>
-<button class="stg-tab" data-tab="parser">🧩 ${t("settings.parser")}</button>
-<button class="stg-tab" data-tab="about">ℹ️ ${t("settings.about")}</button>
-<button class="stg-tab" data-tab="credits">🙏 ${t("settings.credits")}</button>
-</div>
-<!-- stg-tab-basic -->
-<div class="tab-body" id="stg-tab-basic" style="overflow-y:auto">
-<div class="stg-page" style="padding:16px 20px">
-
-<div class="section-title stg-title">⚙️ ${t("settings.paths.title")}</div>
-
-<div class="stg-grid">
-    <!-- Row 1: 三栏 — 游戏根目录 + 链接模式 + 下载镜像源（查看器模式隐藏全部） -->
-    ${gameRootCard}
-    ${linkCard}
-    ${isViewer ? "" : `
+  const mirrorCard = isViewer
+    ? ""
+    : `
     <div class="stg-card" style="animation-delay:120ms">
       <div class="stg-card-hdr">
         <span class="label" style="font-size:13px;font-weight:600">🌐 ${t("settings.mirror.title")}</span>
@@ -76,13 +61,20 @@ export function settingsHTML(): string {
         <div id="mirror-hint-githubapi" style="display:none;font-size:var(--fs-sm);color:var(--muted);padding:2px 0;line-height:1.5">${t("settings.mirror.githubapiHint")}</div>
       </div>
     </div>
-    `}
-    ${isViewer ? "" : ""}
-  </div>
+    `;
+  return `<div class="section-title stg-title">⚙️ ${t("settings.paths.title")}</div>
 
-  <!-- Row 2: 文件存储路径（桌面）/ 网页版文件来源（仅 web 的 FSA 授权）——
-       Android 虽为 viewer 但走 Java 桥授权，渲染本地路径卡而非 FSA 卡（2026-08 修） -->
-  ${isWebViewer ? `
+<div class="stg-grid">
+    ${gameRootCard}
+    ${linkCard}
+    ${mirrorCard}
+    ${isViewer ? "" : ""}
+  </div>`;
+}
+
+function renderStgStorageCard(isWebViewer: boolean): string {
+  return isWebViewer
+    ? `
   <div class="stg-card" id="stg-web-repo-card" style="margin-top:8px;animation-delay:180ms">
     <div class="stg-card-hdr">📁 ${t("settings.webRepo.title")}</div>
     <div class="stg-card-body">
@@ -91,7 +83,8 @@ export function settingsHTML(): string {
       <div id="web-repo-auth-status" style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5"></div>
     </div>
   </div>
-  ` : `
+  `
+    : `
   <div class="stg-card" id="stg-files-card" style="margin-top:8px;animation-delay:180ms">
     <div class="stg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">📁 ${t("settings.storage.title")}<button class="btn-base sm" id="set-advanced-toggle" style="font-size:9px;padding:2px 8px">📂 ${t("settings.storage.expand")} ▸</button></div>
     <div class="stg-card-body">
@@ -103,10 +96,11 @@ export function settingsHTML(): string {
       </div>
     </div>
   </div>
-  `}
+  `;
+}
 
-<!-- 语言 -->
-<div class="section-title stg-title" style="margin-top:12px">🌐 ${t("settings.language")}</div>
+function renderStgLangSelect(): string {
+  return `<div class="section-title stg-title" style="margin-top:12px">🌐 ${t("settings.language")}</div>
 <div class="stg-card" style="animation-delay:240ms">
   <div class="stg-card-body" style="display:flex;align-items:center;gap:8px">
     <select id="set-lang" class="stg-select" style="width:auto">
@@ -116,19 +110,11 @@ export function settingsHTML(): string {
     </select>
     <span style="font-size:10px;color:var(--muted)">${t("settings.languageDesc")}</span>
   </div>
-</div>
+</div>`;
+}
 
-</div>
-</div>
-<!-- /stg-tab-basic -->
-
-<!-- stg-tab-ui -->
-<div class="tab-body" id="stg-tab-ui" style="display:none;overflow-y:auto">
-<div class="stg-page" style="padding:16px 20px">
-
-<div class="section-title stg-title">🌙 ${t("settings.theme.title")}</div>
-
-<!-- 主题卡片：直接展示 -->
+function renderStgThemePicker(): string {
+  return `<!-- 主题卡片：直接展示 -->
 <div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:0ms">
   <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:8px">
     <span class="label">🎨 ${t("settings.theme.select")}</span>
@@ -183,9 +169,11 @@ export function settingsHTML(): string {
       </div>
     </div>
   </div>
-</div>
+</div>`;
+}
 
-<!-- 自动切换：独立一栏 -->
+function renderStgThemeAuto(): string {
+  return `<!-- 自动切换：独立一栏 -->
 <div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:60ms">
   <div class="setting-row">
     <span class="label">🕐 ${t("settings.theme.autoTitle")}</span>
@@ -195,9 +183,11 @@ export function settingsHTML(): string {
       <option value="time">${t("settings.theme.autoTime")}</option>
     </select>
   </div>
-</div>
+</div>`;
+}
 
-<div class="section-title stg-title stg-sub-title">📐 ${t("settings.font.title")}</div>
+function renderStgFontFamily(): string {
+  return `<div class="section-title stg-title stg-sub-title">📐 ${t("settings.font.title")}</div>
 
 <div style="display:flex;gap:12px">
   <div style="flex:1;background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;animation:card-in var(--tr-enter) both;animation-delay:60ms">
@@ -238,9 +228,11 @@ export function settingsHTML(): string {
     </select>
     <div class="stg-hint" style="font-size:var(--fs-sm);color:var(--muted);padding:0">${t("settings.densityHint")}</div>
   </div>
-</div>
+</div>`;
+}
 
-<div class="section-title stg-title stg-sub-title">⚡ ${t("settings.animation.title")}</div>
+function renderStgAnimDefault(): string {
+  return `<div class="section-title stg-title stg-sub-title">⚡ ${t("settings.animation.title")}</div>
 
 <div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:180ms">
   <div class="setting-row">
@@ -262,9 +254,11 @@ export function settingsHTML(): string {
     </select>
   </div>
   <div class="stg-hint">${t("settings.defaultPageHint")}</div>
-</div>
+</div>`;
+}
 
-<div class="section-title stg-title stg-sub-title">🕹️ ${t("settings.preview3d.title")}</div>
+function renderStgPreview3d(): string {
+  return `<div class="section-title stg-title stg-sub-title">🕹️ ${t("settings.preview3d.title")}</div>
 
 <div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:240ms">
   <div class="setting-row">
@@ -293,17 +287,11 @@ export function settingsHTML(): string {
   </div>
   <div class="stg-hint">${t("settings.preview3d.keymapHint")}</div>
   <div style="margin-top:8px"><button class="btn-base sm" id="td-keymap-reset">↩️ ${t("settings.preview3d.resetKeys")}</button></div>
-</div>
+</div>`;
+}
 
-</div>
-</div>
-<!-- /stg-tab-ui -->
-
-<!-- stg-tab-parser -->
-<div class="tab-body" id="stg-tab-parser" style="display:none;overflow-y:auto">
-<div class="stg-page" style="padding:16px 20px">
-
-<div class="section-title stg-title">🧩 ${t("settings.parser")}</div>
+function renderStgParserWorkers(): string {
+  return `<div class="section-title stg-title">🧩 ${t("settings.parser")}</div>
 <div style="font-size:var(--fs-sm);color:var(--muted);line-height:1.7;margin-bottom:12px">${t("settings.parserDesc")}</div>
 
 <div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:0ms">
@@ -324,12 +312,46 @@ export function settingsHTML(): string {
     </label>
   </div>
   <div class="stg-hint">${t("settings.preview3d.mmdWorkerHint")}</div>
-</div>
+</div>`;
+}
 
+function renderStgTabBody(tabId: string, display: string, body: string): string {
+  return `<!-- stg-tab-${tabId} -->
+<div class="tab-body" id="stg-tab-${tabId}" style="display:${display};overflow-y:auto">
+<div class="stg-page" style="padding:16px 20px">
+${body}
 </div>
 </div>
-<!-- /stg-tab-parser -->
+<!-- /stg-tab-${tabId} -->`;
+}
 
+export function settingsHTML(): string {
+  const isViewer = isViewerMode();
+  const isWebViewer = resolveWebMode();
+
+  const basicBody = `${renderStgBasicPaths(isViewer)}
+  ${renderStgStorageCard(isWebViewer)}
+${renderStgLangSelect()}`;
+
+  const uiBody = `<div class="section-title stg-title">🌙 ${t("settings.theme.title")}</div>
+
+${renderStgThemePicker()}
+
+${renderStgThemeAuto()}
+
+${renderStgFontFamily()}
+
+${renderStgAnimDefault()}
+
+${renderStgPreview3d()}`;
+
+  const parserBody = renderStgParserWorkers();
+
+  return `<div class="repo-wrap">
+${renderStgTabs()}
+${renderStgTabBody("basic", "block", basicBody)}
+${renderStgTabBody("ui", "none", uiBody)}
+${renderStgTabBody("parser", "none", parserBody)}
 ${aboutHTML()}
 ${creditsHTML()}
 

@@ -945,11 +945,11 @@
 | `idbSet()` | `frontend/src/backend/idb:167` | 写入单 key（QuotaExceededError 走 onabort，必须监听否则 Promise 永不 settle） |
 | `idbDel()` | `frontend/src/backend/idb:184` | 删除单 key |
 | `idbKeys()` | `frontend/src/backend/idb:205` | 前缀扫描（MikuMikuAR 模式：dir:&lt;stem&gt;: / file:&lt;stem&gt;: 遍历模型库） 性能优化（R1 万级 key 门槛）：真实浏览器用 IDBKeyRange |
-| `parseNbtRoot()` | `frontend/src/backend/nbt-parse:240` | 解析 NBT 根 compound，返回全部顶层标签。 |
-| `parseNbtRootExact()` | `frontend/src/backend/nbt-parse:263` | ADR-070 M2：精确 LongArray 变体——LongArray 输出 bigint[]（精确 64 位）， 供 voxel 打包位解码（BlockStates）使用。其 |
-| `litematicMetaView()` | `frontend/src/backend/nbt-parse:315` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
-| `nbtStructureView()` | `frontend/src/backend/nbt-parse:349` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
-| `schematicSummaryView()` | `frontend/src/backend/nbt-parse:470` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
+| `parseNbtRoot()` | `frontend/src/backend/nbt-parse:253` | 解析 NBT 根 compound，返回全部顶层标签。 |
+| `parseNbtRootExact()` | `frontend/src/backend/nbt-parse:276` | ADR-070 M2：精确 LongArray 变体——LongArray 输出 bigint[]（精确 64 位）， 供 voxel 打包位解码（BlockStates）使用。其 |
+| `litematicMetaView()` | `frontend/src/backend/nbt-parse:328` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
+| `nbtStructureView()` | `frontend/src/backend/nbt-parse:362` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
+| `schematicSummaryView()` | `frontend/src/backend/nbt-parse:483` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
 | `findZipEntry()` | `frontend/src/backend/pack-meta:23` | zip entries 中按小写名找条目（对齐 go 端 strings.ToLower(f.Name) 匹配—— zip 内路径大小写不敏感：PACK.MCMETA / Lang |
 | `parsePackMetaJson()` | `frontend/src/backend/pack-meta:99` | pack.mcmeta 字节 → meta 对象（对齐 internal/app ReadPackMeta 的 result 形状： pack_format / descripti |
 | `packPngToThumbnail()` | `frontend/src/backend/pack-meta:132` | pack.png 字节 → data URL base64 缩略图（10MB 限额；空/超限 → ""，对齐 go 截断探测置空） |
@@ -2008,7 +2008,7 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:175` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:23` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:30` | — |
-| `initSettings()` | `frontend/src/views/app-content/settings/init:31` | 初始化设置页所有事件绑定 |
+| `initSettings()` | `frontend/src/views/app-content/settings/init:310` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:130` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |
 | `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:52` | — |
@@ -2042,7 +2042,7 @@
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
 | `aboutHTML()` | `frontend/src/views/app-content/tpl-settings-about:6` | About 标签页（版本/特性/技术栈/链接/快速上手） |
 | `creditsHTML()` | `frontend/src/views/app-content/tpl-settings-about:101` | Credits 标签页（灵感来源/特别感谢） |
-| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:8` | — |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:328` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |
