@@ -172,115 +172,140 @@ export interface VrmPanelHooks {
   fillPlayPanel?: (list: HTMLElement, bridge: MmdPlayBridge) => void;
 }
 
-export async function buildVrmScene(
+interface MdVrParseResult {
+  vrm: VRM;
+  gltf: GLTF;
+  tStart: number;
+  tParseStart: number;
+  tParseEnd: number;
+}
+interface MdVrMotionState {
+  motionClips: Array<{ label: string; clip: THREE.AnimationClip }>;
+  motionMixer: THREE.AnimationMixer | null;
+  motionAction: THREE.AnimationAction | null;
+  motionPlaying: boolean;
+  motionIdx: number;
+}
+interface MdVrPerceptionState {
+  perceptionState: PerceptionState;
+  perceptionCaps: PerceptionCapability[];
+  breath: ReturnType<typeof createBreathController>;
+  gaze: ReturnType<typeof createGazeController> | null;
+  blink: ReturnType<typeof createBlinkController>;
+  footIK: ReturnType<typeof createFootIKController>;
+  useNativeLookAt: boolean;
+  blinkExpressionNames: Array<"blink" | "blinkLeft" | "blinkRight">;
+  exprMgr: VRM["expressionManager"];
+}
+interface MdVrBoneAssembly {
+  bonePanelRef: { current: (() => void) | null };
+  boneTree: BoneTree;
+  semanticBones: ReturnType<typeof vrmSemanticBoneMap>;
+}
+
+function mdVrParseGlbVrm0(vrm: VRM, gltf: GLTF): void {
+  VRMUtils.rotateVRM0(vrm);
+  void gltf;
+}
+function mdVrParseGlbVrm1(vrm: VRM, gltf: GLTF): void {
+  void vrm;
+  void gltf;
+}
+async function mdVrStage1ReadParse(
   ctx: PreviewBuildCtx,
   path: string,
   port: VrmDataPort,
   readFn: (p: string) => Promise<string | null>,
-  panels?: VrmPanelHooks,
-  listAllFilePaths?: (dir: string) => Promise<string[] | null>,
-): Promise<PreviewScene> {
+): Promise<MdVrParseResult> {
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🥽</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
-
   const tStart = performance.now();
   const b64 = await readFn(path);
   await vrmDiag(port, "read-model", path, b64 ? "ok" : "fail", b64 ? `bytes=${b64.length}` : "ReadFileBytes 返回空（路径语义/守卫？）");
   if (!b64) throw new Error("ReadFileBytes 返回空");
-
   const bytes = b64ToBytes(b64);
-  // GLTFLoader.parse 要求 ArrayBuffer
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-
   const loader = new GLTFLoader();
-  // v3 架构：往官方 GLTFLoader 注册 VRM 插件（不接管资源管线）
   loader.register((parser) => new VRMLoaderPlugin(parser));
-  // VRMA 动作：同款 loader 注册动画插件（解析 .vrma → gltf.userData.vrmAnimations）
   loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
-
-  let tParseStart = performance.now();
+  const tParseStart = performance.now();
   const gltf = await new Promise<GLTF>((resolve, reject) => {
     loader.parse(buffer, "", resolve, reject);
   });
   const vrm = (gltf.userData as { vrm?: VRM }).vrm;
   if (!vrm) throw new Error("VRM 实例解析失败（非标准 .vrm？）");
-  await vrmDiag(port, "parse", path, "ok", `bones=${gltf.scenes?.[0]?.children?.length ?? 0} gltf-children=${gltf.scenes?.length ?? 0}`);
-
-  // VRM0.0 模型背对镜头，转正；VRM1.0 为 no-op 但调用安全
-  VRMUtils.rotateVRM0(vrm);
+  const metaVersion = vrm.meta.metaVersion;
+  if (metaVersion === "0") mdVrParseGlbVrm0(vrm, gltf);
+  else mdVrParseGlbVrm1(vrm, gltf);
   ctx.scene!.add(vrm.scene);
   registerModelRoot(vrm.scene);
-  ctx.loadingEl.remove(); // 加载完成，移除占位（旧 vrm-3d.ts:172 同款）
-
-  // 诊断（环形日志）：parse 耗时
+  ctx.loadingEl.remove();
   const tParseEnd = performance.now();
+  await vrmDiag(port, "parse", path, "ok", `bones=${gltf.scenes?.[0]?.children?.length ?? 0} gltf-children=${gltf.scenes?.length ?? 0}`);
   await vrmDiag(port, "perf", path, "ok", `parse=${Math.round(tParseEnd - tParseStart)}ms total=${Math.round(tParseEnd - tStart)}ms`);
-
-  // ---- VRMA 动作（同目录 .vrma）：官方 @pixiv/three-vrm-animation（与 three-vrm 同源）----
-  // 复用已注册 VRMAnimationLoaderPlugin 的同一 loader 解析 .vrma → gltf.userData.vrmAnimations；
-  // 单个损坏 / 目录不可列 / 无 .vrma → 无动作降级，均不阻断模型渲染（对齐 MMD 同目录 VMD 口径）。
+  return { vrm, gltf, tStart, tParseStart, tParseEnd };
+}
+async function mdVrLoadVrmaAnims(
+  vrm: VRM,
+  path: string,
+  readFn: (p: string) => Promise<string | null>,
+  listAllFilePaths?: (dir: string) => Promise<string[] | null>,
+): Promise<MdVrMotionState> {
   const motionClips: Array<{ label: string; clip: THREE.AnimationClip }> = [];
   let motionMixer: THREE.AnimationMixer | null = null;
   let motionAction: THREE.AnimationAction | null = null;
   let motionPlaying = true;
   let motionIdx = 0;
-  if (listAllFilePaths) {
-    try {
-      const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
-      const files = (await listAllFilePaths(dirPath)) || [];
-      const vrmaPaths = files.filter((p) => p.toLowerCase().endsWith(".vrma"));
-      for (const vp of vrmaPaths) {
-        try {
-          const b64 = await readFn(vp);
-          if (!b64) continue;
-          const bytes = b64ToBytes(b64);
-          const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-          const animGltf = await new Promise<GLTF>((resolve, reject) => loader.parse(buf, "", resolve, reject));
-          const anims = (animGltf.userData as { vrmAnimations?: VRMAnimation[] }).vrmAnimations;
-          if (!anims || anims.length === 0) continue;
-          motionClips.push({
-            label: (vp.split(/[/\\]/).pop() || "motion").replace(/\.vrma$/i, "") || "motion",
-            clip: createVRMAnimationClip(anims[0], vrm),
-          });
-        } catch {
-          /* 单个 .vrma 解析失败 → 跳过其余照常 */
-        }
+  if (!listAllFilePaths) return { motionClips, motionMixer, motionAction, motionPlaying, motionIdx };
+  try {
+    const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
+    const files = (await listAllFilePaths(dirPath)) || [];
+    const vrmaPaths = files.filter((p) => p.toLowerCase().endsWith(".vrma"));
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+    loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
+    for (const vp of vrmaPaths) {
+      try {
+        const b64 = await readFn(vp);
+        if (!b64) continue;
+        const bytes = b64ToBytes(b64);
+        const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+        const animGltf = await new Promise<GLTF>((resolve, reject) => loader.parse(buf, "", resolve, reject));
+        const anims = (animGltf.userData as { vrmAnimations?: VRMAnimation[] }).vrmAnimations;
+        if (!anims || anims.length === 0) continue;
+        motionClips.push({
+          label: (vp.split(/[/\\]/).pop() || "motion").replace(/\.vrma$/i, "") || "motion",
+          clip: createVRMAnimationClip(anims[0], vrm),
+        });
+      } catch {
+        /* 单个 .vrma 解析失败 → 跳过其余照常 */
       }
-      if (motionClips.length > 0) {
-        motionMixer = new THREE.AnimationMixer(vrm.scene);
-        motionAction = motionMixer.clipAction(motionClips[0].clip);
-        motionAction.play(); // AnimationAction 默认 LoopRepeat 循环
-      }
-    } catch {
-      /* 目录不可列 → 白模降级，不阻断模型渲染 */
     }
+    if (motionClips.length > 0) {
+      motionMixer = new THREE.AnimationMixer(vrm.scene);
+      motionAction = motionMixer.clipAction(motionClips[0].clip);
+      motionAction.play();
+    }
+  } catch {
+    /* 目录不可列 → 白模降级，不阻断模型渲染 */
   }
-
-  // 包围盒定相机（VRM 原点在脚底、Y-up、面朝 +Z）
+  return { motionClips, motionMixer, motionAction, motionPlaying, motionIdx };
+}
+function mdVrSetupCameraBounds(ctx: PreviewBuildCtx, vrm: VRM): void {
   const box = new THREE.Box3().setFromObject(vrm.scene);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
-
   ctx.camera!.near = 0.05;
   ctx.camera!.far = maxDim * 50;
   ctx.camera!.position.set(center.x, center.y + size.y * 0.1, center.z + maxDim * 1.6);
   ctx.camera!.updateProjectionMatrix();
-
   ctx.controls!.target.copy(center);
   ctx.controls!.minDistance = maxDim * 0.1;
   ctx.controls!.maxDistance = maxDim * 12;
   ctx.controls!.update();
-
-  // ADR-074 S2 骨骼面板接入：经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单专属项（ADR-076 v2 Phase 2）。
-  // 旧版经 extraControls 加「🦴 骨骼」按钮 → querySelector("#preview-panel") 恒 null（core 仅在适配器
-  // 返回 extraPanel 时才建 #preview-panel），按钮实为死按钮——改走声明式根菜单契约（对齐 ysm-adapter）。
-  // Phase 3 收编后 extraPanel 机制已移除，所有适配器面板统一走声明式根菜单。
-  // 菜单表提取为可导出 vrmMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
-  const bonePanelRef: { current: (() => void) | null } = { current: null };
-  const boneTree = buildVrmBoneTree(vrm);
-
-  // VRM 材质收集：vrm.scene.traverse 取所有 Mesh.material（含数组材质）
+}
+function mdVrStage3Materials(vrm: VRM): THREE.Material[] {
   const vrmMaterials: THREE.Material[] = [];
   vrm.scene.traverse((child: THREE.Object3D) => {
     if (!(child as THREE.Mesh).isMesh) return;
@@ -288,95 +313,122 @@ export async function buildVrmScene(
     const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
     vrmMaterials.push(...mats);
   });
-
-  // 感知层状态：各模块开关（adapter build 创建，面板 UI 双向绑定）
+  return vrmMaterials;
+}
+function mdVrStage2BonesHumanoid(vrm: VRM): MdVrBoneAssembly {
+  const bonePanelRef: { current: (() => void) | null } = { current: null };
+  const boneTree = buildVrmBoneTree(vrm);
+  const semanticBones = vrmSemanticBoneMap(vrm.humanoid.humanBones);
+  return { bonePanelRef, boneTree, semanticBones };
+}
+function mdVrBuildPerception(vrm: VRM, ctx: PreviewBuildCtx, boneTree: BoneTree, semanticBones: ReturnType<typeof vrmSemanticBoneMap>): MdVrPerceptionState {
   const perceptionState: PerceptionState = { breath: true, gaze: true, blink: true, lipSync: false, autoDance: false };
   const perceptionCaps: PerceptionCapability[] = [
     { id: "breath", labelKey: "preview.perceptionBreath", fallback: "呼吸" },
     { id: "gaze", labelKey: "preview.perceptionGaze", fallback: "注视" },
     { id: "blink", labelKey: "preview.perceptionBlink", fallback: "眨眼" },
   ];
-
-  // dock 🧍 平铺 + 角色详情归口统一走 built.menuItems（mount 层统一 feed/注册，对齐 litematic 范本），
-  // 不再在此直调 ctx.menu.setAdapterItems，否则该角色详情将无可查看项。
-  const menuItems = vrmMenuItems({
-      panels,
-      screenshot: () => Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
-      modelPanel: panels?.makeModelPanelRenderer,
-      bonePanel: {
-        tree: boneTree,
-        viewContainer: ctx.viewContainer,
-        camera: ctx.camera,
-        scene: ctx.scene,
-        cleanupRef: bonePanelRef,
-      },
-      material: {
-        list: () => listVrmMaterials(vrmMaterials),
-        getDetail: (i: number) => getVrmMaterialDetail(vrmMaterials, i),
-        setVisible: (i: number, v: boolean) => setVrmMaterialVisible(vrmMaterials, i, v),
-        setOpacity: (i: number, o: number) => {
-          setVrmMaterialOpacity(vrmMaterials, i, o);
-        },
-      },
-      play: motionClips.length > 0
-        ? {
-            clips: motionClips.map((c) => ({ label: c.label })),
-            isPlaying: () => motionPlaying,
-            toggle: () => {
-              motionPlaying = !motionPlaying;
-              if (motionAction) motionAction.paused = !motionPlaying;
-            },
-            currentIndex: () => motionIdx,
-            select: (i: number) => {
-              if (i === motionIdx || !motionMixer) return;
-              if (i < 0 || i >= motionClips.length) return;
-              motionIdx = i;
-              motionAction?.stop();
-              motionAction = motionMixer.clipAction(motionClips[i].clip);
-              // 先 play() 再按当前播放态设 paused：暂停态切片也能靠后续 toggle 恢复，
-              // 避免「新 action 从未 play() → 永久冻结且 animActive 误判关掉呼吸/眨眼」
-              motionAction.play();
-              motionAction.paused = !motionPlaying;
-            },
-            animDir: null,
-          }
-        : null,
-      perception: { state: perceptionState, caps: perceptionCaps },
-  });
-
-  // VRM humanoid 天然语义化：humanBones 键即语义名，零候选匹配直产映射
-  const semanticBones = vrmSemanticBoneMap(vrm.humanoid.humanBones);
-  // 感知层呼吸（程序化生命力 L1）：待机态下对 chest/spine/shoulders 施加正弦微位移
   const breath = createBreathController();
-  // 感知层注视追踪（程序化生命力 L2）：优先用 VRM 原生 lookAt（内部处理 head 旋转限幅），
-  // fallback 到语义骨骼驱动（仅当 vrm.lookAt 缺失，极少见）
   const useNativeLookAt = !!vrm.lookAt;
-  let gaze: ReturnType<typeof createGazeController> | null = useNativeLookAt ? null : createGazeController();
-  // 启用原生 lookAt：指向相机作为注视目标（autoUpdate 默认 true，vrm.update 自动消费）
+  const gaze: ReturnType<typeof createGazeController> | null = useNativeLookAt ? null : createGazeController();
   if (useNativeLookAt) vrm.lookAt!.target = ctx.camera;
-  // 感知层眨眼（程序化生命力 L1.5）：随机间隔触发 blink 表情
-  // 对齐 MMD 接法：先发现可用 blink 表情（"blink" / "blinkLeft" / "blinkRight"），
-  // 再用 BlinkController 周期写入；无匹配表情则静默降级
   const exprMgr = vrm.expressionManager;
   const blinkExpressionNames = exprMgr
     ? (["blink", "blinkLeft", "blinkRight"] as const).filter((n) => exprMgr.getExpression(n) !== null)
     : [] as Array<"blink" | "blinkLeft" | "blinkRight">;
   const blink = createBlinkController();
-  // 程序化足部锚地（Foot IK）：待机态下保持双足贴地，防悬空/穿模（格式无关，与 MMD 共用）
   const footIK = createFootIKController(boneTree, semanticBones);
-  // 加载剖析：结构化 trace 写入全局 store（perf 面板甘特图消费）
+  return { perceptionState, perceptionCaps, breath, gaze, blink, footIK, useNativeLookAt, blinkExpressionNames, exprMgr };
+}
+function mdVrStage4MenuPanels(
+  panels: VrmPanelHooks | undefined,
+  ctx: PreviewBuildCtx,
+  boneAssy: MdVrBoneAssembly,
+  vrmMaterials: THREE.Material[],
+  motion: MdVrMotionState,
+  perception: MdVrPerceptionState,
+): PreviewMenuNode[] {
+  const { bonePanelRef, boneTree } = boneAssy;
+  const { motionClips, motionMixer, motionAction, motionPlaying, motionIdx } = motion;
+  const motionMutRef = { motionAction, motionPlaying, motionIdx };
+  const menuItems = vrmMenuItems({
+    panels,
+    screenshot: () => Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
+    modelPanel: panels?.makeModelPanelRenderer,
+    bonePanel: {
+      tree: boneTree,
+      viewContainer: ctx.viewContainer,
+      camera: ctx.camera,
+      scene: ctx.scene,
+      cleanupRef: bonePanelRef,
+    },
+    material: {
+      list: () => listVrmMaterials(vrmMaterials),
+      getDetail: (i: number) => getVrmMaterialDetail(vrmMaterials, i),
+      setVisible: (i: number, v: boolean) => setVrmMaterialVisible(vrmMaterials, i, v),
+      setOpacity: (i: number, o: number) => {
+        setVrmMaterialOpacity(vrmMaterials, i, o);
+      },
+    },
+    play: motionClips.length > 0
+      ? {
+          clips: motionClips.map((c) => ({ label: c.label })),
+          isPlaying: () => motionMutRef.motionPlaying,
+          toggle: () => {
+            motionMutRef.motionPlaying = !motionMutRef.motionPlaying;
+            if (motionMutRef.motionAction) motionMutRef.motionAction.paused = !motionMutRef.motionPlaying;
+          },
+          currentIndex: () => motionMutRef.motionIdx,
+          select: (i: number) => {
+            if (i === motionMutRef.motionIdx || !motionMixer) return;
+            if (i < 0 || i >= motionClips.length) return;
+            motionMutRef.motionIdx = i;
+            motionMutRef.motionAction?.stop();
+            motionMutRef.motionAction = motionMixer.clipAction(motionClips[i].clip);
+            motionMutRef.motionAction.play();
+            motionMutRef.motionAction.paused = !motionMutRef.motionPlaying;
+          },
+          animDir: null,
+        }
+      : null,
+    perception: { state: perception.perceptionState, caps: perception.perceptionCaps },
+  });
+  motion.motionAction = motionMutRef.motionAction;
+  motion.motionPlaying = motionMutRef.motionPlaying;
+  motion.motionIdx = motionMutRef.motionIdx;
+  return menuItems;
+}
+function mdVrStage5BuildResult(
+  ctx: PreviewBuildCtx,
+  path: string,
+  port: VrmDataPort,
+  parseRes: MdVrParseResult,
+  boneAssy: MdVrBoneAssembly,
+  vrmMaterials: THREE.Material[],
+  motion: MdVrMotionState,
+  perception: MdVrPerceptionState,
+  menuItems: PreviewMenuNode[],
+): PreviewScene {
+  const { vrm } = parseRes;
+  const { semanticBones, bonePanelRef } = boneAssy;
+  const { motionClips, motionMixer, motionAction, motionPlaying, motionIdx } = motion;
+  const {
+    perceptionState, breath, gaze, blink, footIK,
+    useNativeLookAt, blinkExpressionNames, exprMgr,
+  } = perception;
+  const motionMut = { motionAction, motionPlaying, motionIdx };
   recordLoadTrace({
     ts: Date.now(),
     format: "vrm",
     path,
     stages: [
-      { name: "读取", ms: Math.round(tParseStart - tStart), status: "ok" },
-      { name: "解析", ms: Math.round(tParseEnd - tParseStart), status: "ok" },
+      { name: "读取", ms: Math.round(parseRes.tParseStart - parseRes.tStart), status: "ok" },
+      { name: "解析", ms: Math.round(parseRes.tParseEnd - parseRes.tParseStart), status: "ok" },
     ],
     assets: {
       files: 1,
       textures: vrmMaterials.length,
-      bones: boneTree.roots.length,
+      bones: boneAssy.boneTree.roots.length,
       materials: vrmMaterials.length,
       animations: motionClips.length,
       vrmaClips: motionClips.length,
@@ -384,25 +436,17 @@ export async function buildVrmScene(
     ok: true,
   });
   return {
-    // dock 🧍 平铺 + 角色详情归口：built.menuItems 由 mount 层统一 feed/注册（对齐 litematic 范本）
     menuItems,
-    // VRM 动态部分（VRMA 动画 + SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
     update: (dt: number): void => {
-      if (!vrm.scene.visible) return; // Frustum Culling 不可见 → 跳过 springBone/感知层，省 CPU
+      if (!vrm.scene.visible) return;
       if (motionMixer) motionMixer.update(dt);
-      // vrm.update 内部序：humanoid（含 VRMA 写入的归一化骨骼）→ lookAt → expression →
-      // nodeConstraint → springBone；故 VRMA 播放只需 mixer.update + vrm.update，无需手动 humanoid.update。
       vrm.update(dt);
-      // 动画播放时暂停程序化生命力（避免与 VRMA 姿态/表情打架，对齐 MMD 口径）
-      const animActive = !!motionAction && !motionAction.paused;
+      const animActive = !!motionMut.motionAction && !motionMut.motionAction.paused;
       if (semanticBones) {
         if (!animActive && perceptionState.breath) breath.apply(dt, semanticBones);
-        // 注视追踪：原生 lookAt 优先（VRM 内部处理 head 旋转限幅），fallback 才走语义骨骼
         if (!animActive && !useNativeLookAt && perceptionState.gaze) gaze!.apply(dt, semanticBones, ctx.camera!.position);
       }
-      // Foot IK：待机态下锚定双足（在眨眼之前，先稳定姿态再驱动表情）
       footIK.apply(dt, !animActive);
-      // 眨眼：多表情统一写入（动画播放时暂停，避免覆盖 VRMA 表情轨）
       if (exprMgr && blinkExpressionNames.length > 0 && !animActive && perceptionState.blink) {
         const mgr = exprMgr;
         blink.apply(dt, (weight: number) => {
@@ -412,7 +456,6 @@ export async function buildVrmScene(
         });
       }
     },
-    // 释放 VRM 几何/材质/纹理（含 MToon），避免 GPU 缓冲泄漏
     dispose: (): void => {
       try {
         bonePanelRef.current?.();
@@ -424,11 +467,9 @@ export async function buildVrmScene(
       gaze?.dispose();
       blink.dispose();
       footIK.dispose();
-      motionMixer?.stopAllAction(); // 停掉 VRMA 动画 mixer，避免释放后残留 action
-      motionMixer?.uncacheRoot(vrm.scene); // 释放 PropertyBinding 缓存，防 GPU/内存残留（switchTo 重建时尤甚）
-      // 原生 lookAt：断开相机引用，避免释放后残留
+      motionMixer?.stopAllAction();
+      motionMixer?.uncacheRoot(vrm.scene);
       if (useNativeLookAt) vrm.lookAt!.target = null;
-      // 统计纹理数量（诊断用）
       let texCount = 0;
       vrm.scene.traverse((child: THREE.Object3D) => {
         if (!(child as THREE.Mesh).isMesh) return;
@@ -445,11 +486,29 @@ export async function buildVrmScene(
       VRMUtils.deepDispose(vrm.scene);
       void vrmDiag(port, "gpu-release", path, "ok", `tex=${texCount}`);
     },
-    // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/mmd/litematic 呑约对称）
     screenshot: () =>
       Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
     semanticBones,
   };
+}
+
+export async function buildVrmScene(
+  ctx: PreviewBuildCtx,
+  path: string,
+  port: VrmDataPort,
+  readFn: (p: string) => Promise<string | null>,
+  panels?: VrmPanelHooks,
+  listAllFilePaths?: (dir: string) => Promise<string[] | null>,
+): Promise<PreviewScene> {
+  const parseRes = await mdVrStage1ReadParse(ctx, path, port, readFn);
+  const { vrm } = parseRes;
+  const motion = await mdVrLoadVrmaAnims(vrm, path, readFn, listAllFilePaths);
+  mdVrSetupCameraBounds(ctx, vrm);
+  const boneAssy = mdVrStage2BonesHumanoid(vrm);
+  const vrmMaterials = mdVrStage3Materials(vrm);
+  const perception = mdVrBuildPerception(vrm, ctx, boneAssy.boneTree, boneAssy.semanticBones);
+  const menuItems = mdVrStage4MenuPanels(panels, ctx, boneAssy, vrmMaterials, motion, perception);
+  return mdVrStage5BuildResult(ctx, path, port, parseRes, boneAssy, vrmMaterials, motion, perception, menuItems);
 }
 
 /** vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 */
