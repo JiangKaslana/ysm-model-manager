@@ -5,6 +5,7 @@
 
 import * as THREE from "three";
 import type { FbxParseRequest, FbxParseResponse } from "./fbx-parser.worker.ts";
+import { createResolveModeBridge } from "./worker-bridge.ts";
 import type {
   FbxSceneData,
   FbxMeshData,
@@ -31,60 +32,12 @@ export function createFbxParser(): FbxParser {
     };
   }
 
-  const worker = new Worker(
-    new URL("./fbx-parser.worker.ts", import.meta.url),
-    { type: "module" },
+  const bridge = createResolveModeBridge<FbxParseResponse>(
+    "./fbx-parser.worker.ts",
+    30000,
+    "FBX 解析超时（>30s）",
   );
-
-  let nextId = 0;
-  const pending = new Map<number, {
-    resolve: (r: FbxParseResponse) => void;
-    timer: ReturnType<typeof setTimeout>;
-  }>();
-
-  worker.onmessage = (e: MessageEvent<FbxParseResponse>) => {
-    const { id } = e.data;
-    const entry = pending.get(id);
-    if (entry) {
-      clearTimeout(entry.timer);
-      pending.delete(id);
-      entry.resolve(e.data);
-    }
-  };
-
-  worker.onerror = (ev: ErrorEvent) => {
-    for (const [id, entry] of pending) {
-      clearTimeout(entry.timer);
-      pending.delete(id);
-      entry.resolve({ id, ok: false, error: `Worker 错误: ${ev.message}` });
-    }
-  };
-
-  function parse(bytes: ArrayBuffer): Promise<FbxParseResponse> {
-    return new Promise((resolve) => {
-      const id = nextId++;
-      const timer = setTimeout(() => {
-        pending.delete(id);
-        resolve({ id, ok: false, error: "FBX 解析超时（>30s）" });
-      }, 30000);
-
-      pending.set(id, { resolve, timer });
-
-      const req: FbxParseRequest = { id, bytes };
-      worker.postMessage(req, [bytes]);
-    });
-  }
-
-  function dispose() {
-    for (const [id, entry] of pending) {
-      clearTimeout(entry.timer);
-      entry.resolve({ id, ok: false, error: "Worker 已终止" });
-    }
-    pending.clear();
-    worker.terminate();
-  }
-
-  return { parse, dispose };
+  return { parse: (bytes) => bridge.request(bytes), dispose: () => bridge.dispose() };
 }
 
 /** 场景重建配置 */

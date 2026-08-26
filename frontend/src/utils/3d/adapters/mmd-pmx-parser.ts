@@ -12,6 +12,7 @@ import type {
   PmxMaterialData,
   PmxBoneData,
 } from "./mmd-pmx-parser.worker.ts";
+import { createResolveModeBridge } from "./worker-bridge.ts";
 
 // ===== rAF 切片工具 =====
 // 每帧处理预算（毫秒），留给浏览器 60fps 渲染的时间
@@ -60,60 +61,12 @@ export function createPmxParser(): PmxParser {
     };
   }
 
-  const worker = new Worker(
-    new URL("./mmd-pmx-parser.worker.ts", import.meta.url),
-    { type: "module" },
+  const bridge = createResolveModeBridge<PmxParseResponse>(
+    "./mmd-pmx-parser.worker.ts",
+    30000,
+    "PMX 解析超时（>30s）",
   );
-
-  let nextId = 0;
-  const pending = new Map<number, {
-    resolve: (r: PmxParseResponse) => void;
-    timer: ReturnType<typeof setTimeout>;
-  }>();
-
-  worker.onmessage = (e: MessageEvent<PmxParseResponse>) => {
-    const { id } = e.data;
-    const entry = pending.get(id);
-    if (entry) {
-      clearTimeout(entry.timer);
-      pending.delete(id);
-      entry.resolve(e.data);
-    }
-  };
-
-  worker.onerror = (ev: ErrorEvent) => {
-    for (const [id, entry] of pending) {
-      clearTimeout(entry.timer);
-      pending.delete(id);
-      entry.resolve({ id, ok: false, error: `Worker 错误: ${ev.message}` });
-    }
-  };
-
-  function parse(bytes: ArrayBuffer): Promise<PmxParseResponse> {
-    return new Promise((resolve) => {
-      const id = nextId++;
-      const timer = setTimeout(() => {
-        pending.delete(id);
-        resolve({ id, ok: false, error: "PMX 解析超时（>30s）" });
-      }, 30000);
-
-      pending.set(id, { resolve, timer });
-
-      const req: PmxParseRequest = { id, bytes };
-      worker.postMessage(req, [bytes]);
-    });
-  }
-
-  function dispose() {
-    for (const [id, entry] of pending) {
-      clearTimeout(entry.timer);
-      entry.resolve({ id, ok: false, error: "Worker 已终止" });
-    }
-    pending.clear();
-    worker.terminate();
-  }
-
-  return { parse, dispose };
+  return { parse: (bytes) => bridge.request(bytes), dispose: () => bridge.dispose() };
 }
 
 /**

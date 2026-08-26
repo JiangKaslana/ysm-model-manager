@@ -45,11 +45,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 34 |
 | frontend/ui | 18 | 64 |
-| 前端·工具 | 162 | 638 |
+| 前端·工具 | 163 | 641 |
 | frontend/views | 115 | 333 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **485** | **2046** |
+| **合计** | **486** | **2049** |
 
 ## Go·头像
 
@@ -1293,10 +1293,10 @@
 | `FbxScaleInfo()` | `frontend/src/utils/3d/adapters/fbx-adapter:34` | Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） |
 | `normalizeFbxScale()` | `frontend/src/utils/3d/adapters/fbx-adapter:50` | Box3 尺度归一（ADR-112 P1）：DCC 导出单位混乱（cm/m/Unity units 可差 100×）时， 模型要么小到穿近平面看不见、要么顶天立地顶爆场景能力。均匀 |
 | `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:163` | 构建 FBX 内容场景（ADR-112 地基）。 |
-| `FbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:17` | FBX 解析器管理器（接口对齐 PmxParser） |
-| `createFbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:26` | 创建 FBX 解析器（Worker）。测试/受限环境无 Worker → always-fail 降级守卫， 调用方（fbx-adapter）会 fallback 到主线程 FBX |
-| `FbxSceneBuilderConfig()` | `frontend/src/utils/3d/adapters/fbx-parser:91` | 场景重建配置 |
-| `buildFbxSceneFromData()` | `frontend/src/utils/3d/adapters/fbx-parser:261` | 从 worker 产出的纯数据重建 Three.js 场景（FBX worker 路径的主线程构建器） 按 nodes 层级还原：非 mesh 节点建 Group、mesh 节点建 |
+| `FbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:18` | FBX 解析器管理器（接口对齐 PmxParser） |
+| `createFbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:27` | 创建 FBX 解析器（Worker）。测试/受限环境无 Worker → always-fail 降级守卫， 调用方（fbx-adapter）会 fallback 到主线程 FBX |
+| `FbxSceneBuilderConfig()` | `frontend/src/utils/3d/adapters/fbx-parser:44` | 场景重建配置 |
+| `buildFbxSceneFromData()` | `frontend/src/utils/3d/adapters/fbx-parser:214` | 从 worker 产出的纯数据重建 Three.js 场景（FBX worker 路径的主线程构建器） 按 nodes 层级还原：非 mesh 节点建 Group、mesh 节点建 |
 | `FbxParseRequest()` | `frontend/src/utils/3d/adapters/fbx-parser.worker:17` | 主线程 → Worker 请求 |
 | `FbxParseResponse()` | `frontend/src/utils/3d/adapters/fbx-parser.worker:23` | Worker → 主线程响应 |
 | `FbxGeometryData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:16` | — |
@@ -1333,12 +1333,12 @@
 | `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:9` | 主线程 → Worker 的请求 |
 | `Ktx2EncodeResponse()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:17` | Worker → 主线程的响应 |
 | `pmxObjectToResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-convert:194` | 权威 PmxObject → PmxParseResponse（压缩数组可 transferable；id 由调用方填入） |
-| `PmxBuilderConfig()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:28` | Builder 配置 |
-| `PmxBuildResult()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:36` | Builder 产出 |
-| `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:45` | PMX 解析器管理器 |
-| `createPmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:53` | 创建 PMX 解析器（Worker） |
-| `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:123` | 从 Worker 解析结果构建 Three.js 场景对象。 |
-| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:256` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
+| `PmxBuilderConfig()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:29` | Builder 配置 |
+| `PmxBuildResult()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:37` | Builder 产出 |
+| `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:46` | PMX 解析器管理器 |
+| `createPmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:54` | 创建 PMX 解析器（Worker） |
+| `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:76` | 从 Worker 解析结果构建 Three.js 场景对象。 |
+| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:209` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
 | `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:17` | 主线程 → Worker 请求 |
 | `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:23` | 顶点数据（交织存储，GPU 友好） |
 | `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:33` | 面数据 |
@@ -1448,6 +1448,9 @@
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:37` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
+| `ResolveModeResponse()` | `frontend/src/utils/3d/adapters/worker-bridge:13` | 响应必须携带 id / ok；错误以 ok:false + error 回传，不走 reject |
+| `ResolveModeBridge()` | `frontend/src/utils/3d/adapters/worker-bridge:19` | — |
+| `createResolveModeBridge()` | `frontend/src/utils/3d/adapters/worker-bridge:26` | — |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:43` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
 | `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:472` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
 | `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:502` | 工厂：构造统一 PreviewAdapter（shared 模式） |
