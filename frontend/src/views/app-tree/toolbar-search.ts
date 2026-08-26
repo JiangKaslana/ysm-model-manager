@@ -38,15 +38,32 @@ function hideStatsBadge(): void {
   if (statsBadge) statsBadge.style.display = "none";
 }
 
-// 打开弹窗版筛选器（应用结果到 inline 面板 + 后端搜索）
-export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
-  // ADR-049 桥接增强：网页版已实现 SearchModels（关键词 + 数值范围条件）。
-  // 数值统计（骨骼/立方体/纹理）走 Web Worker 批量分析（ADR-071 #6，用户「多线程
-  // 注入」要求）：Worker 可用时数值条件真实生效；不可用/失败时后端降级为仅关键词
-  // 匹配，并在搜索结果返回后 toast 提示（consumeWebSearchDegraded）。
-  // 降级提示仅限网页版（resolveWebMode）：Android 的 isViewerMode 恒 true，但其走
-  // 真实 Go 后端、SearchModels 支持数值范围，误提示会与后端行为不符。
-  dbg("adv-filter", "open:start", { filesRoot: vm._filesRoot });
+// --- dgAf* = dialog-adv-filter 子函数（openAdvFilterDialog 按 8 段拆出）---
+
+function dgAfIsUnset(v: unknown): boolean {
+  return v == null || v === "";
+}
+
+function dgAfToNum(v: unknown): number {
+  return v == null ? 0 : parseInt(String(v), 10) || 0;
+}
+
+function dgAfHasNumRange(rv: AdvFilterValue): boolean {
+  return (
+    !dgAfIsUnset(rv.minBones) ||
+    !dgAfIsUnset(rv.maxBones) ||
+    !dgAfIsUnset(rv.minCubes) ||
+    !dgAfIsUnset(rv.maxCubes) ||
+    !dgAfIsUnset(rv.minTex) ||
+    !dgAfIsUnset(rv.maxTex)
+  );
+}
+
+function dgAfHasRange(rv: AdvFilterValue, kw: string): boolean {
+  return dgAfHasNumRange(rv) || !!kw;
+}
+
+async function dgAfReadCurAndOpenDialog($: $Id): Promise<AdvFilterValue | null> {
   const $v = (id: string): string => ($(id) as HTMLInputElement | null)?.value || "";
   const cur: Record<string, string> = {
     keyword: $v("srch"),
@@ -64,11 +81,23 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
   dbg("adv-filter", "dialog:return", { result });
   if (!result) {
     dbg("adv-filter", "dialog:cancelled-or-null");
-    return;
+    return null;
   }
-  const rv = result as AdvFilterValue;
+  return result as AdvFilterValue;
+}
 
-  // 统一回填 inline 面板（null/undefined → ""）
+interface dgAfBackfillResult {
+  kw: string;
+  hasTag: boolean;
+  hasNumRange: boolean;
+  isAllEmpty: boolean;
+}
+
+function dgAfBackfillInlinePanel(
+  $: $Id,
+  rv: AdvFilterValue,
+  vm: AppTree,
+): dgAfBackfillResult {
   const setVal = (id: string, v: unknown): void => {
     const el = $(id) as HTMLInputElement | null;
     if (el) el.value = v == null ? "" : String(v);
@@ -84,115 +113,96 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
     srchEl.value = rv.keyword;
     vm._search = rv.keyword;
   }
-
   const kw = srchEl?.value || "";
-  const hasTag = rv.tag && !(rv.tag === "");
-  const isUnset = (v: unknown): boolean => v == null || v === "";
-  const hasNumRange =
-    !isUnset(rv.minBones) ||
-    !isUnset(rv.maxBones) ||
-    !isUnset(rv.minCubes) ||
-    !isUnset(rv.maxCubes) ||
-    !isUnset(rv.minTex) ||
-    !isUnset(rv.maxTex);
-  if (
+  const hasTag = !!(rv.tag && !(rv.tag === ""));
+  const hasNumRange = dgAfHasNumRange(rv);
+  const isAllEmpty =
     !kw &&
     !hasTag &&
-    isUnset(rv.minBones) &&
-    isUnset(rv.maxBones) &&
-    isUnset(rv.minCubes) &&
-    isUnset(rv.maxCubes) &&
-    isUnset(rv.minTex) &&
-    isUnset(rv.maxTex)
-  ) {
-    vm._filterPaths = null;
-    vm._renderTree();
-    return;
+    dgAfIsUnset(rv.minBones) &&
+    dgAfIsUnset(rv.maxBones) &&
+    dgAfIsUnset(rv.minCubes) &&
+    dgAfIsUnset(rv.maxCubes) &&
+    dgAfIsUnset(rv.minTex) &&
+    dgAfIsUnset(rv.maxTex);
+  return { kw, hasTag, hasNumRange, isAllEmpty };
+}
+
+function dgAfEarlyEmpty(vm: AppTree): void {
+  vm._filterPaths = null;
+  vm._renderTree();
+}
+
+async function dgAfFetchTagPaths(tag: string): Promise<Set<string> | null> {
+  try {
+    const { ListByTag } = await getApp();
+    const paths = await ListByTag(tag);
+    return new Set(paths || []);
+  } catch (e) {
+    bus.emit("toast:show", {
+      msg: "❌ 标签查询失败: " + friendlyError(e),
+      duration: 4000,
+      type: "error",
+    });
+    return null;
   }
-  const { SearchModels, ListByTag } =
-    await getApp();
+}
 
-  // 1. 按标签筛选（如果有）
-  let tagPaths: Set<string> | null = null;
-  if (hasTag) {
-    try {
-      const paths = await ListByTag(rv.tag);
-      tagPaths = new Set(paths || []);
-    } catch (e) {
-      bus.emit("toast:show", {
-        msg: "❌ 标签查询失败: " + friendlyError(e),
-        duration: 4000,
-        type: "error",
-      });
-    }
+type dgAfSearchResult = Set<string> | "cancel" | "error";
+
+async function dgAfSearchModelPaths(
+  vm: AppTree,
+  rv: AdvFilterValue,
+  kw: string,
+  hasNumRange: boolean,
+): Promise<dgAfSearchResult> {
+  const filesRoot = vm._filesRoot;
+  if (!filesRoot) {
+    bus.emit("toast:show", {
+      msg: "请先配置仓库目录",
+      duration: 2000,
+      type: "warn",
+    });
+    return "cancel";
   }
-
-  // 2. 按骨骼/纹理等条件搜索（如果有关键词或范围条件）
-  const hasRange =
-    !isUnset(rv.minBones) ||
-    !isUnset(rv.maxBones) ||
-    !isUnset(rv.minCubes) ||
-    !isUnset(rv.maxCubes) ||
-    !isUnset(rv.minTex) ||
-    !isUnset(rv.maxTex) ||
-    kw;
-
-  let modelPaths: Set<string> | null = null;
-  if (hasRange) {
-    const filesRoot = vm._filesRoot;
-    if (!filesRoot) {
-      bus.emit("toast:show", {
-        msg: "请先配置仓库目录",
-        duration: 2000,
-        type: "warn",
-      });
-      return;
-    }
-    const n = (v: unknown): number => (v == null ? 0 : parseInt(String(v), 10) || 0);
-    // 网页版数值条件：显示多线程统计角标（Worker 池并行，🧵×N 批进度实时）
-    const isWebNum = resolveWebMode() && hasNumRange;
-    const poolN = getStatsPoolSize();
+  const isWebNum = resolveWebMode() && hasNumRange;
+  const poolN = getStatsPoolSize();
+  if (isWebNum) {
+    showStatsBadge(`🧵×${poolN} 准备统计…`);
+    onStatsProgress((done, total) => {
+      showStatsBadge(`🧵×${poolN} ⚙️ ${done}/${total}`);
+    });
+  }
+  try {
+    const { SearchModels } = await getApp();
+    const results = await SearchModels(
+      filesRoot,
+      kw,
+      dgAfToNum(rv.minBones),
+      dgAfToNum(rv.maxBones),
+      dgAfToNum(rv.minCubes),
+      dgAfToNum(rv.maxCubes),
+      dgAfToNum(rv.minTex),
+      dgAfToNum(rv.maxTex),
+    );
+    return results?.length ? new Set(results.map((r) => r.path)) : new Set();
+  } catch (e: unknown) {
+    dbg("adv-filter", "search:error", { err: String(e) });
+    bus.emit("toast:show", {
+      msg: "❌ 高级筛选失败: " + friendlyError(e),
+      duration: 5000,
+      type: "error",
+    });
+    return "error";
+  } finally {
     if (isWebNum) {
-      showStatsBadge(`🧵×${poolN} 准备统计…`);
-      // 进度回调：每片完成更新角标（done/total）
-      onStatsProgress((done, total) => {
-        showStatsBadge(`🧵×${poolN} ⚙️ ${done}/${total}`);
-      });
-    }
-    try {
-      const results = await SearchModels(
-        filesRoot,
-        kw,
-        n(rv.minBones),
-        n(rv.maxBones),
-        n(rv.minCubes),
-        n(rv.maxCubes),
-        n(rv.minTex),
-        n(rv.maxTex),
-      );
-      modelPaths = results?.length
-        ? new Set(results.map((r) => r.path))
-        : new Set();
-    } catch (e: unknown) {
-      dbg("adv-filter", "search:error", { err: String(e) });
-      bus.emit("toast:show", {
-        msg: "❌ 高级筛选失败: " + friendlyError(e),
-        duration: 5000,
-        type: "error",
-      });
-      vm._filterPaths = null;
-      vm._renderTree();
-      return;
-    } finally {
-      if (isWebNum) {
-        onStatsProgress(null);
-        hideStatsBadge();
-      }
+      onStatsProgress(null);
+      hideStatsBadge();
     }
   }
+}
 
-  // 网页版数值条件降级提示：仅当统计引擎实际不可用（Worker 失败，SearchModels 已
-  // 降级为关键词匹配）时提示；Worker 生效时数值条件是真实的，不打扰用户
+function dgAfWarnWebDegraded(hasNumRange: boolean): void {
   if (resolveWebMode() && hasNumRange && consumeWebSearchDegraded()) {
     bus.emit("toast:show", {
       msg: "⚠️ 网页版统计引擎不可用，骨骼/立方体数值条件已忽略（仅关键词匹配）",
@@ -202,8 +212,13 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
     showStatsBadge("⚠️ Worker 降级 · 数值条件忽略");
     setTimeout(hideStatsBadge, 3000);
   }
+}
 
-  // 3. 取交集：标签 ∩ 搜索条件（如果两者都有）
+function dgAfIntersectPaths(
+  vm: AppTree,
+  tagPaths: Set<string> | null,
+  modelPaths: Set<string> | null,
+): void {
   if (tagPaths && modelPaths) {
     vm._filterPaths = new Set([...tagPaths].filter((p) => modelPaths.has(p)));
   } else if (tagPaths) {
@@ -213,7 +228,9 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
   } else {
     vm._filterPaths = null;
   }
+}
 
+function dgAfToastAndRender(vm: AppTree): void {
   const size = vm._filterPaths?.size ?? 0;
   if (size > 0) {
     bus.emit("toast:show", {
@@ -229,6 +246,39 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
     });
   }
   vm._renderTree();
+}
+
+// 打开弹窗版筛选器（应用结果到 inline 面板 + 后端搜索）
+export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
+  dbg("adv-filter", "open:start", { filesRoot: vm._filesRoot });
+  const rv = await dgAfReadCurAndOpenDialog($);
+  if (!rv) return;
+
+  const { kw, hasTag, hasNumRange, isAllEmpty } = dgAfBackfillInlinePanel($, rv, vm);
+  if (isAllEmpty) {
+    dgAfEarlyEmpty(vm);
+    return;
+  }
+
+  let tagPaths: Set<string> | null = null;
+  if (hasTag) {
+    tagPaths = await dgAfFetchTagPaths(rv.tag!);
+  }
+
+  let modelPaths: Set<string> | null = null;
+  if (dgAfHasRange(rv, kw)) {
+    const r = await dgAfSearchModelPaths(vm, rv, kw, hasNumRange);
+    if (r === "cancel") return;
+    if (r === "error") {
+      dgAfEarlyEmpty(vm);
+      return;
+    }
+    modelPaths = r;
+  }
+
+  dgAfWarnWebDegraded(hasNumRange);
+  dgAfIntersectPaths(vm, tagPaths, modelPaths);
+  dgAfToastAndRender(vm);
 }
 
 // 网页版「导入文件」：桌面走 SelectImportFile（Wails 原生对话框）；网页版无该 binding →
