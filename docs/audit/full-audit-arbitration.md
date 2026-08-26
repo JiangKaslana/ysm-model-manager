@@ -193,12 +193,12 @@ container.innerHTML = `<div style="color:var(--muted);font-size:11px;margin-bott
 |---|------|------|------|------|
 | 1 | `views/app-tree/events.ts:68,390` | 两个 bus 事件（`tree:drop-files`、`file:rename`）零订阅，属死代码 + `(bus as any)` 类型漏洞 | `f47fc3c9` 已修复：删除 `atTeBindDragDrop` 整段（与 `bindTreeDnD` 重复）；`file:rename` 改为直接调 `RenameFile` 保留双击改名 UX | ✅ 已合并 main |
 
-### 🟠 P2（建议修复）
+### 🟠 P2（建议修复）→ 已全部修复 ✅
 
-| # | 文件 | 问题 | 修复 |
-|---|------|------|------|
-| 2 | `views/app-tree/events.ts:68,390` | `(bus as any)` 绕过类型系统，未来新增未注册事件编译期不报错 | 同 P1-1，删除 or 正式注册 |
-| 3 | `backend/coi-sw.ts:38` | 外层 catch{} 静默 SW 注册失败 | 加 `dbg("coi", "SW注册失败", e)` 便于排障 |
+| # | 文件 | 问题 | 修复 | 状态 |
+|---|------|------|------|------|
+| 1 | `views/app-tree/events.ts:68,390` | `(bus as any)` 绕过类型系统；`file:rename` 静默坏功能 | `f47fc3c9` 删除 `atTeBindDragDrop` 整段 + `file:rename` 改为直接调 `RenameFile` | ✅ 已合并 main |
+| 2 | `backend/coi-sw.ts:35,38` | 外层/内层 catch{} 静默 SW 注册失败，GitHub Pages 排障零线索 | `c7d8e4f1` 加 `dbg("coi-sw", ...)` 留痕进环形缓冲 | ✅ 已合并 main |
 
 ### 🟡 P3（记录备查）
 
@@ -232,4 +232,4 @@ container.innerHTML = `<div style="color:var(--muted);font-size:11px;margin-bott
 ---
 
 **仲裁结论：项目前端代码整体质量优秀。**
-P1 已通过 `f47fc3c9` 修复（删除死代码 + 补全 rename 订阅）。3 个 P2 建议修复，15 个 P3 记录备查。无阻断性问题。
+P1/P2 已全部修复合并。15 个 P3 记录备查。无阻断性问题。
