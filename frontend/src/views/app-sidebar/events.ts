@@ -27,43 +27,14 @@ interface CardBindState {
 }
 const bindStates = new WeakMap<ShadowRoot, CardBindState>();
 
-export function bindCardEvents(
+/** 构建卡片点击处理器闭包（心跳式：高亮 + 涟漪 + 去重状态机 + 空 rtype 拦截）。
+ * 引用 root（高亮/涟漪作用于完整列表与头部）与 st（读写最新实例与绑定态）。
+ * P1/P2/P2-1 修复注释随闭包迁移，见原 bindCardEvents。 */
+function bindCardClickHandler(
   root: ShadowRoot,
-  instances: SidebarInstance[],
-): () => void {
-  // 先清掉旧的右键容器（防止重复）
-  root.querySelectorAll(".instance-card-context-menu").forEach((el) => el.remove());
-
-  const list = root.getElementById("sidebar-instance-list");
-  if (!list) return () => {};
-
-  let state = bindStates.get(root);
-  if (!state) {
-    state = { list, click: null, ctx: null, instances };
-    bindStates.set(root, state);
-  }
-  // 每次调用都先刷新实例数据（list 复用早退时旧闭包也能读到最新实例数据）
-  state.instances = instances;
-  const st = state;
-
-  // 如果监听的 list 元素没变，用旧的 handler 引用避免重复绑定
-  if (st.list === list && st.click && st.ctx) {
-    restoreSelectedCard(root, instances);
-    return () => {};
-  }
-
-  // 移除旧的监听（如果 list 被替换了）
-  if (st.list !== list && st.click && st.ctx) {
-    st.list.removeEventListener("click", st.click);
-    st.list.removeEventListener("contextmenu", st.ctx);
-  }
-  // P2 修复（code_review）+ P2 复核修复：list 替换 = 同组件 reload（非新挂载），
-  // 不再复位 _lastEmittedPkg——原实现每次 reload 都复位，restoreSelectedCard 的
-  // emitKey 去重恒真失效，每次重发 package:selected，app-content 反复重建
-  // <app-sync-manager>（状态丢失/闪烁回归）。真正卸载（disconnectedCallback）才复位，
-  // 由 resetSelectedEmit() 显式调用。
-
-  const clickHandler = (e: MouseEvent): void => {
+  st: CardBindState,
+): (e: MouseEvent) => void {
+  return (e: MouseEvent): void => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
     if (target.closest("button") || target.closest(".chk")) return;
@@ -104,8 +75,15 @@ export function bindCardEvents(
       safeSet("sb_selectedName_" + (pkg.rtype || currentRepoType()), pkg.name);
     }
   };
+}
 
-  const contextHandler = (e: MouseEvent): void => {
+/** 构建卡片右键处理器闭包（ctx:show 菜单弹出，rtype/path 缺失拦截）。
+ * 仅消费 st（最新实例数据）；root 保留作签名对称，右键路径不直接触 root。 */
+function bindCardContextHandler(
+  root: ShadowRoot,
+  st: CardBindState,
+): (e: MouseEvent) => void {
+  return (e: MouseEvent): void => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
     const card = target.closest(".instance-card") as HTMLElement | null;
@@ -142,6 +120,46 @@ export function bindCardEvents(
       subdir: safeGet("repo_subdir") || "",
     });
   };
+}
+
+export function bindCardEvents(
+  root: ShadowRoot,
+  instances: SidebarInstance[],
+): () => void {
+  // 先清掉旧的右键容器（防止重复）
+  root.querySelectorAll(".instance-card-context-menu").forEach((el) => el.remove());
+
+  const list = root.getElementById("sidebar-instance-list");
+  if (!list) return () => {};
+
+  let state = bindStates.get(root);
+  if (!state) {
+    state = { list, click: null, ctx: null, instances };
+    bindStates.set(root, state);
+  }
+  // 每次调用都先刷新实例数据（list 复用早退时旧闭包也能读到最新实例数据）
+  state.instances = instances;
+  const st = state;
+
+  // 如果监听的 list 元素没变，用旧的 handler 引用避免重复绑定
+  if (st.list === list && st.click && st.ctx) {
+    restoreSelectedCard(root, instances);
+    return () => {};
+  }
+
+  // 移除旧的监听（如果 list 被替换了）
+  if (st.list !== list && st.click && st.ctx) {
+    st.list.removeEventListener("click", st.click);
+    st.list.removeEventListener("contextmenu", st.ctx);
+  }
+  // P2 修复（code_review）+ P2 复核修复：list 替换 = 同组件 reload（非新挂载），
+  // 不再复位 _lastEmittedPkg——原实现每次 reload 都复位，restoreSelectedCard 的
+  // emitKey 去重恒真失效，每次重发 package:selected，app-content 反复重建
+  // <app-sync-manager>（状态丢失/闪烁回归）。真正卸载（disconnectedCallback）才复位，
+  // 由 resetSelectedEmit() 显式调用。
+
+  const clickHandler = bindCardClickHandler(root, st);
+  const contextHandler = bindCardContextHandler(root, st);
 
   list.addEventListener("click", clickHandler);
   list.addEventListener("contextmenu", contextHandler);
