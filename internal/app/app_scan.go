@@ -234,6 +234,8 @@ func (a *App) SearchAllModels(allRoots map[string]string, keyword string, minBon
 	sort.Strings(rtypes)
 	for _, rtype := range rtypes {
 		root := allRoots[rtype]
+		// allRoots 来源 GetAllRepoRoots，路径已验证在仓库根内，无需重复守卫；
+		// 走 scanModelEntries（无日志薄壳）避免跨类型搜索刷 N 条扫描日志。
 		entries := a.scanModelEntries(root)
 		for _, e := range entries {
 			all = append(all, typedEntry{entry: e, rtype: rtype})

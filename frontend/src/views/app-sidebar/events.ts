@@ -214,6 +214,8 @@ function restoreSelectedCard(
         // restore 恢复 localStorage 残留的漏 rtype 实例时，init-pages 的防御性
         // return 会静默丢面板，须与点击路径一致给用户 toast 反馈。
         if (!pkg?.rtype) {
+          // P3 修复：设 emitKey 后再 return，让去重状态机抑制后续 reload 重复 toast
+          _lastEmittedPkg = emitKey;
           bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: 3000, type: "error" });
           return;
         }
