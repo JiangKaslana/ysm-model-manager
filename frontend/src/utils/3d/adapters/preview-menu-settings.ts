@@ -45,7 +45,7 @@ export function buildCameraSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
 export function buildLightingSchema(ctx: PreviewMenuCtx): PreviewMenuNode[] {
   const lightFromReg = sceneCapabilityRegistry.getById("light") as import("../caps/light-capability.ts").LightCapability | null;
   const lightCap = lightFromReg ?? (() => {
-    const fromCtx = ctx.getLightCap();
+    const fromCtx = ctx.getCap("light");
     if (fromCtx && "getMenuControls" in fromCtx) return fromCtx as unknown as import("../caps/light-capability.ts").LightCapability;
     return null;
   })();

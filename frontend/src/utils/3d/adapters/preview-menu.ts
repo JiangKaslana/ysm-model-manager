@@ -21,9 +21,7 @@ import {
   buildPostprocessingSchema,
   buildSettingsSchema,
 } from "./preview-menu-settings.ts";
-import type { SkyCapability } from "../caps/sky-capability.ts";
-import type { GroundCapability } from "../caps/ground-capability.ts";
-import type { LightCapability } from "../caps/light-capability.ts";
+import type { SceneCapability } from "../caps/scene-capability.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
@@ -37,9 +35,9 @@ export { renderMenu } from "./preview-menu-render.ts";
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
   selfMode: boolean;
-  getSkyCap: () => SkyCapability | null;
-  getGroundCap: () => GroundCapability | null;
-  getLightCap: () => LightCapability | null;
+  /** 统一能力解析点：按 id 取场景能力实例。mount 层透传 sceneCapabilityRegistry.getById，
+   *  测试注入 fake——收编原 getSkyCap/getGroundCap/getLightCap 三字段，新增能力零 ctx 改动 */
+  getCap: (id: string) => SceneCapability | null;
   getCamBridge: () => CameraControlBridge;
   getSiblings: () => string[];
   getCurrentPath: () => string;
@@ -347,11 +345,7 @@ function dockGroupItemsFor(
   allItems: PreviewMenuNode[],
   ctx: PreviewMenuCtx,
 ): PreviewMenuNode[] {
-  const hasEnv =
-    !!sceneCapabilityRegistry.getById("sky") ||
-    !!sceneCapabilityRegistry.getById("ground") ||
-    !!ctx.getSkyCap() ||
-    !!ctx.getGroundCap();
+  const hasEnv = !!(ctx.getCap("sky") || ctx.getCap("ground"));
   return allItems
     .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
     .filter((d) => !(d.sharedOnly && ctx.selfMode))

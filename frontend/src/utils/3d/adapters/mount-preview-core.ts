@@ -348,9 +348,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   // 测试遍历真实菜单数组断言（preview-menu-items.test.ts），选择器稳定可遍历（ADR-076 v2）。
   const menuHandle = mountPreviewRootMenu(overlay, {
     selfMode,
-    getSkyCap: () => skyCap,
-    getGroundCap: () => groundCap,
-    getLightCap: () => lightCap,
+    getCap: (id: string) => sceneCapabilityRegistry.getById(id) ?? null,
     getCamBridge: () => camBridge,
     getSiblings: () => (opts.siblings ?? []).filter((p) => p !== currentPath),
     getCurrentPath: () => currentPath,

@@ -26,8 +26,8 @@ function resolveCaps(ctx: PreviewMenuCtx): SceneCapability[] {
   let allCaps = sceneCapabilityRegistry.getAll().filter((cap) => ENV_IDS.has(cap.id));
   if (allCaps.length === 0) {
     const fb: SceneCapability[] = [];
-    const skyCap = ctx.getSkyCap();
-    const groundCap = ctx.getGroundCap();
+    const skyCap = ctx.getCap("sky");
+    const groundCap = ctx.getCap("ground");
     if (skyCap && "getMenuControls" in skyCap) fb.push(Object.assign({ id: "sky" }, skyCap) as SceneCapability);
     if (groundCap && "getMenuControls" in groundCap) fb.push(Object.assign({ id: "ground" }, groundCap) as SceneCapability);
     allCaps = fb;
@@ -43,7 +43,7 @@ function applyPreset(ctx: PreviewMenuCtx, presetId: Exclude<EnvPresetId, "custom
   if (link.sky) {
     const skyCap = sceneCapabilityRegistry.getById("sky") as (SkyCapability & { setTime?(h: number): void; setCloudCoverage?(v: number, regen?: boolean): void }) | null;
     if (skyCap) { skyCap.setTime?.(link.sky.time); skyCap.setCloudCoverage?.(link.sky.cloud, true); }
-    else { const fc = ctx.getSkyCap() as (SkyCapability & { setTime?(h: number): void; setCloudCoverage?(v: number, regen?: boolean): void }) | null; fc?.setTime?.(link.sky.time); fc?.setCloudCoverage?.(link.sky.cloud, true); }
+    else { const fc = ctx.getCap("sky") as (SkyCapability & { setTime?(h: number): void; setCloudCoverage?(v: number, regen?: boolean): void }) | null; fc?.setTime?.(link.sky.time); fc?.setCloudCoverage?.(link.sky.cloud, true); }
   }
   if (link.fog) {
     const fogCap = sceneCapabilityRegistry.getById("fog") as FogCapability | null;

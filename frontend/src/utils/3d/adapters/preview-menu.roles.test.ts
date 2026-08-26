@@ -12,9 +12,7 @@ import { sceneRegistry } from "./scene-registry.ts";
 function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
   return {
     selfMode: false,
-    getSkyCap: () => null,
-    getGroundCap: () => null,
-    getLightCap: () => null,
+    getCap: () => null,
     getCamBridge: () => ({
       getOrbit: () => true,
       setOrbit: vi.fn(),

@@ -9,9 +9,7 @@ import type { SlideMenuHandle } from "../../../ui/ui-slide-menu.ts";
 function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
   return {
     selfMode: false,
-    getSkyCap: () => null,
-    getGroundCap: () => null,
-    getLightCap: () => null,
+    getCap: () => null,
     getCamBridge: () => ({ mode: "orbit" as const, setMode: vi.fn(), reset: vi.fn() }) as never,
     getSiblings: () => [],
     getCurrentPath: () => "",
@@ -70,7 +68,7 @@ describe("buildEnvSchema", () => {
       saveState: vi.fn(),
       loadState: vi.fn(),
     };
-    const ctx = makeCtx({ getSkyCap: () => fakeSkyCap as never });
+    const ctx = makeCtx({ getCap: (id) => (id === "sky" ? (fakeSkyCap as never) : null) });
     const schema = buildEnvSchema(ctx);
     expect(schema.length).toBeGreaterThanOrEqual(2);
     expect(schema[0].id).toBe("env-presets");
@@ -99,7 +97,7 @@ describe("renderEnvLevel", () => {
       ],
       apply: vi.fn(), dispose: vi.fn(), setEnabled: vi.fn(), isEnabled: () => true, saveState: vi.fn(), loadState: vi.fn(),
     };
-    const ctx = makeCtx({ getSkyCap: () => fakeSkyCap as never });
+    const ctx = makeCtx({ getCap: (id) => (id === "sky" ? (fakeSkyCap as never) : null) });
     const list = document.createElement("div");
     renderEnvLevel(list, ctx, undefined);
     // 平铺路径：应有 cap-sky-toggle 控件行
@@ -117,7 +115,7 @@ describe("renderEnvLevel", () => {
       ],
       apply: vi.fn(), dispose: vi.fn(), setEnabled: vi.fn(), isEnabled: () => true, saveState: vi.fn(), loadState: vi.fn(),
     };
-    const ctx = makeCtx({ getSkyCap: () => fakeSkyCap as never });
+    const ctx = makeCtx({ getCap: (id) => (id === "sky" ? (fakeSkyCap as never) : null) });
     const menu = makeMenu();
     const list = document.createElement("div");
     renderEnvLevel(list, ctx, menu);
@@ -142,7 +140,7 @@ describe("renderEnvLevel", () => {
       ],
       apply: vi.fn(), dispose: vi.fn(), setEnabled: vi.fn(), isEnabled: () => true, saveState: vi.fn(), loadState: vi.fn(),
     };
-    const ctx = makeCtx({ getSkyCap: () => fakeSkyCap as never });
+    const ctx = makeCtx({ getCap: (id) => (id === "sky" ? (fakeSkyCap as never) : null) });
     const menu = makeMenu();
     const list = document.createElement("div");
     renderEnvLevel(list, ctx, menu);
@@ -165,7 +163,7 @@ describe("renderEnvLevel", () => {
       getMenuControls: () => [],
       apply: vi.fn(), dispose: vi.fn(), setEnabled: vi.fn(), isEnabled: () => true, saveState: vi.fn(), loadState: vi.fn(),
     };
-    const ctx = makeCtx({ getSkyCap: () => fakeSkyCap as never });
+    const ctx = makeCtx({ getCap: (id) => (id === "sky" ? (fakeSkyCap as never) : null) });
     const menu = makeMenu();
     const list = document.createElement("div");
     renderEnvLevel(list, ctx, menu);

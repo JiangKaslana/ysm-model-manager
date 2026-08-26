@@ -130,9 +130,7 @@ const fakeCap = {
 function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
   return {
     selfMode: false,
-    getSkyCap: () => fakeCap,
-    getGroundCap: () => fakeCap,
-    getLightCap: () => null,
+    getCap: (id) => (id === "sky" || id === "ground" ? fakeCap : null),
     getCamBridge: () => ({
       getOrbit: () => true,
       setOrbit: vi.fn(),
@@ -359,7 +357,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     noSib.handle.dispose();
     // selfMode 不再过滤 lighting/shadow/postproc（已去 sharedOnly）→ 🎛️ 场景组显；
     // 无 cap → environment(requiresEnvironment) 过滤 → 🌍 环境组空
-    const noScene = mountWith([], { selfMode: true, getSkyCap: () => null, getGroundCap: () => null });
+    const noScene = mountWith([], { selfMode: true, getCap: () => null });
     const sceneGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "scene")!.id;
     const envGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "env")!.id;
     expect(noScene.overlay.querySelector(`[data-testid="dock-${sceneGroupId}"]`)).not.toBeNull();

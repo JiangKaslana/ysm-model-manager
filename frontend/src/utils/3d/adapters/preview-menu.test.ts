@@ -11,9 +11,7 @@ import { deriveTestIds } from "../../../test-utils/self-healing.ts";
 function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
   return {
     selfMode: false,
-    getSkyCap: () => null,
-    getGroundCap: () => null,
-    getLightCap: () => null,
+    getCap: () => null,
     getCamBridge: () => ({
       getOrbit: () => true,
       setOrbit: vi.fn(),
@@ -230,7 +228,7 @@ describe("mountPreviewRootMenu", () => {
     const cap = { getMenuControls: () => [] } as never;
     const handle = mountPreviewRootMenu(overlay, makeCtx({
       getSiblings: () => ["/m/b.ysm"],
-      getSkyCap: () => cap,
+      getCap: (id) => (id === "sky" ? cap : null),
     }));
     const envGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "env")!.id;
     expect(overlay.querySelector(`[data-testid="dock-${envGroupId}"]`)).not.toBeNull();
