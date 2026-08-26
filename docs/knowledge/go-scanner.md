@@ -57,6 +57,7 @@ quick_risk_lines:
 | `.ban` / `.disabled` 后缀 | 还原原始扩展名后按上述判断 |
 
 > **注意**：CI workflow 模板（`generateIndexWorkflow`）的 `paths:` 触发条件仅列 `**.ysm` / `**.zip` / `**.7z`，与扫描侧 `.json` 白名单口径分工不同——扫描负责全量发现，CI 只感知 YSM/压缩包变更。
+> `ensureRepoWorkflow` 用 `fsutil.WriteFileAtomic` 原子写 workflow（ADR-109 §4），不裸 `os.WriteFile`——防止中途崩溃留残缺文件被上方 `os.Stat` 误判为「已存在」而永久静默失效；已存在则不覆盖，保留用户自定义 workflow。
 
 ## 对外 API / 入口
 
