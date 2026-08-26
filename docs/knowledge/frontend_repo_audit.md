@@ -57,7 +57,7 @@ use_when:
 
 ## 共性抽象机会（横向收敛）
 
-- Worker 桥收敛 → **Step 1 已完成**：pmx/fbx 逐字同码（永远 resolve ok:false 编码）已抽 `createResolveModeBridge`(`utils/3d/adapters/worker-bridge.ts`) 收编，各自 −53 行、typecheck+59 测试全绿；**ktx2 待 Step 2**（reject-mode+池 round-robin+崩溃终止整池，外层信号量/降级/`__setEncodeImplForTest` 业务层保留）；texture-decoder 为 1:N 批量聚合，基数不匹配 1:1 签名，**明确排除**防假统一
+- Worker 桥收敛 → **Step 1+2 已完成**：pmx/fbx 逐字同码（永远 resolve ok:false 编码）已抽 `createResolveModeBridge`(`utils/3d/adapters/worker-bridge.ts`，`createWorkerBridge` 薄封装) 收编，各自 −53 行、59 测试全绿；**ktx2 已收编**进通用 `createWorkerBridge`（reject-mode+池 round-robin+崩溃终止整池，外层信号量/降级/`__setEncodeImplForTest` 业务层保留），22 测试全绿；三桥统一、消除重复内核，净省有限（通用工厂为新增）但架构收敛；texture-decoder 为 1:N 批量聚合，基数不匹配 1:1 签名，**明确排除**防假统一
 - generation 守卫 → 审计「三套实现各异」**被高估**：共享 `LoadGuard`(`utils/async/load-guard.ts` 的 `createLoadGuard`) 已存在，recycle-bin+oldest-models 共用；app-preview/app-sidebar/app-sync-manager 实为同一 `++counter` idiom（非各异）；仅 perf-cli(`DgPcGenGuard`)/app-tree(`atBeGenGuard`) 是真异实现，迁移到 LoadGuard 待办（非从零抽 `GenerationGuard`）
 - 公共 port → **已落地**：`mmd-data-port.ts` 的 `makeMmdDataPort(scope)` 已是 mmd-3d(:7/:23) 与 scene-3d(:11/:28) 共用公共 port；绑定由 Wails 生成 app.ts 全量类型化，`as unknown as Record` 绕类型已根除
 - idbRekeyGroup → **已落地**：`web-fs.ts` 的 `rekeyWebModelGroup` 已是两阶段「写新→删旧」事务原语，`renameWebDir`(:473)/`moveOrCopyWebModel`(:637) 已委托；仅 `renameWebFile` 单文件粒度仍内联（不同粒度，非同构）
