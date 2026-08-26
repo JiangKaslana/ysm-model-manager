@@ -18,10 +18,8 @@ let _dedupBusy = false;
 // await，重复点击会并行循环对同一批路径二次删除（误统计）；busy 命中直接返回
 let diagExecBusy = false;
 
-// ===== 全局配置状态（供 initDedupConfig 和 startDedup 共享） =====
-let _dedupStrategy = "deep_hash";
-let _keepPolicy = "oldest";
-let _priorityPath = "";
+// ===== 全局配置状态（供 initDedupConfig 和 startDedup 共享；收敛为单一对象，重置即一行） =====
+const dedupConfig = { strategy: "deep_hash", keepPolicy: "oldest", priorityPath: "" };
 
 // ===== 类型提级（包级非导出，原 executeDedupScan 内匿名接口） =====
 interface DgDdDedupTarget {
@@ -133,20 +131,20 @@ function dgDdRenderConfigHtml(list: HTMLElement): void {
       <div class="diag-config-item">
         <label for="dedup-strategy">🔍 ${t("diagnostics.dedupStrategy")}:</label>
         <select id="dedup-strategy" class="diag-config-select">
-          <option value="deep_hash"${_dedupStrategy === "deep_hash" ? " selected" : ""}>${t("diagnostics.strategyDeepHash")} (SHA256)</option>
-          <option value="quick_hash"${_dedupStrategy === "quick_hash" ? " selected" : ""}>${t("diagnostics.strategyQuickHash")} (MD5)</option>
-          <option value="name_size"${_dedupStrategy === "name_size" ? " selected" : ""}>${t("diagnostics.strategyNameSize")} (${t("diagnostics.fastest")})</option>
+          <option value="deep_hash"${dedupConfig.strategy === "deep_hash" ? " selected" : ""}>${t("diagnostics.strategyDeepHash")} (SHA256)</option>
+          <option value="quick_hash"${dedupConfig.strategy === "quick_hash" ? " selected" : ""}>${t("diagnostics.strategyQuickHash")} (MD5)</option>
+          <option value="name_size"${dedupConfig.strategy === "name_size" ? " selected" : ""}>${t("diagnostics.strategyNameSize")} (${t("diagnostics.fastest")})</option>
         </select>
       </div>
       <div class="diag-config-item">
         <label for="keep-policy">💾 ${t("diagnostics.keepPolicy")}:</label>
         <select id="keep-policy" class="diag-config-select">
-          <option value="oldest"${_keepPolicy === "oldest" ? " selected" : ""}>${t("diagnostics.keepOldest")}</option>
-          <option value="newest"${_keepPolicy === "newest" ? " selected" : ""}>${t("diagnostics.keepNewest")}</option>
-          <option value="path"${_keepPolicy === "path" ? " selected" : ""}>${t("diagnostics.keepByPath")}</option>
+          <option value="oldest"${dedupConfig.keepPolicy === "oldest" ? " selected" : ""}>${t("diagnostics.keepOldest")}</option>
+          <option value="newest"${dedupConfig.keepPolicy === "newest" ? " selected" : ""}>${t("diagnostics.keepNewest")}</option>
+          <option value="path"${dedupConfig.keepPolicy === "path" ? " selected" : ""}>${t("diagnostics.keepByPath")}</option>
         </select>
       </div>
-      <div class="diag-config-item" id="priority-path-item" style="${_keepPolicy === "path" ? "" : "display:none"}">
+      <div class="diag-config-item" id="priority-path-item" style="${dedupConfig.keepPolicy === "path" ? "" : "display:none"}">
         <label for="priority-path">📁 ${t("diagnostics.priorityPath")}:</label>
         <input type="text" id="priority-path" class="diag-config-input" placeholder="/path/to/priority" value="">
       </div>
@@ -156,23 +154,23 @@ function dgDdRenderConfigHtml(list: HTMLElement): void {
 
 function dgDdBindStrategyChange(list: HTMLElement): void {
   list.querySelector("#dedup-strategy")?.addEventListener("change", (e) => {
-    _dedupStrategy = (e.target as HTMLSelectElement).value;
+    dedupConfig.strategy = (e.target as HTMLSelectElement).value;
   });
 }
 
 function dgDdBindKeepPolicyChange(list: HTMLElement): void {
   list.querySelector("#keep-policy")?.addEventListener("change", (e) => {
-    _keepPolicy = (e.target as HTMLSelectElement).value;
+    dedupConfig.keepPolicy = (e.target as HTMLSelectElement).value;
     const pathItem = list.querySelector("#priority-path-item") as HTMLElement;
     if (pathItem) {
-      pathItem.style.display = _keepPolicy === "path" ? "" : "none";
+      pathItem.style.display = dedupConfig.keepPolicy === "path" ? "" : "none";
     }
   });
 }
 
 function dgDdBindPriorityPathInput(list: HTMLElement): void {
   list.querySelector("#priority-path")?.addEventListener("input", (e) => {
-    _priorityPath = (e.target as HTMLInputElement).value;
+    dedupConfig.priorityPath = (e.target as HTMLInputElement).value;
   });
 }
 
@@ -197,9 +195,9 @@ export function initDedupConfig(list: HTMLElement): void {
  */
 function getDedupConfig(): { strategy: string; keepPolicy: string; priorityPath: string } {
   return {
-    strategy: _dedupStrategy,
-    keepPolicy: _keepPolicy,
-    priorityPath: _priorityPath,
+    strategy: dedupConfig.strategy,
+    keepPolicy: dedupConfig.keepPolicy,
+    priorityPath: dedupConfig.priorityPath,
   };
 }
 
@@ -334,7 +332,7 @@ ${rtResult.icon} ${rtResult.label}
 
     for (const group of rtResult.groups) {
       const files = group.files || [];
-      const defaultIdx = getDefaultKeepIdx(files, _keepPolicy, _priorityPath);
+      const defaultIdx = getDefaultKeepIdx(files, dedupConfig.keepPolicy, dedupConfig.priorityPath);
       const totalSize = files.reduce((s, e) => s + e.size, 0);
       const gi = groupIndex++;
 
