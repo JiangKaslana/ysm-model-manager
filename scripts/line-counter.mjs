@@ -85,8 +85,11 @@ function isTestFile(f) {
 //   class Foo {
 //   export default <名>             -> 不处理（default 匿名实现直接看父声明）
 //
-// 匹配产物：{name, startLine(0-based), indent, kind:'func'|'arrow'|'class'|'method'}
-const TS_FUNC_DECL_RE = /^(?<indent>[ \t]*)(?:export\s+)?(?:declare\s+)?(?:async\s+)?(?<kind>function|class)\s+(?<name>[A-Za-z0-9_$]+)\s*(?:<[^>]*>)?\s*\(/;
+// 匹配产物：{name, startLine(0-based), indent, kind:'func'|'arrow'|'class'|'type'|'method'}
+// 注意：function 声明后面必跟 `NAME(`；class / interface / type / enum 声明后面跟 `{`，不是 `(`
+//       所以分两个独立正则，避免一个正则里既要 `\(` 又要 `\{` 造成 class 声明全线漏扫（Bug 2026-08-26）。
+const TS_FUNCTION_DECL_RE = /^(?<indent>[ \t]*)(?:export\s+)?(?:declare\s+)?(?:async\s+)?function\s+(?<name>[A-Za-z0-9_$]+)\s*(?:<[^>]*>)?\s*\(/;
+const TS_CLASS_DECL_RE = /^(?<indent>[ \t]*)(?:export\s+)?(?:declare\s+)?(?:abstract\s+)?class\s+(?<name>[A-Za-z0-9_$]+)\s*(?:<[^>]*>)?\s*(?:extends\s+[^{]+?|implements\s+[^{]+?)?\s*\{/;
 const TS_ARROW_DECL_RE = /^(?<indent>[ \t]*)(?:export\s+)?(?:declare\s+)?(?:const|let|var)\s+(?<name>[A-Za-z0-9_$]+)\s*(?::\s*[^=]+?)?\s*=\s*(?:async\s+)?(?:\([^)]*\)|[A-Za-z0-9_$]+)\s*=>\s*\{/;
 const TS_CLASS_METHOD_RE = /^(?<indent>[ \t]*)(?:(?:public|private|protected|static|readonly|async)\s+)*(?<name>[A-Za-z0-9_$]+)\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?::\s*[^{]+?)?\s*\{/;
 const TS_INTERFACE_TYPE_RE = /^(?<indent>[ \t]*)(?:export\s+)?(?:interface|type|enum)\s+(?<name>[A-Za-z0-9_$]+)\s*(?:<[^>]*>)?\s*(?:extends\s+[^{]+?|implements\s+[^{]+?)?\s*\{/;
@@ -101,7 +104,7 @@ const GO_FUNC_RE = /^(?<indent>[ \t]*)func\s+(?:\((?<recv>[^)]*)\)\s+)?(?<name>[
 // 策略：
 //   1. 先找声明行后（含本行）第一个未被 '//' / 字符串 / 反引号模板 注释掉的 '{'，记深度=1
 //   2. 逐字符推进，深度==0 即返回（endLine 为 0-based 闭区间；行数 = endLine - startLine + 1）
-//   3. 护栏：扫描过程中，如遇到「同级别或更少缩进」的新顶层声明（TS_FUNC_DECL_RE / GO_FUNC_RE）且深度<=1，
+//   3. 护栏：扫描过程中，如遇到「同级别或更少缩进」的新顶层声明（TS_FUNCTION_DECL_RE + TS_CLASS_DECL_RE + TS_ARROW_DECL_RE + TS_INTERFACE_TYPE_RE / GO_FUNC_RE），
 //      则说明已经进入下一个函数，直接在那之前截断（避免 class/interface 尾括号被"吞"到下一个声明里）
 //   4. 字符串/注释转义的简化处理：不追求 100% 精确（比如反引号内嵌变量模板），够用即可——
 //      即使误判也是"少算几行"方向，不会导致"虚高假阳性"（那是红线方向更危险）
@@ -210,7 +213,7 @@ function findFunctionEnd(lines, startLine, isGo) {
     // 造成"行数虚高假阳性"（红线方向，比漏算更危险）。
     if (li + 1 < n) {
       const nextLine = lines[li + 1];
-      const hitTs = !isGo && (TS_FUNC_DECL_RE.test(nextLine) || TS_ARROW_DECL_RE.test(nextLine) || TS_INTERFACE_TYPE_RE.test(nextLine));
+      const hitTs = !isGo && (TS_FUNCTION_DECL_RE.test(nextLine) || TS_CLASS_DECL_RE.test(nextLine) || TS_ARROW_DECL_RE.test(nextLine) || TS_INTERFACE_TYPE_RE.test(nextLine));
       const hitGo = isGo && GO_FUNC_RE.test(nextLine);
       if (hitTs || hitGo) {
         // 用正则抓下一行的声明缩进，比当前函数声明行起始缩进 <= 才算跨块
@@ -255,21 +258,30 @@ function extractFunctions(file) {
       const count = end.endLine - li + 1;
       out.push({ name, startLine: li + 1, lines: count, truncated: end.truncated });
     } else {
-      // TS/JS：先试顶层声明
-      const mFunc = line.match(TS_FUNC_DECL_RE);
+      // TS/JS：先试顶层声明。独立分四类：function 声明 / class 声明 / 箭头 const / interface|type|enum
+      const mFunc = line.match(TS_FUNCTION_DECL_RE);
+      const mClass = line.match(TS_CLASS_DECL_RE);
       const mArrow = line.match(TS_ARROW_DECL_RE);
       const mIface = line.match(TS_INTERFACE_TYPE_RE);
-      if (mFunc || mArrow || mIface) {
-        const m = mFunc || mArrow || mIface;
+      if (mFunc || mClass || mArrow || mIface) {
+        const m = mFunc || mClass || mArrow || mIface;
         const name = m.groups.name;
-        const kind = mFunc ? (m.groups.kind === 'class' ? 'class' : 'func') : (mArrow ? 'arrow' : (m.groups && m.groups[0] && m.groups[0].startsWith('interface') ? 'interface' : (mIface ? 'type' : 'func')));
+        let kind = 'func';
+        if (mFunc) kind = 'func';
+        else if (mClass) kind = 'class';
+        else if (mArrow) kind = 'arrow';
+        else if (mIface) {
+          // 从原始行文本粗判 interface|type|enum 标签
+          const raw = line.trim().slice(0, 9).toLowerCase();
+          kind = raw.startsWith('interface') ? 'interface' : (raw.startsWith('enum') ? 'enum' : 'type');
+        }
         const indent = m.groups.indent.length;
         // class / interface / type / enum 也算"块状声明"，一起统计（用户要知道大类型定义）
         const end = findFunctionEnd(lines, li, false);
         if (!end) continue;
         const count = end.endLine - li + 1;
         out.push({ name, kind, startLine: li + 1, lines: count, truncated: end.truncated });
-        // 进入 class：记录基线缩进（类内方法需 >= indent+2）
+        // 进入 class：记录基线缩进（类内方法需更深缩进）
         if (kind === 'class') classIndentBaseline = indent;
         continue;
       }
