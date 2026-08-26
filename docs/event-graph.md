@@ -231,7 +231,7 @@
 | `frontend/src/views/app-content/site/events.ts` | 201 |
 | `frontend/src/views/app-nav/index.ts` | 21 |
 | `frontend/src/views/app-nav/index.ts` | 162 |
-| `frontend/src/views/app-sidebar/events.ts` | 236 |
+| `frontend/src/views/app-sidebar/events.ts` | 238 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 115 |
 
 **订阅方（on）：**
@@ -247,7 +247,7 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-sidebar/events.ts` | 66 |
-| `frontend/src/views/app-sidebar/events.ts` | 221 |
+| `frontend/src/views/app-sidebar/events.ts` | 223 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -513,7 +513,7 @@
 | `frontend/src/views/app-sidebar/events.ts` | 63 |
 | `frontend/src/views/app-sidebar/events.ts` | 103 |
 | `frontend/src/views/app-sidebar/events.ts` | 108 |
-| `frontend/src/views/app-sidebar/events.ts` | 217 |
+| `frontend/src/views/app-sidebar/events.ts` | 219 |
 | `frontend/src/views/app-sidebar/index.ts` | 149 |
 | `frontend/src/views/app-sidebar/index.ts` | 263 |
 | `frontend/src/views/app-sidebar/index.ts` | 265 |

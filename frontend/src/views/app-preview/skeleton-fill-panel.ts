@@ -89,7 +89,15 @@ function iRow(k: string, v: string): HTMLDivElement {
   d.className = "stat-row";
   d.dataset.testid = "stat-" + k.toLowerCase();
   d.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0";
-  d.innerHTML = `<span>${k}</span><span style="color:rgba(255,255,255,0.9)">${v}</span>`;
+  // k/v 经 textContent 注入（innerHTML 拼接会把骨骼名/统计值中的
+  // <>& 当 HTML 解析——注入/破版风险），span 样式保留（对齐 vrm-bone-ui field()）
+  const kSpan = document.createElement("span");
+  kSpan.textContent = k;
+  const vSpan = document.createElement("span");
+  vSpan.style.color = "rgba(255,255,255,0.9)";
+  vSpan.textContent = v;
+  d.appendChild(kSpan);
+  d.appendChild(vSpan);
   return d;
 }
 // 纹理归一行：左侧名称（截断）；右侧区分「声明尺寸」与「加载尺寸」/

@@ -15,7 +15,15 @@ export function sec(text: string, gap = true): HTMLDivElement {
 export function iRow(l: string, v: string): HTMLDivElement {
   const d = document.createElement("div");
   d.style.cssText = "display:flex;justify-content:space-between;padding:2px 0";
-  d.innerHTML = `<span style="color:rgba(255,255,255,0.5)">${l}</span><span>${v}</span>`;
+  // l/v 经 textContent 注入（innerHTML 拼接会把骨骼名/统计值中的
+  // <>& 当 HTML 解析——注入/破版风险），span 样式保留（对齐 vrm-bone-ui field()）
+  const lSpan = document.createElement("span");
+  lSpan.style.color = "rgba(255,255,255,0.5)";
+  lSpan.textContent = l;
+  const vSpan = document.createElement("span");
+  vSpan.textContent = v;
+  d.appendChild(lSpan);
+  d.appendChild(vSpan);
   return d;
 }
 
