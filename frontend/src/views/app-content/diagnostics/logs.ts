@@ -42,112 +42,122 @@ function opMeta(op: string | undefined): { label: string; icon: string } {
   return { label: op || "导入", icon: "🧾" };
 }
 
-export async function loadDiagnosticsLogs(root: ShadowRoot, esc: EscFn): Promise<void> {
-  const list = root.getElementById("diag-log-list");
-  if (!list) return;
-  // 代际守卫：入口捕获，await 后写 DOM 前比对（防旧响应覆盖新筛选结果）
+function dgLsGetListAndGen(
+  root: ShadowRoot,
+  listId: string,
+): { list: HTMLElement; gen: number; copyLogTitle: string } | null {
+  const list = root.getElementById(listId);
+  if (!list) return null;
   const gen = ++diagLoadSeq;
-  // 预取复制按钮文案——模板内局部变量 `const t = <时间字符串>` 会遮蔽 i18n 的 t()，
-  // 直接调 t("diagnostics.copyLog") 会 TS 报 not callable
   const copyLogTitle = t("diagnostics.copyLog");
-  try {
-    const { GetImportLogs } = await getApp();
-    const logs: ImportLogLike[] = (await GetImportLogs()) || [];
-    if (gen !== diagLoadSeq) return; // 已被更新的加载取代，丢弃陈旧响应
-    if (!logs || !logs.length) {
-      list.innerHTML =
-        '<div class="stat-row diag-stat diag-stat-muted">' + t("diagnostics.noLogs") + "</div>";
-      return;
-    }
-    // 读筛选状态
-    const activeBtn = root.querySelector(".diag-log-fbtn.active");
-    const filter = activeBtn ? (activeBtn as HTMLElement).dataset.status : "all";
-    const search = (root.getElementById("diag-log-search") as HTMLInputElement | null)
-      ?.value?.trim().toLowerCase() || "";
+  return { list, gen, copyLogTitle };
+}
 
-    const filtered = logs
-      .slice(-500)
-      .reverse()
-      .filter((l) => {
-        if (filter !== "all" && l.Status !== filter) return false;
-        if (search && !(l.ModelName || "").toLowerCase().includes(search)) return false;
-        return true;
-      });
+function dgLsCheckStale(gen: number): boolean {
+  return gen !== diagLoadSeq;
+}
 
-    if (!filtered.length) {
-      list.innerHTML =
-        '<div class="stat-row diag-stat diag-stat-muted">' + t("diagnostics.noMatchLogs") + "</div>";
-      return;
-    }
+function dgLsSetEmpty(list: HTMLElement, key: string, type: "muted" | "error" = "muted"): void {
+  const cls = type === "error" ? "diag-stat-error" : "diag-stat-muted";
+  list.innerHTML = `<div class="stat-row diag-stat ${cls}">${t(key)}</div>`;
+}
 
-    // 按操作类型分组（保持时间倒序），组内行带中文徽标
-    const groups = new Map<string, ImportLogLike[]>();
-    for (const l of filtered) {
-      const key = l.Operation || "import";
-      const arr = groups.get(key);
-      if (arr) arr.push(l);
-      else groups.set(key, [l]);
-    }
+function dgLsFormatTime(ts: string | number | undefined): string {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
 
-    const parts: string[] = [];
-    for (const [op, items] of groups) {
-      const meta = opMeta(op);
-      parts.push(
-        `<div class="log-group" style="padding:4px 16px 2px;font-size:var(--fs-xs);color:var(--muted);display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--bd);background:var(--surf)">
+function dgLsFilterDiagLogs(logs: ImportLogLike[], root: ShadowRoot): ImportLogLike[] {
+  const activeBtn = root.querySelector(".diag-log-fbtn.active");
+  const filter = activeBtn ? (activeBtn as HTMLElement).dataset.status : "all";
+  const search =
+    (root.getElementById("diag-log-search") as HTMLInputElement | null)?.value
+      ?.trim()
+      .toLowerCase() || "";
+  return logs.slice(-500).reverse().filter((l) => {
+    if (filter !== "all" && l.Status !== filter) return false;
+    if (search && !(l.ModelName || "").toLowerCase().includes(search)) return false;
+    return true;
+  });
+}
+
+function dgLsGroupByOp(filtered: ImportLogLike[]): Map<string, ImportLogLike[]> {
+  const groups = new Map<string, ImportLogLike[]>();
+  for (const l of filtered) {
+    const key = l.Operation || "import";
+    const arr = groups.get(key);
+    if (arr) arr.push(l);
+    else groups.set(key, [l]);
+  }
+  return groups;
+}
+
+function dgLsMakeStatusLabel(l: ImportLogLike): string {
+  if (l.Level) {
+    return l.Level === "error"
+      ? "❌"
+      : l.Level === "warn"
+        ? "⚠️"
+        : l.Level === "debug"
+          ? "🔍"
+          : l.Level === "fatal"
+            ? "💀"
+            : "✅";
+  }
+  return l.Status === "success"
+    ? "✅"
+    : l.Status === "failed"
+      ? "❌"
+      : l.Status === "warn"
+        ? "⚠️"
+        : "⏭️";
+}
+
+function dgLsBuildDiagMsg(l: ImportLogLike, esc: EscFn): string {
+  const dir = l.TargetDir || l.SourcePath ? "<br>📂 " + esc(l.TargetDir || l.SourcePath) : "";
+  const raw = l.ErrorMsg || "";
+  const cleanErr = esc(raw)
+    .replace(/^[❌✅⚠️⏭️]\s*/, "")
+    .replace(/\s+(问题描述|操作|源路径|目标路径|解决建议)[：:]?/g, "<br>$1：");
+  const modelDisplay = renderDisplayName(l.ModelName || "");
+  const modelPart = modelDisplay && modelDisplay !== cleanErr ? modelDisplay : "";
+  if (!modelPart && !cleanErr) return dir || "";
+  if (!modelPart) return dir || cleanErr ? dir + cleanErr : "";
+  if (!cleanErr) return modelPart + dir;
+  return modelPart + dir + "<br>" + cleanErr;
+}
+
+function dgLsRenderDiagGroups(
+  groups: Map<string, ImportLogLike[]>,
+  esc: EscFn,
+  copyLogTitle: string,
+): string {
+  const parts: string[] = [];
+  for (const [op, items] of groups) {
+    const meta = opMeta(op);
+    parts.push(
+      `<div class="log-group" style="padding:4px 16px 2px;font-size:var(--fs-xs);color:var(--muted);display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--bd);background:var(--surf)">
 <span>${meta.icon} ${meta.label}</span><span style="margin-left:auto">${t("diagnostics.itemsCount", { n: items.length })}</span></div>`,
-      );
-      items.forEach((l, i) => {
-        // Level 优先（P1-2 新增字段，新日志带级别标签），旧日志按 Status 兜底
-        const statusLabel = l.Level
-          ? (l.Level === "error" ? "❌" : l.Level === "warn" ? "⚠️" : l.Level === "debug" ? "🔍" : l.Level === "fatal" ? "💀" : "✅")
-          : l.Status === "success" ? "✅" : l.Status === "failed" ? "❌" : l.Status === "warn" ? "⚠️" : "⏭️";
-        const timeStr = l.Timestamp
-          ? new Date(l.Timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })
-          : "";
-        const msg = ((): string => {
-          const dir =
-            l.TargetDir || l.SourcePath ? "<br>📂 " + esc(l.TargetDir || l.SourcePath) : "";
-          // 预处理 ErrorMsg：去 Go 端已拼接的 ❌/✅/⚠️ 前缀（statusLabel 已提供语义），
-          // 避免 「❌」+「❌ 请求已取消」→ 三连重复
-          const raw = l.ErrorMsg || "";
-          const cleanErr = esc(raw)
-            .replace(/^[❌✅⚠️⏭️]\s*/, "")
-            .replace(/\s+(问题描述|操作|源路径|目标路径|解决建议)[：:]?/g, "<br>$1：");
-          const modelDisplay = renderDisplayName(l.ModelName || "");
-          // 模型名可能与错误消息相同（如 Go 端把 err.Error() 同时写入 ModelName 和 ErrorMsg），
-          // 此时跳过模型名避免「请求已取消<br>请求已取消」
-          const modelPart =
-            modelDisplay && modelDisplay !== cleanErr ? modelDisplay : "";
-          if (!modelPart && !cleanErr) return dir || "";
-          if (!modelPart) return (dir || cleanErr ? dir + cleanErr : "");
-          if (!cleanErr) return modelPart + dir;
-          return modelPart + dir + "<br>" + cleanErr;
-        })();
-        // ⚠️ 原 JS 的 `${status}` 引用了未定义变量（模板串求值抛 ReferenceError，
-        // 被外层 catch 吞掉 → 日志列表永远显示「加载日志失败」）。TS 编译期暴露，
-        // 按意图改为 l.Status（与 statusLabel 同源）
-        parts.push(
-          `<div class="log-row" style="animation-delay:${stagger(i, 20, 400)}ms">
+    );
+    items.forEach((l, i) => {
+      const statusLabel = dgLsMakeStatusLabel(l);
+      const timeStr = dgLsFormatTime(l.Timestamp);
+      const msg = dgLsBuildDiagMsg(l, esc);
+      parts.push(
+        `<div class="log-row" style="animation-delay:${stagger(i, 20, 400)}ms">
 <span class="log-status ${l.Status || ""}">${statusLabel}</span>
 <span class="log-msg">${msg}</span>
 <span class="log-time">${timeStr}</span>
 <button class="log-copy" title="${copyLogTitle}">📋</button>
 </div>`,
-        );
-      });
-    }
-    list.innerHTML = parts.join("");
-  } catch (e) {
-    // P3 修复（审核）：catch(_) 静默吞错——诊断页加载失败必须留痕（此前曾因被吞错
-    // 长期显示假错误占位），console.error 供开发者排查；用户侧保留占位反馈即可
-    console.error("[diagnostics] 加载操作日志失败:", e);
-    list.innerHTML =
-      '<div class="stat-row diag-stat diag-stat-error">' + t("diagnostics.loadLogsFailed") + "</div>";
+      );
+    });
   }
+  return parts.join("");
 }
 
 /** 运行时日志条目（仅用到的字段） */
@@ -156,46 +166,58 @@ interface RuntimeLogLike {
   Timestamp?: string | number;
 }
 
-/** 加载运行时日志（watcher/sync 等标准库 log 输出） */
-export async function loadRuntimeLogs(root: ShadowRoot, esc: EscFn): Promise<void> {
-  const list = root.getElementById("diag-runtime-list");
-  if (!list) return;
-  // 代际守卫（同 loadDiagnosticsLogs）
-  const gen = ++diagLoadSeq;
-  // 预取复制按钮文案（同 loadDiagnosticsLogs：局部 `const t` 遮蔽 i18n t()）
-  const copyLogTitle = t("diagnostics.copyLog");
-  try {
-    const { GetRuntimeLogs } = await getApp();
-    const logs: RuntimeLogLike[] = (await GetRuntimeLogs()) || [];
-    if (gen !== diagLoadSeq) return; // 已被更新的加载取代，丢弃陈旧响应
-    if (!logs || !logs.length) {
-      list.innerHTML =
-        '<div class="stat-row diag-stat diag-stat-muted">' + t("diagnostics.noRuntimeLogs") + "</div>";
-      return;
-    }
-    list.innerHTML = logs
-      .slice(-300)
-      .reverse()
-      .map((l, i) => {
-        const timeStr = l.Timestamp
-          ? new Date(l.Timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })
-          : "";
-        return `<div class="log-row" style="animation-delay:${stagger(i, 20, 400)}ms">
+function dgLsRenderRuntimeRows(
+  logs: RuntimeLogLike[],
+  esc: EscFn,
+  copyLogTitle: string,
+): string {
+  return logs
+    .slice(-300)
+    .reverse()
+    .map((l, i) => {
+      const timeStr = dgLsFormatTime(l.Timestamp);
+      return `<div class="log-row" style="animation-delay:${stagger(i, 20, 400)}ms">
 <span class="log-status">🕹️</span>
 <span class="log-msg" style="white-space:pre-wrap">${esc(l.Message || "")}</span>
 <span class="log-time">${timeStr}</span>
 <button class="log-copy" title="${copyLogTitle}">📋</button>
 </div>`;
-      })
-      .join("");
+    })
+    .join("");
+}
+
+export async function loadDiagnosticsLogs(root: ShadowRoot, esc: EscFn): Promise<void> {
+  const ctx = dgLsGetListAndGen(root, "diag-log-list");
+  if (!ctx) return;
+  const { list, gen, copyLogTitle } = ctx;
+  try {
+    const { GetImportLogs } = await getApp();
+    const logs: ImportLogLike[] = (await GetImportLogs()) || [];
+    if (dgLsCheckStale(gen)) return;
+    if (!logs.length) return dgLsSetEmpty(list, "diagnostics.noLogs");
+    const filtered = dgLsFilterDiagLogs(logs, root);
+    if (!filtered.length) return dgLsSetEmpty(list, "diagnostics.noMatchLogs");
+    const groups = dgLsGroupByOp(filtered);
+    list.innerHTML = dgLsRenderDiagGroups(groups, esc, copyLogTitle);
   } catch (e) {
-    // P3 修复（审核）：同 loadDiagnosticsLogs——运行时日志加载失败留痕，供开发者排查
+    console.error("[diagnostics] 加载操作日志失败:", e);
+    dgLsSetEmpty(list, "diagnostics.loadLogsFailed", "error");
+  }
+}
+
+/** 加载运行时日志（watcher/sync 等标准库 log 输出） */
+export async function loadRuntimeLogs(root: ShadowRoot, esc: EscFn): Promise<void> {
+  const ctx = dgLsGetListAndGen(root, "diag-runtime-list");
+  if (!ctx) return;
+  const { list, gen, copyLogTitle } = ctx;
+  try {
+    const { GetRuntimeLogs } = await getApp();
+    const logs: RuntimeLogLike[] = (await GetRuntimeLogs()) || [];
+    if (dgLsCheckStale(gen)) return;
+    if (!logs.length) return dgLsSetEmpty(list, "diagnostics.noRuntimeLogs");
+    list.innerHTML = dgLsRenderRuntimeRows(logs, esc, copyLogTitle);
+  } catch (e) {
     console.error("[diagnostics] 加载运行时日志失败:", e);
-    list.innerHTML =
-      '<div class="stat-row diag-stat diag-stat-error">' + t("diagnostics.loadRuntimeLogsFailed") + "</div>";
+    dgLsSetEmpty(list, "diagnostics.loadRuntimeLogsFailed", "error");
   }
 }
