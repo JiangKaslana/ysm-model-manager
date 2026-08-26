@@ -108,6 +108,7 @@ export async function switchToSession(
   pushSwitchHistory(ctx, keep, next);
   unregisterSwitchPrevious(ctx, keep);
   registerSwitchScene(ctx, newPath, next, beforeBuild);
+  ctx.setCurrentPath(newPath);
   syncSwitchView(ctx, next, beforeBuild, keep);
   updateSwitchBaseline(ctx, beforeBuild);
 
