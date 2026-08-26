@@ -23,11 +23,3 @@ export function saveBrowseMode(mode: BrowseMode): void {
   // 兼容旧 key
   safeSet("ysm-embed-mode", mode === "embed" ? "1" : "0");
 }
-
-/**
- * 循环切换浏览模式
- */
-export function cycleBrowseMode(current: BrowseMode): BrowseMode {
-  const modes: BrowseMode[] = ["external", "embed", "window"];
-  return modes[(modes.indexOf(current) + 1) % modes.length];
-}

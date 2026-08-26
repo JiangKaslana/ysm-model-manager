@@ -141,11 +141,11 @@ export function buildSiteHtml(ctx: BuildSiteHtmlCtx): string {
       site.presetSearches.length +
       ")</span>" +
       '<span class="cr-section-fill"></span>' +
-      '<button id="cr-mode-toggle" class="cr-mode-switch">' +
-      '<span class="cr-mode-opt cr-mode-ext' + (ctx.browseMode === 'external' ? ' active' : '') + '">' + t("content.modeExternal") + "</span>" +
-      '<span class="cr-mode-opt cr-mode-emb' + (ctx.browseMode === 'embed' ? ' active' : '') + '">' + t("content.modeEmbed") + "</span>" +
-      '<span class="cr-mode-opt cr-mode-win' + (ctx.browseMode === 'window' ? ' active' : '') + '">' + t("content.modeWindow") + "</span>" +
-      "</button>" +
+      '<div id="cr-mode-switch" class="cr-mode-switch" role="group">' +
+      '<button type="button" class="cr-mode-opt cr-mode-ext' + (ctx.browseMode === 'external' ? ' active' : '') + '" data-mode="external" title="' + t("content.modeExternal") + '">' + t("content.modeExternal") + "</button>" +
+      '<button type="button" class="cr-mode-opt cr-mode-emb' + (ctx.browseMode === 'embed' ? ' active' : '') + '" data-mode="embed" title="' + t("content.modeEmbed") + '">' + t("content.modeEmbed") + "</button>" +
+      '<button type="button" class="cr-mode-opt cr-mode-win' + (ctx.browseMode === 'window' ? ' active' : '') + '" data-mode="window" title="' + t("content.modeWindow") + '">' + t("content.modeWindow") + "</button>" +
+      "</div>" +
       "</div>" +
       '<div class="cr-preset-area">' +
       site.presetSearches

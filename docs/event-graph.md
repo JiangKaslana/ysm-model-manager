@@ -69,7 +69,7 @@
 **订阅方（on）：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-content/init-workshop.ts` | 134 |
+| `frontend/src/views/app-content/init-workshop.ts` | 140 |
 
 ### `batch:disable`
 
@@ -338,7 +338,7 @@
 | 文件 | 行 |
 |------|----|
 | `frontend/src/views/app-content/site/events.ts` | 169 |
-| `frontend/src/views/app-content/site/events.ts` | 310 |
+| `frontend/src/views/app-content/site/events.ts` | 307 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -560,7 +560,7 @@
 | `frontend/src/views/app-content/site/edit.ts` | 230 |
 | `frontend/src/views/app-content/site/edit.ts` | 245 |
 | `frontend/src/views/app-content/site/events.ts` | 146 |
-| `frontend/src/views/app-content/site/events.ts` | 274 |
+| `frontend/src/views/app-content/site/events.ts` | 271 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 111 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 121 |
 | `frontend/src/views/app-content/workshop-site-opener.ts` | 127 |

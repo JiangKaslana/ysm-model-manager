@@ -46,10 +46,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 160 | 639 |
-| frontend/views | 115 | 337 |
+| frontend/views | 115 | 336 |
 | 前端·WASM | 9 | 22 |
 | frontend/workers | 2 | 14 |
-| **合计** | **482** | **2073** |
+| **合计** | **482** | **2072** |
 
 ## Go·头像
 
@@ -2004,8 +2004,8 @@
 | `getLastModelPath()` | `frontend/src/views/app-content/init-pages:286` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:38` | 初始化创意工坊页（编排入口） |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:165` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
-| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:176` | app-content 组件接口（供 workshop/github 初始化函数访问） |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:171` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
+| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:182` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:23` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:30` | — |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:310` | 初始化设置页所有事件绑定 |
@@ -2025,17 +2025,17 @@
 | `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:12` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
 | `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:52` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
 | `initWorkerPrefs()` | `frontend/src/views/app-content/settings/worker-prefs:35` | 初始化 3D 解析 worker 开关：读取现有偏好回填 + 绑定变更 |
-| `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
-| `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
-| `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:40` | 本地创作者（绑定 + 运行时附加字段） |
-| `renderSiteView()` | `frontend/src/views/app-content/site-view:51` | 站点视图渲染主入口 — 编排壳：构造数据 → 构 HTML → 绑事件 → 聚 cleanup。 |
+| `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:13` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
+| `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:16` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
+| `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:43` | 本地创作者（绑定 + 运行时附加字段） |
+| `renderSiteView()` | `frontend/src/views/app-content/site-view:54` | 站点视图渲染主入口 — 编排壳：构造数据 → 构 HTML → 绑事件 → 聚 cleanup。 |
 | `bindDragEvents()` | `frontend/src/views/app-content/site/drag:14` | 绑定拖拽 JSON 导入事件：创作者 JSON / 站点 JSON 识别 + 合并。 |
 | `bindEditEvents()` | `frontend/src/views/app-content/site/edit:520` | 绑定编辑模式事件：编辑入口 / 拉取配置 / 取消 / 保存 / 行内编辑 / 删除创作者 / 拖拽排序 / 增删搜索词 / 搜索过滤。 |
 | `CrCardCtx()` | `frontend/src/views/app-content/site/render:13` | 创作者卡片工厂上下文 |
 | `BuildSiteHtmlCtx()` | `frontend/src/views/app-content/site/render:24` | buildSiteHtml 依赖的渲染上下文 |
 | `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |
-| `SiteViewState()` | `frontend/src/views/app-content/site/types:12` | SiteViewState —— renderSiteView 内部闭包共享变量的显式收拢。 |
-| `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
+| `SiteViewState()` | `frontend/src/views/app-content/site/types:13` | SiteViewState —— renderSiteView 内部闭包共享变量的显式收拢。 |
+| `CleanupFn()` | `frontend/src/views/app-content/site/types:43` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
 | `RepoCacheEntry()` | `frontend/src/views/app-content/state:13` | — |
 | `AppContentState()` | `frontend/src/views/app-content/state:19` | — |
 | `SubscriptionBucket()` | `frontend/src/views/app-content/subscription-bucket:11` | — |
@@ -2054,7 +2054,6 @@
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |
 | `saveBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:21` | 保存浏览模式到 localStorage |
-| `cycleBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:30` | 循环切换浏览模式 |
 | `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:9` | 创作者身份识别结果 |
 | `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:16` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
 | `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:23` | — |

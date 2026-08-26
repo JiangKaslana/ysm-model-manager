@@ -110,6 +110,7 @@ invariant_anchors:
 - 样式走 `adoptedStyleSheets` + CSS 变量，无硬编码颜色；`innerHTML` 拼接统一过 `_esc` / `esc`
 - 页面级临时缓存（`_workshopCache` / `_githubCache`）与 `_workshopTimer` 定时器在 `disconnectedCallback` 清空
 - 站点搜索带词链接必须**真传**到底层打开调用：`ctx.openUrl(url)` → `openSite(host, site, mode, url)` 的 `url` 不得丢弃，否则站点视图预设 / 卡片作者搜索 / 详情浮层全部退化为只开网站首页（实际触发时与 `searchUrl` 数据是否齐全无关，P1 修复锁定于 `workshop-site-opener.test.ts`）
+- 浏览模式按「点谁用谁 + 即时生效」：`browseMode` 是 init-workshop 作用域内的**单源变量**，events 块经 `setBrowseMode(mode)`（写 localStorage + 更新共享变量）切换，re-render 的高亮与 `openUrl` 打开都用同一变量 → 无需退出页面重进；history：曾用单个 toggle 按钮 `cycleBrowseMode` 循环切换（点谁都用循环），且 openUrl 闭包引用旧 `browseMode` 导致必须重进才生效，均已修复
 
 ## 相关
 

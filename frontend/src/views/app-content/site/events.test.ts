@@ -74,6 +74,10 @@ function makeState(overrides: Record<string, unknown> = {}): {
       <span class="cr-card-local-count cr-card-local-jump" data-local-creator="A">📁3</span>
     </div>
     <img data-debug-avatar="A" alt="avatar">
+    <div id="cr-mode-switch">
+      <button class="cr-mode-opt" data-mode="external">external</button>
+      <button class="cr-mode-opt" data-mode="window">window</button>
+    </div>
   `;
   const state = {
     esc,
@@ -87,6 +91,7 @@ function makeState(overrides: Record<string, unknown> = {}): {
     fillSearch: (url: string, q: string) =>
       url.replace("{q}", encodeURIComponent(q)),
     openUrl: vi.fn(),
+    setBrowseMode: vi.fn(),
     bus: { emit: busEmit, on: busOn },
     ...overrides,
   } as unknown as SiteViewState;
@@ -288,5 +293,25 @@ describe("bindBrowseEvents — 键盘导航", () => {
     );
     expect(clickSpy).toHaveBeenCalled();
     clickSpy.mockRestore();
+  });
+});
+
+describe("bindBrowseEvents — 浏览模式「点谁用谁」", () => {
+  it("点击 cr-mode-opt[data-mode] → setBrowseMode(该mode) + 触发重渲染", () => {
+    const { state, searchResults } = makeState();
+    const refresh = vi.fn();
+    bindBrowseEvents(state, refresh);
+    const winBtn = searchResults.querySelector(
+      '.cr-mode-opt[data-mode="window"]',
+    ) as HTMLElement;
+    winBtn.click();
+    expect(state.setBrowseMode).toHaveBeenCalledWith("window");
+    expect(refresh).toHaveBeenCalled();
+
+    const extBtn = searchResults.querySelector(
+      '.cr-mode-opt[data-mode="external"]',
+    ) as HTMLElement;
+    extBtn.click();
+    expect(state.setBrowseMode).toHaveBeenCalledWith("external");
   });
 });

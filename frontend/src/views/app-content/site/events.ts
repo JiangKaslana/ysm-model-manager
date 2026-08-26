@@ -13,7 +13,7 @@ import { getSiteIcon, getTagIconFromRole } from "../../../utils/icon/workshop-ic
 import { createCrCard, type CrCardCtx } from "./render.ts";
 import { getApp } from "../../../backend/app.ts";
 import { t } from "../../../core/i18n/t.ts";
-import { cycleBrowseMode, saveBrowseMode, type BrowseMode } from "../workshop-browse-mode.ts";
+import { type BrowseMode } from "../workshop-browse-mode.ts";
 import type { SiteViewState, CleanupFn } from "./types.ts";
 import type { LocalCreatorLike } from "../site-view.ts";
 import type { bus } from "../../../bus.ts";
@@ -238,18 +238,15 @@ function cmBbBindPresetSearchBtns(
 
 function cmBbBindModeToggle(
   searchResults: HTMLElement,
-  ctx: { browseMode: BrowseMode },
+  ctx: { setBrowseMode: (mode: BrowseMode) => void },
   refreshView: () => void,
 ): void {
-  const modeToggle = searchResults.querySelector("#cr-mode-toggle");
-  if (modeToggle) {
-    modeToggle.addEventListener("click", () => {
-      const newMode = cycleBrowseMode(ctx.browseMode);
-      saveBrowseMode(newMode);
-      ctx.browseMode = newMode;
+  searchResults.querySelectorAll(".cr-mode-opt[data-mode]").forEach((el) => {
+    el.addEventListener("click", () => {
+      ctx.setBrowseMode((el as HTMLElement).dataset.mode as BrowseMode);
       refreshView();
     });
-  }
+  });
 }
 
 function cmBbBindStarBtns(
@@ -512,7 +509,7 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
   cmBbBindEmptyLocalBtn(searchResults, busRef);
   cmBbPopulateCreatorGrid(searchResults, wsEditModeRef, creators, cardCtx);
   cmBbBindPresetSearchBtns(searchResults, site, openUrl, fillSearch);
-  cmBbBindModeToggle(searchResults, ctx, refreshView);
+  cmBbBindModeToggle(searchResults, state, refreshView);
   cmBbBindStarBtns(searchResults, busRef);
   cmBbBindSearchBtns(searchResults, site, openUrl, fillSearch);
   cmBbBindLocalBadges(searchResults, busRef);

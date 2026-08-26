@@ -3,6 +3,7 @@
 // 消除幽灵路径（AGENTS.md §致命陷阱 #13）+ 便于逐块抽到独立文件。
 import type { bus } from "../../../bus.ts";
 import type { WorkshopSite } from "../../../utils/types-re-export.ts";
+import type { BrowseMode } from "../workshop-browse-mode.ts";
 import type { LocalCreatorLike, RepoAuthorLike, RenderSiteViewCtx } from "../site-view.ts";
 
 /**
@@ -20,6 +21,8 @@ export interface SiteViewState {
   wsEditModeRef: { v: boolean };
   fillSearch: (tpl: string, q: string) => string;
   openUrl: (url: string) => void;
+  /** 由 init 层提供：更新共享 browseMode（写 localStorage），re-render 后即时生效 */
+  setBrowseMode: (mode: BrowseMode) => void;
   avatarCache: Record<string, string>;
 
   // renderSiteView 内部构造的派生状态

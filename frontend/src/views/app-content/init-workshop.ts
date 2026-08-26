@@ -15,7 +15,7 @@ import { dbg } from "../../utils/debug/debug.ts";
 import { fillSearch } from "./community-data.ts";
 import { renderSiteView, type RenderSiteViewCtx, type RepoAuthorLike } from "./site-view.ts";
 import { showRepoModels } from "../../features/community/show-repo-models.ts";
-import { loadBrowseMode, saveBrowseMode, cycleBrowseMode } from "./workshop-browse-mode.ts";
+import { loadBrowseMode, saveBrowseMode, type BrowseMode } from "./workshop-browse-mode.ts";
 import { initWorkshopTabs, setShowSiteView, createWorkshopRefs } from "./workshop-tabs.ts";
 import { openSite, bindSiteEvents } from "./workshop-site-opener.ts";
 import { loadCommunityData, type LocalCreator } from "./community-data.ts";
@@ -47,8 +47,13 @@ export function initWorkshopPage(host: AppContentHost): void {
   if (!host._workshopCache) host._setWorkshopCache(new Map());
   const repoModelCache = host._workshopCache;
 
-  // 浏览模式
+  // 浏览模式：单源变量 + setter（site 事件块经回调更新，写 localStorage；
+  // re-render 与 openUrl 都读此共享变量 → 切换即时生效、无需重进页面）
   let browseMode = loadBrowseMode();
+  const setBrowseMode = (mode: BrowseMode): void => {
+    browseMode = mode;
+    saveBrowseMode(mode);
+  };
 
   // 后台批量提取创作者头像
   host._setAvatarCache({});
@@ -110,6 +115,7 @@ export function initWorkshopPage(host: AppContentHost): void {
       openUrl,
       avatarCache: host._avatarCache,
       browseMode,
+      setBrowseMode,
       activeTag: safeGet("ysm-ws-active-tag") || "",
       searchKw: safeGet("ysm-ws-search-kw") || "",
       backToSite: () => {
