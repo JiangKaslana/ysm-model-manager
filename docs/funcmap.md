@@ -1313,9 +1313,9 @@
 | `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:458` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:62` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:172` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:993` | — |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1064` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1096` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:1058` | — |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1129` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1161` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:12` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
 | `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:24` | 从文件列表中筛选动作文件（.vmd / .vpd） |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |
@@ -2081,7 +2081,7 @@
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:251` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `LoadModelOpts()` | `frontend/src/views/app-preview/loader:11` | loadModelData 选项（Bedrock 通用模型加载控制） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:29` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
-| `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:174` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
+| `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:232` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
 | `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:39` | — |
 | `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:88` | 关闭活跃女仆 3D 预览 |
 | `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:93` | 作废在途女仆 3D 加载 |
@@ -2172,9 +2172,9 @@
 | `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:136` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
-| `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
-| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:169` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
-| `bindFooter()` | `frontend/src/views/app-sidebar/events:210` | — |
+| `bindCardEvents()` | `frontend/src/views/app-sidebar/events:125` | — |
+| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:187` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
+| `bindFooter()` | `frontend/src/views/app-sidebar/events:228` | — |
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:12` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:36` | 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） 去重只服务「读并发」（多组件同时触发 reload），若变异完成的刷新并入变异前发起 |
@@ -2220,8 +2220,8 @@
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
-| `updateSelectCount()` | `frontend/src/views/app-tree/events:383` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:487` | — |
+| `updateSelectCount()` | `frontend/src/views/app-tree/events:395` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:499` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:61` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |

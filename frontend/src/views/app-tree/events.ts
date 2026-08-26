@@ -136,55 +136,57 @@ function atTeBindSelCheckboxes(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement)
 }
 
 // ===== 事件段 3：行点击分派（目录展开/文件选中/悬停操作） =====
-function atTeBindRowClick(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement): boolean {
-  const { container, vm } = ctx;
-  const fh = target.closest(".fh, .fh-list") as HTMLElement | null;
-  if (fh) {
-    e.stopPropagation();
-    const dir = fh.dataset.dir;
-    if (!dir) return true;
-    const isOpen = vm._dirOpen[dir];
-    vm._dirOpen[dir] = !isOpen;
-    if (isOpen) {
-      const prefix = (dir + "/").replace(/\\/g, "/");
-      for (const key of Object.keys(vm._dirOpen)) {
-        const nk = key.replace(/\\/g, "/");
-        if (nk !== dir && nk.startsWith(prefix)) delete vm._dirOpen[key];
-      }
-    }
-    safeSet("at_dirs", JSON.stringify(vm._dirOpen));
-    vm._renderTree();
-    if (!isOpen) {
-      bus.emit("model:select", { path: dir, isDir: true });
-      rememberModelPath(null);
-    }
-    return true;
+function atTeOpenAuthor(author: string): void {
+  const url =
+    "https://search.bilibili.com/all?keyword=" + encodeURIComponent(author);
+  if (isViewerMode()) {
+    window.open(url, "_blank", "noopener");
+    return;
   }
+  getApp()
+    .then(({ OpenInBrowser }) => OpenInBrowser(url))
+    .catch((err) => {
+      console.warn("[tree] OpenInBrowser 失败:", err);
+      bus.emit("toast:show", {
+        msg: "❌ 打开浏览器失败",
+        duration: 3000,
+        type: "error",
+      });
+    });
+}
 
-  const haPreview = target.closest(".ha-preview") as HTMLElement | null;
-  if (haPreview) {
-    e.stopPropagation();
-    const path = haPreview.dataset.path;
-    const name = path?.split(/[/\\]/).pop() || "";
-    import("../../utils/dom/display.ts").then(({ parseModelName }) => {
+function atTeClickRowFolder(ctx: AtTeCtx, e: MouseEvent, fh: HTMLElement): boolean {
+  const { vm } = ctx;
+  e.stopPropagation();
+  const dir = fh.dataset.dir;
+  if (!dir) return true;
+  const isOpen = vm._dirOpen[dir];
+  vm._dirOpen[dir] = !isOpen;
+  if (isOpen) {
+    const prefix = (dir + "/").replace(/\\/g, "/");
+    for (const key of Object.keys(vm._dirOpen)) {
+      const nk = key.replace(/\\/g, "/");
+      if (nk !== dir && nk.startsWith(prefix)) delete vm._dirOpen[key];
+    }
+  }
+  safeSet("at_dirs", JSON.stringify(vm._dirOpen));
+  vm._renderTree();
+  if (!isOpen) {
+    bus.emit("model:select", { path: dir, isDir: true });
+    rememberModelPath(null);
+  }
+  return true;
+}
+
+function atTeClickRowPreview(ctx: AtTeCtx, e: MouseEvent, haPreview: HTMLElement): boolean {
+  e.stopPropagation();
+  const path = haPreview.dataset.path;
+  const name = path?.split(/[/\\]/).pop() || "";
+  import("../../utils/dom/display.ts")
+    .then(({ parseModelName }) => {
       const { author } = parseModelName(name);
       if (author) {
-        const url =
-          "https://search.bilibili.com/all?keyword=" + encodeURIComponent(author);
-        if (isViewerMode()) {
-          window.open(url, "_blank", "noopener");
-          return;
-        }
-        getApp()
-          .then(({ OpenInBrowser }) => OpenInBrowser(url))
-          .catch((err) => {
-            console.warn("[tree] OpenInBrowser 失败:", err);
-            bus.emit("toast:show", {
-              msg: "❌ 打开浏览器失败",
-              duration: 3000,
-              type: "error",
-            });
-          });
+        atTeOpenAuthor(author);
       } else {
         bus.emit("toast:show", {
           msg: "未解析到作者名",
@@ -192,7 +194,8 @@ function atTeBindRowClick(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement): boo
           type: "warn",
         });
       }
-    }).catch((err) => {
+    })
+    .catch((err) => {
       console.warn("[tree] 加载 display 模块失败:", err);
       bus.emit("toast:show", {
         msg: "❌ 加载解析模块失败",
@@ -200,76 +203,85 @@ function atTeBindRowClick(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement): boo
         type: "error",
       });
     });
-    return true;
-  }
+  return true;
+}
 
-  const haCopy = target.closest(".ha-copy") as HTMLElement | null;
-  if (haCopy) {
-    e.stopPropagation();
-    const path = haCopy.dataset.path;
-    const name = path?.split(/[/\\]/).pop() || "";
-    navigator.clipboard
-      ?.writeText(name)
-      .then(() => {
-        bus.emit("toast:show", {
-          msg: "📋 已复制: " + name,
-          duration: 1500,
-          type: "info",
-        });
-      })
-      .catch(() => {
-        bus.emit("toast:show", {
-          msg: "❌ " + t("tree.copyFailed"),
-          duration: 2000,
-          type: "error",
-        });
+function atTeClickRowCopy(ctx: AtTeCtx, e: MouseEvent, haCopy: HTMLElement): boolean {
+  e.stopPropagation();
+  const path = haCopy.dataset.path;
+  const name = path?.split(/[/\\]/).pop() || "";
+  navigator.clipboard
+    ?.writeText(name)
+    .then(() => {
+      bus.emit("toast:show", {
+        msg: "📋 已复制: " + name,
+        duration: 1500,
+        type: "info",
       });
-    return true;
-  }
+    })
+    .catch(() => {
+      bus.emit("toast:show", {
+        msg: "❌ " + t("tree.copyFailed"),
+        duration: 2000,
+        type: "error",
+      });
+    });
+  return true;
+}
 
-  const fl = target.closest(".fl, .fl-list") as HTMLElement | null;
-  if (fl && e.button === 0) {
-    e.stopPropagation();
-    const fullPath = fl.dataset.fullpath || fl.dataset.path;
-    if (!fullPath) return true;
-    const isCtrl = e.ctrlKey || e.metaKey;
-    const isShift = e.shiftKey;
-    if (isShift) {
-      e.preventDefault();
-      document.getSelection()?.removeAllRanges();
-      if (!selectState.lastKey) return true;
-      const allPaths = (container._vsRows || [])
-        .filter((r) => r.type === "file")
-        .map((r) => r.key);
-      const startIdx = allPaths.indexOf(selectState.lastKey);
-      const endIdx = allPaths.indexOf(fullPath);
-      if (startIdx !== -1 && endIdx !== -1) {
-        const [min, max] = [
-          Math.min(startIdx, endIdx),
-          Math.max(startIdx, endIdx),
-        ];
-        for (let i = min; i <= max; i++) {
-          selectState.keys.add(allPaths[i]);
-        }
+function atTeClickRowFile(ctx: AtTeCtx, e: MouseEvent, fl: HTMLElement): boolean {
+  const { container, vm } = ctx;
+  e.stopPropagation();
+  const fullPath = fl.dataset.fullpath || fl.dataset.path;
+  if (!fullPath) return true;
+  const isCtrl = e.ctrlKey || e.metaKey;
+  const isShift = e.shiftKey;
+  if (isShift) {
+    e.preventDefault();
+    document.getSelection()?.removeAllRanges();
+    if (!selectState.lastKey) return true;
+    const allPaths = (container._vsRows || [])
+      .filter((r) => r.type === "file")
+      .map((r) => r.key);
+    const startIdx = allPaths.indexOf(selectState.lastKey);
+    const endIdx = allPaths.indexOf(fullPath);
+    if (startIdx !== -1 && endIdx !== -1) {
+      const [min, max] = [
+        Math.min(startIdx, endIdx),
+        Math.max(startIdx, endIdx),
+      ];
+      for (let i = min; i <= max; i++) {
+        selectState.keys.add(allPaths[i]);
       }
-      selectState.lastKey = fullPath;
-      vm._renderTree();
-      updateSelectCount(vm._root);
-      return true;
     }
-    if (isCtrl) {
-      toggleSelect(fullPath);
-      vm._renderTree();
-      updateSelectCount(vm._root);
-      return true;
-    }
-    selectSingle(fullPath);
+    selectState.lastKey = fullPath;
     vm._renderTree();
     updateSelectCount(vm._root);
-    bus.emit("model:select", { path: fullPath });
-    rememberModelPath(fullPath);
     return true;
   }
+  if (isCtrl) {
+    toggleSelect(fullPath);
+    vm._renderTree();
+    updateSelectCount(vm._root);
+    return true;
+  }
+  selectSingle(fullPath);
+  vm._renderTree();
+  updateSelectCount(vm._root);
+  bus.emit("model:select", { path: fullPath });
+  rememberModelPath(fullPath);
+  return true;
+}
+
+function atTeBindRowClick(ctx: AtTeCtx, e: MouseEvent, target: HTMLElement): boolean {
+  const fh = target.closest(".fh, .fh-list") as HTMLElement | null;
+  if (fh) return atTeClickRowFolder(ctx, e, fh);
+  const haPreview = target.closest(".ha-preview") as HTMLElement | null;
+  if (haPreview) return atTeClickRowPreview(ctx, e, haPreview);
+  const haCopy = target.closest(".ha-copy") as HTMLElement | null;
+  if (haCopy) return atTeClickRowCopy(ctx, e, haCopy);
+  const fl = target.closest(".fl, .fl-list") as HTMLElement | null;
+  if (fl && e.button === 0) return atTeClickRowFile(ctx, e, fl);
   return false;
 }
 

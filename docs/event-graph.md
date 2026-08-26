@@ -96,10 +96,10 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/events.ts` | 133 |
-| `frontend/src/views/app-tree/events.ts` | 303 |
-| `frontend/src/views/app-tree/events.ts` | 327 |
-| `frontend/src/views/app-tree/events.ts` | 338 |
+| `frontend/src/views/app-sidebar/events.ts` | 111 |
+| `frontend/src/views/app-tree/events.ts` | 315 |
+| `frontend/src/views/app-tree/events.ts` | 339 |
+| `frontend/src/views/app-tree/events.ts` | 350 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -224,8 +224,8 @@
 | `frontend/src/views/app-content/diagnostics/dedup.ts` | 369 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 227 |
 | `frontend/src/views/app-preview/detail-3d.ts` | 294 |
-| `frontend/src/views/app-tree/events.ts` | 158 |
-| `frontend/src/views/app-tree/events.ts` | 269 |
+| `frontend/src/views/app-tree/events.ts` | 175 |
+| `frontend/src/views/app-tree/events.ts` | 271 |
 | `frontend/src/views/app-tree/index.ts` | 406 |
 
 **订阅方（on）：**
@@ -243,7 +243,7 @@
 | `frontend/src/views/app-content/site/events.ts` | 201 |
 | `frontend/src/views/app-nav/index.ts` | 20 |
 | `frontend/src/views/app-nav/index.ts` | 161 |
-| `frontend/src/views/app-sidebar/events.ts` | 218 |
+| `frontend/src/views/app-sidebar/events.ts` | 236 |
 | `frontend/src/views/app-tree/toolbar-events.ts` | 115 |
 
 **订阅方（on）：**
@@ -258,8 +258,8 @@
 **发射方：**
 | 文件 | 行 |
 |------|----|
-| `frontend/src/views/app-sidebar/events.ts` | 95 |
-| `frontend/src/views/app-sidebar/events.ts` | 203 |
+| `frontend/src/views/app-sidebar/events.ts` | 66 |
+| `frontend/src/views/app-sidebar/events.ts` | 221 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -376,7 +376,7 @@
 |------|----|
 | `frontend/src/views/app-tree/bus-handlers.ts` | 318 |
 | `frontend/src/views/app-tree/events.ts` | 116 |
-| `frontend/src/views/app-tree/events.ts` | 460 |
+| `frontend/src/views/app-tree/events.ts` | 472 |
 
 **订阅方（on）：**
 | 文件 | 行 |
@@ -522,10 +522,10 @@
 | `frontend/src/views/app-preview/mmd-controls.ts` | 290 |
 | `frontend/src/views/app-preview/preview-library.ts` | 88 |
 | `frontend/src/views/app-preview/ysm-controls.ts` | 113 |
-| `frontend/src/views/app-sidebar/events.ts` | 92 |
-| `frontend/src/views/app-sidebar/events.ts` | 125 |
-| `frontend/src/views/app-sidebar/events.ts` | 130 |
-| `frontend/src/views/app-sidebar/events.ts` | 199 |
+| `frontend/src/views/app-sidebar/events.ts` | 63 |
+| `frontend/src/views/app-sidebar/events.ts` | 103 |
+| `frontend/src/views/app-sidebar/events.ts` | 108 |
+| `frontend/src/views/app-sidebar/events.ts` | 217 |
 | `frontend/src/views/app-sidebar/index.ts` | 149 |
 | `frontend/src/views/app-sidebar/index.ts` | 241 |
 | `frontend/src/views/app-sidebar/index.ts` | 243 |
@@ -560,15 +560,15 @@
 | `frontend/src/views/app-tree/events.ts` | 89 |
 | `frontend/src/views/app-tree/events.ts` | 97 |
 | `frontend/src/views/app-tree/events.ts` | 122 |
-| `frontend/src/views/app-tree/events.ts` | 182 |
-| `frontend/src/views/app-tree/events.ts` | 189 |
-| `frontend/src/views/app-tree/events.ts` | 197 |
-| `frontend/src/views/app-tree/events.ts` | 214 |
-| `frontend/src/views/app-tree/events.ts` | 221 |
-| `frontend/src/views/app-tree/events.ts` | 414 |
-| `frontend/src/views/app-tree/events.ts` | 422 |
-| `frontend/src/views/app-tree/events.ts` | 463 |
-| `frontend/src/views/app-tree/events.ts` | 476 |
+| `frontend/src/views/app-tree/events.ts` | 150 |
+| `frontend/src/views/app-tree/events.ts` | 191 |
+| `frontend/src/views/app-tree/events.ts` | 200 |
+| `frontend/src/views/app-tree/events.ts` | 216 |
+| `frontend/src/views/app-tree/events.ts` | 223 |
+| `frontend/src/views/app-tree/events.ts` | 426 |
+| `frontend/src/views/app-tree/events.ts` | 434 |
+| `frontend/src/views/app-tree/events.ts` | 475 |
+| `frontend/src/views/app-tree/events.ts` | 488 |
 | `frontend/src/views/app-tree/index.ts` | 199 |
 | `frontend/src/views/app-tree/index.ts` | 342 |
 | `frontend/src/views/app-tree/index.ts` | 350 |
