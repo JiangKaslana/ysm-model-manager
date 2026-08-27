@@ -10,7 +10,7 @@ import { prefetchStatsWorker } from "./backend/browser-adapter.ts";
 import { initI18n } from "./core/i18n/locale.ts";
 import { friendlyError } from "./utils/dom/errors.ts";
 import { checkUpdateSilent } from "./features/version-updater.ts";
-import { registerLauncherDetection } from "./features/launcher-detection.ts";
+import { registerLauncherDetection } from "./views/app-content/settings/launcher-detection.ts";
 import { applyUIPrefs } from "./views/app-content/settings/ui-prefs.ts";
 import { loadView } from "./utils/module-loader.ts";
 import { revealMainWindow } from "./startup-reveal.ts";
