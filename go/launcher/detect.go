@@ -293,6 +293,7 @@ func jsonArrayContains(value any, key, target string) bool {
 							return true
 						}
 					}
+				}
 			}
 			if jsonArrayContains(child, key, target) {
 				return true
