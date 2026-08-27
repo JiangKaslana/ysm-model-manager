@@ -96,7 +96,6 @@ async function handleLauncherDetect(): Promise<void> {
       mutableCfg.customRoots = customRoots;
     }
     cardRefreshers.forEach((refresh) => refresh());
-    bus.emit("config:updated");
     bus.emit("stats:refresh");
     bus.emit("toast:show", {
       msg: `✅ ${selection.instance.launcher} · Minecraft ${selection.instance.gameVersion}`,
