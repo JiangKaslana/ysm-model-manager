@@ -1,4 +1,3 @@
-import { Call as $Call } from "@wailsio/runtime";
 import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
 import { pickDirectory } from "../../../utils/dom/directory-picker.ts";
@@ -21,8 +20,9 @@ interface LauncherSelection {
   useAsYsmRoot: boolean;
 }
 
-function detectLauncherInstances(launcherDir: string): Promise<LauncherInstance[] | null> {
-  return $Call.ByID(2842612456, launcherDir) as unknown as Promise<LauncherInstance[] | null>;
+async function detectLauncherInstances(launcherDir: string): Promise<LauncherInstance[] | null> {
+  const { DetectLauncherInstances } = await getApp();
+  return DetectLauncherInstances(launcherDir);
 }
 
 function showLauncherInstancePicker(instances: LauncherInstance[]): Promise<LauncherSelection | null> {
