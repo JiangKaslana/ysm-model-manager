@@ -1,0 +1,34 @@
+name: PR20 Recycle Smoke
+
+on:
+  push:
+    branches:
+      - fix/pr19-launcher-detection
+
+permissions:
+  contents: write
+
+jobs:
+  recycle-smoke:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/pr19-launcher-detection
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Run failing Windows recycle contract
+        shell: pwsh
+        run: go test -race ./go/recycle -run '^TestRemoveRepoDuplicates_FailureReported$' -count=1 -v
+      - name: Remove smoke workflow
+        if: success()
+        shell: pwsh
+        run: |
+          Remove-Item -Force .github/workflows/pr20-recycle-smoke.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/pr20-recycle-smoke.yml
+          git commit -m "ci: remove recycle smoke workflow"
+          git push origin HEAD:fix/pr19-launcher-detection
