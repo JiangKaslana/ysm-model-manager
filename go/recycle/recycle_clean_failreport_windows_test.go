@@ -2,8 +2,9 @@
 
 // ===== RemoveRepoDuplicates 失败可见性契约（Windows）=====
 // Move/Remove 失败必须经 logger 上报 failed 回调，不得裸 continue 吞错。
-// 以独占方式（share=0）打开源文件使 Rename 报 ERROR_SHARING_VIOLATION，
-// 确定性触发移动失败。非 Windows 平台无共享锁机制，跳过。
+// 以允许读但禁止 delete sharing 的方式打开源文件：哈希读取仍可进行，
+// Rename 则稳定报 ERROR_SHARING_VIOLATION，从而确定性触发移动失败。
+// 非 Windows 平台无共享锁机制，跳过。
 package recycle
 
 import (
@@ -19,10 +20,12 @@ func lockFileExclusive(t *testing.T, path string) {
 	if err != nil {
 		t.Skipf("UTF16 转换失败: %v", err)
 	}
-	h, err := syscall.CreateFile(p, syscall.GENERIC_READ, 0, nil,
+	// 允许后续只读句柄打开文件，让 RemoveRepoDuplicates 能完成内容哈希；
+	// 故意不授予 FILE_SHARE_DELETE，保证 Rename/Move 仍因共享冲突失败。
+	h, err := syscall.CreateFile(p, syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil,
 		syscall.OPEN_EXISTING, syscall.FILE_ATTRIBUTE_NORMAL, 0)
 	if err != nil {
-		t.Skipf("独占打开文件失败: %v", err)
+		t.Skipf("共享读锁打开文件失败: %v", err)
 	}
 	// 探针：锁应令 Rename 失败，否则环境不执行共享锁语义
 	tmp := path + ".probe"
