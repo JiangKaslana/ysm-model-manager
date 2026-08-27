@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-func lockFileExclusive(t *testing.T, path string) {
+func lockFileAgainstRename(t *testing.T, path string) {
 	t.Helper()
 	p, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
@@ -60,7 +60,7 @@ func TestRemoveRepoDuplicates_FailureReported(t *testing.T) {
 		}
 	}
 	// 锁定一个源文件 → 其 Move 必败；另一个正常清理
-	lockFileExclusive(t, filepath.Join(dir, "a.bin"))
+	lockFileAgainstRename(t, filepath.Join(dir, "a.bin"))
 
 	var failures []string
 	logger := func(name, src, dst string, size int64, status, msg string) {
